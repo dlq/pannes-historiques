@@ -7,8 +7,7 @@ from typing import Any
 
 from .addressing import NormalizedAddress, normalize_address
 from .config import ensure_directories
-from .db import open_db
-from .db import initialize
+from .db import initialize, open_db
 from .geocoding import GeocodingService, haversine_meters
 from .hydro import HydroCollector
 
@@ -102,7 +101,9 @@ class AppService:
         geocode = self._geocode_dict(geocode)
 
         address_id, cache_hit = self._upsert_address(normalized, geocode)
-        matches = self._find_matches(address_id, geocode["latitude"], geocode["longitude"], radius_m, days, include_planned)
+        matches = self._find_matches(
+            address_id, geocode["latitude"], geocode["longitude"], radius_m, days, include_planned
+        )
         outage_matches = [item for item in matches if item["outage_kind"] == "outage"]
         planned_matches = [item for item in matches if item["outage_kind"] == "planned"]
         self._save_matches(address_id, matches)
@@ -131,7 +132,9 @@ class AppService:
 
     def collector_status(self) -> dict[str, Any]:
         with open_db(self.settings.db_path) as connection:
-            count = connection.execute("SELECT COUNT(*) AS count FROM raw_snapshots").fetchone()["count"]
+            count = connection.execute("SELECT COUNT(*) AS count FROM raw_snapshots").fetchone()[
+                "count"
+            ]
             latest = connection.execute(
                 "SELECT source_type, source_version, fetched_at FROM raw_snapshots ORDER BY fetched_at DESC LIMIT 1"
             ).fetchone()
@@ -146,10 +149,18 @@ class AppService:
 
     def coverage_stats(self) -> dict[str, Any]:
         with open_db(self.settings.db_path) as connection:
-            outage_count = connection.execute("SELECT COUNT(*) AS count FROM outage_records").fetchone()["count"]
-            planned_count = connection.execute("SELECT COUNT(*) AS count FROM planned_interruptions").fetchone()["count"]
-            event_count = connection.execute("SELECT COUNT(*) AS count FROM resolved_events").fetchone()["count"]
-            geometry_count = connection.execute("SELECT COUNT(*) AS count FROM outage_geometries").fetchone()["count"]
+            outage_count = connection.execute(
+                "SELECT COUNT(*) AS count FROM outage_records"
+            ).fetchone()["count"]
+            planned_count = connection.execute(
+                "SELECT COUNT(*) AS count FROM planned_interruptions"
+            ).fetchone()["count"]
+            event_count = connection.execute(
+                "SELECT COUNT(*) AS count FROM resolved_events"
+            ).fetchone()["count"]
+            geometry_count = connection.execute(
+                "SELECT COUNT(*) AS count FROM outage_geometries"
+            ).fetchone()["count"]
             outage_range = connection.execute(
                 "SELECT MIN(outage_start_time) AS min_time, MAX(outage_start_time) AS max_time FROM outage_records"
             ).fetchone()
@@ -183,7 +194,9 @@ class AppService:
             "raw_json": geocode.raw_json,
         }
 
-    def _upsert_address(self, normalized: NormalizedAddress, geocode: dict[str, Any]) -> tuple[int, bool]:
+    def _upsert_address(
+        self, normalized: NormalizedAddress, geocode: dict[str, Any]
+    ) -> tuple[int, bool]:
         geocode = self._geocode_dict(geocode)
         with open_db(self.settings.db_path) as connection:
             existing = connection.execute(
@@ -366,7 +379,9 @@ class AppService:
             )
             centroid_distance = None
             if row["centroid_lat"] is not None and row["centroid_lon"] is not None:
-                centroid_distance = haversine_meters(latitude, longitude, row["centroid_lat"], row["centroid_lon"])
+                centroid_distance = haversine_meters(
+                    latitude, longitude, row["centroid_lat"], row["centroid_lon"]
+                )
             match_type = None
             confidence = 0.0
             geometry_id = None
@@ -387,19 +402,31 @@ class AppService:
                     "outage_kind": outage_kind,
                     "record_id": row["id"],
                     "geometry_id": geometry_id,
-                    "geometry_geojson": geometry_match["geometry_geojson"] if geometry_match else None,
+                    "geometry_geojson": geometry_match["geometry_geojson"]
+                    if geometry_match
+                    else None,
                     "match_type": match_type,
-                    "distance_m": round(centroid_distance, 1) if centroid_distance is not None else None,
+                    "distance_m": round(centroid_distance, 1)
+                    if centroid_distance is not None
+                    else None,
                     "confidence": round(confidence, 2),
                     "municipality_code": row["municipality_code"],
                     "customers_affected": row["customers_affected"],
                     "status": row["status"],
-                    "interruption_type": row["interruption_type"] if outage_kind == "outage" else "AIP",
-                    "start_time": row["outage_start_time"] if outage_kind == "outage" else row["scheduled_start"],
-                    "end_time": row["estimated_restore_time"] if outage_kind == "outage" else row["scheduled_end"],
+                    "interruption_type": row["interruption_type"]
+                    if outage_kind == "outage"
+                    else "AIP",
+                    "start_time": row["outage_start_time"]
+                    if outage_kind == "outage"
+                    else row["scheduled_start"],
+                    "end_time": row["estimated_restore_time"]
+                    if outage_kind == "outage"
+                    else row["scheduled_end"],
                     "centroid_lat": row["centroid_lat"],
                     "centroid_lon": row["centroid_lon"],
-                    "sort_time": row["outage_start_time"] if outage_kind == "outage" else row["scheduled_start"],
+                    "sort_time": row["outage_start_time"]
+                    if outage_kind == "outage"
+                    else row["scheduled_start"],
                 }
             )
         return results
@@ -413,7 +440,9 @@ class AppService:
         row_centroid_lat: float | None,
         row_centroid_lon: float | None,
     ) -> dict[str, Any] | None:
-        same_version_rows = [row for row in geometry_rows if row["source_version"] == source_version]
+        same_version_rows = [
+            row for row in geometry_rows if row["source_version"] == source_version
+        ]
         if not same_version_rows:
             return None
 
@@ -421,7 +450,10 @@ class AppService:
             if row["source_version"] != source_version:
                 continue
             if row["bbox_min_lon"] is not None:
-                if not (row["bbox_min_lon"] <= longitude <= row["bbox_max_lon"] and row["bbox_min_lat"] <= latitude <= row["bbox_max_lat"]):
+                if not (
+                    row["bbox_min_lon"] <= longitude <= row["bbox_max_lon"]
+                    and row["bbox_min_lat"] <= latitude <= row["bbox_max_lat"]
+                ):
                     continue
             geojson = json.loads(row["geometry_geojson"])
             polygon = geojson["coordinates"][0]

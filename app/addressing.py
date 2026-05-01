@@ -4,7 +4,6 @@ import re
 import unicodedata
 from dataclasses import dataclass
 
-
 POSTAL_RE = re.compile(r"\b([A-Z]\d[A-Z]\s?\d[A-Z]\d)\b", re.IGNORECASE)
 
 

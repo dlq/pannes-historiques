@@ -2,12 +2,10 @@ from __future__ import annotations
 
 import argparse
 import json
-from wsgiref.simple_server import make_server
 
 from app.config import Settings
-from app.web import create_app
-from app.web import serialize_payload
 from app.services import AppService
+from app.web import create_app, serialize_payload
 
 
 def main() -> None:
@@ -27,9 +25,7 @@ def main() -> None:
         return
 
     app = create_app(settings)
-    with make_server(settings.host, settings.port, app) as server:
-        print(f"Serving on http://{settings.host}:{settings.port}")
-        server.serve_forever()
+    app.run(host=settings.host, port=settings.port, debug=True)
 
 
 if __name__ == "__main__":

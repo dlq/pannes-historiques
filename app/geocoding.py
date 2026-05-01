@@ -8,10 +8,8 @@ import urllib.request
 from dataclasses import dataclass
 from typing import Any
 
-from .addressing import NormalizedAddress
-from .addressing import normalize_text
+from .addressing import NormalizedAddress, normalize_text
 from .db import open_db
-
 
 QUEBEC_CITY_CENTROIDS = {
     "montreal": (45.5019, -73.5674),
@@ -86,7 +84,9 @@ class GeocodingService:
             ranked = [item for item in suggestions if item["_score"] > 0]
             ranked.sort(key=lambda item: (item["_score"], item["label"]), reverse=True)
             if ranked:
-                results = [{k: v for k, v in item.items() if k != "_score"} for item in ranked[:limit]]
+                results = [
+                    {k: v for k, v in item.items() if k != "_score"} for item in ranked[:limit]
+                ]
                 self._suggest_cache[cache_key] = (time.time(), results)
                 return results
         self._suggest_cache[cache_key] = (time.time(), [])
@@ -216,7 +216,9 @@ class GeocodingService:
         normalized: NormalizedAddress,
     ) -> GeocodeResult:
         address = item.get("address", {})
-        quality = "address" if item.get("type") in {"house", "residential", "building"} else "locality"
+        quality = (
+            "address" if item.get("type") in {"house", "residential", "building"} else "locality"
+        )
         importance = float(item.get("importance", 0.4))
         return GeocodeResult(
             provider="nominatim",
@@ -237,7 +239,9 @@ class GeocodingService:
         address = item.get("address", {})
         house_number = address.get("house_number", "")
         road = address.get("road", "") or item.get("name", "")
-        line = " ".join(part for part in [house_number, road] if part).strip() or item.get("display_name", "")
+        line = " ".join(part for part in [house_number, road] if part).strip() or item.get(
+            "display_name", ""
+        )
         city = address.get("city") or address.get("town") or address.get("village") or ""
         province = address.get("state", "")
         postal_code = address.get("postcode", "")

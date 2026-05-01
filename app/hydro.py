@@ -13,7 +13,6 @@ from typing import Any
 
 from .db import open_db
 
-
 HYDRO_ROOT = "https://pannes.hydroquebec.com/pannes/donnees/v3_0"
 
 
@@ -96,11 +95,12 @@ class HydroCollector:
         content_type: str,
         extension: str,
     ) -> Snapshot:
-        stem = source_type.replace("markers", "markers").replace("poly", "poly")
         dated = fetched_at.split("T", 1)[0]
         if source_type.endswith("version"):
             file_name = f"time={fetched_at.replace(':', '-')}.{extension}"
-            path = self.settings.raw_dir / "hydro_quebec" / source_type / f"date={dated}" / file_name
+            path = (
+                self.settings.raw_dir / "hydro_quebec" / source_type / f"date={dated}" / file_name
+            )
         else:
             file_name = f"version={version}.{extension}"
             path = self.settings.raw_dir / "hydro_quebec" / source_type / file_name
@@ -183,7 +183,9 @@ class HydroCollector:
                             json.dumps(record, ensure_ascii=True),
                         ),
                     )
-                    self._upsert_resolved_event(connection, "outage", snapshot.version, snapshot.fetched_at, record)
+                    self._upsert_resolved_event(
+                        connection, "outage", snapshot.version, snapshot.fetched_at, record
+                    )
             else:
                 rows = data if isinstance(data, list) else data.get("interruptions", [])
                 for index, record in enumerate(rows):
@@ -218,7 +220,9 @@ class HydroCollector:
                             json.dumps(record, ensure_ascii=True),
                         ),
                     )
-                    self._upsert_resolved_event(connection, "planned", snapshot.version, snapshot.fetched_at, record)
+                    self._upsert_resolved_event(
+                        connection, "planned", snapshot.version, snapshot.fetched_at, record
+                    )
 
     def _upsert_resolved_event(
         self,
@@ -253,7 +257,9 @@ class HydroCollector:
             (event_key,),
         ).fetchone()
         if existing:
-            versions = sorted(set(filter(None, (existing["source_versions"] or "").split(",") + [source_version])))
+            versions = sorted(
+                set(filter(None, (existing["source_versions"] or "").split(",") + [source_version]))
+            )
             connection.execute(
                 """
                 UPDATE resolved_events

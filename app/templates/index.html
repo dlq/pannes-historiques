@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ t(lang, "app_title") }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <link rel="stylesheet"
+          href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          crossorigin="">
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+    <script type="module" src="{{ url_for('static', filename='app.js') }}"></script>
+  </head>
+  <body class="min-h-screen bg-stone-100 text-slate-900">
+    <main class="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
+      <header class="mb-8 rounded-[2rem] bg-[radial-gradient(circle_at_top_left,_#fef3c7,_transparent_35%),linear-gradient(135deg,_#1f2937,_#334155)] p-6 text-white shadow-xl">
+        <div class="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+          <div class="max-w-3xl">
+            <p class="mb-3 text-xs uppercase tracking-[0.3em] text-amber-200">{{ settings.app_name }}</p>
+            <h1 class="text-3xl font-semibold sm:text-4xl">{{ t(lang, "hero_title") }}</h1>
+            <p class="mt-3 max-w-2xl text-sm text-slate-200 sm:text-base">{{ t(lang, "hero_body") }}</p>
+          </div>
+          <form id="language-form"
+                class="rounded-2xl bg-white/10 p-3 backdrop-blur"
+                method="get"
+                action="{{ url_for('index') }}">
+            <label class="mb-2 block text-xs uppercase tracking-[0.2em] text-slate-200">{{ t(lang, "language") }}</label>
+            <div class="flex gap-2">
+              <button name="lang"
+                      value="fr"
+                      class="rounded-full px-4 py-2 text-sm {{ 'bg-amber-300 text-slate-900' if lang == 'fr' else 'bg-white/10 text-white' }}">
+                {{ t(lang, "french") }}
+              </button>
+              <button name="lang"
+                      value="en"
+                      class="rounded-full px-4 py-2 text-sm {{ 'bg-amber-300 text-slate-900' if lang == 'en' else 'bg-white/10 text-white' }}">
+                {{ t(lang, "english") }}
+              </button>
+            </div>
+            <input type="hidden" name="q" value="{{ initial_query }}" data-sync="q">
+            <input type="hidden"
+                   name="radius_m"
+                   value="{{ radius_m }}"
+                   data-sync="radius_m">
+            <input type="hidden" name="days" value="{{ days }}" data-sync="days">
+            <input type="hidden"
+                   name="include_planned"
+                   value="{{ '1' if include_planned else '0' }}"
+                   data-sync="include_planned">
+          </form>
+        </div>
+      </header>
+      <section class="mb-6 rounded-[2rem] bg-white p-5 shadow-sm ring-1 ring-slate-200">
+        <form id="search-form"
+              class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_160px_140px_auto]"
+              hx-post="{{ url_for('search') }}"
+              hx-target="#results"
+              hx-swap="innerHTML">
+          <input type="hidden" name="lang" value="{{ lang }}">
+          <label class="block">
+            <span class="mb-2 block text-sm font-medium text-slate-700">{{ t(lang, "search_label") }}</span>
+            <div class="relative">
+              <input id="address-input"
+                     name="q"
+                     value="{{ initial_query }}"
+                     required
+                     autocomplete="off"
+                     data-autocomplete-url="{{ url_for('autocomplete') }}"
+                     data-lang="{{ lang }}"
+                     placeholder="{{ t(lang, 'search_placeholder') }}"
+                     class="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm shadow-sm outline-none ring-0 focus:border-amber-500">
+              <div id="address-suggestions"
+                   class="absolute left-0 right-0 top-full z-20 mt-2 hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">
+              </div>
+            </div>
+          </label>
+          <label class="block">
+            <span class="mb-2 block text-sm font-medium text-slate-700">{{ t(lang, "radius_label") }}</span>
+            <select name="radius_m"
+                    class="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm shadow-sm">
+              {% for option in radius_options %}
+                <option value="{{ option }}" {{ "selected" if radius_m == option else "" }}>{{ option if option < 1000 else option / 1000 }} {{ "m" if option < 1000 else "km" }}
+                </option>
+              {% endfor %}
+            </select>
+          </label>
+          <label class="block">
+            <span class="mb-2 block text-sm font-medium text-slate-700">{{ t(lang, "days_label") }}</span>
+            <select name="days"
+                    class="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm shadow-sm">
+              {% for option in days_options %}
+                <option value="{{ option }}" {{ "selected" if days == option else "" }}>{{ "5 y (requested)" if option == 1825 else option ~ " d" }}
+                </option>
+              {% endfor %}
+            </select>
+          </label>
+          <div class="flex flex-col justify-end gap-3">
+            <label class="flex items-center gap-2 text-sm text-slate-700">
+              <input type="checkbox"
+                     name="include_planned"
+                     value="1"
+                     {{ "checked" if include_planned else "" }}
+                     class="rounded border-slate-300 text-amber-500">
+              <span>{{ t(lang, "include_planned") }}</span>
+            </label>
+            <button class="rounded-2xl bg-slate-900 px-5 py-3 text-sm font-medium text-white shadow-sm transition hover:bg-slate-700">
+              {{ t(lang, "search_button") }}
+            </button>
+          </div>
+        </form>
+      </section>
+      <section id="results">
+        {% if result_context %}
+          {% with archive_span=result_context.archive_span,
+            display_address=result_context.display_address,
+            error_message=result_context.error_message,
+            lang=result_context.lang,
+            map_payload=result_context.map_payload,
+            max_distance=result_context.max_distance,
+            planned_span=result_context.planned_span,
+            result=result_context.result %}
+            {% include "_results.html" %}
+          {% endwith %}
+        {% else %}
+          {% include "_empty_state.html" %}
+        {% endif %}
+      </section>
+      <footer class="mt-8 px-2 text-sm text-slate-600">
+        {{ t(lang, "footer_note") }}
+      </footer>
+    </main>
+  </body>
+</html>

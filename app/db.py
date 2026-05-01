@@ -4,7 +4,6 @@ import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
 
-
 SCHEMA = """
 PRAGMA foreign_keys = ON;
 
@@ -192,4 +191,3 @@ def open_db(db_path: Path):
         connection.commit()
     finally:
         connection.close()
-

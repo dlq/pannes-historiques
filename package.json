@@ -1,0 +1,14 @@
+{
+  "name": "pannes-historiques",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "format": "biome format --write app/static",
+    "lint": "biome lint app/static",
+    "check": "biome check app/static"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4"
+  }
+}

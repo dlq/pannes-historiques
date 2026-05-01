@@ -1,0 +1,40 @@
+[project]
+name = "pannes-historiques"
+version = "0.1.0"
+description = "Address-first Hydro-Quebec outage history prototype."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+  "flask>=3.1.0",
+]
+
+[dependency-groups]
+dev = [
+  "djlint>=1.36.4",
+  "ruff>=0.11.0",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+  "E",
+  "F",
+  "I",
+  "UP",
+  "B",
+]
+ignore = ["E501"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.djlint]
+profile = "jinja"
+extension = "html"
+indent = 2
+max_line_length = 120
+ignore = "H006,H030,H031"

@@ -4,6 +4,7 @@ Address-first Hydro-Quebec outage history prototype built from the `plan.md` dir
 
 ## What is implemented
 
+- Flask app factory with Jinja templates and static assets
 - bilingual French/English server-rendered UI
 - HTMX search flow
 - plain Web Components for timeline, cache freshness, and map shell
@@ -17,18 +18,40 @@ Address-first Hydro-Quebec outage history prototype built from the `plan.md` dir
 ## Run
 
 ```bash
-python3 server.py serve
+uv run python server.py serve
 ```
 
 Then open [http://127.0.0.1:8000](http://127.0.0.1:8000).
 
+You can also run the Flask app directly:
+
+```bash
+uv run flask --app app run --debug --host 127.0.0.1 --port 8000
+```
+
 ## Collect live Hydro-Quebec data
 
 ```bash
-python3 server.py collect
+uv run python server.py collect
 ```
 
 This stores raw files under `data/raw/hydro_quebec/` and ingests normalized records into `data/app.db`.
+
+## Tooling
+
+```bash
+uv sync
+uv run ruff check .
+uv run ruff format .
+uv run djlint app/templates --lint
+uv run djlint app/templates --reformat
+npm install
+npm run check
+```
+
+Python dependencies and commands are managed by `uv`. Python linting and formatting use Ruff.
+Jinja template linting and formatting use djLint. JavaScript linting and formatting for
+`app/static/` use Biome.
 
 ## Notes
 
