@@ -173,15 +173,18 @@ class OutageMap extends HTMLElement {
       bounds.push(data.center);
     }
     for (const item of data.matches || []) {
-      const color = item.kind === "planned" ? "#0ea5e9" : "#f59e0b";
+      const color =
+        item.kind === "planned" ? "#0ea5e9" : item.kind === "disclosure" ? "#10b981" : "#f59e0b";
       let rendered = false;
       if (item.geometry && item.geometry.type === "Polygon") {
+        const isDisclosure = item.kind === "disclosure";
         const layer = L.geoJSON(item.geometry, {
           style: {
             color,
-            weight: item.matchType === "direct_match" ? 3 : 2,
+            weight: isDisclosure ? 4 : item.matchType === "direct_match" ? 3 : 2,
+            dashArray: isDisclosure ? "8 5" : null,
             fillColor: color,
-            fillOpacity: item.kind === "planned" ? 0.16 : 0.22,
+            fillOpacity: isDisclosure ? 0.34 : item.kind === "planned" ? 0.16 : 0.22,
           },
         }).addTo(map);
         layer.bindPopup(`${item.kind}: ${item.label || ""}`);
@@ -190,17 +193,40 @@ class OutageMap extends HTMLElement {
           bounds.push(layerBounds.getSouthWest());
           bounds.push(layerBounds.getNorthEast());
         }
+        if (isDisclosure) layer.bringToFront();
+        rendered = true;
+      }
+      if (item.geometry && item.geometry.type === "MultiPolygon") {
+        const layer = L.geoJSON(item.geometry, {
+          style: {
+            color,
+            weight: 4,
+            dashArray: "8 5",
+            fillColor: color,
+            fillOpacity: 0.34,
+          },
+        }).addTo(map);
+        layer.bindPopup(`${item.kind}: ${item.label || ""}`);
+        const layerBounds = layer.getBounds();
+        if (layerBounds.isValid()) {
+          bounds.push(layerBounds.getSouthWest());
+          bounds.push(layerBounds.getNorthEast());
+        }
+        layer.bringToFront();
         rendered = true;
       }
       if (!rendered && item.lat != null && item.lon != null) {
-        L.circleMarker([item.lat, item.lon], {
-          radius: item.matchType === "direct_match" ? 8 : 6,
+        const isDisclosure = item.kind === "disclosure";
+        const marker = L.circleMarker([item.lat, item.lon], {
+          radius: isDisclosure ? 12 : item.matchType === "direct_match" ? 8 : 6,
           color,
+          weight: isDisclosure ? 3 : 2,
           fillColor: color,
-          fillOpacity: 0.65,
+          fillOpacity: isDisclosure ? 0.82 : 0.65,
         })
           .addTo(map)
           .bindPopup(`${item.kind}: ${item.label || ""}`);
+        if (isDisclosure) marker.bringToFront();
         bounds.push([item.lat, item.lon]);
       }
     }

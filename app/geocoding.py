@@ -23,6 +23,14 @@ QUEBEC_CITY_CENTROIDS = {
     "trois rivieres": (46.3430, -72.5430),
     "levis": (46.7388, -71.2466),
     "saguenay": (48.4281, -71.0681),
+    "cote saint-luc": (45.4687, -73.6659),
+    "cote saint luc": (45.4687, -73.6659),
+    "outremont": (45.5189, -73.6072),
+    "saint-felix-de-kingsey": (45.8001, -72.1809),
+    "saint felix de kingsey": (45.8001, -72.1809),
+    "sheenboro": (45.9669, -76.8169),
+    "chichester": (45.9833, -76.8833),
+    "waltham": (45.9167, -76.9167),
 }
 
 

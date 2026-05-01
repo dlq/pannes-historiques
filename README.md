@@ -14,6 +14,9 @@ Address-first Hydro-Quebec outage history prototype built from the `plan.md` dir
 - address normalization and cached geocoding with Nominatim plus a Quebec city-centroid fallback
 - address-to-outage matching using polygon containment, centroid radius, and municipality fallback
 - first-pass resolved event deduplication across repeated snapshots
+- access-to-information disclosure source registry
+- XLSX ingestion for published historical outage extracts
+- separate display of disclosed area-level historical context alongside live/API-derived matches
 
 ## Run
 
@@ -36,6 +39,16 @@ uv run python server.py collect
 ```
 
 This stores raw files under `data/raw/hydro_quebec/` and ingests normalized records into `data/app.db`.
+
+## Collect published access-to-information disclosures
+
+```bash
+uv run python server.py collect-disclosures
+```
+
+This stores raw disclosure files under `data/raw/hydro_quebec/access_disclosures/`,
+registers PDF sources for provenance, and ingests supported row-level XLSX extracts into
+`disclosure_outage_events`.
 
 ## Tooling
 

@@ -160,10 +160,94 @@ CREATE TABLE IF NOT EXISTS resolved_events (
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS disclosure_sources (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    dai_number TEXT NOT NULL,
+    title TEXT NOT NULL,
+    source_url TEXT,
+    attachment_url TEXT NOT NULL UNIQUE,
+    format TEXT NOT NULL,
+    published_date TEXT,
+    transmitted_date TEXT,
+    geography_label TEXT NOT NULL,
+    geography_type TEXT NOT NULL,
+    extraction_method TEXT NOT NULL,
+    precision_label TEXT NOT NULL,
+    notes TEXT,
+    payload_path TEXT,
+    sha256 TEXT,
+    fetched_at TEXT,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS disclosure_outage_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    source_id INTEGER NOT NULL REFERENCES disclosure_sources(id),
+    source_row_id TEXT NOT NULL,
+    start_time TEXT,
+    end_time TEXT,
+    duration_seconds INTEGER,
+    duration_hours REAL,
+    customers_affected INTEGER,
+    interruption_type TEXT,
+    cause TEXT,
+    equipment TEXT,
+    cause_group TEXT,
+    category TEXT,
+    geography_label TEXT NOT NULL,
+    geography_type TEXT NOT NULL,
+    centroid_lon REAL,
+    centroid_lat REAL,
+    precision_label TEXT NOT NULL,
+    raw_row_json TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(source_id, source_row_id)
+);
+
+CREATE TABLE IF NOT EXISTS disclosure_annual_metrics (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    source_id INTEGER NOT NULL REFERENCES disclosure_sources(id),
+    year INTEGER,
+    period_label TEXT,
+    geography_label TEXT NOT NULL,
+    geography_type TEXT NOT NULL,
+    outage_count INTEGER,
+    average_duration_minutes REAL,
+    continuity_index_minutes REAL,
+    long_outage_count INTEGER,
+    notes TEXT,
+    raw_row_json TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(source_id, year, period_label, geography_label)
+);
+
+CREATE TABLE IF NOT EXISTS disclosure_geometries (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    source_id INTEGER NOT NULL REFERENCES disclosure_sources(id),
+    geography_label TEXT NOT NULL,
+    geography_type TEXT NOT NULL,
+    geometry_source TEXT NOT NULL,
+    geometry_geojson TEXT NOT NULL,
+    centroid_lon REAL,
+    centroid_lat REAL,
+    bbox_min_lon REAL,
+    bbox_min_lat REAL,
+    bbox_max_lon REAL,
+    bbox_max_lat REAL,
+    raw_json TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(source_id, geography_label, geometry_source)
+);
+
 CREATE INDEX IF NOT EXISTS idx_query_history_address ON query_history(address_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_outage_records_centroid ON outage_records(centroid_lat, centroid_lon);
 CREATE INDEX IF NOT EXISTS idx_planned_interruptions_centroid ON planned_interruptions(centroid_lat, centroid_lon);
 CREATE INDEX IF NOT EXISTS idx_raw_snapshots_source ON raw_snapshots(source_type, fetched_at DESC);
+CREATE INDEX IF NOT EXISTS idx_disclosure_events_time ON disclosure_outage_events(start_time DESC);
+CREATE INDEX IF NOT EXISTS idx_disclosure_events_geo ON disclosure_outage_events(geography_label, geography_type);
+CREATE INDEX IF NOT EXISTS idx_disclosure_geometries_source ON disclosure_geometries(source_id);
 """
 
 

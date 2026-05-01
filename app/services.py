@@ -5,9 +5,10 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from .addressing import NormalizedAddress, normalize_address
+from .addressing import NormalizedAddress, normalize_address, normalize_text
 from .config import ensure_directories
 from .db import initialize, open_db
+from .disclosures import DisclosureCollector
 from .geocoding import GeocodingService, haversine_meters
 from .hydro import HydroCollector
 
@@ -39,6 +40,8 @@ class SearchResult:
     coverage: dict[str, Any]
     outage_matches: list[dict[str, Any]]
     planned_matches: list[dict[str, Any]]
+    disclosure_matches: list[dict[str, Any]]
+    disclosure_metrics: list[dict[str, Any]]
     error: str | None = None
 
 
@@ -49,9 +52,13 @@ class AppService:
         initialize(settings.db_path)
         self.geocoder = GeocodingService(settings)
         self.collector = HydroCollector(settings)
+        self.disclosure_collector = DisclosureCollector(settings)
 
     def collect(self) -> dict[str, Any]:
         return self.collector.collect_all()
+
+    def collect_disclosures(self) -> dict[str, Any]:
+        return self.disclosure_collector.collect_all()
 
     def maybe_refresh(self) -> dict[str, Any] | None:
         with open_db(self.settings.db_path) as connection:
@@ -96,6 +103,8 @@ class AppService:
                 coverage=self.coverage_stats(),
                 outage_matches=[],
                 planned_matches=[],
+                disclosure_matches=[],
+                disclosure_metrics=[],
                 error="geocode_failed",
             )
         geocode = self._geocode_dict(geocode)
@@ -106,6 +115,13 @@ class AppService:
         )
         outage_matches = [item for item in matches if item["outage_kind"] == "outage"]
         planned_matches = [item for item in matches if item["outage_kind"] == "planned"]
+        disclosure_matches = self._find_disclosure_matches(
+            normalized=normalized,
+            geocode=geocode,
+            radius_m=radius_m,
+            days=days,
+        )
+        disclosure_metrics = self._find_disclosure_metrics(normalized=normalized, geocode=geocode)
         self._save_matches(address_id, matches)
         query_count = self._record_query(
             address_id=address_id,
@@ -128,6 +144,8 @@ class AppService:
             coverage=self.coverage_stats(),
             outage_matches=outage_matches,
             planned_matches=planned_matches,
+            disclosure_matches=disclosure_matches,
+            disclosure_metrics=disclosure_metrics,
         )
 
     def collector_status(self) -> dict[str, Any]:
@@ -161,6 +179,15 @@ class AppService:
             geometry_count = connection.execute(
                 "SELECT COUNT(*) AS count FROM outage_geometries"
             ).fetchone()["count"]
+            disclosure_source_count = connection.execute(
+                "SELECT COUNT(*) AS count FROM disclosure_sources"
+            ).fetchone()["count"]
+            disclosure_event_count = connection.execute(
+                "SELECT COUNT(*) AS count FROM disclosure_outage_events"
+            ).fetchone()["count"]
+            disclosure_metric_count = connection.execute(
+                "SELECT COUNT(*) AS count FROM disclosure_annual_metrics"
+            ).fetchone()["count"]
             outage_range = connection.execute(
                 "SELECT MIN(outage_start_time) AS min_time, MAX(outage_start_time) AS max_time FROM outage_records"
             ).fetchone()
@@ -176,6 +203,9 @@ class AppService:
             "outage_max_time": outage_range["max_time"] if outage_range else None,
             "planned_min_time": planned_range["min_time"] if planned_range else None,
             "planned_max_time": planned_range["max_time"] if planned_range else None,
+            "disclosure_source_count": int(disclosure_source_count),
+            "disclosure_event_count": int(disclosure_event_count),
+            "disclosure_metric_count": int(disclosure_metric_count),
         }
 
     @staticmethod
@@ -527,3 +557,120 @@ class AppService:
             "nearby_match": 2,
             "area_match": 1,
         }.get(match_type, 0)
+
+    def _find_disclosure_matches(
+        self,
+        *,
+        normalized: NormalizedAddress,
+        geocode: dict[str, Any],
+        radius_m: int,
+        days: int,
+    ) -> list[dict[str, Any]]:
+        cutoff = (datetime.now(UTC) - timedelta(days=days)).strftime("%Y-%m-%d %H:%M:%S")
+        haystack = self._area_haystack(normalized, geocode)
+        rows = []
+        with open_db(self.settings.db_path) as connection:
+            candidates = connection.execute(
+                """
+                SELECT e.*, s.dai_number, s.title, s.attachment_url, s.notes,
+                       g.geometry_geojson AS disclosure_geometry_geojson,
+                       g.centroid_lon AS disclosure_geometry_centroid_lon,
+                       g.centroid_lat AS disclosure_geometry_centroid_lat
+                FROM disclosure_outage_events e
+                JOIN disclosure_sources s ON s.id = e.source_id
+                LEFT JOIN disclosure_geometries g
+                  ON g.source_id = s.id
+                 AND g.geography_label = s.geography_label
+                WHERE COALESCE(e.start_time, '') >= ?
+                ORDER BY COALESCE(e.start_time, e.created_at) DESC
+                LIMIT 500
+                """,
+                (cutoff,),
+            ).fetchall()
+        for row in candidates:
+            item = dict(row)
+            centroid_lat = item["disclosure_geometry_centroid_lat"] or item["centroid_lat"]
+            centroid_lon = item["disclosure_geometry_centroid_lon"] or item["centroid_lon"]
+            distance_m = None
+            if centroid_lat is not None and centroid_lon is not None:
+                distance_m = haversine_meters(
+                    geocode["latitude"],
+                    geocode["longitude"],
+                    centroid_lat,
+                    centroid_lon,
+                )
+            normalized_geo = normalize_text(item["geography_label"])
+            area_hit = normalized_geo and normalized_geo in haystack
+            distance_hit = distance_m is not None and distance_m <= max(radius_m, 7500)
+            if not area_hit and not distance_hit:
+                continue
+            confidence = 0.58 if area_hit else 0.46
+            if item["geography_type"] in {"region", "province"}:
+                confidence = 0.32
+            rows.append(
+                {
+                    "outage_kind": "disclosure",
+                    "record_id": item["id"],
+                    "match_type": "disclosure_area_context",
+                    "distance_m": round(distance_m, 1) if distance_m is not None else None,
+                    "confidence": confidence,
+                    "municipality_code": item["geography_label"],
+                    "customers_affected": item["customers_affected"],
+                    "status": item["precision_label"],
+                    "interruption_type": item["interruption_type"] or "historical_disclosure",
+                    "start_time": item["start_time"],
+                    "end_time": item["end_time"],
+                    "duration_seconds": item["duration_seconds"],
+                    "cause": item["cause"],
+                    "equipment": item["equipment"],
+                    "category": item["category"],
+                    "source_dai": item["dai_number"],
+                    "source_title": item["title"],
+                    "source_url": item["attachment_url"],
+                    "geography_type": item["geography_type"],
+                    "precision_label": item["precision_label"],
+                    "geometry_geojson": json.loads(item["disclosure_geometry_geojson"])
+                    if item["disclosure_geometry_geojson"]
+                    else None,
+                    "centroid_lat": centroid_lat,
+                    "centroid_lon": centroid_lon,
+                    "sort_time": item["start_time"],
+                }
+            )
+        return rows[:36]
+
+    def _find_disclosure_metrics(
+        self, *, normalized: NormalizedAddress, geocode: dict[str, Any]
+    ) -> list[dict[str, Any]]:
+        haystack = self._area_haystack(normalized, geocode)
+        with open_db(self.settings.db_path) as connection:
+            rows = connection.execute(
+                """
+                SELECT m.*, s.dai_number, s.title, s.attachment_url
+                FROM disclosure_annual_metrics m
+                JOIN disclosure_sources s ON s.id = m.source_id
+                ORDER BY COALESCE(m.year, 0) DESC
+                LIMIT 200
+                """
+            ).fetchall()
+        results = []
+        for row in rows:
+            item = dict(row)
+            if normalize_text(item["geography_label"]) not in haystack:
+                continue
+            results.append(item)
+        return results[:12]
+
+    @staticmethod
+    def _area_haystack(normalized: NormalizedAddress, geocode: dict[str, Any]) -> str:
+        raw_json = geocode.get("raw_json") or {}
+        raw_text = json.dumps(raw_json, ensure_ascii=True) if isinstance(raw_json, dict) else ""
+        values = [
+            normalized.normalized_line,
+            normalized.city,
+            geocode.get("city", ""),
+            geocode.get("province", ""),
+            geocode.get("postal_code", ""),
+            raw_text,
+        ]
+        return normalize_text(" ".join(str(value) for value in values if value))

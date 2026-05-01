@@ -8,6 +8,12 @@
         <p class="text-xs uppercase tracking-[0.2em]">{{ t(lang, "service_scope") }}</p>
         <p class="mt-2 text-sm font-medium">{{ t(lang, "historic_limit") }}</p>
       </section>
+      <section class="rounded-[2rem] bg-white p-5 shadow-sm ring-1 ring-slate-200 lg:hidden">
+        <h3 class="text-lg font-semibold text-slate-900">{{ t(lang, "map_panel") }}</h3>
+        <p class="mt-2 text-sm text-slate-600">{{ t(lang, "confidence_note") }}</p>
+        <outage-map class="mt-4 block h-[28rem] overflow-hidden rounded-[1.5rem]" data-map='{{ map_payload | tojson }}'></outage-map>
+        <p class="mt-3 text-sm text-slate-500">{{ t(lang, "map_empty") if not map_payload.matches else "" }}</p>
+      </section>
       <section class="rounded-[2rem] bg-white p-5 shadow-sm ring-1 ring-slate-200">
         <div class="flex flex-wrap items-start justify-between gap-4">
           <div>
@@ -28,7 +34,7 @@
         </dl>
         <dl class="mt-4 grid gap-4 sm:grid-cols-2">
           {{ ui.stat_card(t(lang, "archive_span") , archive_span) }}
-          {{ ui.stat_card(t(lang, "planned_panel") , planned_span) }}
+          {{ ui.stat_card(t(lang, "disclosure_sources") , result.coverage.disclosure_source_count ~ " sources / " ~ result.coverage.disclosure_event_count ~ " events") }}
         </dl>
       </section>
       <section class="rounded-[2rem] bg-white p-5 shadow-sm ring-1 ring-slate-200">
@@ -46,9 +52,16 @@
         </div>
         <div class="space-y-3">{{ ui.match_rows(lang, result.planned_matches, t(lang, "planned_empty") ) }}</div>
       </section>
+      <section class="rounded-[2rem] bg-white p-5 shadow-sm ring-1 ring-slate-200">
+        <div class="mb-4 flex items-center justify-between gap-4">
+          <h3 class="text-lg font-semibold text-slate-900">{{ t(lang, "disclosure_panel") }}</h3>
+          <p class="text-sm text-slate-500">{{ t(lang, "disclosure_scope_note") }}</p>
+        </div>
+        <div class="space-y-3">{{ ui.disclosure_rows(lang, result.disclosure_matches, t(lang, "disclosure_empty") ) }}</div>
+      </section>
     </div>
     <div class="space-y-6">
-      <section class="rounded-[2rem] bg-white p-5 shadow-sm ring-1 ring-slate-200">
+      <section class="hidden rounded-[2rem] bg-white p-5 shadow-sm ring-1 ring-slate-200 lg:block">
         <h3 class="text-lg font-semibold text-slate-900">{{ t(lang, "map_panel") }}</h3>
         <p class="mt-2 text-sm text-slate-600">{{ t(lang, "confidence_note") }}</p>
         <outage-map class="mt-4 block h-[28rem] overflow-hidden rounded-[1.5rem]" data-map='{{ map_payload | tojson }}'></outage-map>

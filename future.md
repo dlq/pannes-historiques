@@ -1,212 +1,283 @@
 # Future: Where This Project Can Go
 
-Date: 2026-04-25
+Date: 2026-05-01
 
-## The real product question
+## The core product question has not changed
 
-The current prototype proves that the mechanics work:
-
-- we can collect live Hydro-Quebec outage data
-- we can archive raw snapshots
-- we can match a searched address to nearby outages
-- we can present a useful address-first interface
-
-That is a meaningful start.
-
-But it is not yet enough for the most compelling user question:
+The most important user question is still:
 
 `How likely is this area to lose power, based on what has happened before?`
 
-Right now, the main limitation is not UX or app structure. It is historical depth.
+That is still the right north star.
 
-Without a meaningful archive, the app can show:
+What has changed is that the path toward answering it looks better than it did before.
 
-- what is happening now
-- what we have observed since collection began
-- what we know near a searched address
+The project is no longer just:
 
-But it cannot yet make a strong claim about outage likelihood over time.
+- a live-feed collector
+- an address lookup UI
+- a long wait for our own archive to mature
 
-## What this means for the future
+It is becoming a more credible historical system with multiple ways to build evidence.
 
-I do think this project has a real future.
+## What is better now
 
-The address-first direction still feels right because it is intuitive, locally relevant, and different from a generic outage map. People do not naturally think in terms of Hydro-Quebec feed objects or polygon IDs. They think:
+There are three meaningful improvements in the project direction.
 
-- my address
-- my street
-- this neighborhood
-- this municipality
+### 1. The app already has the right honesty model
 
-So the product can become useful. The question is how to bridge the historical-data gap fast enough that it becomes useful before waiting one or two years for our own archive to mature.
+The product is now clearly structured around:
 
-## The key constraint
+- address-first lookup
+- bilingual UX
+- explicit coverage windows
+- explicit limits on what the archive does and does not contain
 
-There are really two different timelines:
+That matters a lot.
 
-1. Product timeline
-2. Data timeline
+One of the biggest risks for a project like this is overclaiming historical completeness. The current direction is better because it does not pretend to know more than it knows. It can say:
 
-The product timeline is short. The app itself could become public fairly soon.
+- here is what we know near this address
+- here is the time span our archive currently covers
+- here is when the latest snapshot was collected
+- here is the confidence level implied by the source data and matching method
 
-The data timeline is longer. If we depend only on our own collector, it may take one or two years before the historical layer becomes strong enough to support claims like:
+That is a strong foundation for trust.
 
-- this area has frequent outages
-- this sector tends to have longer restoration times
-- this address is more outage-prone than nearby areas
+### 2. The project now has a real middle path for history
 
-That mismatch matters. A polished UI cannot compensate for thin history.
+The biggest strategic update is the new research on published access-to-information disclosures.
 
-## The best strategic view
+That changes the outlook.
 
-The project should probably be treated as a **history-building system with a public product on top**, not just as a normal web app.
+Before, the historical-data strategy was mostly:
 
-That means its long-term value comes from combining:
+- collect from now on
+- ask Hydro-Quebec for backfill
 
-- ongoing live collection
-- raw archival discipline
-- address-based lookup UX
-- later derived analytics such as frequency, duration, and hotspot scoring
+Now there is an additional track:
 
-In other words:
+- ingest historical data that Hydro-Quebec has already disclosed in published PDF and XLSX responses
 
-- the app is the user-facing layer
-- the archive is the real moat
+This is not a complete province-wide archive, and it is not a substitute for the live Info-pannes feed. But it is much more important than it might look at first.
 
-## What to do about the missing history
+It proves at least four things:
 
-I would not wait passively for the archive to grow.
+- Hydro-Quebec has structured historical outage data internally
+- some of that history has already been released in row-level form
+- at least some requests can produce machine-readable extracts, not just PDFs
+- we can start compressing the "wait one or two years" problem right now
 
-The strongest path is to pursue three tracks in parallel.
+That is a meaningful shift in the future of the project.
 
-### Track 1: keep collecting immediately
+### 3. The app is starting to act like a system, not just a prototype
 
-This is non-negotiable.
+The codebase now has the pieces of a durable approach:
 
-Even if we later get historical backfill from Hydro-Quebec, we should still keep building our own archive now because:
+- raw snapshot archival
+- normalized database tables
+- geocoding and address normalization
+- derived address-to-outage matching
+- first-pass event resolution
+- UI surfacing for archive span and freshness
 
-- it guarantees forward coverage
-- it lets us validate any backfilled data against the live feed format
-- it builds operational experience with parsing, deduplication, and outage-event reconstruction
+That means the project has crossed an important line. It is no longer just testing whether the idea is plausible. It is starting to define the actual architecture of a long-lived historical product.
 
-If nothing else works, this becomes the seed of a valuable long-term dataset.
+## The future is now a three-track strategy
 
-### Track 2: request historical data from Hydro-Quebec
+The most useful way to think about the future is as three parallel data tracks feeding one public product.
 
-This is the fastest route to usefulness if it works.
+### Track A: live feed archival
 
-And in Quebec/Canada, this is generally not called a `FOIA` request. The usual term is:
+This remains the backbone.
 
-- `access to information request`
-- in French, `demande d'acces a l'information` or `demande d'acces a des documents`
+We should continue collecting the Hydro-Quebec public outage feeds on schedule and preserving the raw payloads exactly as received.
 
-For this project, I would actually try two approaches:
+This gives us:
 
-1. An informal or open-data-team request first
-2. A formal access-to-information request second if needed
+- forward coverage we control ourselves
+- defensible raw evidence
+- a canonical stream for rebuilding derived event logic later
+- the future basis for hotspot calculations and reliability metrics
 
-The informal/open-data route is attractive because it may be faster and more cooperative. The formal route is attractive because it creates a clearer process and deadline structure.
+No matter what else happens, this track should continue.
 
-The request should be framed very carefully. The goal is not:
+### Track B: published access-to-information disclosures
 
-- please invent a new analysis for me
+This is the new acceleration track.
 
-The goal is:
+It probably will not produce a complete historical map of Quebec in one step, but it can materially improve the usefulness of the product much sooner than waiting for our own archive to grow.
 
-- please provide any existing historical outage datasets, logs, exports, retention details, or data dictionaries already used for Info-pannes or related outage systems
+This track is promising because it includes:
 
-That framing matters because access regimes often require disclosure of existing records, but not creation of a brand-new dataset.
+- row-level municipal or borough outage tables in PDF
+- at least one XLSX extract with richer operational fields
+- annual regional aggregate metrics
+- disclosure letters that explain scope and terminology
 
-### Track 3: ship with explicit honesty about coverage
+That opens up a much more realistic intermediate future:
 
-If the site goes public before strong historical backfill exists, it should be honest about what it knows.
+- address-first history from the live archive where we have it
+- municipality or neighborhood history from disclosed records where available
+- regional benchmarks from aggregate disclosures
 
-That can still be useful if the product language is clear:
+In other words, the product does not need to choose between "almost no history" and "complete province-wide history." There is now a middle layer.
 
-- live outage status now
-- known outages observed since our archive start date
-- local outage history based on currently available records
-- confidence and completeness notes for each address
+### Track C: direct requests for deeper backfill
 
-That is a much stronger product stance than pretending we already know a full five-year risk profile.
+This still matters.
 
-## My view on whether to launch early
+The open-data request and, if needed, a formal access-to-information request are still worth pursuing because they remain the best path to a broader and cleaner historical dataset.
 
-I would be open to a limited early launch, but only if the framing is right.
+The important difference now is that those requests are no longer speculative in the same way. We have stronger evidence that:
 
-An early version is probably best positioned as:
+- the records exist
+- Hydro-Quebec can export them
+- some extracts have already been publicly disclosed
 
-- an address-based outage history prototype
-- a public archive that improves over time
-- a transparency tool showing what is known and unknown
+That should make future requests more concrete and better targeted.
 
-It is probably not yet best positioned as:
+## What the product can become before full backfill exists
 
-- a definitive outage-risk score for every area in Quebec
+This is the biggest practical update to my thinking.
 
-The risk of launching too aggressively is not just disappointment. It is trust. If users read "history" as "complete history" when we only mean "history since we started collecting," the product will feel misleading.
+Earlier, the product risk was that without years of history it might not be useful enough. I still think that risk is real, but I now think the "useful before complete" version is more viable than it first appeared.
 
-So I would launch early only with visible coverage dates and careful wording.
+The near-future product can become:
 
-## What the project can become if history is solved
+- a trustworthy address lookup for known outage history near an address
+- a transparent archive showing live-feed coverage windows
+- a place where selected municipalities or boroughs have deeper historical pages based on disclosed records
+- a comparative tool using regional aggregate reliability context
 
-If we can get historical backfill, this becomes much more interesting very quickly.
+That is not yet a full outage-likelihood engine for all of Quebec, but it is already a real public-interest product.
 
-Then the app can move from:
+## The most likely product evolution
 
-- outage lookup
+The future probably unfolds in stages.
 
-to:
+### Stage 1: trustworthy archive and address lookup
 
-- outage pattern analysis
-- neighborhood reliability comparisons
-- likely outage exposure by area
-- estimated frequency and duration summaries
-- maps of repeat outage zones
-- seasonal and storm-related pattern detection
+This is where the project is heading now.
 
-At that point, the product stops being just "an outage archive" and starts becoming a real public-interest reliability lens for Quebec.
+The key promise is:
 
-That is the future that feels most promising to me.
+- we preserve evidence
+- we show what we know
+- we show the limits clearly
 
-## Recommended near-term priorities
+### Stage 2: partial historical enrichment
 
-If I were choosing the next moves, I would prioritize them in this order:
+This is the next important leap.
 
-1. Keep the collector running reliably and preserve raw data exactly.
-2. Improve event reconstruction so repeated snapshots become coherent outage episodes.
-3. Add clear coverage dates and confidence/completeness messaging in the UI.
-4. Prepare a strong Hydro-Quebec historical data request.
-5. Design the future analytics model now, even if the archive is still thin.
+At this stage, the product starts combining:
 
-That fifth point matters. We do not need to wait for two years of data to design the metrics we eventually want, such as:
+- the live archived feed
+- reconstructed outage episodes
+- disclosed municipal or borough tables
+- regional aggregate comparisons
 
-- outage count by address area
-- total outage-hours affecting an area
-- median restoration time
-- worst day / worst month
-- planned vs unplanned interruptions
-- customer-count-weighted severity
+This can support features like:
 
-We can design those now so the archive we build is ready to support them.
+- deeper pages for areas where disclosures exist
+- comparisons between a searched address area and its broader region
+- cause summaries by municipality where row-level records exist
+- "known history depth" indicators that vary by area
+
+### Stage 3: broader reliability analysis
+
+If backfill succeeds, then the project can move into the most compelling territory:
+
+- outage frequency by area
+- total outage-hours by area
+- restoration-time distributions
+- seasonal or storm-period patterns
+- hotspot surfaces built from repeated outage exposure
+- public-interest reliability comparisons across municipalities or neighborhoods
+
+That is the version where this stops being mainly an archive and becomes a real reliability-analysis product.
+
+## Where the main risks still are
+
+The future is better, but there are still clear constraints.
+
+### 1. Historical data will stay uneven for a while
+
+Even with access-to-information disclosures, coverage will probably be patchy:
+
+- some municipalities
+- some boroughs
+- some time windows
+- some records as PDF only
+- some records as aggregate summaries rather than event lists
+
+So the product should continue to embrace unevenness explicitly instead of trying to smooth it over.
+
+### 2. Geographic precision will remain limited
+
+A lot of the disclosed historical material appears to be municipality-level or area-level, not precise outage polygons.
+
+That means we should be careful about claims at the parcel or building level, especially for backfilled historical records that did not originate as geometry-rich live feed captures.
+
+### 3. Event reconstruction is still a key technical problem
+
+The long-term value of the archive depends on turning repeated snapshots into coherent outage episodes.
+
+This is still one of the most important technical investments because almost every future metric depends on it:
+
+- frequency
+- duration
+- severity
+- area exposure
+- worst-day analysis
+
+If event reconstruction stays weak, the analytics layer will stay fragile.
+
+## What I would prioritize next
+
+Given the current state of the docs and the code, I would now prioritize the future work this way:
+
+1. Keep the live collector reliable and automated.
+2. Improve event reconstruction so repeated snapshots become better outage episodes.
+3. Add an ingestion path for published access-to-information records, especially the machine-readable XLSX and the highest-value row-level PDFs.
+4. Extend the UI's coverage and provenance language so users can see whether a result comes from live-feed archive data, disclosed historical records, or both.
+5. Continue pursuing Hydro-Quebec for broader historical backfill.
+
+That order reflects the new reality:
+
+- the collector is still the spine
+- event logic is still the hard technical core
+- disclosed records are now the best short-term leverage
+- provenance needs to stay visible so the product remains trustworthy
 
 ## Bottom line
 
-I think the future is good if we treat the current prototype as the start of a data asset, not the end product.
+I am more optimistic about the future of this project than I was before the latest updates.
 
-The main challenge is not whether the app idea is sound. It is whether we can compress the time needed to build meaningful historical depth.
+The strongest reason is not just that the app has improved. It is that the data strategy is now more credible.
 
-So my honest view is:
+We no longer have only two unsatisfying options:
 
-- yes, the project is promising
-- yes, the address-first approach still makes sense
-- no, I would not want to wait one or two years with no attempt to get backfill
-- yes, an access-to-information path is worth pursuing now
-- and yes, the public product can still launch earlier if it is explicit about coverage limits
+- wait years for our own archive
+- hope Hydro-Quebec eventually hands over a clean province-wide history
 
-The best future is probably a hybrid:
+There is now a third path in the middle:
 
-- collect continuously from now on
-- aggressively pursue historical backfill
-- launch with honest coverage
-- evolve toward neighborhood-level outage likelihood and reliability analysis as the archive matures
+- build the live archive
+- ingest already published historical disclosures
+- and use that mixed evidence model to make the product useful sooner
+
+So my updated view is:
+
+- the address-first direction still makes sense
+- the honest-coverage UX is exactly the right product posture
+- access-to-information disclosures are now a serious product input, not just background research
+- broader Hydro-Quebec backfill is still worth pursuing
+- and the project can become genuinely useful before full historical completeness exists
+
+The best future now looks like a layered public-history product:
+
+- live archive as the foundation
+- disclosed historical records as acceleration
+- better event reconstruction as the bridge
+- and, over time, a real Quebec outage reliability lens on top
