@@ -36,6 +36,25 @@ This plan assumes:
 - Hydro-Québec’s public outage API is real and usable for **current** outages and planned interruptions
 - Hydro-Québec may have deeper historical data internally, but we should not block on getting it
 
+## Current implementation checkpoint
+
+The project has moved beyond only researching access-to-information disclosures. It now has a working foundation for combining live API data with selected disclosed historical records.
+
+What is already in place:
+
+- live Hydro-Québec snapshot archival and normalization
+- address-first search with bilingual server-rendered UI
+- archive span, freshness, and confidence framing in the results experience
+- row-level XLSX disclosure ingestion for Côte Saint-Luc
+- row-level PDF extraction for Outremont, Saint-Félix-de-Kingsey, Sheenboro, Chichester, Waltham, and L'Isle-aux-Allumettes-Partie-Est
+- disclosed-area geometry loading with conservative fallback areas when a boundary lookup is incomplete
+- a map model that can show disclosure areas as broader context while keeping smaller live/API outage and planned-interruption layers distinct
+
+Planning consequence:
+
+- the next phase is no longer "prove we can ingest disclosure files"
+- the next phase is to broaden coverage, harden extraction quality, improve event reconstruction, and explain mixed evidence clearly in the UI
+
 ## Product direction
 
 The address-first approach is a good pivot.
@@ -753,6 +772,68 @@ For the first release, I would aim for:
 That gives the product a truthful core:
 
 `Here is what we know about outage history at and around this address from our growing archive and derived matches.`
+
+## Most likely product evolution
+
+The most realistic evolution path now looks like this:
+
+### Stage 1: trustworthy archive and address lookup
+
+This is the current direction.
+
+The key promise is:
+
+- preserve the evidence
+- show what we know
+- show the limits clearly
+
+### Stage 2: partial historical enrichment
+
+This is the next meaningful leap.
+
+At this stage, the product combines:
+
+- the live archived feed
+- better resolved outage episodes
+- disclosed municipal or borough historical records
+- regional aggregate comparisons
+
+This can support:
+
+- deeper pages for areas where disclosure records exist
+- clearer "known history depth" indicators by area
+- comparisons between a searched address area and its broader municipality or region
+- cause summaries where row-level records exist
+
+### Stage 3: broader reliability analysis
+
+If broader historical backfill succeeds, the product can move toward:
+
+- outage frequency by area
+- total outage-hours by area
+- restoration-time distributions
+- seasonal and storm-period patterns
+- hotspot surfaces built from repeated outage exposure
+- stronger municipality and neighborhood reliability comparisons
+
+This is the stage where the product becomes a real outage reliability lens, not just an archive and lookup tool.
+
+## Recommended near-term priorities
+
+Given the current state of the code and the data strategy, I would prioritize the next work in this order:
+
+1. keep the live collector reliable and automated
+2. improve event reconstruction so repeated snapshots become better outage episodes
+3. broaden the disclosure ingestion path to additional DAI files, especially regional aggregate PDFs and more municipality/borough row-level tables
+4. extend the UI's coverage and provenance language so users can see whether a result comes from live-feed archive data, disclosed historical records, or both
+5. continue pursuing Hydro-Québec for broader historical backfill
+
+Why this order:
+
+- the collector remains the backbone
+- event logic remains the hardest technical dependency for later analytics
+- published disclosures are now the best short-term acceleration path
+- provenance needs to stay visible so the product remains trustworthy as evidence sources multiply
 
 ## Summary recommendation
 

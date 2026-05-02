@@ -368,8 +368,9 @@ But it does **not** look like a dependable path for a complete province-wide his
 If the goal is a serious historical hotspots app, the practical strategy is:
 
 1. Start your own collector immediately.
-2. In parallel, request bulk history from Hydro-Québec.
-3. Use sparse public archive recovery only as a supplement.
+2. Ingest published access-to-information disclosures as a separate historical source.
+3. In parallel, request broader bulk history from Hydro-Québec.
+4. Use sparse public archive recovery only as a supplement.
 
 ### What to collect every 15 minutes
 
@@ -487,6 +488,57 @@ Best practice:
 - preserve raw snapshots forever
 - build a separate event-resolution pipeline that can be improved over time
 
+## Strategic interpretation
+
+The most important product question remains:
+
+`How likely is this area to lose power, based on what has happened before?`
+
+The latest findings make that question more approachable than it first appeared.
+
+At the beginning, the historical-data outlook looked like a hard binary:
+
+- either wait one or two years for a self-built archive to mature
+- or hope Hydro-Québec provides a broad historical export
+
+The published access-to-information disclosures create a meaningful middle path.
+
+They do not provide a complete province-wide archive, and they should not be treated as equivalent to the live Info-pannes feed. But they do show that:
+
+- Hydro-Québec has structured historical outage data internally
+- some row-level history has already been released publicly
+- at least some disclosures can be delivered in machine-readable form
+- historical usefulness does not need to wait entirely on our own archive
+
+This changes the strategic outlook.
+
+The future data strategy is better understood as three parallel tracks:
+
+1. live-feed archival
+2. published access-to-information disclosures
+3. direct requests for broader historical backfill
+
+This matters because it means the product does not need to jump directly from "thin local archive" to "complete Quebec reliability map." There is now a realistic intermediate layer of historical area context.
+
+## What this means for product viability
+
+The project looks more viable now than it did when it depended only on forward collection.
+
+A useful early product can plausibly combine:
+
+- address-level and nearby history derived from the live archived feed
+- broader area history where disclosure records exist
+- regional context from annual aggregate disclosures
+- explicit coverage and provenance language so users can see what kind of evidence supports a result
+
+This still leaves important limitations:
+
+- historical coverage will remain uneven for a while
+- many disclosed records are area-level rather than geometry-rich
+- event reconstruction from repeated live snapshots remains a central technical problem
+
+But the combined evidence model is strong enough to support a real public-interest product before full historical completeness exists.
+
 ## What to present in the web app
 
 If we can gather enough history, the most useful presentation is not a map of single outages but a **reliability map**.
@@ -547,11 +599,12 @@ If I were advising on next steps without coding yet, I would do this:
 1. Treat the public API as confirmed and usable.
 2. Assume public historical coverage is incomplete.
 3. Start archiving the live API immediately at 15-minute intervals.
-4. Send two formal requests in parallel:
+4. Ingest the highest-value published access-to-information disclosures first, especially machine-readable extracts and regular row-level PDF tables.
+5. Send two formal requests in parallel:
    - an open-data request for bulk historical outage exports
    - an access-to-information request for any existing historical extracts/docs used by Info-pannes
-5. Design the product around **blackouts / interruptions** first.
-6. Treat **brownouts** as a separate stretch goal unless Hydro-Québec confirms they expose them somewhere else.
+6. Design the product around **blackouts / interruptions** first.
+7. Treat **brownouts** as a separate stretch goal unless Hydro-Québec confirms they expose them somewhere else.
 
 ## Suggested wording for outreach
 
