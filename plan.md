@@ -3,6 +3,23 @@
 Date: 2026-04-25
 Last updated: 2026-05-01
 
+## Implementation status as of 2026-05-01
+
+Several early phases are now implemented in the prototype:
+
+- live Hydro-Québec snapshot collection and local raw archival
+- normalized parsing of live outage, planned interruption, and KML/KMZ geometry feeds
+- address-first search with geocoding, radius matching, and confidence labels
+- bilingual server-rendered UI with HTMX and Leaflet
+- disclosure source tables and a manifest of known DAI outage extracts
+- XLSX ingestion for `DAI-2022-0386`
+- PDF table extraction for supported row-level DAI files:
+  - `DAI-2025-0275` Outremont
+  - `DAI-2026-0042` Sheenboro, Chichester, L'Isle-aux-Allumettes-Partie-Est, and Waltham
+  - `DAI-2025-0333` Saint-Felix-de-Kingsey
+- DAI area geometry loading from OSM/Nominatim/Overpass, with conservative fallback areas where needed
+- map layering where broad DAI context areas render behind smaller live/API outage and planned-interruption layers
+
 ## Goal
 
 Build a web app that starts with a **specific Quebec address** and shows:
@@ -370,6 +387,14 @@ Published access-to-information records should have their own tables.
   - continuity index minutes
   - long outage count if applicable
   - metric definitions / notes
+- `disclosure_geometries`
+  - source id
+  - geography label
+  - geography type
+  - geometry source
+  - GeoJSON outline
+  - centroid and bounding box
+  - raw boundary lookup JSON
 
 The disclosure tables should preserve source provenance clearly. A row extracted from an access-to-information PDF should remain distinguishable from a row captured from the live API.
 
@@ -651,13 +676,13 @@ This language should appear in:
 
 ### Phase 1B: disclosure ingestion foundation
 
-- create disclosure source tables
-- build a small manifest of known DAI outage documents
-- ingest XLSX disclosure files first
-- extract row-level PDF tables where the structure is regular
+- create disclosure source tables — implemented
+- build a small manifest of known DAI outage documents — implemented
+- ingest XLSX disclosure files first — implemented for Côte Saint-Luc
+- extract row-level PDF tables where the structure is regular — implemented for Outremont, Saint-Felix-de-Kingsey, Sheenboro, Chichester, Waltham, and L'Isle-aux-Allumettes-Partie-Est
 - extract regional aggregate PDF tables separately
-- store raw source URLs, extraction method, and confidence notes
-- avoid attaching precise geometry unless the source provides it or the app explicitly joins to known administrative boundaries
+- store raw source URLs, extraction method, and confidence notes — implemented
+- join disclosure records to known administrative boundaries or conservative fallback areas, and keep them visually distinct from live API polygons — implemented
 
 ### Phase 2: address intelligence
 
@@ -705,8 +730,6 @@ This language should appear in:
 - Which geocoder gives the best Quebec civic address quality for acceptable cost and licensing?
 - Do we want to start with Postgres/PostGIS immediately, or accept a smaller temporary local setup?
 - Should the first release expose hotspot summaries at all, or only address and nearby history?
-- Should disclosure-derived historical area context appear in the first release, or wait until after live API matching is stable?
-- What administrative boundary source should be used to draw borough, municipality, and region areas for disclosure records?
 - How should the UI phrase "area context" so users do not read it as direct address-level attribution?
 - Which terminology should be standardized for the bilingual UX:
   - outage / panne

@@ -16,7 +16,10 @@ Address-first Hydro-Quebec outage history prototype built from the `plan.md` dir
 - first-pass resolved event deduplication across repeated snapshots
 - access-to-information disclosure source registry
 - XLSX ingestion for published historical outage extracts
+- PDF table extraction for supported published DAI outage files
+- DAI region outline loading from OSM/Nominatim/Overpass with conservative fallback areas
 - separate display of disclosed area-level historical context alongside live/API-derived matches
+- Leaflet map layering that keeps broad DAI areas in the background and live/API outage layers on top
 
 ## Run
 
@@ -47,8 +50,41 @@ uv run python server.py collect-disclosures
 ```
 
 This stores raw disclosure files under `data/raw/hydro_quebec/access_disclosures/`,
-registers PDF sources for provenance, and ingests supported row-level XLSX extracts into
-`disclosure_outage_events`.
+registers sources for provenance, extracts supported row-level XLSX and PDF tables into
+`disclosure_outage_events`, and stores disclosed-area outlines in `disclosure_geometries`.
+
+Currently supported published DAI extracts include:
+
+- `DAI-2022-0386`: Cote Saint-Luc XLSX extract
+- `DAI-2025-0275`: Outremont PDF table
+- `DAI-2026-0042`: Sheenboro, Chichester, L'Isle-aux-Allumettes-Partie-Est, and Waltham PDF table
+- `DAI-2025-0333`: Saint-Felix-de-Kingsey PDF table
+
+## Map layers
+
+The map uses separate colors and draw order for each evidence type:
+
+- green dashed areas: DAI / access-to-information historical area context
+- amber/orange: live outage API records from archived Hydro-Quebec snapshots
+- blue: planned interruption API records
+
+DAI areas are drawn first as broad background context. Live/API-derived outage and planned
+interruption geometries are drawn after them so their smaller, more granular shapes remain visible.
+
+## DAI test addresses
+
+Use the `5 y (requested)` time range when testing DAI records, because many published DAI rows are
+older than the default 365-day search window.
+
+Useful test queries:
+
+- `1 Avenue Westminster, Cote Saint-Luc, QC`
+- `1 Avenue Davaar, Outremont, QC`
+- `1 Rue Principale, Saint-Felix-de-Kingsey, QC`
+- `1 Rue Principale, Waltham, QC`
+- `1 Rue Principale, Sheenboro, QC`
+- `1 Rue Principale, Chichester, QC`
+- `1 Chemin Pembroke, L'Isle-aux-Allumettes, QC`
 
 ## Tooling
 

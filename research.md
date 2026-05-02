@@ -3,6 +3,17 @@
 Date: 2026-04-25
 Last updated: 2026-05-01
 
+## Implementation note
+
+The prototype now ingests several of the published access-to-information extracts identified in this research:
+
+- `DAI-2022-0386` Côte Saint-Luc XLSX: row-level events are extracted.
+- `DAI-2025-0275` Outremont PDF: regular row-level table extraction is implemented.
+- `DAI-2026-0042` Sheenboro, Chichester, L'Isle-aux-Allumettes-Partie-Est, and Waltham PDF: regular row-level table extraction is implemented.
+- `DAI-2025-0333` Saint-Félix-de-Kingsey PDF: regular row-level table extraction is implemented.
+
+The app stores those records separately from live Info-pannes API records, attaches disclosed-area outlines from OSM/Nominatim/Overpass where available, and renders DAI areas as broad historical context behind the more granular live/API outage layers.
+
 ## Short answer
 
 Yes, Hydro-Québec exposes machine-readable outage data, but it appears to be designed for **current / near-real-time** outages and **upcoming planned interruptions**, not a published long-term historical archive.

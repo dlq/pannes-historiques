@@ -2,6 +2,17 @@
 
 Date: 2026-05-01
 
+## Current implementation checkpoint
+
+The project has moved beyond only researching access-to-information disclosures. It now has a working disclosure ingestion path for selected published outage extracts:
+
+- row-level XLSX ingestion for Côte Saint-Luc
+- row-level PDF extraction for Outremont, Saint-Félix-de-Kingsey, Sheenboro, Chichester, Waltham, and L'Isle-aux-Allumettes-Partie-Est
+- disclosed-area geometry loading from OSM/Nominatim/Overpass, with conservative fallback areas when a boundary lookup is incomplete
+- a map model that draws DAI areas as background context and keeps smaller live/API outage and planned-interruption layers on top
+
+That means the next phase is no longer "prove we can ingest DAI files." The next phase is to broaden coverage, harden extraction quality, and turn the combined live/API + DAI evidence into clearer area summaries.
+
 ## The core product question has not changed
 
 The most important user question is still:
@@ -239,7 +250,7 @@ Given the current state of the docs and the code, I would now prioritize the fut
 
 1. Keep the live collector reliable and automated.
 2. Improve event reconstruction so repeated snapshots become better outage episodes.
-3. Add an ingestion path for published access-to-information records, especially the machine-readable XLSX and the highest-value row-level PDFs.
+3. Broaden the published access-to-information ingestion path to more DAI files, including regional aggregate PDFs and additional municipality/borough row-level tables.
 4. Extend the UI's coverage and provenance language so users can see whether a result comes from live-feed archive data, disclosed historical records, or both.
 5. Continue pursuing Hydro-Quebec for broader historical backfill.
 
