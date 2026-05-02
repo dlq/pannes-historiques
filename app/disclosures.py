@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import re
 import subprocess
 import urllib.parse
@@ -99,6 +100,76 @@ DISCLOSURE_SOURCES = (
     ),
 )
 
+DISCLOSURE_GEOMETRY_TARGETS: dict[str, tuple[dict[str, Any], ...]] = {
+    "DAI-2022-0386": (
+        {
+            "label": "Cote Saint-Luc",
+            "type": "municipality",
+            "query": "Cote Saint-Luc, Quebec, Canada",
+            "centroid_lat": 45.4687,
+            "centroid_lon": -73.6659,
+            "osm_relation_id": 5361655,
+        },
+    ),
+    "DAI-2025-0275": (
+        {
+            "label": "Outremont",
+            "type": "borough",
+            "query": "Outremont, Montreal, Quebec, Canada",
+            "centroid_lat": 45.5189,
+            "centroid_lon": -73.6072,
+        },
+    ),
+    "DAI-2026-0042": (
+        {
+            "label": "Sheenboro",
+            "type": "municipality",
+            "query": "Sheenboro, Quebec, Canada",
+            "centroid_lat": 45.9669,
+            "centroid_lon": -76.8169,
+        },
+        {
+            "label": "Chichester",
+            "type": "municipality",
+            "query": "Chichester, Quebec, Canada",
+            "centroid_lat": 45.9833,
+            "centroid_lon": -76.8833,
+        },
+        {
+            "label": "L'Isle-aux-Allumettes-Partie-Est",
+            "type": "municipality",
+            "query": "L'Isle-aux-Allumettes, Quebec, Canada",
+            "centroid_lat": 45.875,
+            "centroid_lon": -77.05,
+        },
+        {
+            "label": "Waltham",
+            "type": "municipality",
+            "query": "Waltham, Quebec, Canada",
+            "centroid_lat": 45.9167,
+            "centroid_lon": -76.9167,
+        },
+    ),
+    "DAI-2025-0333": (
+        {
+            "label": "Saint-Felix-de-Kingsey",
+            "type": "municipality",
+            "query": "Saint-Felix-de-Kingsey, Quebec, Canada",
+            "centroid_lat": 45.8001,
+            "centroid_lon": -72.1809,
+            "osm_relation_id": 7932215,
+        },
+    ),
+}
+
+PDF_MUNICIPALITY_LABELS = tuple(
+    sorted(
+        {target["label"] for targets in DISCLOSURE_GEOMETRY_TARGETS.values() for target in targets},
+        key=len,
+        reverse=True,
+    )
+)
+
 
 def fetch_bytes(url: str) -> tuple[bytes, int, str]:
     request = urllib.request.Request(url, headers={"User-Agent": "pannes-historiques/0.1"})
@@ -148,11 +219,14 @@ class DisclosureCollector:
                 (str(payload_path), sha256, fetched_at, source_id),
             )
 
-        geometry_loaded = self._ensure_source_geometry(source_id, source)
+        geometry_loaded = self._ensure_source_geometries(source_id, source)
         events = 0
         if source.format == "xlsx":
             rows = parse_xlsx(payload)
             events = self._ingest_xlsx_rows(source_id, source, rows)
+        elif source.format == "pdf":
+            rows = parse_pdf_rows(payload, source)
+            events = self._ingest_pdf_rows(source_id, source, rows)
         return {
             "dai_number": source.dai_number,
             "format": source.format,
@@ -162,9 +236,29 @@ class DisclosureCollector:
             "events": events,
         }
 
-    def _ensure_source_geometry(self, source_id: int, source: DisclosureSource) -> bool:
-        if not source.geometry_query:
+    def _ensure_source_geometries(self, source_id: int, source: DisclosureSource) -> bool:
+        targets = DISCLOSURE_GEOMETRY_TARGETS.get(source.dai_number)
+        if not targets and source.geometry_query:
+            targets = (
+                {
+                    "label": source.geography_label,
+                    "type": source.geography_type,
+                    "query": source.geometry_query,
+                    "centroid_lat": source.centroid_lat,
+                    "centroid_lon": source.centroid_lon,
+                    "osm_relation_id": source.osm_relation_id,
+                },
+            )
+        if not targets:
             return False
+        loaded_any = False
+        for target in targets:
+            loaded_any = self._ensure_target_geometry(source_id, source, target) or loaded_any
+        return loaded_any
+
+    def _ensure_target_geometry(
+        self, source_id: int, source: DisclosureSource, target: dict[str, Any]
+    ) -> bool:
         with open_db(self.settings.db_path) as connection:
             existing = connection.execute(
                 """
@@ -172,16 +266,29 @@ class DisclosureCollector:
                 FROM disclosure_geometries
                 WHERE source_id = ? AND geography_label = ? AND geometry_source = 'nominatim'
                 """,
-                (source_id, source.geography_label),
+                (source_id, target["label"]),
             ).fetchone()
         if existing:
             return True
 
-        geometry = fetch_boundary_geometry(source.geometry_query, source.osm_relation_id)
+        geometry = fetch_boundary_geometry(target["query"], target.get("osm_relation_id"))
+        geometry_geojson = None
+        raw_json = None
+        geometry_source = "nominatim"
+        bbox = None
+        centroid_lon = target.get("centroid_lon")
+        centroid_lat = target.get("centroid_lat")
         if not geometry:
+            geometry_geojson = fallback_circle_polygon(centroid_lon, centroid_lat)
+            raw_json = {"fallback": True, "query": target["query"]}
+            geometry_source = "fallback_area"
+        else:
+            geometry_geojson = geometry["geometry"]
+            raw_json = geometry["raw"]
+            centroid_lon, centroid_lat = geometry_centroid(geometry_geojson)
+        if not geometry_geojson:
             return False
-        bbox = geometry_bbox(geometry["geometry"])
-        centroid_lon, centroid_lat = geometry_centroid(geometry["geometry"])
+        bbox = geometry_bbox(geometry_geojson)
         with open_db(self.settings.db_path) as connection:
             connection.execute(
                 """
@@ -193,17 +300,17 @@ class DisclosureCollector:
                 """,
                 (
                     source_id,
-                    source.geography_label,
-                    source.geography_type,
-                    "nominatim",
-                    json.dumps(geometry["geometry"], ensure_ascii=True),
+                    target["label"],
+                    target["type"],
+                    geometry_source,
+                    json.dumps(geometry_geojson, ensure_ascii=True),
                     centroid_lon,
                     centroid_lat,
                     bbox[0],
                     bbox[1],
                     bbox[2],
                     bbox[3],
-                    json.dumps(geometry["raw"], ensure_ascii=True),
+                    json.dumps(raw_json, ensure_ascii=True),
                 ),
             )
         return True
@@ -328,6 +435,54 @@ class DisclosureCollector:
                     count += 1
         return count
 
+    def _ingest_pdf_rows(
+        self, source_id: int, source: DisclosureSource, rows: list[dict[str, Any]]
+    ) -> int:
+        target_lookup = {
+            normalize_text(target["label"]): target
+            for target in DISCLOSURE_GEOMETRY_TARGETS.get(source.dai_number, ())
+        }
+        count = 0
+        with open_db(self.settings.db_path) as connection:
+            for row in rows:
+                geography = row.get("geography_label") or source.geography_label
+                target = target_lookup.get(normalize_text(str(geography)), {})
+                source_row_id = f"pdf:{row['page']}:{row['row_index']}"
+                connection.execute(
+                    """
+                    INSERT OR REPLACE INTO disclosure_outage_events
+                    (source_id, source_row_id, start_time, end_time, duration_seconds,
+                     duration_hours, customers_affected, interruption_type, cause, equipment,
+                     cause_group, category, geography_label, geography_type, centroid_lon,
+                     centroid_lat, precision_label, raw_row_json)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        source_id,
+                        source_row_id,
+                        row["start_time"],
+                        row["end_time"],
+                        row["duration_seconds"],
+                        round(row["duration_seconds"] / 3600, 4)
+                        if row["duration_seconds"] is not None
+                        else None,
+                        None,
+                        "historical_disclosure",
+                        row["cause"],
+                        None,
+                        None,
+                        "Panne",
+                        geography,
+                        target.get("type") or source.geography_type,
+                        target.get("centroid_lon") or source.centroid_lon,
+                        target.get("centroid_lat") or source.centroid_lat,
+                        source.precision_label,
+                        json.dumps(row, ensure_ascii=True),
+                    ),
+                )
+                count += 1
+        return count
+
 
 def parse_xlsx(payload: bytes) -> dict[str, list[dict[str, Any]]]:
     with zipfile.ZipFile(PathLikeBytes(payload)) as archive:
@@ -345,6 +500,50 @@ def parse_xlsx(payload: bytes) -> dict[str, list[dict[str, Any]]]:
             if table:
                 sheets[sheet_name] = table
         return sheets
+
+
+def parse_pdf_rows(payload: bytes, source: DisclosureSource) -> list[dict[str, Any]]:
+    from pypdf import PdfReader
+
+    reader = PdfReader(PathLikeBytes(payload))
+    rows: list[dict[str, Any]] = []
+    for page_index, page in enumerate(reader.pages, start=1):
+        text = page.extract_text() or ""
+        for line_index, line in enumerate(text.splitlines(), start=1):
+            parsed = parse_pdf_row_line(line, source)
+            if not parsed:
+                continue
+            parsed["page"] = page_index
+            parsed["row_index"] = line_index
+            rows.append(parsed)
+    return rows
+
+
+def parse_pdf_row_line(line: str, source: DisclosureSource) -> dict[str, Any] | None:
+    cleaned = " ".join(line.split())
+    match = re.match(
+        r"^(?P<start>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) "
+        r"(?P<end>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) "
+        r"(?P<duration>\d+) (?P<tail>.+)$",
+        cleaned,
+    )
+    if not match:
+        return None
+    tail = match.group("tail").strip()
+    geography = source.geography_label
+    for label in PDF_MUNICIPALITY_LABELS:
+        if normalize_text(tail).endswith(normalize_text(label)):
+            geography = label
+            tail = tail[: -len(label)].strip()
+            break
+    return {
+        "start_time": match.group("start"),
+        "end_time": match.group("end"),
+        "duration_seconds": maybe_int(match.group("duration")),
+        "cause": tail,
+        "geography_label": geography,
+        "raw_text": line,
+    }
 
 
 class PathLikeBytes:
@@ -523,7 +722,9 @@ def normalize_datetime(value: Any) -> str | None:
     return text.replace("T", " ")[:19]
 
 
-def fetch_boundary_geometry(query: str, osm_relation_id: int | None = None) -> dict[str, Any] | None:
+def fetch_boundary_geometry(
+    query: str, osm_relation_id: int | None = None
+) -> dict[str, Any] | None:
     params = {
         "q": query,
         "format": "jsonv2",
@@ -670,6 +871,21 @@ def geometry_points(geometry: dict[str, Any]) -> list[list[float]]:
     if geometry.get("type") == "MultiPolygon":
         return [point for polygon in coordinates for ring in polygon for point in ring]
     return []
+
+
+def fallback_circle_polygon(
+    centroid_lon: float | None, centroid_lat: float | None, radius_degrees: float = 0.035
+) -> dict[str, Any] | None:
+    if centroid_lon is None or centroid_lat is None:
+        return None
+    points = []
+    for index in range(24):
+        angle = 2 * math.pi * index / 24
+        lon = centroid_lon + radius_degrees * math.cos(angle)
+        lat = centroid_lat + radius_degrees * math.sin(angle)
+        points.append([lon, lat])
+    points.append(points[0])
+    return {"type": "Polygon", "coordinates": [points]}
 
 
 def content_type_from_url(url: str) -> str:

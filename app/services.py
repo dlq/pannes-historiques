@@ -580,10 +580,19 @@ class AppService:
                 JOIN disclosure_sources s ON s.id = e.source_id
                 LEFT JOIN disclosure_geometries g
                   ON g.source_id = s.id
-                 AND g.geography_label = s.geography_label
+                 AND g.geography_label = e.geography_label
+                 AND g.id = (
+                    SELECT g2.id
+                    FROM disclosure_geometries g2
+                    WHERE g2.source_id = s.id
+                      AND g2.geography_label = e.geography_label
+                    ORDER BY CASE WHEN g2.geometry_source = 'fallback_area' THEN 1 ELSE 0 END,
+                             g2.id DESC
+                    LIMIT 1
+                 )
                 WHERE COALESCE(e.start_time, '') >= ?
                 ORDER BY COALESCE(e.start_time, e.created_at) DESC
-                LIMIT 500
+                LIMIT 5000
                 """,
                 (cutoff,),
             ).fetchall()
@@ -635,8 +644,15 @@ class AppService:
                     "centroid_lat": centroid_lat,
                     "centroid_lon": centroid_lon,
                     "sort_time": item["start_time"],
+                    "area_hit": bool(area_hit),
                 }
             )
+        area_rows = [row for row in rows if row["area_hit"]]
+        if area_rows:
+            rows = area_rows
+        rows.sort(key=lambda row: (row["area_hit"], row["sort_time"] or ""), reverse=True)
+        for row in rows:
+            row.pop("area_hit", None)
         return rows[:36]
 
     def _find_disclosure_metrics(

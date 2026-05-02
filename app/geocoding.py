@@ -31,6 +31,9 @@ QUEBEC_CITY_CENTROIDS = {
     "sheenboro": (45.9669, -76.8169),
     "chichester": (45.9833, -76.8833),
     "waltham": (45.9167, -76.9167),
+    "l'isle-aux-allumettes": (45.8750, -77.0500),
+    "lisle aux allumettes": (45.8750, -77.0500),
+    "isle aux allumettes": (45.8750, -77.0500),
 }
 
 

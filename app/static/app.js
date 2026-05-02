@@ -172,7 +172,12 @@ class OutageMap extends HTMLElement {
         .bindPopup(data.addressLabel || "Address");
       bounds.push(data.center);
     }
-    for (const item of data.matches || []) {
+    const orderedMatches = [...(data.matches || [])].sort((left, right) => {
+      if (left.kind === "disclosure" && right.kind !== "disclosure") return -1;
+      if (left.kind !== "disclosure" && right.kind === "disclosure") return 1;
+      return 0;
+    });
+    for (const item of orderedMatches) {
       const color =
         item.kind === "planned" ? "#0ea5e9" : item.kind === "disclosure" ? "#10b981" : "#f59e0b";
       let rendered = false;
@@ -181,10 +186,10 @@ class OutageMap extends HTMLElement {
         const layer = L.geoJSON(item.geometry, {
           style: {
             color,
-            weight: isDisclosure ? 4 : item.matchType === "direct_match" ? 3 : 2,
+            weight: isDisclosure ? 2.5 : item.matchType === "direct_match" ? 3 : 2,
             dashArray: isDisclosure ? "8 5" : null,
             fillColor: color,
-            fillOpacity: isDisclosure ? 0.34 : item.kind === "planned" ? 0.16 : 0.22,
+            fillOpacity: isDisclosure ? 0.18 : item.kind === "planned" ? 0.16 : 0.22,
           },
         }).addTo(map);
         layer.bindPopup(`${item.kind}: ${item.label || ""}`);
@@ -193,17 +198,17 @@ class OutageMap extends HTMLElement {
           bounds.push(layerBounds.getSouthWest());
           bounds.push(layerBounds.getNorthEast());
         }
-        if (isDisclosure) layer.bringToFront();
+        if (!isDisclosure) layer.bringToFront();
         rendered = true;
       }
       if (item.geometry && item.geometry.type === "MultiPolygon") {
         const layer = L.geoJSON(item.geometry, {
           style: {
             color,
-            weight: 4,
+            weight: 2.5,
             dashArray: "8 5",
             fillColor: color,
-            fillOpacity: 0.34,
+            fillOpacity: 0.18,
           },
         }).addTo(map);
         layer.bindPopup(`${item.kind}: ${item.label || ""}`);
@@ -212,7 +217,6 @@ class OutageMap extends HTMLElement {
           bounds.push(layerBounds.getSouthWest());
           bounds.push(layerBounds.getNorthEast());
         }
-        layer.bringToFront();
         rendered = true;
       }
       if (!rendered && item.lat != null && item.lon != null) {
@@ -226,7 +230,7 @@ class OutageMap extends HTMLElement {
         })
           .addTo(map)
           .bindPopup(`${item.kind}: ${item.label || ""}`);
-        if (isDisclosure) marker.bringToFront();
+        if (!isDisclosure) marker.bringToFront();
         bounds.push([item.lat, item.lon]);
       }
     }
