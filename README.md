@@ -96,11 +96,13 @@ uv run djlint app/templates --lint
 uv run djlint app/templates --reformat
 npm install
 npm run check
+uv run pre-commit install
+uv run pre-commit run --all-files
 ```
 
 Python dependencies and commands are managed by `uv`. Python linting and formatting use Ruff.
 Jinja template linting and formatting use djLint. JavaScript linting and formatting for
-`app/static/` use Biome.
+`app/static/` use Biome. Pre-commit runs the same local checks before commits once installed.
 
 ## Notes
 

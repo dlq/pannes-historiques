@@ -1,0 +1,44 @@
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: ruff check
+        entry: uv run ruff check . --fix
+        language: system
+        pass_filenames: false
+        files: \.py$
+
+      - id: ruff-format
+        name: ruff format
+        entry: uv run ruff format .
+        language: system
+        pass_filenames: false
+        files: \.py$
+
+      - id: djlint-format
+        name: djlint format
+        entry: uv run djlint app/templates --reformat
+        language: system
+        pass_filenames: false
+        files: ^app/templates/.*\.html$
+
+      - id: djlint-lint
+        name: djlint lint
+        entry: uv run djlint app/templates --lint
+        language: system
+        pass_filenames: false
+        files: ^app/templates/.*\.html$
+
+      - id: biome-format
+        name: biome format
+        entry: npm run format
+        language: system
+        pass_filenames: false
+        files: ^app/static/.*\.(css|js|json|jsx|ts|tsx)$
+
+      - id: biome-check
+        name: biome check
+        entry: npm run check
+        language: system
+        pass_filenames: false
+        files: ^app/static/.*\.(css|js|json|jsx|ts|tsx)$
