@@ -41,7 +41,10 @@ class SearchResult:
     outage_matches: list[dict[str, Any]]
     planned_matches: list[dict[str, Any]]
     disclosure_matches: list[dict[str, Any]]
+    disclosure_layers: list[dict[str, Any]]
     disclosure_metrics: list[dict[str, Any]]
+    regional_metric_layers: list[dict[str, Any]]
+    radius_m: int
     error: str | None = None
 
 
@@ -104,7 +107,10 @@ class AppService:
                 outage_matches=[],
                 planned_matches=[],
                 disclosure_matches=[],
+                disclosure_layers=[],
                 disclosure_metrics=[],
+                regional_metric_layers=[],
+                radius_m=radius_m,
                 error="geocode_failed",
             )
         geocode = self._geocode_dict(geocode)
@@ -121,7 +127,9 @@ class AppService:
             radius_m=radius_m,
             days=days,
         )
+        disclosure_layers = self._disclosure_map_layers()
         disclosure_metrics = self._find_disclosure_metrics(normalized=normalized, geocode=geocode)
+        regional_metric_layers = self._regional_metric_map_layers()
         self._save_matches(address_id, matches)
         query_count = self._record_query(
             address_id=address_id,
@@ -145,7 +153,10 @@ class AppService:
             outage_matches=outage_matches,
             planned_matches=planned_matches,
             disclosure_matches=disclosure_matches,
+            disclosure_layers=disclosure_layers,
             disclosure_metrics=disclosure_metrics,
+            regional_metric_layers=regional_metric_layers,
+            radius_m=radius_m,
         )
 
     def collector_status(self) -> dict[str, Any]:
@@ -676,6 +687,195 @@ class AppService:
                 continue
             results.append(item)
         return results[:12]
+
+    def _regional_metric_map_layers(self) -> list[dict[str, Any]]:
+        with open_db(self.settings.db_path) as connection:
+            rows = connection.execute(
+                """
+                SELECT m.*, s.dai_number, s.title, s.attachment_url,
+                       g.geometry_geojson, g.centroid_lon, g.centroid_lat
+                FROM disclosure_annual_metrics m
+                JOIN disclosure_sources s ON s.id = m.source_id
+                LEFT JOIN disclosure_geometries g
+                  ON g.source_id = s.id
+                 AND g.geography_label = m.geography_label
+                 AND g.id = (
+                    SELECT g2.id
+                    FROM disclosure_geometries g2
+                    WHERE g2.source_id = s.id
+                      AND g2.geography_label = m.geography_label
+                    ORDER BY CASE WHEN g2.geometry_source = 'fallback_area' THEN 1 ELSE 0 END,
+                             g2.id DESC
+                    LIMIT 1
+                 )
+                WHERE m.geography_type = 'administrative_region'
+                ORDER BY m.geography_label,
+                         COALESCE(m.year, 0) DESC,
+                         CASE WHEN m.period_label LIKE '%09-30%' THEN 1 ELSE 0 END,
+                         s.dai_number DESC
+                """
+            ).fetchall()
+
+        layers_by_region: dict[str, dict[str, Any]] = {}
+        for row in rows:
+            item = dict(row)
+            key = normalize_text(item["geography_label"])
+            group = layers_by_region.setdefault(
+                key,
+                {
+                    "outage_kind": "regional_metric",
+                    "source_dai": item["dai_number"],
+                    "source_title": item["title"],
+                    "source_url": item["attachment_url"],
+                    "source_dais": [],
+                    "geography_label": item["geography_label"],
+                    "geography_type": item["geography_type"],
+                    "year": item["year"],
+                    "period_label": item["period_label"],
+                    "outage_count": item["outage_count"],
+                    "average_duration_minutes": item["average_duration_minutes"],
+                    "continuity_index_minutes": item["continuity_index_minutes"],
+                    "long_outage_count": item["long_outage_count"],
+                    "centroid_lon": item["centroid_lon"],
+                    "centroid_lat": item["centroid_lat"],
+                    "geometry_geojson": json.loads(item["geometry_geojson"])
+                    if item["geometry_geojson"]
+                    else None,
+                    "metrics": [],
+                },
+            )
+            if item["dai_number"] not in group["source_dais"]:
+                group["source_dais"].append(item["dai_number"])
+            group["metrics"].append(
+                {
+                    "source_dai": item["dai_number"],
+                    "source_title": item["title"],
+                    "source_url": item["attachment_url"],
+                    "year": item["year"],
+                    "period_label": item["period_label"],
+                    "outage_count": item["outage_count"],
+                    "average_duration_minutes": item["average_duration_minutes"],
+                    "continuity_index_minutes": item["continuity_index_minutes"],
+                    "long_outage_count": item["long_outage_count"],
+                }
+            )
+        return sorted(layers_by_region.values(), key=lambda item: item["geography_label"])
+
+    def _disclosure_map_layers(self) -> list[dict[str, Any]]:
+        with open_db(self.settings.db_path) as connection:
+            rows = connection.execute(
+                """
+                SELECT e.id, e.start_time, e.end_time, e.duration_seconds, e.customers_affected,
+                       e.cause, e.equipment, e.geography_label, e.geography_type, e.precision_label,
+                       s.dai_number, s.title, s.attachment_url,
+                       g.geometry_geojson, g.centroid_lon, g.centroid_lat
+                FROM disclosure_outage_events e
+                JOIN disclosure_sources s ON s.id = e.source_id
+                LEFT JOIN disclosure_geometries g
+                  ON g.source_id = s.id
+                 AND g.geography_label = e.geography_label
+                 AND g.id = (
+                    SELECT g2.id
+                    FROM disclosure_geometries g2
+                    WHERE g2.source_id = s.id
+                      AND g2.geography_label = e.geography_label
+                    ORDER BY CASE WHEN g2.geometry_source = 'fallback_area' THEN 1 ELSE 0 END,
+                             g2.id DESC
+                    LIMIT 1
+                 )
+                ORDER BY COALESCE(e.start_time, e.created_at) DESC
+                """
+            ).fetchall()
+
+        groups: dict[tuple[str, str], dict[str, Any]] = {}
+        for row in rows:
+            item = dict(row)
+            key = (item["geography_type"], item["geography_label"])
+            group = groups.setdefault(
+                key,
+                {
+                    "outage_kind": "disclosure",
+                    "source_dai": item["dai_number"],
+                    "source_title": item["title"],
+                    "source_url": item["attachment_url"],
+                    "source_dais": [],
+                    "source_titles": {},
+                    "municipality_code": item["geography_label"],
+                    "geography_type": item["geography_type"],
+                    "precision_label": item["precision_label"],
+                    "centroid_lon": item["centroid_lon"],
+                    "centroid_lat": item["centroid_lat"],
+                    "geometry_geojson": json.loads(item["geometry_geojson"])
+                    if item["geometry_geojson"]
+                    else None,
+                    "record_count": 0,
+                    "start_min": None,
+                    "start_max": None,
+                    "duration_seconds_total": 0,
+                    "cause_counts": {},
+                    "recent_events": [],
+                },
+            )
+            if item["dai_number"] not in group["source_dais"]:
+                group["source_dais"].append(item["dai_number"])
+                group["source_titles"][item["dai_number"]] = item["title"]
+            group["record_count"] += 1
+            if item["start_time"]:
+                group["start_min"] = min(
+                    filter(None, [group["start_min"], item["start_time"]]),
+                    default=item["start_time"],
+                )
+                group["start_max"] = max(
+                    filter(None, [group["start_max"], item["start_time"]]),
+                    default=item["start_time"],
+                )
+            if item["duration_seconds"] is not None:
+                group["duration_seconds_total"] += item["duration_seconds"]
+            cause = item["cause"] or "Unknown"
+            group["cause_counts"][cause] = group["cause_counts"].get(cause, 0) + 1
+            group["recent_events"].append(
+                {
+                    "start_time": item["start_time"],
+                    "end_time": item["end_time"],
+                    "duration_seconds": item["duration_seconds"],
+                    "cause": item["cause"],
+                    "row_area": item["equipment"],
+                    "customers_affected": item["customers_affected"],
+                    "source_dai": item["dai_number"],
+                }
+            )
+
+        layers = []
+        for group in groups.values():
+            top_causes = sorted(
+                group["cause_counts"].items(),
+                key=lambda item: (item[1], item[0]),
+                reverse=True,
+            )[:4]
+            layers.append(
+                {
+                    "outage_kind": group["outage_kind"],
+                    "source_dai": group["source_dai"],
+                    "source_title": group["source_title"],
+                    "source_url": group["source_url"],
+                    "source_dais": group["source_dais"],
+                    "source_titles": group["source_titles"],
+                    "municipality_code": group["municipality_code"],
+                    "geography_type": group["geography_type"],
+                    "precision_label": group["precision_label"],
+                    "centroid_lon": group["centroid_lon"],
+                    "centroid_lat": group["centroid_lat"],
+                    "geometry_geojson": group["geometry_geojson"],
+                    "record_count": group["record_count"],
+                    "start_min": group["start_min"],
+                    "start_max": group["start_max"],
+                    "duration_seconds_total": group["duration_seconds_total"],
+                    "top_causes": [{"cause": cause, "count": count} for cause, count in top_causes],
+                    "recent_events": group["recent_events"],
+                }
+            )
+        layers.sort(key=lambda item: (item["source_dai"], item["municipality_code"]))
+        return layers
 
     @staticmethod
     def _area_haystack(normalized: NormalizedAddress, geocode: dict[str, Any]) -> str:

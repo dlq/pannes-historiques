@@ -12,6 +12,7 @@
         <h3 class="text-lg font-semibold text-slate-900">{{ t(lang, "map_panel") }}</h3>
         <p class="mt-2 text-sm text-slate-600">{{ t(lang, "confidence_note") }}</p>
         <outage-map class="mt-4 block h-[28rem] overflow-hidden rounded-[1.5rem]" data-map='{{ map_payload | tojson }}'></outage-map>
+        <dai-detail-panel class="mt-4 block" title-label="{{ t(lang, 'dai_detail_panel') }}" empty-label="{{ t(lang, 'dai_detail_empty') }}"></dai-detail-panel>
         <p class="mt-3 text-sm text-slate-500">{{ t(lang, "map_empty") if not map_payload.matches else "" }}</p>
       </section>
       <section class="rounded-[2rem] bg-white p-5 shadow-sm ring-1 ring-slate-200">
@@ -52,19 +53,13 @@
         </div>
         <div class="space-y-3">{{ ui.match_rows(lang, result.planned_matches, t(lang, "planned_empty") ) }}</div>
       </section>
-      <section class="rounded-[2rem] bg-white p-5 shadow-sm ring-1 ring-slate-200">
-        <div class="mb-4 flex items-center justify-between gap-4">
-          <h3 class="text-lg font-semibold text-slate-900">{{ t(lang, "disclosure_panel") }}</h3>
-          <p class="text-sm text-slate-500">{{ t(lang, "disclosure_scope_note") }}</p>
-        </div>
-        <div class="space-y-3">{{ ui.disclosure_rows(lang, result.disclosure_matches, t(lang, "disclosure_empty") ) }}</div>
-      </section>
     </div>
     <div class="space-y-6">
       <section class="hidden rounded-[2rem] bg-white p-5 shadow-sm ring-1 ring-slate-200 lg:block">
         <h3 class="text-lg font-semibold text-slate-900">{{ t(lang, "map_panel") }}</h3>
         <p class="mt-2 text-sm text-slate-600">{{ t(lang, "confidence_note") }}</p>
         <outage-map class="mt-4 block h-[28rem] overflow-hidden rounded-[1.5rem]" data-map='{{ map_payload | tojson }}'></outage-map>
+        <dai-detail-panel class="mt-4 block" title-label="{{ t(lang, 'dai_detail_panel') }}" empty-label="{{ t(lang, 'dai_detail_empty') }}"></dai-detail-panel>
         <p class="mt-3 text-sm text-slate-500">{{ t(lang, "map_empty") if not map_payload.matches else "" }}</p>
       </section>
       <section class="rounded-[2rem] bg-white p-5 shadow-sm ring-1 ring-slate-200">

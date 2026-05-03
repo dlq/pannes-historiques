@@ -17,8 +17,9 @@ Address-first Hydro-Quebec outage history prototype built from the `plan.md` dir
 - access-to-information disclosure source registry
 - XLSX ingestion for published historical outage extracts
 - PDF table extraction for supported published DAI outage files
+- PDF table extraction for regional DAI summary metrics
 - DAI region outline loading from OSM/Nominatim/Overpass with conservative fallback areas
-- separate display of disclosed area-level historical context alongside live/API-derived matches
+- always-on DAI area context with page-level details for selected disclosed regions
 - Leaflet map layering that keeps broad DAI areas in the background and live/API outage layers on top
 
 ## Run
@@ -49,9 +50,18 @@ This stores raw files under `data/raw/hydro_quebec/` and ingests normalized reco
 uv run python server.py collect-disclosures
 ```
 
-This stores raw disclosure files under `data/raw/hydro_quebec/access_disclosures/`,
-registers sources for provenance, extracts supported row-level XLSX and PDF tables into
-`disclosure_outage_events`, and stores disclosed-area outlines in `disclosure_geometries`.
+This first checks Hydro-Quebec's published access-to-information response page for outage-related
+attachments, then combines those auto-discovered sources with the curated sources below. It stores
+raw disclosure files under `data/raw/hydro_quebec/access_disclosures/`, registers sources for
+provenance, extracts supported row-level XLSX and PDF tables into `disclosure_outage_events`,
+regional aggregate tables into `disclosure_annual_metrics`, and stores disclosed-area outlines in
+`disclosure_geometries`.
+
+The discovery pass looks for response titles mentioning outages, interruptions, continuity, or
+Info-pannes, prefers `document`/`annexe` files over response letters, and classifies
+administrative-region summaries automatically. Newly discovered files that do not match a known
+table pattern are still fetched and registered as `discovered_pending_review` so they can be promoted
+to a richer parser/geometry later.
 
 Currently supported published DAI extracts include:
 
@@ -59,17 +69,30 @@ Currently supported published DAI extracts include:
 - `DAI-2025-0275`: Outremont PDF table
 - `DAI-2026-0042`: Sheenboro, Chichester, L'Isle-aux-Allumettes-Partie-Est, and Waltham PDF table
 - `DAI-2025-0333`: Saint-Felix-de-Kingsey PDF table
+- `DAI-2026-0077`: 2025 administrative-region outage count, average duration, and gross continuity index
+- `DAI-2025-0479`: 2025 partial-year and 2024 administrative-region summaries
+- `DAI-2025-0305`: 2024 administrative-region summary
+- `DAI-2024-0012`: 2019-2023 administrative-region summaries
+- `DAI-2024-0237`: 2019-2023 administrative-region outages over 8 hours
 
 ## Map layers
 
 The map uses separate colors and draw order for each evidence type:
 
-- green dashed areas: DAI / access-to-information historical area context
 - amber/orange: live outage API records from archived Hydro-Quebec snapshots
-- blue: planned interruption API records
+- cyan/blue: planned interruption API records
+- yellow/orange/red background: latest DAI administrative-region summary, colored by gross continuity index when available
+- blue dashed areas: DAI / access-to-information local historical area context
 
-DAI areas are drawn first as broad background context. Live/API-derived outage and planned
-interruption geometries are drawn after them so their smaller, more granular shapes remain visible.
+Regional DAI summaries and local DAI areas are always shown on the map as broad background context,
+while the map opens centered on the searched address at a zoom based on the selected radius. Click a
+colored region or blue DAI area to populate the scrollable details panel with the published source
+and metrics. Live/API-derived outage and planned interruption geometries are drawn after DAI areas so
+their smaller, more granular shapes remain visible on top.
+
+For the regional summary layer, `Montréal` is treated as the administrative region used by the DAI
+tables, not only the municipal City of Montréal, so its background area includes island
+municipalities outside the city boundary.
 
 ## DAI test addresses
 
