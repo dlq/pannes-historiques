@@ -40,6 +40,7 @@ class SearchResult:
     coverage: dict[str, Any]
     outage_matches: list[dict[str, Any]]
     planned_matches: list[dict[str, Any]]
+    previous_outage_groups: list[dict[str, Any]]
     disclosure_matches: list[dict[str, Any]]
     disclosure_layers: list[dict[str, Any]]
     disclosure_metrics: list[dict[str, Any]]
@@ -87,10 +88,7 @@ class AppService:
     ) -> SearchResult:
         normalized = normalize_address(query)
         if self.settings.auto_refresh_on_search:
-            try:
-                self.maybe_refresh()
-            except Exception:
-                pass
+            self.collect()
 
         geocode = self.geocoder.geocode(normalized)
         collector_summary = self.collector_status()
@@ -106,6 +104,7 @@ class AppService:
                 coverage=self.coverage_stats(),
                 outage_matches=[],
                 planned_matches=[],
+                previous_outage_groups=[],
                 disclosure_matches=[],
                 disclosure_layers=[],
                 disclosure_metrics=[],
@@ -116,8 +115,8 @@ class AppService:
         geocode = self._geocode_dict(geocode)
 
         address_id, cache_hit = self._upsert_address(normalized, geocode)
-        matches = self._find_matches(
-            address_id, geocode["latitude"], geocode["longitude"], radius_m, days, include_planned
+        matches = self._find_current_matches(
+            geocode["latitude"], geocode["longitude"], radius_m, days, include_planned
         )
         outage_matches = [item for item in matches if item["outage_kind"] == "outage"]
         planned_matches = [item for item in matches if item["outage_kind"] == "planned"]
@@ -130,7 +129,11 @@ class AppService:
         disclosure_layers = self._disclosure_map_layers()
         disclosure_metrics = self._find_disclosure_metrics(normalized=normalized, geocode=geocode)
         regional_metric_layers = self._regional_metric_map_layers()
-        self._save_matches(address_id, matches)
+        self._save_matches(address_id, outage_matches)
+        previous_outage_groups = self._previous_outage_groups(
+            address_id=address_id,
+            exclude_event_keys={self._outage_display_key(item) for item in outage_matches},
+        )
         query_count = self._record_query(
             address_id=address_id,
             original_query=query,
@@ -152,6 +155,90 @@ class AppService:
             coverage=self.coverage_stats(),
             outage_matches=outage_matches,
             planned_matches=planned_matches,
+            previous_outage_groups=previous_outage_groups,
+            disclosure_matches=disclosure_matches,
+            disclosure_layers=disclosure_layers,
+            disclosure_metrics=disclosure_metrics,
+            regional_metric_layers=regional_metric_layers,
+            radius_m=radius_m,
+        )
+
+    def search_location(
+        self,
+        *,
+        latitude: float,
+        longitude: float,
+        accuracy_m: float | None,
+        language: str,
+        radius_m: int,
+        days: int,
+        include_planned: bool,
+    ) -> SearchResult:
+        label = f"Current location ({latitude:.5f}, {longitude:.5f})"
+        normalized = NormalizedAddress(
+            original=label,
+            normalized_line=f"current location {latitude:.5f},{longitude:.5f}",
+            street_line="Current location",
+            city="",
+            province="QC",
+            postal_code="",
+            unit="",
+        )
+        if self.settings.auto_refresh_on_search:
+            self.collect()
+
+        geocode = {
+            "provider": "browser_geolocation",
+            "confidence": 0.95 if accuracy_m is not None and accuracy_m <= 100 else 0.75,
+            "quality": "device_location",
+            "latitude": latitude,
+            "longitude": longitude,
+            "city": "",
+            "province": "QC",
+            "postal_code": "",
+            "raw_json": {"accuracy_m": accuracy_m},
+        }
+        collector_summary = self.collector_status()
+        address_id, cache_hit = self._upsert_address(normalized, geocode)
+        matches = self._find_current_matches(latitude, longitude, radius_m, days, include_planned)
+        outage_matches = [item for item in matches if item["outage_kind"] == "outage"]
+        planned_matches = [item for item in matches if item["outage_kind"] == "planned"]
+        disclosure_matches = self._find_disclosure_matches(
+            normalized=normalized,
+            geocode=geocode,
+            radius_m=radius_m,
+            days=days,
+        )
+        disclosure_layers = self._disclosure_map_layers()
+        disclosure_metrics = self._find_disclosure_metrics(normalized=normalized, geocode=geocode)
+        regional_metric_layers = self._regional_metric_map_layers()
+        self._save_matches(address_id, outage_matches)
+        previous_outage_groups = self._previous_outage_groups(
+            address_id=address_id,
+            exclude_event_keys={self._outage_display_key(item) for item in outage_matches},
+        )
+        query_count = self._record_query(
+            address_id=address_id,
+            original_query=label,
+            normalized_query=normalized.normalized_line,
+            language=language,
+            radius_m=radius_m,
+            days=days,
+            include_planned=include_planned,
+            cache_hit=cache_hit,
+        )
+        return SearchResult(
+            normalized=normalized,
+            address_id=address_id,
+            cache_hit=cache_hit,
+            geocode=geocode,
+            matches=matches,
+            query_count=query_count,
+            collector_summary=collector_summary,
+            coverage=self.coverage_stats(),
+            outage_matches=outage_matches,
+            planned_matches=planned_matches,
+            previous_outage_groups=previous_outage_groups,
             disclosure_matches=disclosure_matches,
             disclosure_layers=disclosure_layers,
             disclosure_metrics=disclosure_metrics,
@@ -326,9 +413,8 @@ class AppService:
             ).fetchone()
         return int(count_row["count"])
 
-    def _find_matches(
+    def _find_current_matches(
         self,
-        address_id: int,
         latitude: float,
         longitude: float,
         radius_m: int,
@@ -349,10 +435,19 @@ class AppService:
 
             outage_rows = connection.execute(
                 """
-                SELECT *
-                FROM outage_records
-                WHERE COALESCE(outage_start_time, '') >= ?
-                ORDER BY COALESCE(outage_start_time, created_at) DESC
+                SELECT r.*
+                FROM outage_records r
+                JOIN raw_snapshots s ON s.id = r.snapshot_id
+                WHERE s.source_type = 'bismarkers'
+                  AND s.id = (
+                    SELECT id
+                    FROM raw_snapshots
+                    WHERE source_type = 'bismarkers'
+                    ORDER BY fetched_at DESC, id DESC
+                    LIMIT 1
+                  )
+                  AND COALESCE(r.outage_start_time, '') >= ?
+                ORDER BY COALESCE(r.outage_start_time, r.created_at) DESC
                 """,
                 (cutoff,),
             ).fetchall()
@@ -370,10 +465,19 @@ class AppService:
             if include_planned:
                 planned_rows = connection.execute(
                     """
-                    SELECT *
-                    FROM planned_interruptions
-                    WHERE COALESCE(scheduled_start, '') >= ?
-                    ORDER BY COALESCE(scheduled_start, created_at) DESC
+                    SELECT p.*
+                    FROM planned_interruptions p
+                    JOIN raw_snapshots s ON s.id = p.snapshot_id
+                    WHERE s.source_type = 'aipmarkers'
+                      AND s.id = (
+                        SELECT id
+                        FROM raw_snapshots
+                        WHERE source_type = 'aipmarkers'
+                        ORDER BY fetched_at DESC, id DESC
+                        LIMIT 1
+                      )
+                      AND COALESCE(p.scheduled_start, '') >= ?
+                    ORDER BY COALESCE(p.scheduled_start, p.created_at) DESC
                     """,
                     (cutoff,),
                 ).fetchall()
@@ -527,6 +631,8 @@ class AppService:
     def _save_matches(self, address_id: int, matches: list[dict[str, Any]]) -> None:
         with open_db(self.settings.db_path) as connection:
             for item in matches:
+                if item["outage_kind"] != "outage":
+                    continue
                 connection.execute(
                     """
                     INSERT OR REPLACE INTO address_outage_matches
@@ -543,6 +649,100 @@ class AppService:
                         item["confidence"],
                     ),
                 )
+
+    def _previous_outage_groups(
+        self, *, address_id: int, exclude_event_keys: set[tuple[Any, ...]]
+    ) -> list[dict[str, Any]]:
+        with open_db(self.settings.db_path) as connection:
+            rows = connection.execute(
+                """
+                SELECT m.geometry_id, m.match_type, m.distance_m, m.confidence, m.matched_at,
+                       r.id AS record_id, r.customers_affected, r.outage_start_time,
+                       r.estimated_restore_time, r.interruption_type, r.status,
+                       r.municipality_code, r.centroid_lon, r.centroid_lat,
+                       g.name AS geometry_name, g.geometry_geojson
+                FROM address_outage_matches m
+                JOIN outage_records r ON r.id = m.record_id
+                LEFT JOIN outage_geometries g ON g.id = m.geometry_id
+                WHERE m.address_id = ?
+                  AND m.outage_kind = 'outage'
+                ORDER BY COALESCE(r.outage_start_time, m.matched_at) DESC
+                """,
+                (address_id,),
+            ).fetchall()
+
+        groups: dict[str, dict[str, Any]] = {}
+        for row in rows:
+            item = dict(row)
+            event = {
+                "municipality_code": item["municipality_code"],
+                "start_time": item["outage_start_time"],
+                "centroid_lat": item["centroid_lat"],
+                "centroid_lon": item["centroid_lon"],
+                "interruption_type": item["interruption_type"],
+            }
+            if self._outage_display_key(event) in exclude_event_keys:
+                continue
+            group_key = (
+                f"geometry:{item['geometry_id']}"
+                if item["geometry_id"] is not None
+                else f"centroid:{round(item['centroid_lat'] or 0.0, 3)}:{round(item['centroid_lon'] or 0.0, 3)}"
+            )
+            group = groups.setdefault(
+                group_key,
+                {
+                    "geometry_id": item["geometry_id"],
+                    "label": item["geometry_name"]
+                    or item["municipality_code"]
+                    or f"{item['centroid_lat']}, {item['centroid_lon']}",
+                    "municipality_code": item["municipality_code"],
+                    "centroid_lat": item["centroid_lat"],
+                    "centroid_lon": item["centroid_lon"],
+                    "geometry_geojson": json.loads(item["geometry_geojson"])
+                    if item["geometry_geojson"]
+                    else None,
+                    "events": [],
+                },
+            )
+            group["events"].append(
+                {
+                    "outage_kind": "outage",
+                    "record_id": item["record_id"],
+                    "match_type": item["match_type"],
+                    "distance_m": item["distance_m"],
+                    "confidence": item["confidence"],
+                    "municipality_code": item["municipality_code"],
+                    "customers_affected": item["customers_affected"],
+                    "status": item["status"],
+                    "interruption_type": item["interruption_type"],
+                    "start_time": item["outage_start_time"],
+                    "end_time": item["estimated_restore_time"],
+                    "centroid_lat": item["centroid_lat"],
+                    "centroid_lon": item["centroid_lon"],
+                    "matched_at": item["matched_at"],
+                    "sort_time": item["outage_start_time"],
+                }
+            )
+
+        grouped = list(groups.values())
+        for group in grouped:
+            group["events"].sort(key=lambda item: item["sort_time"] or "", reverse=True)
+            group["event_count"] = len(group["events"])
+            group["latest_start_time"] = (
+                group["events"][0]["start_time"] if group["events"] else None
+            )
+        grouped.sort(key=lambda item: item["latest_start_time"] or "", reverse=True)
+        return grouped
+
+    @staticmethod
+    def _outage_display_key(item: dict[str, Any]) -> tuple[Any, ...]:
+        return (
+            item["municipality_code"],
+            item["start_time"],
+            round(item["centroid_lat"] or 0.0, 3),
+            round(item["centroid_lon"] or 0.0, 3),
+            item["interruption_type"],
+        )
 
     @staticmethod
     def _dedupe_matches(matches: list[dict[str, Any]]) -> list[dict[str, Any]]:

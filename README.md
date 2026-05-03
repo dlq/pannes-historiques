@@ -96,8 +96,8 @@ municipalities outside the city boundary.
 
 ## DAI test addresses
 
-Use the `5 y (requested)` time range when testing DAI records, because many published DAI rows are
-older than the default 365-day search window.
+Searches use a fixed 5 km radius, a fixed 5-year window, and always include current planned
+interruptions.
 
 Useful test queries:
 

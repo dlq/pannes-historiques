@@ -27,10 +27,10 @@ class Settings:
         "NOMINATIM_USER_AGENT",
         "pannes-historiques/0.1 (+https://example.invalid)",
     )
-    auto_refresh_on_search: bool = os.environ.get("AUTO_REFRESH_ON_SEARCH", "0") == "1"
+    auto_refresh_on_search: bool = os.environ.get("AUTO_REFRESH_ON_SEARCH", "1") == "1"
     refresh_max_age_minutes: int = int(os.environ.get("REFRESH_MAX_AGE_MINUTES", "30"))
     default_radius_m: int = int(os.environ.get("DEFAULT_RADIUS_M", "5000"))
-    default_days: int = int(os.environ.get("DEFAULT_DAYS", "365"))
+    default_days: int = int(os.environ.get("DEFAULT_DAYS", "1825"))
 
 
 def ensure_directories(settings: Settings) -> None:

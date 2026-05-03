@@ -8,7 +8,7 @@ from .config import Settings, ensure_directories
 from .db import initialize
 from .i18n import choose_language, t
 from .services import AppService
-from .views import DAYS_OPTIONS, RADIUS_OPTIONS, result_context
+from .views import FIXED_DAYS, FIXED_INCLUDE_PLANNED, FIXED_RADIUS_M, result_context
 
 
 def create_app(settings: Settings | None = None) -> Flask:
@@ -26,9 +26,9 @@ def create_app(settings: Settings | None = None) -> Flask:
     def index():
         lang = choose_language(request.args.get("lang"))
         query = request.args.get("q", "")
-        radius_m = int(request.args.get("radius_m") or settings.default_radius_m)
-        days = int(request.args.get("days") or settings.default_days)
-        include_planned = request.args.get("include_planned", "1") == "1"
+        radius_m = FIXED_RADIUS_M
+        days = FIXED_DAYS
+        include_planned = FIXED_INCLUDE_PLANNED
         search_context = None
 
         if query:
@@ -44,12 +44,10 @@ def create_app(settings: Settings | None = None) -> Flask:
         return render_template(
             "index.html",
             days=days,
-            days_options=DAYS_OPTIONS,
             include_planned=include_planned,
             initial_query=query,
             lang=lang,
             radius_m=radius_m,
-            radius_options=RADIUS_OPTIONS,
             result_context=search_context,
             settings=settings,
         )
@@ -60,9 +58,25 @@ def create_app(settings: Settings | None = None) -> Flask:
         result = service.search(
             query=request.form.get("q", ""),
             language=lang,
-            radius_m=int(request.form.get("radius_m") or settings.default_radius_m),
-            days=int(request.form.get("days") or settings.default_days),
-            include_planned=request.form.get("include_planned") == "1",
+            radius_m=FIXED_RADIUS_M,
+            days=FIXED_DAYS,
+            include_planned=FIXED_INCLUDE_PLANNED,
+        )
+        return render_template("_results.html", **result_context(lang, result))
+
+    @app.post("/search-location")
+    def search_location():
+        lang = choose_language(request.form.get("lang"))
+        result = service.search_location(
+            latitude=float(request.form.get("latitude") or "0"),
+            longitude=float(request.form.get("longitude") or "0"),
+            accuracy_m=float(request.form["accuracy_m"])
+            if request.form.get("accuracy_m")
+            else None,
+            language=lang,
+            radius_m=FIXED_RADIUS_M,
+            days=FIXED_DAYS,
+            include_planned=FIXED_INCLUDE_PLANNED,
         )
         return render_template("_results.html", **result_context(lang, result))
 

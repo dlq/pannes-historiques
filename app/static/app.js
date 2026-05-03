@@ -5,13 +5,7 @@ function syncLanguageForm() {
   const languageForm = document.querySelector("#language-form");
   if (!searchForm || !languageForm) return;
   const q = searchForm.querySelector('[name="q"]')?.value || "";
-  const radius = searchForm.querySelector('[name="radius_m"]')?.value || "5000";
-  const days = searchForm.querySelector('[name="days"]')?.value || "365";
-  const includePlanned = searchForm.querySelector('[name="include_planned"]')?.checked ? "1" : "0";
   languageForm.querySelector('[data-sync="q"]').value = q;
-  languageForm.querySelector('[data-sync="radius_m"]').value = radius;
-  languageForm.querySelector('[data-sync="days"]').value = days;
-  languageForm.querySelector('[data-sync="include_planned"]').value = includePlanned;
 }
 
 function attachAddressAutocomplete() {
@@ -35,16 +29,16 @@ function attachAddressAutocomplete() {
       const button = document.createElement("button");
       button.type = "button";
       button.className =
-        "block w-full rounded-xl px-3 py-2 text-left text-sm text-slate-700 hover:bg-stone-100";
+        "block w-full px-3 py-2 text-left text-sm text-[#223654] hover:bg-[#f1f1f2]";
       button.dataset.addressValue = item.value || item.label || "";
       button.dataset.addressLabel = item.label || item.value || "";
 
       const primary = document.createElement("span");
-      primary.className = "block font-medium text-slate-900";
+      primary.className = "block font-medium text-[#223654]";
       primary.textContent = item.value || item.label || "";
 
       const secondary = document.createElement("span");
-      secondary.className = "block text-xs text-slate-500";
+      secondary.className = "block text-xs text-[#6b778a]";
       secondary.textContent = item.label || item.value || "";
 
       button.append(primary, secondary);
@@ -110,49 +104,129 @@ function attachAddressAutocomplete() {
   });
 }
 
-class CacheFreshnessBadge extends HTMLElement {
-  connectedCallback() {
-    const label = this.getAttribute("label") || "Freshness";
-    const latest = this.getAttribute("latest");
-    const value = latest ? new Date(latest).toLocaleString() : "No snapshot";
-    this.innerHTML = `<div class="rounded-[1.5rem] bg-emerald-50 px-4 py-3 text-sm text-emerald-900 ring-1 ring-emerald-200"><div class="text-xs uppercase tracking-[0.2em]">${label}</div><div class="mt-1 font-medium">${value}</div></div>`;
-  }
+function showSearchLoading(show) {
+  const loading = document.querySelector("#search-loading");
+  if (!loading) return;
+  loading.style.display = show ? "block" : "";
 }
 
-class OutageTimeline extends HTMLElement {
-  connectedCallback() {
-    const raw = this.getAttribute("data-items") || "[]";
-    const items = JSON.parse(raw);
-    if (!items.length) {
-      this.innerHTML =
-        '<div class="rounded-2xl bg-stone-100 p-5 text-sm text-slate-600">No archived outage has been observed near this address yet.</div>';
+function attachLocationSearch() {
+  const button = document.querySelector("#location-search-button");
+  const input = document.querySelector("#address-input");
+  const results = document.querySelector("#results");
+  const searchForm = document.querySelector("#search-form");
+  if (!button || !results || button.dataset.locationBound === "1") return;
+  button.dataset.locationBound = "1";
+
+  const originalLabel = button.textContent.trim();
+  const currentLocationPrefix =
+    document.documentElement.lang === "en" ? "Current location" : "Position actuelle";
+  const locationUnavailable =
+    document.documentElement.lang === "en"
+      ? "Current location could not be found."
+      : "Impossible d'obtenir la position actuelle.";
+  const locating =
+    document.documentElement.lang === "en" ? "Finding location..." : "Localisation en cours...";
+
+  button.addEventListener("click", () => {
+    if (!("geolocation" in navigator)) {
+      results.innerHTML = `<div class="border border-[#cb381f] bg-[#ffdbd6] p-6 text-[#692519]">${escapeHtml(locationUnavailable)}</div>`;
       return;
     }
-    const bars = items
-      .slice(0, 18)
-      .map((item) => {
-        const value = Math.max(14, Math.round((item.confidence || 0.2) * 100));
-        const hue = item.outage_kind === "planned" ? "bg-sky-400" : "bg-amber-400";
-        const label = (item.start_time || "").slice(5, 10) || "--";
-        return `
-        <div class="flex min-w-0 flex-1 flex-col justify-end">
-          <div class="flex h-40 items-end rounded-2xl bg-white/70 px-1">
-            <div class="w-full rounded-t-xl ${hue}" style="height:${value}%; min-height:16px"></div>
-          </div>
-          <div class="mt-2 text-center text-[10px] text-slate-500">${label}</div>
-        </div>
-      `;
-      })
-      .join("");
-    this.innerHTML = `
-      <div class="rounded-[1.5rem] bg-stone-100 p-4">
-        <div class="mb-3 flex items-center gap-4 text-xs text-slate-600">
-          <div class="flex items-center gap-2"><span class="inline-block h-3 w-3 rounded-sm bg-amber-400"></span><span>Outage archive</span></div>
-        </div>
-        <div class="flex items-end gap-2 overflow-x-auto">${bars}</div>
-      </div>
-    `;
-  }
+
+    button.disabled = true;
+    button.innerHTML = `<span class="inline-flex items-center gap-2"><span class="h-3 w-3 animate-spin rounded-full border-2 border-[#c5cad2] border-t-[#095797]"></span><span>${escapeHtml(locating)}</span></span>`;
+    showSearchLoading(true);
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const formData = new FormData();
+        formData.set(
+          "lang",
+          searchForm?.querySelector('[name="lang"]')?.value ||
+            document.documentElement.lang ||
+            "fr",
+        );
+        formData.set("latitude", String(position.coords.latitude));
+        formData.set("longitude", String(position.coords.longitude));
+        if (Number.isFinite(position.coords.accuracy)) {
+          formData.set("accuracy_m", String(position.coords.accuracy));
+        }
+        try {
+          const response = await fetch(button.dataset.locationUrl, {
+            method: "POST",
+            headers: { "HX-Request": "true" },
+            body: formData,
+          });
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const html = await response.text();
+          results.innerHTML = html;
+          if (input) {
+            input.value = `${currentLocationPrefix} (${position.coords.latitude.toFixed(5)}, ${position.coords.longitude.toFixed(5)})`;
+            searchForm
+              ?.querySelector('[name="latitude"]')
+              ?.setAttribute("value", String(position.coords.latitude));
+            searchForm
+              ?.querySelector('[name="longitude"]')
+              ?.setAttribute("value", String(position.coords.longitude));
+            if (Number.isFinite(position.coords.accuracy)) {
+              searchForm
+                ?.querySelector('[name="accuracy_m"]')
+                ?.setAttribute("value", String(position.coords.accuracy));
+            }
+            syncLanguageForm();
+          }
+        } catch (_error) {
+          results.innerHTML = `<div class="border border-[#cb381f] bg-[#ffdbd6] p-6 text-[#692519]">${escapeHtml(locationUnavailable)}</div>`;
+        } finally {
+          button.disabled = false;
+          button.textContent = originalLabel;
+          showSearchLoading(false);
+        }
+      },
+      () => {
+        results.innerHTML = `<div class="border border-[#cb381f] bg-[#ffdbd6] p-6 text-[#692519]">${escapeHtml(locationUnavailable)}</div>`;
+        button.disabled = false;
+        button.textContent = originalLabel;
+        showSearchLoading(false);
+      },
+      { enableHighAccuracy: false, maximumAge: 300000, timeout: 10000 },
+    );
+  });
+}
+
+function attachSearchRouting() {
+  const searchForm = document.querySelector("#search-form");
+  const input = document.querySelector("#address-input");
+  const locationButton = document.querySelector("#location-search-button");
+  if (!searchForm || !input || !locationButton || searchForm.dataset.routingBound === "1") return;
+  searchForm.dataset.routingBound = "1";
+
+  const isCurrentLocationValue = () => {
+    const value = input.value.toLowerCase();
+    return value.startsWith("current location") || value.startsWith("position actuelle");
+  };
+
+  input.addEventListener("input", () => {
+    if (!isCurrentLocationValue()) {
+      searchForm.querySelector('[name="latitude"]')?.setAttribute("value", "");
+      searchForm.querySelector('[name="longitude"]')?.setAttribute("value", "");
+      searchForm.querySelector('[name="accuracy_m"]')?.setAttribute("value", "");
+    }
+  });
+
+  searchForm.addEventListener("htmx:configRequest", (event) => {
+    const latitude = searchForm.querySelector('[name="latitude"]')?.value || "";
+    const longitude = searchForm.querySelector('[name="longitude"]')?.value || "";
+    if (!latitude || !longitude || !isCurrentLocationValue()) {
+      return;
+    }
+    event.detail.path = locationButton.dataset.locationUrl;
+    event.detail.parameters.latitude = latitude;
+    event.detail.parameters.longitude = longitude;
+    const accuracy = searchForm.querySelector('[name="accuracy_m"]')?.value || "";
+    if (accuracy) event.detail.parameters.accuracy_m = accuracy;
+  });
 }
 
 function escapeHtml(value) {
@@ -191,7 +265,7 @@ function disclosurePopup(item) {
     .join("");
   const sources = (item.sourceDais || []).map((source) => escapeHtml(source)).join(", ");
   return `
-    <div class="space-y-2 text-sm">
+      <div class="space-y-2 text-sm">
       <div class="font-semibold">${escapeHtml(item.label || "")}</div>
       ${sources ? `<div>Sources: ${sources}</div>` : `<div>${escapeHtml(item.sourceDai || "")}</div>`}
       <div>${escapeHtml(item.recordCount || 0)} published DAI records</div>
@@ -227,6 +301,9 @@ function disclosurePopup(item) {
 }
 
 function itemPopup(item) {
+  if (item.kind === "previous_outage") {
+    return `Previous outage area: ${escapeHtml(item.label || "")}<br>${escapeHtml(item.eventCount || 0)} retained outage${item.eventCount === 1 ? "" : "s"}<br>Latest: ${escapeHtml(item.latestStartTime || "unknown")}`;
+  }
   return `${escapeHtml(item.kind)}: ${escapeHtml(item.label || "")}`;
 }
 
@@ -274,8 +351,8 @@ class DaiDetailPanel extends HTMLElement {
     const title = this.getAttribute("title-label") || "DAI details";
     const empty = this.getAttribute("empty-label") || "Click a blue DAI area on the map.";
     this.innerHTML = `
-      <div class="rounded-[1.5rem] bg-slate-50 p-4 text-sm text-slate-600 ring-1 ring-slate-200">
-        <div class="font-semibold text-slate-900">${escapeHtml(title)}</div>
+      <div class="border border-[#c5cad2] bg-[#f1f1f2] p-4 text-sm text-[#4e5662]">
+        <div class="font-semibold text-[#223654]">${escapeHtml(title)}</div>
         <p class="mt-2">${escapeHtml(empty)}</p>
       </div>
     `;
@@ -284,14 +361,14 @@ class DaiDetailPanel extends HTMLElement {
   renderDisclosure(item) {
     const title = this.getAttribute("title-label") || "DAI details";
     this.innerHTML = `
-      <div class="rounded-[1.5rem] bg-slate-50 p-4 ring-1 ring-slate-200">
+      <div class="border border-[#c5cad2] bg-[#f1f1f2] p-4">
         <div class="mb-3 flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p class="text-xs uppercase tracking-[0.2em] text-blue-700">${escapeHtml(title)}</p>
-            <h4 class="mt-1 text-base font-semibold text-slate-950">${escapeHtml(item.label || "")}</h4>
-            <p class="mt-1 text-sm text-slate-600">${escapeHtml((item.sourceDais || []).join(", ") || item.sourceDai || "")}</p>
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-[#095797]">${escapeHtml(title)}</p>
+            <h4 class="mt-1 text-base font-semibold text-[#223654]">${escapeHtml(item.label || "")}</h4>
+            <p class="mt-1 text-sm text-[#4e5662]">${escapeHtml((item.sourceDais || []).join(", ") || item.sourceDai || "")}</p>
           </div>
-          <div class="rounded-xl bg-white px-3 py-2 text-sm font-semibold text-blue-700 ring-1 ring-blue-100">${escapeHtml(item.recordCount || 0)} rows</div>
+          <div class="border border-[#dae6f0] bg-white px-3 py-2 text-sm font-semibold text-[#095797]">${escapeHtml(item.recordCount || 0)} rows</div>
         </div>
         <div class="max-h-[28rem] overflow-auto pr-2">
           ${disclosurePopup(item)}
@@ -318,16 +395,16 @@ class DaiDetailPanel extends HTMLElement {
       .join("");
     const sourceCount = (item.sourceDais || []).length || 1;
     this.innerHTML = `
-      <div class="rounded-[1.5rem] bg-rose-50 p-4 ring-1 ring-rose-200">
-        <p class="text-xs uppercase tracking-[0.2em] text-rose-700">${escapeHtml(title)}</p>
-        <h4 class="mt-1 text-base font-semibold text-slate-950">${escapeHtml(item.label || "")}</h4>
-        <p class="mt-1 text-sm text-slate-600">${escapeHtml(sourceCount)} DAI source${sourceCount === 1 ? "" : "s"} · latest shown on map: ${escapeHtml(item.sourceDai)}</p>
+      <div class="border border-[#c5cad2] bg-[#f1f1f2] p-4">
+        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-[#095797]">${escapeHtml(title)}</p>
+        <h4 class="mt-1 text-base font-semibold text-[#223654]">${escapeHtml(item.label || "")}</h4>
+        <p class="mt-1 text-sm text-[#4e5662]">${escapeHtml(sourceCount)} DAI source${sourceCount === 1 ? "" : "s"} · latest shown on map: ${escapeHtml(item.sourceDai)}</p>
         <dl class="mt-4 grid gap-3 text-sm sm:grid-cols-2">
-          <div class="rounded-xl bg-white px-3 py-2 ring-1 ring-rose-100"><dt class="text-slate-500">Period</dt><dd class="font-semibold text-slate-950">${escapeHtml(item.periodLabel || item.year || "unknown")}</dd></div>
-          <div class="rounded-xl bg-white px-3 py-2 ring-1 ring-rose-100"><dt class="text-slate-500">Outages</dt><dd class="font-semibold text-slate-950">${escapeHtml(item.outageCount ?? "unknown")}</dd></div>
-          <div class="rounded-xl bg-white px-3 py-2 ring-1 ring-rose-100"><dt class="text-slate-500">Average duration</dt><dd class="font-semibold text-slate-950">${escapeHtml(item.averageDurationMinutes ?? "unknown")} min</dd></div>
-          <div class="rounded-xl bg-white px-3 py-2 ring-1 ring-rose-100"><dt class="text-slate-500">IC brut</dt><dd class="font-semibold text-slate-950">${escapeHtml(item.continuityIndexMinutes ?? "unknown")} min</dd></div>
-          <div class="rounded-xl bg-white px-3 py-2 ring-1 ring-rose-100"><dt class="text-slate-500">Outages > 8h</dt><dd class="font-semibold text-slate-950">${escapeHtml(item.longOutageCount ?? "unknown")}</dd></div>
+          <div class="border border-[#dae6f0] bg-white px-3 py-2"><dt class="text-[#6b778a]">Period</dt><dd class="font-semibold text-[#223654]">${escapeHtml(item.periodLabel || item.year || "unknown")}</dd></div>
+          <div class="border border-[#dae6f0] bg-white px-3 py-2"><dt class="text-[#6b778a]">Outages</dt><dd class="font-semibold text-[#223654]">${escapeHtml(item.outageCount ?? "unknown")}</dd></div>
+          <div class="border border-[#dae6f0] bg-white px-3 py-2"><dt class="text-[#6b778a]">Average duration</dt><dd class="font-semibold text-[#223654]">${escapeHtml(item.averageDurationMinutes ?? "unknown")} min</dd></div>
+          <div class="border border-[#dae6f0] bg-white px-3 py-2"><dt class="text-[#6b778a]">IC brut</dt><dd class="font-semibold text-[#223654]">${escapeHtml(item.continuityIndexMinutes ?? "unknown")} min</dd></div>
+          <div class="border border-[#dae6f0] bg-white px-3 py-2"><dt class="text-[#6b778a]">Outages > 8h</dt><dd class="font-semibold text-[#223654]">${escapeHtml(item.longOutageCount ?? "unknown")}</dd></div>
         </dl>
         ${
           rows
@@ -361,8 +438,10 @@ class OutageMap extends HTMLElement {
     const root = this.firstElementChild;
     const detailPanel = this.parentElement?.querySelector("dai-detail-panel");
     const map = L.map(root).setView(data.center || [46.8, -71.2], 11);
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: "&copy; OpenStreetMap contributors",
+    L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
+      attribution:
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+      subdomains: "abcd",
     }).addTo(map);
     const bounds = [];
     if (data.center) {
@@ -392,7 +471,7 @@ class OutageMap extends HTMLElement {
       );
     };
     const orderedMatches = [...(data.matches || [])].sort((left, right) => {
-      const rank = { regional_metric: 0, disclosure: 1, planned: 2, outage: 2 };
+      const rank = { regional_metric: 0, disclosure: 1, previous_outage: 2, planned: 3, outage: 3 };
       const rankDifference = (rank[left.kind] ?? 3) - (rank[right.kind] ?? 3);
       if (rankDifference !== 0) return rankDifference;
       if (left.kind === "disclosure") {
@@ -408,11 +487,14 @@ class OutageMap extends HTMLElement {
             ? "#2563eb"
             : item.kind === "regional_metric"
               ? metricColor(metricValue(item), metricMax)
-              : "#f59e0b";
+              : item.kind === "previous_outage"
+                ? "#64748b"
+                : "#f59e0b";
       let rendered = false;
       if (item.geometry && item.geometry.type === "Polygon") {
         const isDisclosure = item.kind === "disclosure";
         const isRegionalMetric = item.kind === "regional_metric";
+        const isPreviousOutage = item.kind === "previous_outage";
         const layer = L.geoJSON(item.geometry, {
           style: {
             color,
@@ -420,18 +502,22 @@ class OutageMap extends HTMLElement {
               ? 1.5
               : isDisclosure
                 ? 2.5
-                : item.matchType === "direct_match"
-                  ? 3
-                  : 2,
-            dashArray: isDisclosure ? "8 5" : null,
+                : isPreviousOutage
+                  ? 2
+                  : item.matchType === "direct_match"
+                    ? 3
+                    : 2,
+            dashArray: isDisclosure ? "8 5" : isPreviousOutage ? "4 6" : null,
             fillColor: color,
             fillOpacity: isRegionalMetric
               ? 0.28
               : isDisclosure
                 ? 0.18
-                : item.kind === "planned"
-                  ? 0.16
-                  : 0.22,
+                : isPreviousOutage
+                  ? 0.1
+                  : item.kind === "planned"
+                    ? 0.16
+                    : 0.22,
           },
         }).addTo(map);
         if (isDisclosure) {
@@ -459,13 +545,20 @@ class OutageMap extends HTMLElement {
       if (item.geometry && item.geometry.type === "MultiPolygon") {
         const isDisclosure = item.kind === "disclosure";
         const isRegionalMetric = item.kind === "regional_metric";
+        const isPreviousOutage = item.kind === "previous_outage";
         const layer = L.geoJSON(item.geometry, {
           style: {
             color,
-            weight: isRegionalMetric ? 1.5 : 2.5,
-            dashArray: isDisclosure ? "8 5" : null,
+            weight: isRegionalMetric ? 1.5 : isPreviousOutage ? 2 : 2.5,
+            dashArray: isDisclosure ? "8 5" : isPreviousOutage ? "4 6" : null,
             fillColor: color,
-            fillOpacity: isRegionalMetric ? 0.28 : isDisclosure ? 0.18 : 0.22,
+            fillOpacity: isRegionalMetric
+              ? 0.28
+              : isDisclosure
+                ? 0.18
+                : isPreviousOutage
+                  ? 0.1
+                  : 0.22,
           },
         }).addTo(map);
         if (isDisclosure) {
@@ -492,18 +585,27 @@ class OutageMap extends HTMLElement {
       if (!rendered && item.lat != null && item.lon != null) {
         const isDisclosure = item.kind === "disclosure";
         const isRegionalMetric = item.kind === "regional_metric";
+        const isPreviousOutage = item.kind === "previous_outage";
         const marker = L.circleMarker([item.lat, item.lon], {
           radius: isRegionalMetric
             ? 14
             : isDisclosure
               ? 12
-              : item.matchType === "direct_match"
-                ? 8
-                : 6,
+              : isPreviousOutage
+                ? 7
+                : item.matchType === "direct_match"
+                  ? 8
+                  : 6,
           color,
-          weight: isRegionalMetric ? 2 : isDisclosure ? 3 : 2,
+          weight: isRegionalMetric ? 2 : isDisclosure ? 3 : isPreviousOutage ? 1.5 : 2,
           fillColor: color,
-          fillOpacity: isRegionalMetric ? 0.48 : isDisclosure ? 0.82 : 0.65,
+          fillOpacity: isRegionalMetric
+            ? 0.48
+            : isDisclosure
+              ? 0.82
+              : isPreviousOutage
+                ? 0.38
+                : 0.65,
         }).addTo(map);
         if (isDisclosure) {
           marker.on("click", () => showDisclosure(item));
@@ -556,14 +658,14 @@ class OutageMap extends HTMLElement {
   }
 }
 
-customElements.define("cache-freshness-badge", CacheFreshnessBadge);
-customElements.define("outage-timeline", OutageTimeline);
 customElements.define("dai-detail-panel", DaiDetailPanel);
 customElements.define("outage-map", OutageMap);
 
 document.addEventListener("DOMContentLoaded", () => {
   syncLanguageForm();
   attachAddressAutocomplete();
+  attachLocationSearch();
+  attachSearchRouting();
   document.body.addEventListener("input", syncLanguageForm);
   document.body.addEventListener("change", syncLanguageForm);
 });
@@ -571,4 +673,6 @@ document.addEventListener("DOMContentLoaded", () => {
 document.body.addEventListener("htmx:afterSwap", () => {
   syncLanguageForm();
   attachAddressAutocomplete();
+  attachLocationSearch();
+  attachSearchRouting();
 });

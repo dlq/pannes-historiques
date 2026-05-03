@@ -1,7 +1,7 @@
 # Plan: Address-First Hydro-Québec Outage History App
 
 Date: 2026-04-25
-Last updated: 2026-05-01
+Last updated: 2026-05-03
 
 ## Implementation status as of 2026-05-01
 
@@ -19,6 +19,14 @@ Several early phases are now implemented in the prototype:
   - `DAI-2025-0333` Saint-Felix-de-Kingsey
 - DAI area geometry loading from OSM/Nominatim/Overpass, with conservative fallback areas where needed
 - map layering where broad DAI context areas render behind smaller live/API outage and planned-interruption layers
+- the main address interface has been simplified around fixed defaults: 5 km radius, 5-year window, and planned interruptions included
+
+Deferred to a later About page:
+
+- source-scope explanation
+- quality and limit caveats
+- cache freshness and archive coverage details
+- methodology notes and explanatory summary material
 
 ## Goal
 

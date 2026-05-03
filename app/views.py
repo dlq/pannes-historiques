@@ -4,8 +4,9 @@ from typing import Any
 
 from .i18n import t
 
-RADIUS_OPTIONS = (500, 1200, 2500, 5000)
-DAYS_OPTIONS = (7, 30, 180, 365, 1825)
+FIXED_RADIUS_M = 5000
+FIXED_DAYS = 1825
+FIXED_INCLUDE_PLANNED = True
 
 
 def result_context(lang: str, result: Any) -> dict[str, Any]:
@@ -37,6 +38,20 @@ def result_context(lang: str, result: Any) -> dict[str, Any]:
             }
             for item in result.matches
             if item["centroid_lat"] is not None and item["centroid_lon"] is not None
+        ]
+        + [
+            {
+                "kind": "previous_outage",
+                "matchType": "previous_query_match",
+                "lat": group["centroid_lat"],
+                "lon": group["centroid_lon"],
+                "label": group["label"],
+                "geometry": group.get("geometry_geojson"),
+                "eventCount": group["event_count"],
+                "latestStartTime": group["latest_start_time"],
+            }
+            for group in result.previous_outage_groups
+            if group["centroid_lat"] is not None and group["centroid_lon"] is not None
         ]
         + [
             {
@@ -86,22 +101,9 @@ def result_context(lang: str, result: Any) -> dict[str, Any]:
             if item["centroid_lat"] is not None and item["centroid_lon"] is not None
         ],
     }
-    archive_span = (
-        f"{result.coverage['outage_min_time'] or t(lang, 'unknown')}"
-        f" -> {result.coverage['outage_max_time'] or t(lang, 'unknown')}"
-    )
-    planned_span = (
-        f"{result.coverage['planned_min_time'] or t(lang, 'unknown')}"
-        f" -> {result.coverage['planned_max_time'] or t(lang, 'unknown')}"
-    )
-    max_distance = max((item["distance_m"] or 0 for item in result.matches), default=None)
-
     return {
         "lang": lang,
         "result": result,
         "display_address": display_address,
         "map_payload": map_payload,
-        "archive_span": archive_span,
-        "planned_span": planned_span,
-        "max_distance": max_distance,
     }
