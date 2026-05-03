@@ -11,7 +11,8 @@ FIXED_INCLUDE_PLANNED = True
 
 def result_context(lang: str, result: Any) -> dict[str, Any]:
     if result.error:
-        return {"lang": lang, "result": result, "error_message": t(lang, "search_error")}
+        error_key = "outside_quebec_error" if result.error == "outside_quebec" else "search_error"
+        return {"lang": lang, "result": result, "error_message": t(lang, error_key)}
 
     display_address = ", ".join(
         part

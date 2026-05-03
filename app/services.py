@@ -28,6 +28,26 @@ def point_in_polygon(point_lon: float, point_lat: float, polygon: list[list[floa
     return inside
 
 
+def within_quebec_bounds(latitude: float, longitude: float) -> bool:
+    return 44.8 <= latitude <= 62.7 and -79.8 <= longitude <= -57.0
+
+
+def clearly_outside_quebec_query(normalized: NormalizedAddress) -> bool:
+    haystack = normalize_text(
+        " ".join(
+            part
+            for part in [
+                normalized.original,
+                normalized.normalized_line,
+                normalized.city,
+                normalized.province,
+            ]
+            if part
+        )
+    )
+    return any(token in haystack.split() for token in {"ottawa", "ontario", "on"})
+
+
 @dataclass
 class SearchResult:
     normalized: NormalizedAddress
@@ -87,6 +107,27 @@ class AppService:
         include_planned: bool,
     ) -> SearchResult:
         normalized = normalize_address(query)
+        if clearly_outside_quebec_query(normalized):
+            collector_summary = self.collector_status()
+            return SearchResult(
+                normalized=normalized,
+                address_id=None,
+                cache_hit=False,
+                geocode=None,
+                matches=[],
+                query_count=0,
+                collector_summary=collector_summary,
+                coverage=self.coverage_stats(),
+                outage_matches=[],
+                planned_matches=[],
+                previous_outage_groups=[],
+                disclosure_matches=[],
+                disclosure_layers=[],
+                disclosure_metrics=[],
+                regional_metric_layers=[],
+                radius_m=radius_m,
+                error="outside_quebec",
+            )
         if self.settings.auto_refresh_on_search:
             self.collect()
 
@@ -113,6 +154,26 @@ class AppService:
                 error="geocode_failed",
             )
         geocode = self._geocode_dict(geocode)
+        if not within_quebec_bounds(geocode["latitude"], geocode["longitude"]):
+            return SearchResult(
+                normalized=normalized,
+                address_id=None,
+                cache_hit=False,
+                geocode=geocode,
+                matches=[],
+                query_count=0,
+                collector_summary=collector_summary,
+                coverage=self.coverage_stats(),
+                outage_matches=[],
+                planned_matches=[],
+                previous_outage_groups=[],
+                disclosure_matches=[],
+                disclosure_layers=[],
+                disclosure_metrics=[],
+                regional_metric_layers=[],
+                radius_m=radius_m,
+                error="outside_quebec",
+            )
 
         address_id, cache_hit = self._upsert_address(normalized, geocode)
         matches = self._find_current_matches(
@@ -184,9 +245,6 @@ class AppService:
             postal_code="",
             unit="",
         )
-        if self.settings.auto_refresh_on_search:
-            self.collect()
-
         geocode = {
             "provider": "browser_geolocation",
             "confidence": 0.95 if accuracy_m is not None and accuracy_m <= 100 else 0.75,
@@ -199,6 +257,29 @@ class AppService:
             "raw_json": {"accuracy_m": accuracy_m},
         }
         collector_summary = self.collector_status()
+        if not within_quebec_bounds(latitude, longitude):
+            return SearchResult(
+                normalized=normalized,
+                address_id=None,
+                cache_hit=False,
+                geocode=geocode,
+                matches=[],
+                query_count=0,
+                collector_summary=collector_summary,
+                coverage=self.coverage_stats(),
+                outage_matches=[],
+                planned_matches=[],
+                previous_outage_groups=[],
+                disclosure_matches=[],
+                disclosure_layers=[],
+                disclosure_metrics=[],
+                regional_metric_layers=[],
+                radius_m=radius_m,
+                error="outside_quebec",
+            )
+        if self.settings.auto_refresh_on_search:
+            self.collect()
+
         address_id, cache_hit = self._upsert_address(normalized, geocode)
         matches = self._find_current_matches(latitude, longitude, radius_m, days, include_planned)
         outage_matches = [item for item in matches if item["outage_kind"] == "outage"]
