@@ -4,11 +4,16 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "deploy": "wrangler deploy",
+    "deploy:dry-run": "wrangler deploy --dry-run",
+    "cf:status": "wrangler containers list",
     "format": "biome format --write app/static",
     "lint": "biome lint app/static",
     "check": "biome check app/static"
   },
   "devDependencies": {
-    "@biomejs/biome": "^1.9.4"
+    "@biomejs/biome": "^1.9.4",
+    "@cloudflare/containers": "^0.3.3",
+    "wrangler": "^4.87.0"
   }
 }

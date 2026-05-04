@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
   "flask>=3.1.0",
+  "gunicorn>=23.0.0",
   "pypdf>=6.10.2",
 ]
 
@@ -40,3 +41,6 @@ extension = "html"
 indent = 2
 max_line_length = 120
 ignore = "H006,H030,H031"
+
+[tool.setuptools.packages.find]
+include = ["app*"]

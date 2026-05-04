@@ -1,0 +1,12 @@
+.git
+.ruff_cache
+.venv
+__pycache__
+*.pyc
+.DS_Store
+node_modules
+dist
+data/raw
+data/.DS_Store
+*.sqlite-shm
+*.sqlite-wal

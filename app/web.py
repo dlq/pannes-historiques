@@ -52,6 +52,10 @@ def create_app(settings: Settings | None = None) -> Flask:
             settings=settings,
         )
 
+    @app.get("/healthz")
+    def healthz():
+        return jsonify({"ok": True})
+
     @app.post("/search")
     def search():
         lang = choose_language(request.form.get("lang"))

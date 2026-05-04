@@ -1,0 +1,44 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "pannes-historiques",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-05-04",
+  "account_id": "69e18e0e0020ea19ff9f8bbfd035c20c",
+  "workers_dev": false,
+  "preview_urls": false,
+  "observability": {
+    "enabled": true
+  },
+  "containers": [
+    {
+      "class_name": "PannesContainer",
+      "image": "./Dockerfile",
+      "max_instances": 1,
+      "instance_type": "lite"
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "PANNES_CONTAINER",
+        "class_name": "PannesContainer"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["PannesContainer"]
+    }
+  ],
+  "routes": [
+    {
+      "pattern": "pannes.ca",
+      "custom_domain": true
+    },
+    {
+      "pattern": "www.pannes.ca",
+      "custom_domain": true
+    }
+  ]
+}

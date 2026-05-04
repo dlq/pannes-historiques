@@ -36,6 +36,18 @@ You can also run the Flask app directly:
 uv run flask --app app run --debug --host 127.0.0.1 --port 8000
 ```
 
+## Deploy
+
+Production is currently served at `pannes.ca` with Cloudflare Workers + Containers.
+
+```bash
+npx wrangler deploy
+```
+
+The container image includes the current SQLite snapshot as `data/app.db.gz` and expands it on
+startup. This avoids a separate production database for now, but writes inside the running container
+are ephemeral and should not be treated as durable production storage.
+
 ## Collect live Hydro-Quebec data
 
 ```bash
@@ -119,6 +131,7 @@ uv run djlint app/templates --lint
 uv run djlint app/templates --reformat
 npm install
 npm run check
+npx wrangler deploy --dry-run
 uv run pre-commit install
 uv run pre-commit run --all-files
 ```

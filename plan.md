@@ -1,7 +1,7 @@
 # Plan: Address-First Hydro-Québec Outage History App
 
 Date: 2026-04-25
-Last updated: 2026-05-03
+Last updated: 2026-05-04
 
 ## Implementation status as of 2026-05-01
 
@@ -39,6 +39,19 @@ Source-code follow-up:
 - decode Hydro-Quebec one-letter outage and planned-interruption status codes such as `N`, `R`, `L`, and `A`
 - until meanings are verified from source documentation or source payload context, avoid guessing in the UI
 - decide whether to show decoded labels inline or keep raw source codes behind a small tooltip/popover
+
+Deployment checkpoint:
+
+- `pannes.ca` is registered in Cloudflare and served by a Cloudflare Workers + Containers deployment
+- keep the container definition in the GitHub repository: `Dockerfile`, `.dockerignore`, `wrangler.jsonc`, `src/worker.js`, `scripts/start.sh`, app code, and lockfiles
+- do not commit built container images; images should be built and pushed by Wrangler or future CI/CD
+- current deploy command is `npx wrangler deploy`
+- short-term deployment should remain manual from the local workspace until the container deploy path has had a few clean releases
+- medium-term deployment can move to Cloudflare Workers Builds connected to GitHub, using the same `npx wrangler deploy` command on push
+- keep using `uv` for Python dependency management and checks; use `npm` for Wrangler, Biome, and Cloudflare deployment tooling
+- the current production container bundles the SQLite snapshot as `data/app.db.gz` and expands it on startup, avoiding a separate production database for now
+- production writes inside the container are ephemeral; live collection history, query history, or other durable production writes will need a later storage decision, likely D1 or R2 before considering an external database
+- do not introduce a separate Cloudflare database service until persistent production writes are clearly required
 
 ## Goal
 
