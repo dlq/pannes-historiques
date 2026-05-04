@@ -1,4 +1,4 @@
-FROM python:3.12-slim
+FROM registry.cloudflare.com/69e18e0e0020ea19ff9f8bbfd035c20c/pannes-historiques-pannescontainer:890c3ee3
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -13,7 +13,6 @@ COPY pyproject.toml README.md ./
 COPY app ./app
 COPY server.py ./
 COPY scripts/start.sh ./scripts/start.sh
-COPY data/app.db.gz ./data/app.db.gz
 
 RUN pip install --no-cache-dir .
 

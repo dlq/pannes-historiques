@@ -78,18 +78,35 @@ class AppService:
         self.geocoder = GeocodingService(settings)
         self.collector = HydroCollector(settings)
         self.disclosure_collector = DisclosureCollector(settings)
+        self._context_cache: dict[str, Any] = {}
 
     def collect(self) -> dict[str, Any]:
-        return self.collector.collect_all()
+        result = self.collector.collect_all()
+        self._clear_context_cache()
+        return result
 
     def collect_current_outages(self) -> dict[str, Any]:
-        return self.collector.collect_source("bis")
+        result = self.collector.collect_source("bis")
+        self._clear_context_cache()
+        return result
 
     def collect_planned_interruptions(self) -> dict[str, Any]:
-        return self.collector.collect_source("aip")
+        result = self.collector.collect_source("aip")
+        self._clear_context_cache()
+        return result
 
     def collect_disclosures(self) -> dict[str, Any]:
-        return self.disclosure_collector.collect_all()
+        result = self.disclosure_collector.collect_all()
+        self._clear_context_cache()
+        return result
+
+    def _clear_context_cache(self) -> None:
+        self._context_cache.clear()
+
+    def _cached_context(self, key: str, factory):
+        if key not in self._context_cache:
+            self._context_cache[key] = factory()
+        return self._context_cache[key]
 
     def maybe_refresh(self) -> dict[str, Any] | None:
         with open_db(self.settings.db_path) as connection:
@@ -357,6 +374,9 @@ class AppService:
         )
 
     def collector_status(self) -> dict[str, Any]:
+        return self._cached_context("collector_status", self._collector_status)
+
+    def _collector_status(self) -> dict[str, Any]:
         with open_db(self.settings.db_path) as connection:
             count = connection.execute("SELECT COUNT(*) AS count FROM raw_snapshots").fetchone()[
                 "count"
@@ -374,6 +394,9 @@ class AppService:
         }
 
     def coverage_stats(self) -> dict[str, Any]:
+        return self._cached_context("coverage_stats", self._coverage_stats)
+
+    def _coverage_stats(self) -> dict[str, Any]:
         with open_db(self.settings.db_path) as connection:
             outage_count = connection.execute(
                 "SELECT COUNT(*) AS count FROM outage_records"
@@ -668,6 +691,12 @@ class AppService:
         return matches
 
     def _current_operational_map_layers(self, include_planned: bool) -> list[dict[str, Any]]:
+        return self._cached_context(
+            f"current_operational_map_layers:{int(include_planned)}",
+            lambda: self._build_current_operational_map_layers(include_planned),
+        )
+
+    def _build_current_operational_map_layers(self, include_planned: bool) -> list[dict[str, Any]]:
         with open_db(self.settings.db_path) as connection:
             geometry_rows = connection.execute(
                 """
@@ -1240,6 +1269,12 @@ class AppService:
         return results[:12]
 
     def _regional_metric_map_layers(self) -> list[dict[str, Any]]:
+        return self._cached_context(
+            "regional_metric_map_layers",
+            self._build_regional_metric_map_layers,
+        )
+
+    def _build_regional_metric_map_layers(self) -> list[dict[str, Any]]:
         with open_db(self.settings.db_path) as connection:
             rows = connection.execute(
                 """
@@ -1313,6 +1348,9 @@ class AppService:
         return sorted(layers_by_region.values(), key=lambda item: item["geography_label"])
 
     def _disclosure_map_layers(self) -> list[dict[str, Any]]:
+        return self._cached_context("disclosure_map_layers", self._build_disclosure_map_layers)
+
+    def _build_disclosure_map_layers(self) -> list[dict[str, Any]]:
         with open_db(self.settings.db_path) as connection:
             rows = connection.execute(
                 """
