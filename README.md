@@ -48,6 +48,9 @@ The container image includes the current SQLite snapshot as `data/app.db.gz` and
 startup. This avoids a separate production database for now, but writes inside the running container
 are ephemeral and should not be treated as durable production storage.
 
+Production disables automatic Hydro-Quebec refreshes during address search (`AUTO_REFRESH_ON_SEARCH=0`);
+run collection separately when the bundled snapshot should be updated.
+
 ## Collect live Hydro-Quebec data
 
 ```bash

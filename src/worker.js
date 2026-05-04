@@ -7,6 +7,7 @@ export class PannesContainer extends Container {
   envVars = {
     APP_HOST: "0.0.0.0",
     APP_PORT: "8080",
+    AUTO_REFRESH_ON_SEARCH: "0",
     NOMINATIM_USER_AGENT: "pannes-historiques/0.1 (+https://pannes.ca)",
   };
 
