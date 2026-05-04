@@ -1,7 +1,7 @@
 # Research: Hydro-Québec Historic Outage Data
 
 Date: 2026-04-25
-Last updated: 2026-05-01
+Last updated: 2026-05-04
 
 ## Implementation note
 
@@ -632,6 +632,196 @@ So the viable strategy is:
 - try to obtain bulk history officially,
 - and present the results as a reliability / outage-hotspot product rather than a replay of the current outage map.
 
+## 2026-05-04: D1 and deployment performance research
+
+This section records the first storage/deployment research pass after putting the prototype on Cloudflare Workers + Containers at `pannes.ca`. It is intentionally not a migration plan yet.
+
+### Current production/storage shape
+
+The deployed app is currently:
+
+- a Python Flask app running in Cloudflare Containers behind a Worker route
+- using a baked-in SQLite snapshot inside the container image
+- configured with production search refresh disabled, so a user search should not synchronously refresh Hydro-Quebec feeds
+- using in-process caching for static search context such as coverage stats and map layers
+
+The current local SQLite snapshot is small enough for D1 storage limits, but its contents are unevenly distributed:
+
+- `data/app.db`: about 128 MB on disk locally
+- `data/app.db.gz`: about 28 MB
+- `data/raw`: about 20 MB
+- largest SQLite tables by page size:
+  - `disclosure_geometries`: about 104.7 MB
+  - `outage_geometries`: about 6.8 MB
+  - `planned_interruptions`: about 3.6 MB
+  - `disclosure_outage_events`: about 1.8 MB
+- important row counts:
+  - `disclosure_geometries`: 126
+  - `outage_geometries`: 7,008
+  - `disclosure_outage_events`: 2,680
+  - `raw_snapshots`: 470
+  - `geocode_cache`: 21
+  - `query_history`: 293
+
+The key observation is that database size is dominated by a small number of large geometry rows, especially `disclosure_geometries`. That makes a pure "move the whole SQLite file to D1" migration less attractive than splitting relational/queryable data from bulky geometry payloads.
+
+### Performance bottlenecks observed so far
+
+Observed or inferred bottlenecks:
+
+- container cold start and/or container wake can make the first request feel slow
+- first address query does more work than a repeated query because app context and map layers may need to be loaded
+- local service profiling after caching showed roughly 1.6 seconds for the first warm query and roughly 0.6 seconds for the repeated same-address query in the same process
+- in production, the user still observed slow first and repeated same-address searches, so the remaining delay may include container wake, network/geocoding, map payload transfer, or browser-side rendering
+- earlier container deployment attempts with large database/image layers saw local registry push instability; later code-only image-layer deploys were much faster and more reliable
+- shell-level DNS/curl timing from this workstation was unreliable after launch even while the user's browser resolved `pannes.ca`, so production timings still need a browser-based or Cloudflare-log measurement pass
+
+Production profiling update from 2026-05-04:
+
+- Added structured request timing logs, `Server-Timing` headers, and `/debug/timing/search`.
+- Simple production home page baseline is fast: about 0.28 seconds total for `GET /`.
+- The first profiled production search before optimization took about 112 seconds inside Flask, with Worker-to-container time matching app time. That ruled out DNS and Worker routing as the primary bottleneck.
+- The worst pre-optimization app steps were:
+  - `search.regional_metric_layers`: about 58 seconds
+  - `search.find_archived_outage_matches`: about 17 seconds
+  - `search.find_current_matches`: about 13 seconds
+  - `search.find_disclosure_matches`: about 11 seconds
+  - `search.disclosure_layers`: about 10 seconds
+- The real HTMX search response before optimization was about 14.4 MB, because the app embedded global regional/disclosure map layers and large geometry/event payloads directly in the HTML.
+- After removing global regional/disclosure map layers from the per-address response, short-circuiting far-away geometry matching, and lazy-loading disclosure geometry only for matched disclosure rows:
+  - local debug search dropped to about 0.39-0.49 seconds
+  - production debug search samples were about 0.64 seconds on a fresh app-context build and about 4.5 seconds on a later warm sample
+  - production real HTML search response dropped to about 562 KB
+  - production real HTML search took about 6.1 seconds total in the measured sample
+
+Interpretation:
+
+- The container runtime itself is not the main issue for simple requests.
+- The lite container's 0.0625 vCPU makes Python geospatial loops much more expensive than local execution.
+- Payload size was a major user-visible issue and has been reduced substantially.
+- Remaining production search latency is mostly CPU-bound matching work: current outage matching, archived outage matching, and disclosure matching.
+- D1 may help once relational filters and indexes replace some Python-side scanning, but the immediate lesson is not "move all data to D1"; it is "avoid full-map/full-geometry work in an address search."
+
+Measurements still needed before changing architecture:
+
+- home page response after idle
+- first query after idle
+- repeated same-address query
+- different-address query
+- deploy with unchanged database layer: recent code-only container deploys were roughly 12-18 seconds end to end after the Worker upload, Docker build, layer push, and Cloudflare container app update
+- deploy with changed database layer
+- Cloudflare dashboard observations for container status, cold starts, and request duration where available
+
+### Cloudflare D1 fit
+
+D1 is promising for the app's durable, queryable data because it is SQLite-based and the current schema is already SQLite. It fits especially well for:
+
+- `geocode_cache`
+- `query_history`
+- normalized outage records
+- planned-interruption metadata
+- disclosure source metadata
+- disclosure outage events
+- annual/regional metrics
+- raw snapshot metadata and version tracking
+
+D1 is less obviously right for large GeoJSON payloads:
+
+- D1 has a maximum string/BLOB/row size of 2 MB.
+- Even when individual rows fit, D1 bills reads by rows scanned, not bytes transferred, so large geometry rows can look cheap in row-count terms while still being expensive in latency, serialization, and Worker CPU/memory.
+- The current largest table, `disclosure_geometries`, is about 104.7 MB across only 126 rows. That is a signal to avoid treating D1 as the primary object store for geometry blobs.
+
+The better Cloudflare-native shape is probably hybrid:
+
+- D1 for indexed relational data and small derived geometry metadata
+- R2 for raw snapshots, large GeoJSON/KML/KMZ-derived payloads, and possibly precomputed map-layer artifacts
+- a Worker or container route that returns only the geometry needed for the current address/query viewport
+
+### D1 access from the current Python container
+
+D1 is exposed most naturally as a Worker binding. Cloudflare's Worker Binding API examples use `env.MY_DB.prepare(...).run()` from Worker code, not a normal SQLite file path. That means the current Flask container cannot simply replace `sqlite3.connect("data/app.db")` with a D1 connection string.
+
+There are practical options, each with a tradeoff:
+
+1. Keep Flask + baked SQLite short term.
+   - lowest migration risk
+   - keeps the current app intact
+   - does not solve durable production writes or image-layer churn
+
+2. Put a Worker API boundary in front of D1.
+   - Worker owns D1 bindings and exposes narrow query endpoints
+   - Flask container calls those endpoints or the edge Worker serves some JSON directly
+   - requires careful API design and authentication/secrets handling
+
+3. Use Cloudflare's D1 REST API from Python.
+   - technically possible through the account/database query endpoint
+   - adds network/API-token handling and is less attractive for hot user-path queries than Worker bindings
+   - better suited to admin/import jobs than every production search
+
+4. Move the relevant read/query path into Worker-native code.
+   - probably best long-term Cloudflare fit if D1 becomes central
+   - larger rewrite because the current Python search/service layer is already functional
+
+Given those options, D1 should be prototyped behind a very small Worker endpoint first, not adopted as a full storage migration in one step.
+
+### Pricing and expected cost
+
+Cloudflare's current D1 pricing documentation says D1 bills by rows read, rows written, and storage. On Workers Paid, the first 25 billion rows read per month, first 50 million rows written per month, and first 5 GB of storage are included; overages are priced at $0.001 per million rows read, $1.00 per million rows written, and $0.75 per GB-month of extra storage.
+
+For this app's current scale:
+
+- the current SQLite snapshot is far below the 5 GB included D1 storage on Workers Paid
+- current write volume is tiny unless we start frequent production snapshot ingestion into D1
+- read volume should be comfortably inside included allowances if queries stay indexed and avoid repeated full-table scans
+- geometry payload handling is the main cost/performance concern, not D1's headline storage price
+
+Cost conclusion: D1 is likely cost-effective for relational app data on the current Workers Paid plan. The bigger question is latency and architecture, especially because the current app runs in Python inside a container rather than directly in Worker JavaScript/TypeScript.
+
+### D1 limits relevant to this app
+
+Current Cloudflare D1 limits to keep in mind:
+
+- 10 GB maximum database size on Workers Paid
+- 1 TB maximum storage per account on Workers Paid
+- 2 MB maximum string, BLOB, or row size
+- 30 second maximum SQL query duration
+- each individual D1 database processes queries one at a time
+- indexed point reads can be very fast, but full scans or large migrations need batching
+
+Those limits support using D1 for normalized events, metrics, cache entries, and source metadata. They argue against storing large raw files or large pre-rendered map layers directly in D1.
+
+### Docker Desktop and deployment risk
+
+Docker Desktop does not appear to require a paid subscription for this project if it remains personal, educational, non-commercial open source, or within Docker's small-business limits. Docker's current license page says Docker Desktop is free for personal use, education, non-commercial open source projects, and small businesses with fewer than 250 employees and less than $10 million in annual revenue.
+
+That licensing point is separate from deployment reliability. We have already seen local image push instability when large layers were involved. Even if Docker Desktop remains free to use, the deployment workflow may still justify:
+
+- Cloudflare Workers Builds connected to GitHub
+- a CI-based `npx wrangler deploy`
+- avoiding frequent database-layer image rebuilds
+- storing bulky mutable data in R2/D1 instead of baking it into the image
+
+### Recommendation
+
+Stay with baked SQLite in the container for the immediate short term, but do not make it the long-term durable storage story.
+
+Next research/prototype step:
+
+1. measure production timings from browser and Cloudflare logs
+2. prototype a D1 import for the relational tables only
+3. keep large geometry/raw payloads in SQLite for the prototype or move them to R2 in a focused experiment
+4. test one Worker endpoint that reads from D1 and returns a small result for an address/search support query
+5. compare that result with the current Flask/SQLite path before touching the main app
+
+Expected target architecture if the prototype confirms D1 performance:
+
+- D1: durable metadata, normalized events, geocode cache, query history, indexes, metrics
+- R2: raw snapshots, source files, large GeoJSON/KML-derived artifacts, optional precomputed map payloads
+- Container or Worker: app/search orchestration
+- Worker binding: preferred D1 access path for production user requests
+
+The migration should be driven by measured latency and deploy reliability, not by the fact that D1 is available.
+
 ## Sources
 
 - [Hydro-Québec open data overview](https://www.hydroquebec.com/documents-donnees/donnees-ouvertes/)
@@ -653,3 +843,8 @@ So the viable strategy is:
 - [DAI-2022-0386 Côte Saint-Luc XLSX outage extract](https://www.hydroquebec.com/data/loi-sur-acces/xls/dai-2022-0386-document.xlsx)
 - [DAI-2024-0012 regional outage metrics, 2019-2023](https://www.hydroquebec.com/data/loi-sur-acces/pdf/dai-2024-0012-document-1.pdf)
 - [DAI-2024-0237 long outages over 8 hours by administrative region](https://www.hydroquebec.com/data/loi-sur-acces/pdf/dai-2024-0237-document.pdf)
+- [Cloudflare D1 pricing](https://developers.cloudflare.com/d1/platform/pricing/)
+- [Cloudflare D1 limits](https://developers.cloudflare.com/d1/platform/limits/)
+- [Cloudflare D1 Workers Binding API](https://developers.cloudflare.com/d1/worker-api/)
+- [Cloudflare D1 REST query API](https://developers.cloudflare.com/api/resources/d1/subresources/database/methods/query/)
+- [Docker Desktop license agreement](https://docs.docker.com/subscription/desktop-license/)

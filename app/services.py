@@ -11,6 +11,7 @@ from .db import initialize, open_db
 from .disclosures import DisclosureCollector
 from .geocoding import GeocodingService, haversine_meters
 from .hydro import HydroCollector
+from .perf import current_timer
 
 
 def point_in_polygon(point_lon: float, point_lat: float, polygon: list[list[float]]) -> bool:
@@ -105,7 +106,11 @@ class AppService:
 
     def _cached_context(self, key: str, factory):
         if key not in self._context_cache:
-            self._context_cache[key] = factory()
+            current_timer().set(f"context_cache.{key}.hit", False)
+            with current_timer().step(f"context_cache.{key}.build"):
+                self._context_cache[key] = factory()
+        else:
+            current_timer().set(f"context_cache.{key}.hit", True)
         return self._context_cache[key]
 
     def maybe_refresh(self) -> dict[str, Any] | None:
@@ -130,9 +135,17 @@ class AppService:
         days: int,
         include_planned: bool,
     ) -> SearchResult:
-        normalized = normalize_address(query)
+        timer = current_timer()
+        timer.set("search.query_length", len(query or ""))
+        timer.set("search.radius_m", radius_m)
+        timer.set("search.days", days)
+        with timer.step("search.normalize_address"):
+            normalized = normalize_address(query)
         if clearly_outside_quebec_query(normalized):
-            collector_summary = self.collector_status()
+            with timer.step("search.collector_status"):
+                collector_summary = self.collector_status()
+            with timer.step("search.coverage_stats"):
+                coverage = self.coverage_stats()
             return SearchResult(
                 normalized=normalized,
                 address_id=None,
@@ -141,7 +154,7 @@ class AppService:
                 matches=[],
                 query_count=0,
                 collector_summary=collector_summary,
-                coverage=self.coverage_stats(),
+                coverage=coverage,
                 outage_matches=[],
                 planned_matches=[],
                 previous_outage_groups=[],
@@ -154,11 +167,16 @@ class AppService:
                 error="outside_quebec",
             )
         if self.settings.auto_refresh_on_search:
-            self.collect()
+            with timer.step("search.auto_refresh_collect"):
+                self.collect()
 
-        geocode = self.geocoder.geocode(normalized)
-        collector_summary = self.collector_status()
+        with timer.step("search.geocode"):
+            geocode = self.geocoder.geocode(normalized)
+        with timer.step("search.collector_status"):
+            collector_summary = self.collector_status()
         if geocode is None:
+            with timer.step("search.coverage_stats"):
+                coverage = self.coverage_stats()
             return SearchResult(
                 normalized=normalized,
                 address_id=None,
@@ -167,7 +185,7 @@ class AppService:
                 matches=[],
                 query_count=0,
                 collector_summary=collector_summary,
-                coverage=self.coverage_stats(),
+                coverage=coverage,
                 outage_matches=[],
                 planned_matches=[],
                 previous_outage_groups=[],
@@ -179,8 +197,11 @@ class AppService:
                 radius_m=radius_m,
                 error="geocode_failed",
             )
-        geocode = self._geocode_dict(geocode)
+        with timer.step("search.geocode_dict"):
+            geocode = self._geocode_dict(geocode)
         if not within_quebec_bounds(geocode["latitude"], geocode["longitude"]):
+            with timer.step("search.coverage_stats"):
+                coverage = self.coverage_stats()
             return SearchResult(
                 normalized=normalized,
                 address_id=None,
@@ -189,7 +210,7 @@ class AppService:
                 matches=[],
                 query_count=0,
                 collector_summary=collector_summary,
-                coverage=self.coverage_stats(),
+                coverage=coverage,
                 outage_matches=[],
                 planned_matches=[],
                 previous_outage_groups=[],
@@ -202,44 +223,69 @@ class AppService:
                 error="outside_quebec",
             )
 
-        address_id, cache_hit = self._upsert_address(normalized, geocode)
-        matches = self._find_current_matches(
-            geocode["latitude"], geocode["longitude"], radius_m, days, include_planned
-        )
-        outage_matches = [item for item in matches if item["outage_kind"] == "outage"]
-        planned_matches = [item for item in matches if item["outage_kind"] == "planned"]
-        archived_outage_matches = self._find_archived_outage_matches(
-            geocode["latitude"],
-            geocode["longitude"],
-            radius_m,
-            days,
-            exclude_event_keys={self._outage_display_key(item) for item in outage_matches},
-        )
-        disclosure_matches = self._find_disclosure_matches(
-            normalized=normalized,
-            geocode=geocode,
-            radius_m=radius_m,
-            days=days,
-        )
-        current_map_layers = self._current_operational_map_layers(include_planned=include_planned)
-        disclosure_layers = self._disclosure_map_layers()
-        disclosure_metrics = self._find_disclosure_metrics(normalized=normalized, geocode=geocode)
-        regional_metric_layers = self._regional_metric_map_layers()
-        self._save_matches(address_id, outage_matches + archived_outage_matches)
-        previous_outage_groups = self._previous_outage_groups(
-            address_id=address_id,
-            exclude_event_keys={self._outage_display_key(item) for item in outage_matches},
-        )
-        query_count = self._record_query(
-            address_id=address_id,
-            original_query=query,
-            normalized_query=normalized.normalized_line,
-            language=language,
-            radius_m=radius_m,
-            days=days,
-            include_planned=include_planned,
-            cache_hit=cache_hit,
-        )
+        with timer.step("search.upsert_address"):
+            address_id, cache_hit = self._upsert_address(normalized, geocode)
+        timer.set("search.address_cache_hit", cache_hit)
+        with timer.step("search.find_current_matches"):
+            matches = self._find_current_matches(
+                geocode["latitude"], geocode["longitude"], radius_m, days, include_planned
+            )
+        with timer.step("search.split_current_matches"):
+            outage_matches = [item for item in matches if item["outage_kind"] == "outage"]
+            planned_matches = [item for item in matches if item["outage_kind"] == "planned"]
+        with timer.step("search.find_archived_outage_matches"):
+            archived_outage_matches = self._find_archived_outage_matches(
+                geocode["latitude"],
+                geocode["longitude"],
+                radius_m,
+                days,
+                exclude_event_keys={self._outage_display_key(item) for item in outage_matches},
+            )
+        with timer.step("search.find_disclosure_matches"):
+            disclosure_matches = self._find_disclosure_matches(
+                normalized=normalized,
+                geocode=geocode,
+                radius_m=radius_m,
+                days=days,
+            )
+        with timer.step("search.current_map_layers"):
+            current_map_layers = self._current_operational_map_layers(
+                include_planned=include_planned
+            )
+        with timer.step("search.disclosure_layers"):
+            disclosure_layers = []
+        with timer.step("search.find_disclosure_metrics"):
+            disclosure_metrics = self._find_disclosure_metrics(
+                normalized=normalized, geocode=geocode
+            )
+        with timer.step("search.regional_metric_layers"):
+            regional_metric_layers = []
+        with timer.step("search.save_matches"):
+            self._save_matches(address_id, outage_matches + archived_outage_matches)
+        with timer.step("search.previous_outage_groups"):
+            previous_outage_groups = self._previous_outage_groups(
+                address_id=address_id,
+                exclude_event_keys={self._outage_display_key(item) for item in outage_matches},
+            )
+        with timer.step("search.record_query"):
+            query_count = self._record_query(
+                address_id=address_id,
+                original_query=query,
+                normalized_query=normalized.normalized_line,
+                language=language,
+                radius_m=radius_m,
+                days=days,
+                include_planned=include_planned,
+                cache_hit=cache_hit,
+            )
+        with timer.step("search.coverage_stats"):
+            coverage = self.coverage_stats()
+        timer.set("search.match_count", len(matches))
+        timer.set("search.archived_outage_match_count", len(archived_outage_matches))
+        timer.set("search.disclosure_match_count", len(disclosure_matches))
+        timer.set("search.current_map_layer_count", len(current_map_layers))
+        timer.set("search.disclosure_layer_count", len(disclosure_layers))
+        timer.set("search.regional_metric_layer_count", len(regional_metric_layers))
         return SearchResult(
             normalized=normalized,
             address_id=address_id,
@@ -248,7 +294,7 @@ class AppService:
             matches=matches,
             query_count=query_count,
             collector_summary=collector_summary,
-            coverage=self.coverage_stats(),
+            coverage=coverage,
             outage_matches=outage_matches,
             planned_matches=planned_matches,
             previous_outage_groups=previous_outage_groups,
@@ -335,9 +381,9 @@ class AppService:
             days=days,
         )
         current_map_layers = self._current_operational_map_layers(include_planned=include_planned)
-        disclosure_layers = self._disclosure_map_layers()
+        disclosure_layers = []
         disclosure_metrics = self._find_disclosure_metrics(normalized=normalized, geocode=geocode)
-        regional_metric_layers = self._regional_metric_map_layers()
+        regional_metric_layers = []
         self._save_matches(address_id, outage_matches + archived_outage_matches)
         previous_outage_groups = self._previous_outage_groups(
             address_id=address_id,
@@ -856,7 +902,21 @@ class AppService:
         outage_kind: str,
     ) -> list[dict[str, Any]]:
         results: list[dict[str, Any]] = []
+        containing_versions = self._geometry_versions_containing_point(
+            geometry_payload,
+            latitude=latitude,
+            longitude=longitude,
+        )
         for row in rows:
+            centroid_distance = None
+            if row["centroid_lat"] is not None and row["centroid_lon"] is not None:
+                centroid_distance = haversine_meters(
+                    latitude, longitude, row["centroid_lat"], row["centroid_lon"]
+                )
+            if (centroid_distance is None or centroid_distance > radius_m) and row[
+                "source_version"
+            ] not in containing_versions:
+                continue
             geometry_match = self._find_geometry_match(
                 geometry_payload,
                 row["source_version"],
@@ -865,11 +925,6 @@ class AppService:
                 row["centroid_lat"],
                 row["centroid_lon"],
             )
-            centroid_distance = None
-            if row["centroid_lat"] is not None and row["centroid_lon"] is not None:
-                centroid_distance = haversine_meters(
-                    latitude, longitude, row["centroid_lat"], row["centroid_lon"]
-                )
             match_type = None
             confidence = 0.0
             geometry_id = None
@@ -918,6 +973,19 @@ class AppService:
                 }
             )
         return results
+
+    @staticmethod
+    def _geometry_versions_containing_point(
+        geometry_rows: list[dict[str, Any]], *, latitude: float, longitude: float
+    ) -> set[str]:
+        versions: set[str] = set()
+        for row in geometry_rows:
+            if row["bbox_min_lon"] is None or (
+                row["bbox_min_lon"] <= longitude <= row["bbox_max_lon"]
+                and row["bbox_min_lat"] <= latitude <= row["bbox_max_lat"]
+            ):
+                versions.add(row["source_version"])
+        return versions
 
     def _find_geometry_match(
         self,
@@ -1164,7 +1232,7 @@ class AppService:
             candidates = connection.execute(
                 """
                 SELECT e.*, s.dai_number, s.title, s.attachment_url, s.notes,
-                       g.geometry_geojson AS disclosure_geometry_geojson,
+                       g.id AS disclosure_geometry_id,
                        g.centroid_lon AS disclosure_geometry_centroid_lon,
                        g.centroid_lat AS disclosure_geometry_centroid_lat
                 FROM disclosure_outage_events e
@@ -1229,9 +1297,8 @@ class AppService:
                     "source_url": item["attachment_url"],
                     "geography_type": item["geography_type"],
                     "precision_label": item["precision_label"],
-                    "geometry_geojson": json.loads(item["disclosure_geometry_geojson"])
-                    if item["disclosure_geometry_geojson"]
-                    else None,
+                    "geometry_id": item["disclosure_geometry_id"],
+                    "geometry_geojson": None,
                     "centroid_lat": centroid_lat,
                     "centroid_lon": centroid_lon,
                     "sort_time": item["start_time"],
@@ -1244,7 +1311,27 @@ class AppService:
         rows.sort(key=lambda row: (row["area_hit"], row["sort_time"] or ""), reverse=True)
         for row in rows:
             row.pop("area_hit", None)
-        return rows[:36]
+        rows = rows[:36]
+        geometry_ids = sorted({row["geometry_id"] for row in rows if row["geometry_id"]})
+        if geometry_ids:
+            placeholders = ",".join("?" for _ in geometry_ids)
+            with open_db(self.settings.db_path) as connection:
+                geometry_rows = connection.execute(
+                    f"""
+                    SELECT id, geometry_geojson
+                    FROM disclosure_geometries
+                    WHERE id IN ({placeholders})
+                    """,
+                    geometry_ids,
+                ).fetchall()
+            geometries = {
+                row["id"]: json.loads(row["geometry_geojson"])
+                for row in geometry_rows
+                if row["geometry_geojson"]
+            }
+            for row in rows:
+                row["geometry_geojson"] = geometries.get(row["geometry_id"])
+        return rows
 
     def _find_disclosure_metrics(
         self, *, normalized: NormalizedAddress, geocode: dict[str, Any]

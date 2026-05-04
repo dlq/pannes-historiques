@@ -49,9 +49,24 @@ Deployment checkpoint:
 - short-term deployment should remain manual from the local workspace until the container deploy path has had a few clean releases
 - medium-term deployment can move to Cloudflare Workers Builds connected to GitHub, using the same `npx wrangler deploy` command on push
 - keep using `uv` for Python dependency management and checks; use `npm` for Wrangler, Biome, and Cloudflare deployment tooling
-- the current production container bundles the SQLite snapshot as `data/app.db.gz` and expands it on startup, avoiding a separate production database for now
+- the current production container bundles a baked-in SQLite snapshot, avoiding a separate production database for now
 - production writes inside the container are ephemeral; live collection history, query history, or other durable production writes will need a later storage decision, likely D1 or R2 before considering an external database
 - do not introduce a separate Cloudflare database service until persistent production writes are clearly required
+- D1 research checkpoint as of 2026-05-04:
+  - D1 looks cost-effective for normalized relational app data on the current Workers Paid plan
+  - the current database is dominated by large geometry rows, so a full SQLite-to-D1 copy is probably not the right first migration
+  - prefer a future hybrid prototype: D1 for indexed metadata/events/cache, R2 for raw snapshots and bulky GeoJSON/KML-derived payloads
+  - the current Python container cannot use D1 like a local SQLite file; a Worker binding/API boundary should be proven before moving the main search path
+  - keep baked SQLite short term while measuring production latency and deploy reliability
+- review deployment and query performance after the initial Cloudflare Containers launch:
+  - initial profiling on 2026-05-04 showed simple routes are fast, but address search was dominated by Python geospatial matching and oversized inline map payloads
+  - a first mitigation reduced the search response from roughly 14.4 MB to roughly 562 KB and brought a measured production HTML search down to about 6 seconds, but more optimization is still needed
+  - keep the detailed timing evidence in `research.md`
+  - continue measuring cold start, first search, repeated search, and image push/deploy times
+  - compare baked-in SQLite, D1, R2-backed snapshots, and external database options before changing storage architecture
+  - research Cloudflare Containers image-layer behavior and whether local Docker Desktop push instability can be avoided with CI/Workers Builds, remote builders, or a different local container runtime
+  - keep Docker Desktop subscription requirements in mind, but avoid a paid Docker subscription unless licensing or workflow needs clearly require it
+  - capture findings and tradeoffs in `research.md` before making a larger storage or deployment architecture change
 
 ## Goal
 
@@ -889,6 +904,29 @@ Useful first measurements:
 - capture browser main-thread time for map initialization and layer rendering
 - compare searches with few overlays versus searches with many outage, planned, previous, disclosure, and regional layers
 - set a rough budget for initial search response time and map-ready time before optimizing
+
+## Accessibility review backlog
+
+The address lookup UI should get a dedicated accessibility pass before it is treated as public-facing.
+
+Specific things to check:
+
+- keyboard navigation through the language toggle, address search, autocomplete suggestions, location search, result cards, map, and detail panels
+- focus visibility and focus order after HTMX result swaps
+- screen-reader labels for icon-free controls, loading states, errors, result cards, and map-related actions
+- whether clickable result cards should be buttons, links, or articles with clearer ARIA semantics
+- contrast of yellow, blue, grey, and map-overlay colours against the current public-service-inspired palette
+- non-colour cues for outage, planned interruption, previous outage, disclosure, and regional burden layers
+- Leaflet map keyboard behaviour and whether map content needs a non-map textual fallback for important information
+- language attributes and localized strings in client-rendered HTML
+- reduced-motion behaviour for loading indicators and map interaction, if needed
+
+Useful first checks:
+
+- run an automated accessibility scan on the main query flow
+- tab through the full interface in both English and French
+- test the result cards and map detail updates with VoiceOver or another screen reader
+- verify error and loading announcements for search and current-location flows
 
 ## Summary recommendation
 

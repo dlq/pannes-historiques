@@ -10,6 +10,7 @@ from typing import Any
 
 from .addressing import NormalizedAddress, normalize_text
 from .db import open_db
+from .perf import current_timer
 
 QUEBEC_CITY_CENTROIDS = {
     "montreal": (45.5019, -73.5674),
@@ -56,18 +57,28 @@ class GeocodingService:
         self._suggest_cache: dict[tuple[str, str, int], tuple[float, list[dict[str, Any]]]] = {}
 
     def geocode(self, normalized: NormalizedAddress) -> GeocodeResult | None:
-        cached = self._from_cache(normalized.normalized_line)
+        with current_timer().step("geocode.cache_lookup"):
+            cached = self._from_cache(normalized.normalized_line)
         if cached:
+            current_timer().set("geocode_cache_hit", True)
+            current_timer().set("geocode_provider", cached.provider)
             return cached
 
-        live = self._nominatim(normalized)
+        current_timer().set("geocode_cache_hit", False)
+        with current_timer().step("geocode.nominatim"):
+            live = self._nominatim(normalized)
         if live:
-            self._store_cache(normalized.normalized_line, live)
+            current_timer().set("geocode_provider", live.provider)
+            with current_timer().step("geocode.store_cache"):
+                self._store_cache(normalized.normalized_line, live)
             return live
 
-        fallback = self._fallback_city(normalized)
+        with current_timer().step("geocode.fallback_city"):
+            fallback = self._fallback_city(normalized)
         if fallback:
-            self._store_cache(normalized.normalized_line, fallback)
+            current_timer().set("geocode_provider", fallback.provider)
+            with current_timer().step("geocode.store_cache"):
+                self._store_cache(normalized.normalized_line, fallback)
         return fallback
 
     def suggest(self, query: str, language: str = "fr", limit: int = 5) -> list[dict[str, Any]]:
