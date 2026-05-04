@@ -94,6 +94,14 @@ def create_app(settings: Settings | None = None) -> Flask:
     def collect():
         return jsonify(serialize_payload(service.collect()))
 
+    @app.route("/collect/bis", methods=["GET", "POST"])
+    def collect_bis():
+        return jsonify(serialize_payload(service.collect_current_outages()))
+
+    @app.route("/collect/aip", methods=["GET", "POST"])
+    def collect_aip():
+        return jsonify(serialize_payload(service.collect_planned_interruptions()))
+
     return app
 
 

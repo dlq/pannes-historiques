@@ -70,7 +70,7 @@ def result_context(lang: str, result: Any) -> dict[str, Any]:
                 "lon": item["centroid_lon"],
                 "label": item["start_time"],
                 "kindLabel": t(lang, item["outage_kind"]),
-                "matchLabel": t(lang, item["match_type"]),
+                "matchLabel": t(lang, "current_feed_map"),
                 "geometry": item.get("geometry_geojson"),
                 "customersAffected": item["customers_affected"],
                 "distanceM": item["distance_m"],
@@ -78,8 +78,10 @@ def result_context(lang: str, result: Any) -> dict[str, Any]:
                 "startTime": item["start_time"],
                 "endTime": item["end_time"],
                 "municipalityCode": item["municipality_code"],
+                "eventCount": item.get("event_count"),
+                "recentEvents": item.get("recent_events", [])[:12],
             }
-            for item in result.matches
+            for item in result.current_map_layers
             if item["centroid_lat"] is not None and item["centroid_lon"] is not None
         ]
         + [

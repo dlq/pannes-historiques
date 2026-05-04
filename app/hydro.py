@@ -42,10 +42,22 @@ class HydroCollector:
         results: dict[str, Any] = {"snapshots": [], "errors": []}
         for source in ("bis", "aip"):
             try:
-                version = self._fetch_version(source)
-                results["snapshots"].extend(self._fetch_payloads(source, version))
+                result = self.collect_source(source)
+                results["snapshots"].extend(result["snapshots"])
+                results["errors"].extend(result["errors"])
             except Exception as exc:
                 results["errors"].append({"source": source, "error": str(exc)})
+        return results
+
+    def collect_source(self, source: str) -> dict[str, Any]:
+        if source not in {"bis", "aip"}:
+            raise ValueError(f"unsupported Hydro-Quebec source: {source}")
+        results: dict[str, Any] = {"snapshots": [], "errors": []}
+        try:
+            version = self._fetch_version(source)
+            results["snapshots"].extend(self._fetch_payloads(source, version))
+        except Exception as exc:
+            results["errors"].append({"source": source, "error": str(exc)})
         return results
 
     def _fetch_version(self, source: str) -> str:

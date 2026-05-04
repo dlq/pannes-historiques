@@ -14,6 +14,11 @@ def main() -> None:
 
     subparsers.add_parser("serve", help="Run the web app")
     subparsers.add_parser("collect", help="Fetch and ingest Hydro-Quebec snapshots")
+    subparsers.add_parser("collect-bis", help="Fetch and ingest current outage snapshots")
+    subparsers.add_parser(
+        "collect-aip",
+        help="Fetch and ingest planned interruption snapshots",
+    )
     subparsers.add_parser(
         "collect-disclosures",
         help="Fetch and ingest published access-to-information outage disclosures",
@@ -25,6 +30,18 @@ def main() -> None:
     if args.command == "collect":
         service = AppService(settings)
         result = service.collect()
+        print(json.dumps(serialize_payload(result), indent=2, ensure_ascii=True))
+        return
+
+    if args.command == "collect-bis":
+        service = AppService(settings)
+        result = service.collect_current_outages()
+        print(json.dumps(serialize_payload(result), indent=2, ensure_ascii=True))
+        return
+
+    if args.command == "collect-aip":
+        service = AppService(settings)
+        result = service.collect_planned_interruptions()
         print(json.dumps(serialize_payload(result), indent=2, ensure_ascii=True))
         return
 

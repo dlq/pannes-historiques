@@ -61,6 +61,7 @@ class SearchResult:
     outage_matches: list[dict[str, Any]]
     planned_matches: list[dict[str, Any]]
     previous_outage_groups: list[dict[str, Any]]
+    current_map_layers: list[dict[str, Any]]
     disclosure_matches: list[dict[str, Any]]
     disclosure_layers: list[dict[str, Any]]
     disclosure_metrics: list[dict[str, Any]]
@@ -80,6 +81,12 @@ class AppService:
 
     def collect(self) -> dict[str, Any]:
         return self.collector.collect_all()
+
+    def collect_current_outages(self) -> dict[str, Any]:
+        return self.collector.collect_source("bis")
+
+    def collect_planned_interruptions(self) -> dict[str, Any]:
+        return self.collector.collect_source("aip")
 
     def collect_disclosures(self) -> dict[str, Any]:
         return self.disclosure_collector.collect_all()
@@ -121,6 +128,7 @@ class AppService:
                 outage_matches=[],
                 planned_matches=[],
                 previous_outage_groups=[],
+                current_map_layers=[],
                 disclosure_matches=[],
                 disclosure_layers=[],
                 disclosure_metrics=[],
@@ -146,6 +154,7 @@ class AppService:
                 outage_matches=[],
                 planned_matches=[],
                 previous_outage_groups=[],
+                current_map_layers=[],
                 disclosure_matches=[],
                 disclosure_layers=[],
                 disclosure_metrics=[],
@@ -167,6 +176,7 @@ class AppService:
                 outage_matches=[],
                 planned_matches=[],
                 previous_outage_groups=[],
+                current_map_layers=[],
                 disclosure_matches=[],
                 disclosure_layers=[],
                 disclosure_metrics=[],
@@ -181,16 +191,24 @@ class AppService:
         )
         outage_matches = [item for item in matches if item["outage_kind"] == "outage"]
         planned_matches = [item for item in matches if item["outage_kind"] == "planned"]
+        archived_outage_matches = self._find_archived_outage_matches(
+            geocode["latitude"],
+            geocode["longitude"],
+            radius_m,
+            days,
+            exclude_event_keys={self._outage_display_key(item) for item in outage_matches},
+        )
         disclosure_matches = self._find_disclosure_matches(
             normalized=normalized,
             geocode=geocode,
             radius_m=radius_m,
             days=days,
         )
+        current_map_layers = self._current_operational_map_layers(include_planned=include_planned)
         disclosure_layers = self._disclosure_map_layers()
         disclosure_metrics = self._find_disclosure_metrics(normalized=normalized, geocode=geocode)
         regional_metric_layers = self._regional_metric_map_layers()
-        self._save_matches(address_id, outage_matches)
+        self._save_matches(address_id, outage_matches + archived_outage_matches)
         previous_outage_groups = self._previous_outage_groups(
             address_id=address_id,
             exclude_event_keys={self._outage_display_key(item) for item in outage_matches},
@@ -217,6 +235,7 @@ class AppService:
             outage_matches=outage_matches,
             planned_matches=planned_matches,
             previous_outage_groups=previous_outage_groups,
+            current_map_layers=current_map_layers,
             disclosure_matches=disclosure_matches,
             disclosure_layers=disclosure_layers,
             disclosure_metrics=disclosure_metrics,
@@ -270,6 +289,7 @@ class AppService:
                 outage_matches=[],
                 planned_matches=[],
                 previous_outage_groups=[],
+                current_map_layers=[],
                 disclosure_matches=[],
                 disclosure_layers=[],
                 disclosure_metrics=[],
@@ -284,16 +304,24 @@ class AppService:
         matches = self._find_current_matches(latitude, longitude, radius_m, days, include_planned)
         outage_matches = [item for item in matches if item["outage_kind"] == "outage"]
         planned_matches = [item for item in matches if item["outage_kind"] == "planned"]
+        archived_outage_matches = self._find_archived_outage_matches(
+            latitude,
+            longitude,
+            radius_m,
+            days,
+            exclude_event_keys={self._outage_display_key(item) for item in outage_matches},
+        )
         disclosure_matches = self._find_disclosure_matches(
             normalized=normalized,
             geocode=geocode,
             radius_m=radius_m,
             days=days,
         )
+        current_map_layers = self._current_operational_map_layers(include_planned=include_planned)
         disclosure_layers = self._disclosure_map_layers()
         disclosure_metrics = self._find_disclosure_metrics(normalized=normalized, geocode=geocode)
         regional_metric_layers = self._regional_metric_map_layers()
-        self._save_matches(address_id, outage_matches)
+        self._save_matches(address_id, outage_matches + archived_outage_matches)
         previous_outage_groups = self._previous_outage_groups(
             address_id=address_id,
             exclude_event_keys={self._outage_display_key(item) for item in outage_matches},
@@ -320,6 +348,7 @@ class AppService:
             outage_matches=outage_matches,
             planned_matches=planned_matches,
             previous_outage_groups=previous_outage_groups,
+            current_map_layers=current_map_layers,
             disclosure_matches=disclosure_matches,
             disclosure_layers=disclosure_layers,
             disclosure_metrics=disclosure_metrics,
@@ -582,6 +611,210 @@ class AppService:
             reverse=True,
         )
         return matches
+
+    def _find_archived_outage_matches(
+        self,
+        latitude: float,
+        longitude: float,
+        radius_m: int,
+        days: int,
+        exclude_event_keys: set[tuple[Any, ...]],
+    ) -> list[dict[str, Any]]:
+        cutoff = (datetime.now(UTC) - timedelta(days=days)).strftime("%Y-%m-%d %H:%M:%S")
+        with open_db(self.settings.db_path) as connection:
+            latest_snapshot = connection.execute(
+                """
+                SELECT id
+                FROM raw_snapshots
+                WHERE source_type = 'bismarkers'
+                ORDER BY fetched_at DESC, id DESC
+                LIMIT 1
+                """
+            ).fetchone()
+            latest_snapshot_id = latest_snapshot["id"] if latest_snapshot else None
+            geometry_rows = connection.execute(
+                """
+                SELECT *
+                FROM outage_geometries
+                ORDER BY id DESC
+                """
+            ).fetchall()
+            outage_rows = connection.execute(
+                """
+                SELECT r.*
+                FROM outage_records r
+                JOIN raw_snapshots s ON s.id = r.snapshot_id
+                WHERE s.source_type = 'bismarkers'
+                  AND (? IS NULL OR s.id != ?)
+                  AND COALESCE(r.outage_start_time, '') >= ?
+                ORDER BY COALESCE(r.outage_start_time, r.created_at) DESC
+                """,
+                (latest_snapshot_id, latest_snapshot_id, cutoff),
+            ).fetchall()
+        matches = self._match_rows(
+            rows=outage_rows,
+            geometry_payload=[dict(row) for row in geometry_rows],
+            latitude=latitude,
+            longitude=longitude,
+            radius_m=radius_m,
+            outage_kind="outage",
+        )
+        matches = [
+            item
+            for item in self._dedupe_matches(matches)
+            if self._outage_display_key(item) not in exclude_event_keys
+        ]
+        matches.sort(key=lambda item: item["sort_time"] or "", reverse=True)
+        return matches
+
+    def _current_operational_map_layers(self, include_planned: bool) -> list[dict[str, Any]]:
+        with open_db(self.settings.db_path) as connection:
+            geometry_rows = connection.execute(
+                """
+                SELECT g.*, s.source_type
+                FROM outage_geometries g
+                JOIN raw_snapshots s ON s.id = g.snapshot_id
+                WHERE s.source_type IN ('bispoly', 'aippoly')
+                  AND s.id = (
+                    SELECT id
+                    FROM raw_snapshots s2
+                    WHERE s2.source_type = s.source_type
+                    ORDER BY s2.fetched_at DESC, s2.id DESC
+                    LIMIT 1
+                )
+                ORDER BY g.id DESC
+                """
+            ).fetchall()
+            outage_rows = connection.execute(
+                """
+                SELECT r.*
+                FROM outage_records r
+                JOIN raw_snapshots s ON s.id = r.snapshot_id
+                WHERE s.source_type = 'bismarkers'
+                  AND s.id = (
+                    SELECT id
+                    FROM raw_snapshots
+                    WHERE source_type = 'bismarkers'
+                    ORDER BY fetched_at DESC, id DESC
+                    LIMIT 1
+                  )
+                ORDER BY COALESCE(r.outage_start_time, r.created_at) DESC
+                """
+            ).fetchall()
+            planned_rows = []
+            if include_planned:
+                planned_rows = connection.execute(
+                    """
+                    SELECT p.*
+                    FROM planned_interruptions p
+                    JOIN raw_snapshots s ON s.id = p.snapshot_id
+                    WHERE s.source_type = 'aipmarkers'
+                      AND s.id = (
+                        SELECT id
+                        FROM raw_snapshots
+                        WHERE source_type = 'aipmarkers'
+                        ORDER BY fetched_at DESC, id DESC
+                        LIMIT 1
+                      )
+                    ORDER BY COALESCE(p.scheduled_start, p.created_at) DESC
+                    """
+                ).fetchall()
+
+        geometry_payload = [dict(row) for row in geometry_rows]
+        layers = self._map_layers_for_rows(
+            rows=outage_rows,
+            geometry_payload=geometry_payload,
+            outage_kind="outage",
+        )
+        if include_planned:
+            layers.extend(
+                self._map_layers_for_rows(
+                    rows=planned_rows,
+                    geometry_payload=geometry_payload,
+                    outage_kind="planned",
+                )
+            )
+        return layers
+
+    def _map_layers_for_rows(
+        self,
+        *,
+        rows,
+        geometry_payload: list[dict[str, Any]],
+        outage_kind: str,
+    ) -> list[dict[str, Any]]:
+        groups: dict[tuple[str, int | str], dict[str, Any]] = {}
+        for row in rows:
+            centroid_lat = row["centroid_lat"]
+            centroid_lon = row["centroid_lon"]
+            if centroid_lat is None or centroid_lon is None:
+                continue
+            geometry_match = self._find_geometry_match(
+                geometry_payload,
+                row["source_version"],
+                centroid_lat,
+                centroid_lon,
+                centroid_lat,
+                centroid_lon,
+            )
+            geometry_id = geometry_match["geometry_id"] if geometry_match else None
+            key = (outage_kind, geometry_id if geometry_id is not None else row["id"])
+            start_time = (
+                row["outage_start_time"] if outage_kind == "outage" else row["scheduled_start"]
+            )
+            end_time = (
+                row["estimated_restore_time"] if outage_kind == "outage" else row["scheduled_end"]
+            )
+            event = {
+                "start_time": start_time,
+                "end_time": end_time,
+                "customers_affected": row["customers_affected"],
+                "status": row["status"],
+                "municipality_code": row["municipality_code"],
+                "centroid_lat": centroid_lat,
+                "centroid_lon": centroid_lon,
+                "distance_m": None,
+            }
+            group = groups.get(key)
+            if group is None:
+                groups[key] = {
+                    "outage_kind": outage_kind,
+                    "record_id": row["id"],
+                    "geometry_id": geometry_id,
+                    "geometry_geojson": geometry_match["geometry_geojson"]
+                    if geometry_match
+                    else None,
+                    "match_type": "current_feed_map",
+                    "distance_m": None,
+                    "confidence": 0.5,
+                    "municipality_code": row["municipality_code"],
+                    "customers_affected": row["customers_affected"],
+                    "status": row["status"],
+                    "interruption_type": row["interruption_type"]
+                    if outage_kind == "outage"
+                    else "AIP",
+                    "start_time": start_time,
+                    "end_time": end_time,
+                    "centroid_lat": centroid_lat,
+                    "centroid_lon": centroid_lon,
+                    "sort_time": start_time,
+                    "event_count": 1,
+                    "recent_events": [event],
+                }
+            else:
+                group["event_count"] += 1
+                group["recent_events"].append(event)
+                group["customers_affected"] = (group["customers_affected"] or 0) + (
+                    row["customers_affected"] or 0
+                )
+                if (start_time or "") > (group["start_time"] or ""):
+                    group["start_time"] = start_time
+                    group["end_time"] = end_time
+                    group["status"] = row["status"]
+                    group["sort_time"] = start_time
+        layers = list(groups.values())
+        layers.sort(key=lambda item: item["sort_time"] or "", reverse=True)
+        return layers
 
     def _match_rows(
         self,

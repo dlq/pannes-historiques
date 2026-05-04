@@ -522,7 +522,8 @@ class DaiDetailPanel extends HTMLElement {
           ? item.kindLabel || "Previously seen outage"
           : item.kindLabel || label(labels, "outage", "Outage");
     const recentEvents = item.recentEvents || [];
-    const events = (isPreviousOutage ? recentEvents : [])
+    const showEventRows = isPreviousOutage || item.matchType === "current_feed_map";
+    const events = (showEventRows ? recentEvents : [])
       .map(
         (event) => `
           <article class="border border-[#c5cad2] bg-white p-4">
@@ -531,7 +532,7 @@ class DaiDetailPanel extends HTMLElement {
                 <p class="flex flex-wrap items-center gap-2 text-sm font-semibold text-[#223654]">
                   <span class="bg-[#f8e69a] px-2 py-0.5 text-[#223654]">${escapeHtml(label(labels, "outage", "Outage"))}</span>
                   <span class="text-[#4e5662]">·</span>
-                  <span class="text-[#095797]">${escapeHtml(label(labels, "nearby_match", "Nearby match"))}</span>
+                  <span class="text-[#095797]">${escapeHtml(isPreviousOutage ? label(labels, "nearby_match", "Nearby match") : item.matchLabel || item.matchType || "")}</span>
                 </p>
                 <p class="mt-1 text-sm text-[#4e5662]">${escapeHtml(event.start_time || label(labels, "unknown", "unknown"))}</p>
               </div>
@@ -551,6 +552,7 @@ class DaiDetailPanel extends HTMLElement {
           <div class="border border-[#dae6f0] bg-white px-3 py-2"><dt class="text-[#6b778a]">${escapeHtml(label(labels, "distance", "Distance"))}</dt><dd class="font-semibold text-[#223654]">${escapeHtml(formatDistanceKm(item.distanceM, labels))}</dd></div>
           <div class="border border-[#dae6f0] bg-white px-3 py-2"><dt class="text-[#6b778a]">${escapeHtml(label(labels, "start", "Start"))}</dt><dd class="font-semibold text-[#223654]">${escapeHtml(item.startTime || item.latestStartTime || label(labels, "unknown", "unknown"))}</dd></div>
           <div class="border border-[#dae6f0] bg-white px-3 py-2"><dt class="text-[#6b778a]">${escapeHtml(label(labels, "status", "Status"))}</dt><dd class="font-semibold text-[#223654]">${escapeHtml(item.status || label(labels, "unknown", "unknown"))}</dd></div>
+          ${item.eventCount ? `<div class="border border-[#dae6f0] bg-white px-3 py-2"><dt class="text-[#6b778a]">${escapeHtml(label(labels, "rows", "rows"))}</dt><dd class="font-semibold text-[#223654]">${escapeHtml(item.eventCount)}</dd></div>` : ""}
         </dl>`;
     this.innerHTML = `
       <div class="border border-[#c5cad2] bg-[#f1f1f2] p-4">
