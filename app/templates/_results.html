@@ -15,18 +15,22 @@
       </div>
       <div class="flex items-center gap-2">
         <span class="inline-block h-3 w-3 border border-dashed border-[#64748b] bg-[#64748b]/20"></span>
-        <span>{{ t(lang, "previous_outages") }}</span>
+        <span>{{ t(lang, "previous_outages_legend") }}</span>
       </div>
       <div class="flex items-center gap-2">
         <span class="inline-block h-3 w-3 border border-dashed border-[#2563eb] bg-[#2563eb]/20"></span>
         <span>{{ t(lang, "disclosure") }}</span>
+      </div>
+      <div class="flex items-center gap-2 sm:col-span-2">
+        <span class="inline-block h-3 w-3 bg-[#f6c27a]"></span>
+        <span>{{ t(lang, "regional_colour_legend") }}</span>
       </div>
     </div>
     <outage-map class="mt-4 block h-[28rem] overflow-hidden border border-[#c5cad2]" data-map='{{ map_payload | tojson }}'></outage-map>
     <dai-detail-panel class="mt-4 block" title-label="{{ t(lang, 'dai_detail_panel') }}" empty-label="{{ t(lang, 'dai_detail_empty') }}"></dai-detail-panel>
     <p class="mt-3 text-sm text-[#6b778a]">{{ t(lang, "map_empty") if not map_payload.matches else "" }}</p>
   </section>
-  <div class="grid items-start gap-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+  <div class="grid items-start gap-6 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] xl:grid-cols-[minmax(28rem,34rem)_minmax(0,1fr)]">
     <div class="space-y-6">
       <section class="border border-[#c5cad2] bg-white p-5 shadow-sm">
         <div class="mb-4 flex flex-wrap items-start justify-between gap-3">
@@ -71,11 +75,15 @@
           </div>
           <div class="flex items-center gap-2">
             <span class="inline-block h-3 w-3 border border-dashed border-[#64748b] bg-[#64748b]/20"></span>
-            <span>{{ t(lang, "previous_outages") }}</span>
+            <span>{{ t(lang, "previous_outages_legend") }}</span>
           </div>
           <div class="flex items-center gap-2">
             <span class="inline-block h-3 w-3 border border-dashed border-[#2563eb] bg-[#2563eb]/20"></span>
             <span>{{ t(lang, "disclosure") }}</span>
+          </div>
+          <div class="flex items-center gap-2 sm:col-span-2">
+            <span class="inline-block h-3 w-3 bg-[#f6c27a]"></span>
+            <span>{{ t(lang, "regional_colour_legend") }}</span>
           </div>
         </div>
         <outage-map class="mt-4 block h-[28rem] overflow-hidden border border-[#c5cad2]" data-map='{{ map_payload | tojson }}'></outage-map>

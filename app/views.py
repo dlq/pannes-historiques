@@ -55,6 +55,12 @@ def result_context(lang: str, result: Any) -> dict[str, Any]:
                 "label": group["label"],
                 "geometry": group.get("geometry_geojson"),
                 "eventCount": group["event_count"],
+                "customersAffected": group["events"][0]["customers_affected"]
+                if group["events"]
+                else None,
+                "distanceM": group["events"][0]["distance_m"] if group["events"] else None,
+                "status": group["events"][0]["status"] if group["events"] else None,
+                "startTime": group["events"][0]["start_time"] if group["events"] else None,
                 "latestStartTime": group["latest_start_time"],
                 "recentEvents": group["events"][:12],
             }
