@@ -13,6 +13,10 @@ DB_PATH = DATA_DIR / "app.db"
 @dataclass(frozen=True)
 class Settings:
     app_name: str = "Pannes Historiques"
+    app_repo_url: str = os.environ.get(
+        "APP_REPO_URL",
+        "https://github.com/dlq/pannes-historiques",
+    )
     host: str = os.environ.get("APP_HOST", "127.0.0.1")
     port: int = int(os.environ.get("APP_PORT", "8000"))
     base_dir: Path = BASE_DIR

@@ -1,5 +1,5 @@
 {% macro stat_card(label, value) -%}
-  <div class="bg-[#f1f1f2] p-4">
+  <div class="rounded-md bg-[#f1f1f2] p-4">
     <dt class="text-xs uppercase tracking-[0.16em] text-[#6b778a]">{{ label }}</dt>
     <dd class="mt-2 text-lg font-semibold text-[#223654]">
       {{ value }}
@@ -7,7 +7,7 @@
   </div>
 {%- endmacro %}
 {% macro info_line(label, value) -%}
-  <div class="flex items-center justify-between bg-[#f1f1f2] px-4 py-3 text-sm">
+  <div class="flex items-center justify-between rounded-md bg-[#f1f1f2] px-4 py-3 text-sm">
     <span class="text-[#4e5662]">{{ label }}</span>
     <span class="font-medium text-[#223654]">{{ value }}</span>
   </div>
@@ -21,7 +21,7 @@
 {%- endmacro %}
 {% macro card_title(lang, item) -%}
   <p class="flex flex-wrap items-center gap-2 text-sm font-semibold text-[#223654]">
-    <span class="{{ 'bg-[#dae6f0] text-[#223654]' if item.outage_kind == 'planned' else 'bg-[#f8e69a] text-[#223654]' }} px-2 py-0.5">
+    <span class="{{ 'bg-[#dae6f0] text-[#223654]' if item.outage_kind == 'planned' else 'bg-[#f8e69a] text-[#223654]' }} rounded-md px-2 py-0.5">
       {{ t(lang, item.outage_kind) }}
     </span>
     <span class="text-[#4e5662]">·</span>
@@ -29,9 +29,9 @@
   </p>
 {%- endmacro %}
 {% macro match_rows(lang, matches, empty_message) -%}
-  {% if not matches %}<p class="bg-[#f1f1f2] p-4 text-sm text-[#4e5662]">{{ empty_message }}</p>{% endif %}
+  {% if not matches %}<p class="rounded-md bg-[#f1f1f2] p-4 text-sm text-[#4e5662]">{{ empty_message }}</p>{% endif %}
   {% for item in matches[:24] %}
-    <article class="cursor-pointer border border-[#c5cad2] p-4 outline-none transition hover:bg-[#f8fafc] focus:ring-2 focus:ring-[#1472bf]"
+    <article class="cursor-pointer rounded-md border border-[#c5cad2] p-4 outline-none transition hover:bg-[#f8fafc] focus:ring-2 focus:ring-[#1472bf]"
              role="button"
              tabindex="0"
              data-map-focus='{{ {"lat": item.centroid_lat, "lon": item.centroid_lon, "geometry": item.geometry_geojson, "label": item.start_time} | tojson }}'>
@@ -41,18 +41,20 @@
           <p class="mt-1 text-sm text-[#4e5662]">{{ item.start_time or t(lang, "unknown") }}</p>
         </div>
         <div class="flex flex-col items-end gap-1 text-right text-sm text-[#4e5662]">
-          <p class="bg-[#f1f1f2] px-2 py-0.5 text-[#223654]">{{ item.customers_affected or 0 }} {{ t(lang, "clients") }}</p>
-          <p class="bg-[#dae6f0] px-2 py-0.5 text-[#223654]">{{ distance_km(item.distance_m) }}</p>
+          <p class="rounded-md bg-[#f1f1f2] px-2 py-0.5 text-[#223654]">
+            {{ item.customers_affected or 0 }} {{ t(lang, "clients") }}
+          </p>
+          <p class="rounded-md bg-[#dae6f0] px-2 py-0.5 text-[#223654]">{{ distance_km(item.distance_m) }}</p>
         </div>
       </div>
     </article>
   {% endfor %}
 {%- endmacro %}
 {% macro outage_groups(lang, groups, empty_message) -%}
-  {% if not groups %}<p class="bg-[#f1f1f2] p-4 text-sm text-[#4e5662]">{{ empty_message }}</p>{% endif %}
+  {% if not groups %}<p class="rounded-md bg-[#f1f1f2] p-4 text-sm text-[#4e5662]">{{ empty_message }}</p>{% endif %}
   {% for group in groups %}
     {% for item in group.events[:12] %}
-      <article class="cursor-pointer border border-[#c5cad2] p-4 outline-none transition hover:bg-[#f8fafc] focus:ring-2 focus:ring-[#1472bf]"
+      <article class="cursor-pointer rounded-md border border-[#c5cad2] p-4 outline-none transition hover:bg-[#f8fafc] focus:ring-2 focus:ring-[#1472bf]"
                role="button"
                tabindex="0"
                data-map-focus='{{ {"lat": item.centroid_lat, "lon": item.centroid_lon, "geometry": group.geometry_geojson, "label": item.start_time} | tojson }}'>
@@ -62,8 +64,10 @@
             <p class="mt-1 text-sm text-[#4e5662]">{{ item.start_time or t(lang, "unknown") }}</p>
           </div>
           <div class="flex flex-col items-end gap-1 text-right text-sm text-[#4e5662]">
-            <p class="bg-[#f1f1f2] px-2 py-0.5 text-[#223654]">{{ item.customers_affected or 0 }} {{ t(lang, "clients") }}</p>
-            <p class="bg-[#dae6f0] px-2 py-0.5 text-[#223654]">{{ distance_km(item.distance_m) }}</p>
+            <p class="rounded-md bg-[#f1f1f2] px-2 py-0.5 text-[#223654]">
+              {{ item.customers_affected or 0 }} {{ t(lang, "clients") }}
+            </p>
+            <p class="rounded-md bg-[#dae6f0] px-2 py-0.5 text-[#223654]">{{ distance_km(item.distance_m) }}</p>
           </div>
         </div>
       </article>

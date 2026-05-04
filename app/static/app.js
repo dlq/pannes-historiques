@@ -425,7 +425,7 @@ class DaiDetailPanel extends HTMLElement {
     const title = this.getAttribute("title-label") || "DAI details";
     const empty = this.getAttribute("empty-label") || "Click a blue DAI area on the map.";
     this.innerHTML = `
-      <div class="border border-[#c5cad2] bg-[#f1f1f2] p-4 text-sm text-[#4e5662]">
+      <div class="rounded-lg border border-[#c5cad2] bg-[#f1f1f2] p-4 text-sm text-[#4e5662]">
         <div class="font-semibold text-[#223654]">${escapeHtml(title)}</div>
         <p class="mt-2">${escapeHtml(empty)}</p>
       </div>
@@ -436,14 +436,14 @@ class DaiDetailPanel extends HTMLElement {
     const labels = this.uiLabels();
     const title = this.getAttribute("title-label") || "DAI details";
     this.innerHTML = `
-      <div class="border border-[#c5cad2] bg-[#f1f1f2] p-4">
+      <div class="rounded-lg border border-[#c5cad2] bg-[#f1f1f2] p-4">
         <div class="mb-3 flex flex-wrap items-start justify-between gap-3">
           <div>
             <p class="text-xs font-semibold uppercase tracking-[0.14em] text-[#095797]">${escapeHtml(title)}</p>
             <h4 class="mt-1 text-base font-semibold text-[#223654]">${escapeHtml(item.label || "")}</h4>
             <p class="mt-1 text-sm text-[#4e5662]">${escapeHtml((item.sourceDais || []).join(", ") || item.sourceDai || "")}</p>
           </div>
-          <div class="border border-[#dae6f0] bg-white px-3 py-2 text-sm font-semibold text-[#095797]">${escapeHtml(item.recordCount || 0)} ${escapeHtml(label(labels, "rows", "rows"))}</div>
+          <div class="rounded-md border border-[#dae6f0] bg-white px-3 py-2 text-sm font-semibold text-[#095797]">${escapeHtml(item.recordCount || 0)} ${escapeHtml(label(labels, "rows", "rows"))}</div>
         </div>
         <div class="max-h-[28rem] overflow-auto pr-2">
           ${disclosurePopup(item, labels)}
@@ -477,16 +477,16 @@ class DaiDetailPanel extends HTMLElement {
       sourceCount === 1 ? "DAI source" : "DAI sources",
     );
     this.innerHTML = `
-      <div class="border border-[#c5cad2] bg-[#f1f1f2] p-4">
+      <div class="rounded-lg border border-[#c5cad2] bg-[#f1f1f2] p-4">
         <p class="text-xs font-semibold uppercase tracking-[0.14em] text-[#095797]">${escapeHtml(title)}</p>
         <h4 class="mt-1 text-base font-semibold text-[#223654]">${escapeHtml(item.label || "")}</h4>
         <p class="mt-1 text-sm text-[#4e5662]">${escapeHtml(sourceCount)} ${escapeHtml(sourceLabel)} · ${escapeHtml(label(labels, "latest_map_source", "latest shown on map"))}: ${escapeHtml(item.sourceDai)}</p>
         <dl class="mt-4 grid gap-3 text-sm sm:grid-cols-2">
-          <div class="border border-[#dae6f0] bg-white px-3 py-2"><dt class="text-[#6b778a]">${escapeHtml(label(labels, "period", "Period"))}</dt><dd class="font-semibold text-[#223654]">${escapeHtml(item.periodLabel || item.year || label(labels, "unknown", "unknown"))}</dd></div>
-          <div class="border border-[#dae6f0] bg-white px-3 py-2"><dt class="text-[#6b778a]">${escapeHtml(label(labels, "outages", "Outages"))}</dt><dd class="font-semibold text-[#223654]">${escapeHtml(item.outageCount ?? label(labels, "unknown", "unknown"))}</dd></div>
-          <div class="border border-[#dae6f0] bg-white px-3 py-2"><dt class="text-[#6b778a]">${escapeHtml(label(labels, "average_duration", "Average duration"))}</dt><dd class="font-semibold text-[#223654]">${escapeHtml(item.averageDurationMinutes ?? label(labels, "unknown", "unknown"))} min</dd></div>
-          <div class="border border-[#dae6f0] bg-white px-3 py-2"><dt class="text-[#6b778a]">${escapeHtml(burdenLabel)}</dt><dd class="font-semibold text-[#223654]">${escapeHtml(item.continuityIndexMinutes ?? label(labels, "unknown", "unknown"))}</dd></div>
-          <div class="border border-[#dae6f0] bg-white px-3 py-2"><dt class="text-[#6b778a]">${escapeHtml(label(labels, "outages_over_8h", "Outages > 8h"))}</dt><dd class="font-semibold text-[#223654]">${escapeHtml(item.longOutageCount ?? label(labels, "unknown", "unknown"))}</dd></div>
+          <div class="rounded-md border border-[#dae6f0] bg-white px-3 py-2"><dt class="text-[#6b778a]">${escapeHtml(label(labels, "period", "Period"))}</dt><dd class="font-semibold text-[#223654]">${escapeHtml(item.periodLabel || item.year || label(labels, "unknown", "unknown"))}</dd></div>
+          <div class="rounded-md border border-[#dae6f0] bg-white px-3 py-2"><dt class="text-[#6b778a]">${escapeHtml(label(labels, "outages", "Outages"))}</dt><dd class="font-semibold text-[#223654]">${escapeHtml(item.outageCount ?? label(labels, "unknown", "unknown"))}</dd></div>
+          <div class="rounded-md border border-[#dae6f0] bg-white px-3 py-2"><dt class="text-[#6b778a]">${escapeHtml(label(labels, "average_duration", "Average duration"))}</dt><dd class="font-semibold text-[#223654]">${escapeHtml(item.averageDurationMinutes ?? label(labels, "unknown", "unknown"))} min</dd></div>
+          <div class="rounded-md border border-[#dae6f0] bg-white px-3 py-2"><dt class="text-[#6b778a]">${escapeHtml(burdenLabel)}</dt><dd class="font-semibold text-[#223654]">${escapeHtml(item.continuityIndexMinutes ?? label(labels, "unknown", "unknown"))}</dd></div>
+          <div class="rounded-md border border-[#dae6f0] bg-white px-3 py-2"><dt class="text-[#6b778a]">${escapeHtml(label(labels, "outages_over_8h", "Outages > 8h"))}</dt><dd class="font-semibold text-[#223654]">${escapeHtml(item.longOutageCount ?? label(labels, "unknown", "unknown"))}</dd></div>
         </dl>
         ${
           rows
@@ -526,19 +526,19 @@ class DaiDetailPanel extends HTMLElement {
     const events = (showEventRows ? recentEvents : [])
       .map(
         (event) => `
-          <article class="border border-[#c5cad2] bg-white p-4">
+          <article class="rounded-md border border-[#c5cad2] bg-white p-4">
             <div class="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p class="flex flex-wrap items-center gap-2 text-sm font-semibold text-[#223654]">
-                  <span class="bg-[#f8e69a] px-2 py-0.5 text-[#223654]">${escapeHtml(label(labels, "outage", "Outage"))}</span>
+                  <span class="rounded-md bg-[#f8e69a] px-2 py-0.5 text-[#223654]">${escapeHtml(label(labels, "outage", "Outage"))}</span>
                   <span class="text-[#4e5662]">·</span>
                   <span class="text-[#095797]">${escapeHtml(isPreviousOutage ? label(labels, "nearby_match", "Nearby match") : item.matchLabel || item.matchType || "")}</span>
                 </p>
                 <p class="mt-1 text-sm text-[#4e5662]">${escapeHtml(event.start_time || label(labels, "unknown", "unknown"))}</p>
               </div>
               <div class="flex flex-col items-end gap-1 text-right text-sm text-[#4e5662]">
-                <p class="bg-[#f1f1f2] px-2 py-0.5 text-[#223654]">${escapeHtml(event.customers_affected ?? 0)} ${escapeHtml(label(labels, "clients", "clients"))}</p>
-                <p class="bg-[#dae6f0] px-2 py-0.5 text-[#223654]">${escapeHtml(formatDistanceKm(event.distance_m, labels))}</p>
+                <p class="rounded-md bg-[#f1f1f2] px-2 py-0.5 text-[#223654]">${escapeHtml(event.customers_affected ?? 0)} ${escapeHtml(label(labels, "clients", "clients"))}</p>
+                <p class="rounded-md bg-[#dae6f0] px-2 py-0.5 text-[#223654]">${escapeHtml(formatDistanceKm(event.distance_m, labels))}</p>
               </div>
             </div>
           </article>
@@ -548,14 +548,14 @@ class DaiDetailPanel extends HTMLElement {
     const summary = isPreviousOutage
       ? ""
       : `<dl class="mt-4 grid gap-3 text-sm sm:grid-cols-2">
-          <div class="border border-[#dae6f0] bg-white px-3 py-2"><dt class="text-[#6b778a]">${escapeHtml(label(labels, "customers", "Customers"))}</dt><dd class="font-semibold text-[#223654]">${escapeHtml(item.customersAffected ?? label(labels, "unknown", "unknown"))}</dd></div>
-          <div class="border border-[#dae6f0] bg-white px-3 py-2"><dt class="text-[#6b778a]">${escapeHtml(label(labels, "distance", "Distance"))}</dt><dd class="font-semibold text-[#223654]">${escapeHtml(formatDistanceKm(item.distanceM, labels))}</dd></div>
-          <div class="border border-[#dae6f0] bg-white px-3 py-2"><dt class="text-[#6b778a]">${escapeHtml(label(labels, "start", "Start"))}</dt><dd class="font-semibold text-[#223654]">${escapeHtml(item.startTime || item.latestStartTime || label(labels, "unknown", "unknown"))}</dd></div>
-          <div class="border border-[#dae6f0] bg-white px-3 py-2"><dt class="text-[#6b778a]">${escapeHtml(label(labels, "status", "Status"))}</dt><dd class="font-semibold text-[#223654]">${escapeHtml(item.status || label(labels, "unknown", "unknown"))}</dd></div>
-          ${item.eventCount ? `<div class="border border-[#dae6f0] bg-white px-3 py-2"><dt class="text-[#6b778a]">${escapeHtml(label(labels, "rows", "rows"))}</dt><dd class="font-semibold text-[#223654]">${escapeHtml(item.eventCount)}</dd></div>` : ""}
+          <div class="rounded-md border border-[#dae6f0] bg-white px-3 py-2"><dt class="text-[#6b778a]">${escapeHtml(label(labels, "customers", "Customers"))}</dt><dd class="font-semibold text-[#223654]">${escapeHtml(item.customersAffected ?? label(labels, "unknown", "unknown"))}</dd></div>
+          <div class="rounded-md border border-[#dae6f0] bg-white px-3 py-2"><dt class="text-[#6b778a]">${escapeHtml(label(labels, "distance", "Distance"))}</dt><dd class="font-semibold text-[#223654]">${escapeHtml(formatDistanceKm(item.distanceM, labels))}</dd></div>
+          <div class="rounded-md border border-[#dae6f0] bg-white px-3 py-2"><dt class="text-[#6b778a]">${escapeHtml(label(labels, "start", "Start"))}</dt><dd class="font-semibold text-[#223654]">${escapeHtml(item.startTime || item.latestStartTime || label(labels, "unknown", "unknown"))}</dd></div>
+          <div class="rounded-md border border-[#dae6f0] bg-white px-3 py-2"><dt class="text-[#6b778a]">${escapeHtml(label(labels, "status", "Status"))}</dt><dd class="font-semibold text-[#223654]">${escapeHtml(item.status || label(labels, "unknown", "unknown"))}</dd></div>
+          ${item.eventCount ? `<div class="rounded-md border border-[#dae6f0] bg-white px-3 py-2"><dt class="text-[#6b778a]">${escapeHtml(label(labels, "rows", "rows"))}</dt><dd class="font-semibold text-[#223654]">${escapeHtml(item.eventCount)}</dd></div>` : ""}
         </dl>`;
     this.innerHTML = `
-      <div class="border border-[#c5cad2] bg-[#f1f1f2] p-4">
+      <div class="rounded-lg border border-[#c5cad2] bg-[#f1f1f2] p-4">
         <p class="text-xs font-semibold uppercase tracking-[0.14em] text-[#095797]">${escapeHtml(title)}</p>
         <h4 class="mt-1 text-base font-semibold text-[#223654]">${escapeHtml(kindLabel)}</h4>
         ${isPreviousOutage ? "" : `<p class="mt-1 text-sm text-[#4e5662]">${escapeHtml(item.label || item.startTime || item.latestStartTime || label(labels, "unknown", "unknown"))}</p>`}
