@@ -855,6 +855,27 @@ Why this order:
 - published disclosures are now the best short-term acceleration path
 - provenance needs to stay visible so the product remains trustworthy as evidence sources multiply
 
+## Performance review backlog
+
+Performance is not the primary constraint while the interface and data model are still settling, but the current architecture should be reviewed before the cached dataset grows too much.
+
+Specific things to check:
+
+- size of the embedded `data-map` JSON payload returned with each search
+- number and complexity of GeoJSON polygons sent per query
+- Leaflet layer creation cost after each HTMX result swap
+- server-side query time for previous outage grouping and disclosure overlays
+- repeated i18n label payloads in every map response
+- whether regional/disclosure geometry can be simplified or cached per response shape
+- whether the map payload should be split from the server-rendered result cards if payload size becomes noticeable
+
+Useful first measurements:
+
+- log response size and server render time for representative searches
+- capture browser main-thread time for map initialization and layer rendering
+- compare searches with few overlays versus searches with many outage, planned, previous, disclosure, and regional layers
+- set a rough budget for initial search response time and map-ready time before optimizing
+
 ## Summary recommendation
 
 This plan is viable and probably more realistic than starting with a full Quebec hotspot map.

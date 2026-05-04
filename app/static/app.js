@@ -8,9 +8,13 @@ function syncLanguageForm() {
   languageForm.querySelector('[data-sync="q"]').value = q;
 }
 
-function formatDistanceKm(value) {
+function label(labels, key, fallback) {
+  return labels?.[key] || fallback;
+}
+
+function formatDistanceKm(value, labels = {}) {
   const numberValue = Number(value);
-  if (!Number.isFinite(numberValue)) return "unknown";
+  if (!Number.isFinite(numberValue)) return label(labels, "unknown", "unknown");
   return `${(numberValue / 1000).toFixed(2)} km`;
 }
 
@@ -125,14 +129,10 @@ function attachLocationSearch() {
   button.dataset.locationBound = "1";
 
   const originalLabel = button.textContent.trim();
-  const currentLocationPrefix =
-    document.documentElement.lang === "en" ? "Current location" : "Position actuelle";
+  const currentLocationPrefix = button.dataset.currentLocationLabel || "Current location";
   const locationUnavailable =
-    document.documentElement.lang === "en"
-      ? "Current location could not be found."
-      : "Impossible d'obtenir la position actuelle.";
-  const locating =
-    document.documentElement.lang === "en" ? "Finding location..." : "Localisation en cours...";
+    button.dataset.locationUnavailableLabel || "Current location could not be found.";
+  const locating = button.dataset.locatingLabel || "Finding location...";
 
   button.addEventListener("click", () => {
     if (!("geolocation" in navigator)) {
@@ -265,21 +265,21 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
-function formatDuration(seconds) {
-  if (!Number.isFinite(seconds) || seconds <= 0) return "unknown";
+function formatDuration(seconds, labels = {}) {
+  if (!Number.isFinite(seconds) || seconds <= 0) return label(labels, "unknown", "unknown");
   const hours = seconds / 3600;
   if (hours < 24) return `${hours.toFixed(1)} h`;
   return `${(hours / 24).toFixed(1)} d`;
 }
 
-function formatDateTimeCell(value) {
-  if (!value) return "unknown";
+function formatDateTimeCell(value, labels = {}) {
+  if (!value) return label(labels, "unknown", "unknown");
   const [date, rawTime = ""] = String(value).replace("T", " ").split(" ");
   const time = rawTime ? rawTime.slice(0, 5) : "";
   return `<span class="block font-semibold text-[#223654]">${escapeHtml(date)}</span>${time ? `<span class="block text-[#4e5662]">${escapeHtml(time)}</span>` : ""}`;
 }
 
-function disclosurePopup(item) {
+function disclosurePopup(item, labels = {}) {
   const causes = (item.topCauses || [])
     .map((cause) => `<li>${escapeHtml(cause.cause)} (${escapeHtml(cause.count)})</li>`)
     .join("");
@@ -287,11 +287,11 @@ function disclosurePopup(item) {
     .map(
       (event) =>
         `<tr class="border-b border-blue-100 last:border-0">
-          <td class="px-1.5 py-2 align-top">${formatDateTimeCell(event.start_time)}</td>
-          <td class="px-1.5 py-2 align-top">${formatDateTimeCell(event.end_time)}</td>
+          <td class="px-1.5 py-2 align-top">${formatDateTimeCell(event.start_time, labels)}</td>
+          <td class="px-1.5 py-2 align-top">${formatDateTimeCell(event.end_time, labels)}</td>
           <td class="truncate px-1.5 py-2 align-top" title="${escapeHtml(event.row_area || "")}">${escapeHtml(event.row_area || "")}</td>
-          <td class="truncate px-1.5 py-2 align-top" title="${escapeHtml(event.cause || "unknown")}">${escapeHtml(event.cause || "unknown")}</td>
-          <td class="px-1.5 py-2 text-right align-top">${escapeHtml(formatDuration(event.duration_seconds))}</td>
+          <td class="truncate px-1.5 py-2 align-top" title="${escapeHtml(event.cause || label(labels, "unknown", "unknown"))}">${escapeHtml(event.cause || label(labels, "unknown", "unknown"))}</td>
+          <td class="px-1.5 py-2 text-right align-top">${escapeHtml(formatDuration(event.duration_seconds, labels))}</td>
           <td class="px-1.5 py-2 text-right align-top">${escapeHtml(event.customers_affected ?? "")}</td>
         </tr>`,
     )
@@ -300,15 +300,15 @@ function disclosurePopup(item) {
   return `
       <div class="space-y-2 text-sm">
       <div class="font-semibold">${escapeHtml(item.label || "")}</div>
-      ${sources ? `<div>Sources: ${sources}</div>` : `<div>${escapeHtml(item.sourceDai || "")}</div>`}
-      <div>${escapeHtml(item.recordCount || 0)} published DAI records</div>
-      <div>${escapeHtml(item.startMin || "unknown")} → ${escapeHtml(item.startMax || "unknown")}</div>
-      <div>Total disclosed duration: ${escapeHtml(formatDuration(item.durationSecondsTotal))}</div>
-      ${causes ? `<div><div class="font-medium">Top causes</div><ul class="ml-4 list-disc">${causes}</ul></div>` : ""}
+      ${sources ? `<div>${escapeHtml(label(labels, "sources", "Sources"))}: ${sources}</div>` : `<div>${escapeHtml(item.sourceDai || "")}</div>`}
+      <div>${escapeHtml(item.recordCount || 0)} ${escapeHtml(label(labels, "published_dai_records", "published DAI records"))}</div>
+      <div>${escapeHtml(item.startMin || label(labels, "unknown", "unknown"))} → ${escapeHtml(item.startMax || label(labels, "unknown", "unknown"))}</div>
+      <div>${escapeHtml(label(labels, "total_disclosed_duration", "Total disclosed duration"))}: ${escapeHtml(formatDuration(item.durationSecondsTotal, labels))}</div>
+      ${causes ? `<div><div class="font-medium">${escapeHtml(label(labels, "top_causes", "Top causes"))}</div><ul class="ml-4 list-disc">${causes}</ul></div>` : ""}
       ${
         events
           ? `<div>
-              <div class="font-medium">Extracted rows</div>
+              <div class="font-medium">${escapeHtml(label(labels, "extracted_rows", "Extracted rows"))}</div>
               <div class="mt-2 max-h-[24rem] overflow-auto bg-white ring-1 ring-blue-100">
                 <table class="w-full min-w-[40rem] table-fixed text-left text-xs">
                   <colgroup>
@@ -321,12 +321,12 @@ function disclosurePopup(item) {
                   </colgroup>
                   <thead class="sticky top-0 bg-blue-50 uppercase tracking-[0.12em] text-blue-700">
                     <tr>
-                      <th class="px-1.5 py-2">Start</th>
-                      <th class="px-1.5 py-2">End</th>
-                      <th class="px-1.5 py-2">Area</th>
-                      <th class="px-1.5 py-2">Cause</th>
-                      <th class="px-1.5 py-2 text-right">Dur.</th>
-                      <th class="px-1.5 py-2 text-right">Clients</th>
+                      <th class="px-1.5 py-2">${escapeHtml(label(labels, "start", "Start"))}</th>
+                      <th class="px-1.5 py-2">${escapeHtml(label(labels, "end", "End"))}</th>
+                      <th class="px-1.5 py-2">${escapeHtml(label(labels, "area", "Area"))}</th>
+                      <th class="px-1.5 py-2">${escapeHtml(label(labels, "cause", "Cause"))}</th>
+                      <th class="px-1.5 py-2 text-right">${escapeHtml(label(labels, "duration_short", "Dur."))}</th>
+                      <th class="px-1.5 py-2 text-right">${escapeHtml(label(labels, "clients", "clients"))}</th>
                     </tr>
                   </thead>
                   <tbody class="text-slate-700">${events}</tbody>
@@ -340,11 +340,23 @@ function disclosurePopup(item) {
   `;
 }
 
-function itemPopup(item) {
+function disclosureTooltip(item, labels = {}) {
+  return `${escapeHtml(item.label || item.sourceDai || "DAI")} · ${escapeHtml(item.regionLabel || label(labels, "disclosure_region", "Disclosure region"))}`;
+}
+
+function operationalTooltip(item, labels = {}) {
   if (item.kind === "previous_outage") {
-    return `Previously seen outage<br>${escapeHtml(item.eventCount || 0)} retained outage${item.eventCount === 1 ? "" : "s"}<br>Latest: ${escapeHtml(item.latestStartTime || "unknown")}`;
+    return `${escapeHtml(item.kindLabel || "Previously seen outage")} · ${escapeHtml(item.eventCount || 0)} ${escapeHtml(item.eventCountLabel || "retained outages")}`;
   }
-  return `${escapeHtml(item.kind)}: ${escapeHtml(item.label || "")}`;
+  const parts = [
+    item.kindLabel || item.kind || "Outage",
+    item.matchLabel || item.matchType,
+    item.customersAffected == null
+      ? null
+      : `${item.customersAffected} ${label(labels, "clients", "clients")}`,
+    item.distanceM == null ? null : formatDistanceKm(item.distanceM, labels),
+  ].filter(Boolean);
+  return parts.map((part) => escapeHtml(part)).join(" · ");
 }
 
 function metricValue(item) {
@@ -371,6 +383,16 @@ function mapPane(item) {
   return "outagePane";
 }
 
+function regionalBurdenText(item, labels = {}) {
+  return (
+    item.regionalBurdenLabel || label(labels, "regional_colour_legend", "Regional outage burden")
+  );
+}
+
+function regionalMetricTooltip(item, labels = {}) {
+  return `${escapeHtml(item.label || "Region")} · ${escapeHtml(regionalBurdenText(item, labels))}: ${escapeHtml(item.continuityIndexMinutes ?? "?")}`;
+}
+
 function geometryWeight(item) {
   const points = geometryPoints(item.geometry);
   if (!points.length) return 0;
@@ -391,6 +413,10 @@ function geometryPoints(geometry) {
 }
 
 class DaiDetailPanel extends HTMLElement {
+  uiLabels() {
+    return this.labels || {};
+  }
+
   connectedCallback() {
     this.renderEmpty();
   }
@@ -407,6 +433,7 @@ class DaiDetailPanel extends HTMLElement {
   }
 
   renderDisclosure(item) {
+    const labels = this.uiLabels();
     const title = this.getAttribute("title-label") || "DAI details";
     this.innerHTML = `
       <div class="border border-[#c5cad2] bg-[#f1f1f2] p-4">
@@ -416,43 +443,50 @@ class DaiDetailPanel extends HTMLElement {
             <h4 class="mt-1 text-base font-semibold text-[#223654]">${escapeHtml(item.label || "")}</h4>
             <p class="mt-1 text-sm text-[#4e5662]">${escapeHtml((item.sourceDais || []).join(", ") || item.sourceDai || "")}</p>
           </div>
-          <div class="border border-[#dae6f0] bg-white px-3 py-2 text-sm font-semibold text-[#095797]">${escapeHtml(item.recordCount || 0)} rows</div>
+          <div class="border border-[#dae6f0] bg-white px-3 py-2 text-sm font-semibold text-[#095797]">${escapeHtml(item.recordCount || 0)} ${escapeHtml(label(labels, "rows", "rows"))}</div>
         </div>
         <div class="max-h-[28rem] overflow-auto pr-2">
-          ${disclosurePopup(item)}
+          ${disclosurePopup(item, labels)}
         </div>
       </div>
     `;
   }
 
   renderRegionalMetric(item) {
+    const labels = this.uiLabels();
     const title = this.getAttribute("title-label") || "DAI details";
+    const burdenLabel = regionalBurdenText(item, labels);
     const rows = (item.metrics || [])
       .map(
         (metric) => `
           <tr class="border-b border-rose-100 last:border-0">
-            <td class="py-2 pr-3 font-medium text-slate-950">${escapeHtml(metric.period_label || metric.year || "unknown")}</td>
+            <td class="py-2 pr-3 font-medium text-slate-950">${escapeHtml(metric.period_label || metric.year || label(labels, "unknown", "unknown"))}</td>
             <td class="py-2 pr-3">${escapeHtml(metric.source_dai || "")}</td>
-            <td class="py-2 pr-3 text-right">${escapeHtml(metric.outage_count ?? "unknown")}</td>
-            <td class="py-2 pr-3 text-right">${escapeHtml(metric.average_duration_minutes ?? "unknown")}</td>
-            <td class="py-2 pr-3 text-right">${escapeHtml(metric.continuity_index_minutes ?? "unknown")}</td>
+            <td class="py-2 pr-3 text-right">${escapeHtml(metric.outage_count ?? label(labels, "unknown", "unknown"))}</td>
+            <td class="py-2 pr-3 text-right">${escapeHtml(metric.average_duration_minutes ?? label(labels, "unknown", "unknown"))}</td>
+            <td class="py-2 pr-3 text-right">${escapeHtml(metric.continuity_index_minutes ?? label(labels, "unknown", "unknown"))}</td>
             <td class="py-2 text-right">${escapeHtml(metric.long_outage_count ?? "")}</td>
           </tr>
         `,
       )
       .join("");
     const sourceCount = (item.sourceDais || []).length || 1;
+    const sourceLabel = label(
+      labels,
+      sourceCount === 1 ? "dai_source" : "dai_sources",
+      sourceCount === 1 ? "DAI source" : "DAI sources",
+    );
     this.innerHTML = `
       <div class="border border-[#c5cad2] bg-[#f1f1f2] p-4">
         <p class="text-xs font-semibold uppercase tracking-[0.14em] text-[#095797]">${escapeHtml(title)}</p>
         <h4 class="mt-1 text-base font-semibold text-[#223654]">${escapeHtml(item.label || "")}</h4>
-        <p class="mt-1 text-sm text-[#4e5662]">${escapeHtml(sourceCount)} DAI source${sourceCount === 1 ? "" : "s"} · latest shown on map: ${escapeHtml(item.sourceDai)}</p>
+        <p class="mt-1 text-sm text-[#4e5662]">${escapeHtml(sourceCount)} ${escapeHtml(sourceLabel)} · ${escapeHtml(label(labels, "latest_map_source", "latest shown on map"))}: ${escapeHtml(item.sourceDai)}</p>
         <dl class="mt-4 grid gap-3 text-sm sm:grid-cols-2">
-          <div class="border border-[#dae6f0] bg-white px-3 py-2"><dt class="text-[#6b778a]">Period</dt><dd class="font-semibold text-[#223654]">${escapeHtml(item.periodLabel || item.year || "unknown")}</dd></div>
-          <div class="border border-[#dae6f0] bg-white px-3 py-2"><dt class="text-[#6b778a]">Outages</dt><dd class="font-semibold text-[#223654]">${escapeHtml(item.outageCount ?? "unknown")}</dd></div>
-          <div class="border border-[#dae6f0] bg-white px-3 py-2"><dt class="text-[#6b778a]">Average duration</dt><dd class="font-semibold text-[#223654]">${escapeHtml(item.averageDurationMinutes ?? "unknown")} min</dd></div>
-          <div class="border border-[#dae6f0] bg-white px-3 py-2"><dt class="text-[#6b778a]">IC brut</dt><dd class="font-semibold text-[#223654]">${escapeHtml(item.continuityIndexMinutes ?? "unknown")} min</dd></div>
-          <div class="border border-[#dae6f0] bg-white px-3 py-2"><dt class="text-[#6b778a]">Outages > 8h</dt><dd class="font-semibold text-[#223654]">${escapeHtml(item.longOutageCount ?? "unknown")}</dd></div>
+          <div class="border border-[#dae6f0] bg-white px-3 py-2"><dt class="text-[#6b778a]">${escapeHtml(label(labels, "period", "Period"))}</dt><dd class="font-semibold text-[#223654]">${escapeHtml(item.periodLabel || item.year || label(labels, "unknown", "unknown"))}</dd></div>
+          <div class="border border-[#dae6f0] bg-white px-3 py-2"><dt class="text-[#6b778a]">${escapeHtml(label(labels, "outages", "Outages"))}</dt><dd class="font-semibold text-[#223654]">${escapeHtml(item.outageCount ?? label(labels, "unknown", "unknown"))}</dd></div>
+          <div class="border border-[#dae6f0] bg-white px-3 py-2"><dt class="text-[#6b778a]">${escapeHtml(label(labels, "average_duration", "Average duration"))}</dt><dd class="font-semibold text-[#223654]">${escapeHtml(item.averageDurationMinutes ?? label(labels, "unknown", "unknown"))} min</dd></div>
+          <div class="border border-[#dae6f0] bg-white px-3 py-2"><dt class="text-[#6b778a]">${escapeHtml(burdenLabel)}</dt><dd class="font-semibold text-[#223654]">${escapeHtml(item.continuityIndexMinutes ?? label(labels, "unknown", "unknown"))}</dd></div>
+          <div class="border border-[#dae6f0] bg-white px-3 py-2"><dt class="text-[#6b778a]">${escapeHtml(label(labels, "outages_over_8h", "Outages > 8h"))}</dt><dd class="font-semibold text-[#223654]">${escapeHtml(item.longOutageCount ?? label(labels, "unknown", "unknown"))}</dd></div>
         </dl>
         ${
           rows
@@ -460,12 +494,12 @@ class DaiDetailPanel extends HTMLElement {
                 <table class="w-full min-w-[42rem] text-left text-sm">
                   <thead class="sticky top-0 bg-rose-50 text-xs uppercase tracking-[0.12em] text-rose-700">
                     <tr>
-                      <th class="px-3 py-2">Period</th>
+                      <th class="px-3 py-2">${escapeHtml(label(labels, "period", "Period"))}</th>
                       <th class="px-3 py-2">DAI</th>
-                      <th class="px-3 py-2 text-right">Outages</th>
-                      <th class="px-3 py-2 text-right">Avg min</th>
-                      <th class="px-3 py-2 text-right">IC brut</th>
-                      <th class="px-3 py-2 text-right">&gt; 8h</th>
+                      <th class="px-3 py-2 text-right">${escapeHtml(label(labels, "outages", "Outages"))}</th>
+                      <th class="px-3 py-2 text-right">${escapeHtml(label(labels, "average_duration", "Average duration"))}</th>
+                      <th class="px-3 py-2 text-right">${escapeHtml(burdenLabel)}</th>
+                      <th class="px-3 py-2 text-right">${escapeHtml(label(labels, "outages_over_8h", "> 8h"))}</th>
                     </tr>
                   </thead>
                   <tbody class="text-slate-700">${rows}</tbody>
@@ -478,14 +512,15 @@ class DaiDetailPanel extends HTMLElement {
   }
 
   renderOperational(item) {
+    const labels = this.uiLabels();
     const title = this.getAttribute("title-label") || "Published outage context";
     const isPreviousOutage = item.kind === "previous_outage";
     const kindLabel =
       item.kind === "planned"
-        ? "Current planned interruption"
+        ? item.kindLabel || label(labels, "planned", "Planned interruption")
         : isPreviousOutage
-          ? "Previously seen outage"
-          : "Current or new outage";
+          ? item.kindLabel || "Previously seen outage"
+          : item.kindLabel || label(labels, "outage", "Outage");
     const recentEvents = item.recentEvents || [];
     const events = (isPreviousOutage ? recentEvents : [])
       .map(
@@ -494,15 +529,15 @@ class DaiDetailPanel extends HTMLElement {
             <div class="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p class="flex flex-wrap items-center gap-2 text-sm font-semibold text-[#223654]">
-                  <span class="bg-[#f8e69a] px-2 py-0.5 text-[#223654]">Outage</span>
+                  <span class="bg-[#f8e69a] px-2 py-0.5 text-[#223654]">${escapeHtml(label(labels, "outage", "Outage"))}</span>
                   <span class="text-[#4e5662]">·</span>
-                  <span class="text-[#095797]">Nearby match</span>
+                  <span class="text-[#095797]">${escapeHtml(label(labels, "nearby_match", "Nearby match"))}</span>
                 </p>
-                <p class="mt-1 text-sm text-[#4e5662]">${escapeHtml(event.start_time || "unknown")}</p>
+                <p class="mt-1 text-sm text-[#4e5662]">${escapeHtml(event.start_time || label(labels, "unknown", "unknown"))}</p>
               </div>
               <div class="flex flex-col items-end gap-1 text-right text-sm text-[#4e5662]">
-                <p class="bg-[#f1f1f2] px-2 py-0.5 text-[#223654]">${escapeHtml(event.customers_affected ?? 0)} clients</p>
-                <p class="bg-[#dae6f0] px-2 py-0.5 text-[#223654]">${escapeHtml(formatDistanceKm(event.distance_m))}</p>
+                <p class="bg-[#f1f1f2] px-2 py-0.5 text-[#223654]">${escapeHtml(event.customers_affected ?? 0)} ${escapeHtml(label(labels, "clients", "clients"))}</p>
+                <p class="bg-[#dae6f0] px-2 py-0.5 text-[#223654]">${escapeHtml(formatDistanceKm(event.distance_m, labels))}</p>
               </div>
             </div>
           </article>
@@ -512,16 +547,16 @@ class DaiDetailPanel extends HTMLElement {
     const summary = isPreviousOutage
       ? ""
       : `<dl class="mt-4 grid gap-3 text-sm sm:grid-cols-2">
-          <div class="border border-[#dae6f0] bg-white px-3 py-2"><dt class="text-[#6b778a]">Customers</dt><dd class="font-semibold text-[#223654]">${escapeHtml(item.customersAffected ?? "unknown")}</dd></div>
-          <div class="border border-[#dae6f0] bg-white px-3 py-2"><dt class="text-[#6b778a]">Distance</dt><dd class="font-semibold text-[#223654]">${escapeHtml(formatDistanceKm(item.distanceM))}</dd></div>
-          <div class="border border-[#dae6f0] bg-white px-3 py-2"><dt class="text-[#6b778a]">Start</dt><dd class="font-semibold text-[#223654]">${escapeHtml(item.startTime || item.latestStartTime || "unknown")}</dd></div>
-          <div class="border border-[#dae6f0] bg-white px-3 py-2"><dt class="text-[#6b778a]">Status</dt><dd class="font-semibold text-[#223654]">${escapeHtml(item.status || "unknown")}</dd></div>
+          <div class="border border-[#dae6f0] bg-white px-3 py-2"><dt class="text-[#6b778a]">${escapeHtml(label(labels, "customers", "Customers"))}</dt><dd class="font-semibold text-[#223654]">${escapeHtml(item.customersAffected ?? label(labels, "unknown", "unknown"))}</dd></div>
+          <div class="border border-[#dae6f0] bg-white px-3 py-2"><dt class="text-[#6b778a]">${escapeHtml(label(labels, "distance", "Distance"))}</dt><dd class="font-semibold text-[#223654]">${escapeHtml(formatDistanceKm(item.distanceM, labels))}</dd></div>
+          <div class="border border-[#dae6f0] bg-white px-3 py-2"><dt class="text-[#6b778a]">${escapeHtml(label(labels, "start", "Start"))}</dt><dd class="font-semibold text-[#223654]">${escapeHtml(item.startTime || item.latestStartTime || label(labels, "unknown", "unknown"))}</dd></div>
+          <div class="border border-[#dae6f0] bg-white px-3 py-2"><dt class="text-[#6b778a]">${escapeHtml(label(labels, "status", "Status"))}</dt><dd class="font-semibold text-[#223654]">${escapeHtml(item.status || label(labels, "unknown", "unknown"))}</dd></div>
         </dl>`;
     this.innerHTML = `
       <div class="border border-[#c5cad2] bg-[#f1f1f2] p-4">
         <p class="text-xs font-semibold uppercase tracking-[0.14em] text-[#095797]">${escapeHtml(title)}</p>
         <h4 class="mt-1 text-base font-semibold text-[#223654]">${escapeHtml(kindLabel)}</h4>
-        ${isPreviousOutage ? "" : `<p class="mt-1 text-sm text-[#4e5662]">${escapeHtml(item.label || item.startTime || item.latestStartTime || "unknown")}</p>`}
+        ${isPreviousOutage ? "" : `<p class="mt-1 text-sm text-[#4e5662]">${escapeHtml(item.label || item.startTime || item.latestStartTime || label(labels, "unknown", "unknown"))}</p>`}
         ${summary}
         ${events ? `<div class="mt-4 grid gap-2 text-sm">${events}</div>` : ""}
       </div>
@@ -536,6 +571,8 @@ class OutageMap extends HTMLElement {
     this.innerHTML = '<div class="h-full w-full"></div>';
     const root = this.firstElementChild;
     const detailPanel = this.parentElement?.querySelector("dai-detail-panel");
+    const labels = data.labels || {};
+    if (detailPanel) detailPanel.labels = labels;
     const map = L.map(root).setView(data.center || [46.8, -71.2], 11);
     L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
       attribution:
@@ -577,7 +614,7 @@ class OutageMap extends HTMLElement {
     if (data.center) {
       L.marker(data.center)
         .addTo(map)
-        .bindPopup(data.addressLabel || "Address");
+        .bindPopup(data.addressLabel || label(labels, "address", "Address"));
       bounds.push(data.center);
     }
     const metricMax = Math.max(
@@ -661,18 +698,13 @@ class OutageMap extends HTMLElement {
         }).addTo(map);
         if (isDisclosure) {
           layer.on("click", () => showDisclosure(item));
-          layer.bindTooltip(item.label || item.sourceDai || "DAI", { sticky: true });
+          layer.bindTooltip(disclosureTooltip(item, labels), { sticky: true });
         } else if (isRegionalMetric) {
           layer.on("click", () => showRegionalMetric(item));
-          layer.bindTooltip(
-            `${item.label || "Region"} · IC ${item.continuityIndexMinutes ?? "?"}`,
-            {
-              sticky: true,
-            },
-          );
+          layer.bindTooltip(regionalMetricTooltip(item, labels), { sticky: true });
         } else {
           layer.on("click", () => showOperational(item));
-          layer.bindPopup(itemPopup(item));
+          layer.bindTooltip(operationalTooltip(item, labels), { sticky: true });
         }
         const layerBounds = layer.getBounds();
         if (!isDisclosure && !isRegionalMetric && layerBounds.isValid()) {
@@ -704,18 +736,13 @@ class OutageMap extends HTMLElement {
         }).addTo(map);
         if (isDisclosure) {
           layer.on("click", () => showDisclosure(item));
-          layer.bindTooltip(item.label || item.sourceDai || "DAI", { sticky: true });
+          layer.bindTooltip(disclosureTooltip(item, labels), { sticky: true });
         } else if (isRegionalMetric) {
           layer.on("click", () => showRegionalMetric(item));
-          layer.bindTooltip(
-            `${item.label || "Region"} · IC ${item.continuityIndexMinutes ?? "?"}`,
-            {
-              sticky: true,
-            },
-          );
+          layer.bindTooltip(regionalMetricTooltip(item, labels), { sticky: true });
         } else {
           layer.on("click", () => showOperational(item));
-          layer.bindPopup(itemPopup(item));
+          layer.bindTooltip(operationalTooltip(item, labels), { sticky: true });
         }
         const layerBounds = layer.getBounds();
         if (!isDisclosure && !isRegionalMetric && layerBounds.isValid()) {
@@ -752,18 +779,13 @@ class OutageMap extends HTMLElement {
         }).addTo(map);
         if (isDisclosure) {
           marker.on("click", () => showDisclosure(item));
-          marker.bindTooltip(item.label || item.sourceDai || "DAI", { sticky: true });
+          marker.bindTooltip(disclosureTooltip(item, labels), { sticky: true });
         } else if (isRegionalMetric) {
           marker.on("click", () => showRegionalMetric(item));
-          marker.bindTooltip(
-            `${item.label || "Region"} · IC ${item.continuityIndexMinutes ?? "?"}`,
-            {
-              sticky: true,
-            },
-          );
+          marker.bindTooltip(regionalMetricTooltip(item, labels), { sticky: true });
         } else {
           marker.on("click", () => showOperational(item));
-          marker.bindPopup(itemPopup(item));
+          marker.bindTooltip(operationalTooltip(item, labels), { sticky: true });
         }
         if (!isDisclosure && !isRegionalMetric) marker.bringToFront();
         if (!isDisclosure && !isRegionalMetric) bounds.push([item.lat, item.lon]);

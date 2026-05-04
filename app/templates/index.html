@@ -39,7 +39,7 @@
     <div class="border-b-4 border-[#e0ad03] bg-[#223654] text-white">
       <div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-2 text-xs sm:px-6 lg:px-8">
         <span class="font-medium">{{ settings.app_name }}</span>
-        <span class="text-white/80">Hydro-Quebec outage lookup prototype</span>
+        <span class="text-white/80">{{ t(lang, "app_subtitle") }}</span>
       </div>
     </div>
     <main class="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8 xl:max-w-7xl 2xl:max-w-[92rem]">
@@ -92,6 +92,9 @@
             <button id="location-search-button"
                     type="button"
                     data-location-url="{{ url_for('search_location') }}"
+                    data-current-location-label="{{ t(lang, 'current_location') }}"
+                    data-location-unavailable-label="{{ t(lang, 'location_unavailable') }}"
+                    data-locating-label="{{ t(lang, 'locating') }}"
                     class="text-sm font-semibold text-[#095797] underline-offset-4 hover:underline">
               {{ t(lang, "use_current_location") }}
             </button>
