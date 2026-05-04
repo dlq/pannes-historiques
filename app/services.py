@@ -904,43 +904,58 @@ class AppService:
         ]
         if not same_version_rows:
             return None
+        assigned_row = self._assign_geometry_row(
+            same_version_rows=same_version_rows,
+            row_centroid_lat=row_centroid_lat,
+            row_centroid_lon=row_centroid_lon,
+        )
+        if assigned_row is None:
+            return None
 
-        for row in geometry_rows:
-            if row["source_version"] != source_version:
-                continue
-            if row["bbox_min_lon"] is not None:
-                if not (
-                    row["bbox_min_lon"] <= longitude <= row["bbox_max_lon"]
-                    and row["bbox_min_lat"] <= latitude <= row["bbox_max_lat"]
-                ):
-                    continue
-            geojson = json.loads(row["geometry_geojson"])
+        geojson = json.loads(assigned_row["geometry_geojson"])
+        contains = False
+        if assigned_row["bbox_min_lon"] is None or (
+            assigned_row["bbox_min_lon"] <= longitude <= assigned_row["bbox_max_lon"]
+            and assigned_row["bbox_min_lat"] <= latitude <= assigned_row["bbox_max_lat"]
+        ):
             polygon = geojson["coordinates"][0]
-            if point_in_polygon(longitude, latitude, polygon):
-                return {"contains": True, "geometry_id": row["id"], "geometry_geojson": geojson}
+            contains = point_in_polygon(longitude, latitude, polygon)
 
-        if row_centroid_lat is not None and row_centroid_lon is not None:
-            best_row = min(
-                same_version_rows,
-                key=lambda row: haversine_meters(
-                    row_centroid_lat,
-                    row_centroid_lon,
-                    row["centroid_lat"] if row["centroid_lat"] is not None else 0.0,
-                    row["centroid_lon"] if row["centroid_lon"] is not None else 0.0,
-                ),
-            )
-            return {
-                "contains": False,
-                "geometry_id": best_row["id"],
-                "geometry_geojson": json.loads(best_row["geometry_geojson"]),
-            }
-
-        row = same_version_rows[0]
         return {
-            "contains": False,
-            "geometry_id": row["id"],
-            "geometry_geojson": json.loads(row["geometry_geojson"]),
+            "contains": contains,
+            "geometry_id": assigned_row["id"],
+            "geometry_geojson": geojson,
         }
+
+    @staticmethod
+    def _assign_geometry_row(
+        *,
+        same_version_rows: list[dict[str, Any]],
+        row_centroid_lat: float | None,
+        row_centroid_lon: float | None,
+    ) -> dict[str, Any] | None:
+        if not same_version_rows:
+            return None
+        if row_centroid_lat is None or row_centroid_lon is None:
+            return same_version_rows[0]
+
+        rows_with_centroids = [
+            row
+            for row in same_version_rows
+            if row["centroid_lat"] is not None and row["centroid_lon"] is not None
+        ]
+        if not rows_with_centroids:
+            return same_version_rows[0]
+
+        return min(
+            rows_with_centroids,
+            key=lambda row: haversine_meters(
+                row_centroid_lat,
+                row_centroid_lon,
+                row["centroid_lat"],
+                row["centroid_lon"],
+            ),
+        )
 
     def _save_matches(self, address_id: int, matches: list[dict[str, Any]]) -> None:
         with open_db(self.settings.db_path) as connection:

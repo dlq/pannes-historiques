@@ -92,16 +92,11 @@ class GeocodingService:
                 seen.add(key)
                 suggestion["_score"] = self._suggestion_score(cleaned, suggestion)
                 suggestions.append(suggestion)
-            ranked = [item for item in suggestions if item["_score"] > 0]
-            ranked.sort(key=lambda item: (item["_score"], item["label"]), reverse=True)
-            if ranked:
-                results = [
-                    {k: v for k, v in item.items() if k != "_score"} for item in ranked[:limit]
-                ]
-                self._suggest_cache[cache_key] = (time.time(), results)
-                return results
-        self._suggest_cache[cache_key] = (time.time(), [])
-        return []
+        ranked = [item for item in suggestions if item["_score"] > 0]
+        ranked.sort(key=lambda item: (item["_score"], item["label"]), reverse=True)
+        results = [{k: v for k, v in item.items() if k != "_score"} for item in ranked[:limit]]
+        self._suggest_cache[cache_key] = (time.time(), results)
+        return results
 
     def _from_cache(self, normalized_query: str) -> GeocodeResult | None:
         with open_db(self.settings.db_path) as connection:

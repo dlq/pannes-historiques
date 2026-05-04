@@ -712,6 +712,7 @@ This language should appear in:
 - raw snapshot storage
 - normalized parsing pipeline
 - geometry extraction
+- formal automated test coverage for ingestion, matching, geocoding, and rendered search flows
 
 ### Phase 1B: disclosure ingestion foundation
 
