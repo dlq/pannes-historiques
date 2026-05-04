@@ -36,6 +36,12 @@ def result_context(lang: str, result: Any) -> dict[str, Any]:
                 "lon": item["centroid_lon"],
                 "label": item["start_time"],
                 "geometry": item.get("geometry_geojson"),
+                "customersAffected": item["customers_affected"],
+                "distanceM": item["distance_m"],
+                "status": item["status"],
+                "startTime": item["start_time"],
+                "endTime": item["end_time"],
+                "municipalityCode": item["municipality_code"],
             }
             for item in result.matches
             if item["centroid_lat"] is not None and item["centroid_lon"] is not None
@@ -50,9 +56,12 @@ def result_context(lang: str, result: Any) -> dict[str, Any]:
                 "geometry": group.get("geometry_geojson"),
                 "eventCount": group["event_count"],
                 "latestStartTime": group["latest_start_time"],
+                "recentEvents": group["events"][:12],
             }
             for group in result.previous_outage_groups
-            if group["centroid_lat"] is not None and group["centroid_lon"] is not None
+            if group.get("geometry_geojson")
+            and group["centroid_lat"] is not None
+            and group["centroid_lon"] is not None
         ]
         + [
             {

@@ -229,6 +229,27 @@ function attachSearchRouting() {
   });
 }
 
+function attachMapFocusCards() {
+  for (const card of document.querySelectorAll("[data-map-focus]")) {
+    if (card.dataset.mapFocusBound === "1") continue;
+    card.dataset.mapFocusBound = "1";
+    const focusMap = () => {
+      try {
+        const detail = JSON.parse(card.getAttribute("data-map-focus") || "{}");
+        document.dispatchEvent(new CustomEvent("map-focus", { detail }));
+      } catch (_error) {
+        // Ignore malformed focus payloads; cards remain normal result rows.
+      }
+    };
+    card.addEventListener("click", focusMap);
+    card.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      focusMap();
+    });
+  }
+}
+
 function escapeHtml(value) {
   return String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -321,6 +342,14 @@ function metricColor(value, maxValue) {
   if (ratio > 0.4) return "#f97316";
   if (ratio > 0.2) return "#facc15";
   return "#fef3c7";
+}
+
+function mapPane(item) {
+  if (item.kind === "regional_metric") return "regionalContextPane";
+  if (item.kind === "disclosure") return "disclosurePane";
+  if (item.kind === "previous_outage") return "previousOutagePane";
+  if (item.kind === "planned") return "plannedPane";
+  return "outagePane";
 }
 
 function geometryWeight(item) {
@@ -428,6 +457,43 @@ class DaiDetailPanel extends HTMLElement {
       </div>
     `;
   }
+
+  renderOperational(item) {
+    const title = this.getAttribute("title-label") || "Published outage context";
+    const kindLabel =
+      item.kind === "planned"
+        ? "Current planned interruption"
+        : item.kind === "previous_outage"
+          ? "Previously seen outage"
+          : "Current or new outage";
+    const events = (item.recentEvents || [])
+      .map(
+        (event) => `
+          <div class="border border-[#dae6f0] bg-white px-3 py-2">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <span class="font-semibold text-[#223654]">${escapeHtml(event.start_time || "unknown")}</span>
+              <span class="text-[#4e5662]">${escapeHtml(event.customers_affected ?? 0)} clients</span>
+            </div>
+            <div class="mt-1 text-xs text-[#4e5662]">${escapeHtml(event.distance_m ?? "unknown")} m · ${escapeHtml(event.status || "unknown")}</div>
+          </div>
+        `,
+      )
+      .join("");
+    this.innerHTML = `
+      <div class="border border-[#c5cad2] bg-[#f1f1f2] p-4">
+        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-[#095797]">${escapeHtml(title)}</p>
+        <h4 class="mt-1 text-base font-semibold text-[#223654]">${escapeHtml(kindLabel)}</h4>
+        <p class="mt-1 text-sm text-[#4e5662]">${escapeHtml(item.label || item.startTime || item.latestStartTime || "unknown")}</p>
+        <dl class="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+          <div class="border border-[#dae6f0] bg-white px-3 py-2"><dt class="text-[#6b778a]">Customers</dt><dd class="font-semibold text-[#223654]">${escapeHtml(item.customersAffected ?? item.eventCount ?? "unknown")}</dd></div>
+          <div class="border border-[#dae6f0] bg-white px-3 py-2"><dt class="text-[#6b778a]">Distance</dt><dd class="font-semibold text-[#223654]">${escapeHtml(item.distanceM ?? "unknown")} m</dd></div>
+          <div class="border border-[#dae6f0] bg-white px-3 py-2"><dt class="text-[#6b778a]">Start</dt><dd class="font-semibold text-[#223654]">${escapeHtml(item.startTime || item.latestStartTime || "unknown")}</dd></div>
+          <div class="border border-[#dae6f0] bg-white px-3 py-2"><dt class="text-[#6b778a]">Status</dt><dd class="font-semibold text-[#223654]">${escapeHtml(item.status || "unknown")}</dd></div>
+        </dl>
+        ${events ? `<div class="mt-4 grid gap-2 text-sm">${events}</div>` : ""}
+      </div>
+    `;
+  }
 }
 
 class OutageMap extends HTMLElement {
@@ -443,7 +509,38 @@ class OutageMap extends HTMLElement {
         '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
       subdomains: "abcd",
     }).addTo(map);
+    map.createPane("regionalContextPane");
+    map.getPane("regionalContextPane").style.zIndex = 350;
+    map.getPane("regionalContextPane").style.pointerEvents = "none";
+    map.createPane("disclosurePane");
+    map.getPane("disclosurePane").style.zIndex = 360;
+    map.createPane("previousOutagePane");
+    map.getPane("previousOutagePane").style.zIndex = 430;
+    map.createPane("plannedPane");
+    map.getPane("plannedPane").style.zIndex = 440;
+    map.createPane("outagePane");
+    map.getPane("outagePane").style.zIndex = 450;
     const bounds = [];
+    const focusMap = (detail) => {
+      map.invalidateSize();
+      if (detail.geometry) {
+        const layer = L.geoJSON(detail.geometry);
+        const layerBounds = layer.getBounds();
+        if (layerBounds.isValid()) {
+          map.fitBounds(layerBounds, { padding: [36, 36], maxZoom: 16 });
+          return;
+        }
+      }
+      if (Number.isFinite(detail.lat) && Number.isFinite(detail.lon)) {
+        const itemBounds = L.circle([detail.lat, detail.lon], { radius: 1000 }).getBounds();
+        map.fitBounds(itemBounds, { padding: [36, 36], maxZoom: 16 });
+      }
+    };
+    this.handleMapFocus = (event) => {
+      if (!this.offsetParent) return;
+      focusMap(event.detail || {});
+    };
+    document.addEventListener("map-focus", this.handleMapFocus);
     if (data.center) {
       L.marker(data.center)
         .addTo(map)
@@ -468,6 +565,14 @@ class OutageMap extends HTMLElement {
       }
       this.dispatchEvent(
         new CustomEvent("regional-metric-selected", { bubbles: true, detail: item }),
+      );
+    };
+    const showOperational = (item) => {
+      if (detailPanel && typeof detailPanel.renderOperational === "function") {
+        detailPanel.renderOperational(item);
+      }
+      this.dispatchEvent(
+        new CustomEvent("operational-layer-selected", { bubbles: true, detail: item }),
       );
     };
     const orderedMatches = [...(data.matches || [])].sort((left, right) => {
@@ -496,6 +601,7 @@ class OutageMap extends HTMLElement {
         const isRegionalMetric = item.kind === "regional_metric";
         const isPreviousOutage = item.kind === "previous_outage";
         const layer = L.geoJSON(item.geometry, {
+          pane: mapPane(item),
           style: {
             color,
             weight: isRegionalMetric
@@ -532,6 +638,7 @@ class OutageMap extends HTMLElement {
             },
           );
         } else {
+          layer.on("click", () => showOperational(item));
           layer.bindPopup(itemPopup(item));
         }
         const layerBounds = layer.getBounds();
@@ -547,6 +654,7 @@ class OutageMap extends HTMLElement {
         const isRegionalMetric = item.kind === "regional_metric";
         const isPreviousOutage = item.kind === "previous_outage";
         const layer = L.geoJSON(item.geometry, {
+          pane: mapPane(item),
           style: {
             color,
             weight: isRegionalMetric ? 1.5 : isPreviousOutage ? 2 : 2.5,
@@ -573,6 +681,7 @@ class OutageMap extends HTMLElement {
             },
           );
         } else {
+          layer.on("click", () => showOperational(item));
           layer.bindPopup(itemPopup(item));
         }
         const layerBounds = layer.getBounds();
@@ -587,6 +696,7 @@ class OutageMap extends HTMLElement {
         const isRegionalMetric = item.kind === "regional_metric";
         const isPreviousOutage = item.kind === "previous_outage";
         const marker = L.circleMarker([item.lat, item.lon], {
+          pane: mapPane(item),
           radius: isRegionalMetric
             ? 14
             : isDisclosure
@@ -619,6 +729,7 @@ class OutageMap extends HTMLElement {
             },
           );
         } else {
+          marker.on("click", () => showOperational(item));
           marker.bindPopup(itemPopup(item));
         }
         if (!isDisclosure && !isRegionalMetric) marker.bringToFront();
@@ -656,6 +767,10 @@ class OutageMap extends HTMLElement {
       observer.observe(this);
     }
   }
+
+  disconnectedCallback() {
+    if (this.handleMapFocus) document.removeEventListener("map-focus", this.handleMapFocus);
+  }
 }
 
 customElements.define("dai-detail-panel", DaiDetailPanel);
@@ -666,6 +781,7 @@ document.addEventListener("DOMContentLoaded", () => {
   attachAddressAutocomplete();
   attachLocationSearch();
   attachSearchRouting();
+  attachMapFocusCards();
   document.body.addEventListener("input", syncLanguageForm);
   document.body.addEventListener("change", syncLanguageForm);
 });
@@ -675,4 +791,5 @@ document.body.addEventListener("htmx:afterSwap", () => {
   attachAddressAutocomplete();
   attachLocationSearch();
   attachSearchRouting();
+  attachMapFocusCards();
 });

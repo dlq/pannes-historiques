@@ -716,14 +716,24 @@ class AppService:
                     continue
                 connection.execute(
                     """
-                    INSERT OR REPLACE INTO address_outage_matches
-                    (address_id, outage_kind, record_id, geometry_id, match_type, distance_m, confidence)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO address_outage_matches
+                    (address_id, outage_kind, record_id, event_key, geometry_id, match_type, distance_m, confidence)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(address_id, outage_kind, event_key)
+                    WHERE event_key IS NOT NULL
+                    DO UPDATE SET
+                        record_id = excluded.record_id,
+                        geometry_id = excluded.geometry_id,
+                        match_type = excluded.match_type,
+                        distance_m = excluded.distance_m,
+                        confidence = excluded.confidence,
+                        matched_at = CURRENT_TIMESTAMP
                     """,
                     (
                         address_id,
                         item["outage_kind"],
                         item["record_id"],
+                        self._outage_event_key(item),
                         item["geometry_id"],
                         item["match_type"],
                         item["distance_m"],
@@ -755,6 +765,8 @@ class AppService:
         groups: dict[str, dict[str, Any]] = {}
         for row in rows:
             item = dict(row)
+            if not item["geometry_geojson"]:
+                continue
             event = {
                 "municipality_code": item["municipality_code"],
                 "start_time": item["outage_start_time"],
@@ -764,6 +776,7 @@ class AppService:
             }
             if self._outage_display_key(event) in exclude_event_keys:
                 continue
+            event_key = self._outage_event_key(event)
             group_key = (
                 f"geometry:{item['geometry_id']}"
                 if item["geometry_id"] is not None
@@ -783,8 +796,12 @@ class AppService:
                     if item["geometry_geojson"]
                     else None,
                     "events": [],
+                    "event_keys": set(),
                 },
             )
+            if event_key in group["event_keys"]:
+                continue
+            group["event_keys"].add(event_key)
             group["events"].append(
                 {
                     "outage_kind": "outage",
@@ -812,6 +829,7 @@ class AppService:
             group["latest_start_time"] = (
                 group["events"][0]["start_time"] if group["events"] else None
             )
+            group.pop("event_keys", None)
         grouped.sort(key=lambda item: item["latest_start_time"] or "", reverse=True)
         return grouped
 
@@ -824,6 +842,10 @@ class AppService:
             round(item["centroid_lon"] or 0.0, 3),
             item["interruption_type"],
         )
+
+    @classmethod
+    def _outage_event_key(cls, item: dict[str, Any]) -> str:
+        return "|".join(str(part or "") for part in cls._outage_display_key(item))
 
     @staticmethod
     def _dedupe_matches(matches: list[dict[str, Any]]) -> list[dict[str, Any]]:

@@ -131,6 +131,7 @@ CREATE TABLE IF NOT EXISTS address_outage_matches (
     address_id INTEGER NOT NULL REFERENCES addresses(id),
     outage_kind TEXT NOT NULL,
     record_id INTEGER NOT NULL,
+    event_key TEXT,
     geometry_id INTEGER,
     match_type TEXT NOT NULL,
     distance_m REAL,
@@ -262,9 +263,90 @@ def initialize(db_path: Path) -> None:
     connection = connect(db_path)
     try:
         connection.executescript(SCHEMA)
+        migrate(connection)
         connection.commit()
     finally:
         connection.close()
+
+
+def migrate(connection: sqlite3.Connection) -> None:
+    columns = {
+        row["name"]
+        for row in connection.execute("PRAGMA table_info(address_outage_matches)").fetchall()
+    }
+    if "event_key" not in columns:
+        connection.execute("ALTER TABLE address_outage_matches ADD COLUMN event_key TEXT")
+    connection.execute(
+        """
+        UPDATE address_outage_matches
+        SET event_key = (
+            SELECT COALESCE(r.municipality_code, '') || '|' ||
+                   COALESCE(r.outage_start_time, '') || '|' ||
+                   CAST(round(COALESCE(r.centroid_lat, 0.0), 3) AS TEXT) || '|' ||
+                   CAST(round(COALESCE(r.centroid_lon, 0.0), 3) AS TEXT) || '|' ||
+                   COALESCE(r.interruption_type, '')
+            FROM outage_records r
+            WHERE r.id = address_outage_matches.record_id
+        )
+        WHERE outage_kind = 'outage'
+          AND event_key IS NULL
+        """
+    )
+    connection.execute(
+        """
+        UPDATE address_outage_matches
+        SET event_key = (
+            SELECT COALESCE(r.municipality_code, '') || '|' ||
+                   COALESCE(r.outage_start_time, '') || '|' ||
+                   CAST(round(COALESCE(r.centroid_lat, 0.0), 3) AS TEXT) || '|' ||
+                   CAST(round(COALESCE(r.centroid_lon, 0.0), 3) AS TEXT) || '|' ||
+                   COALESCE(r.interruption_type, '')
+            FROM outage_records r
+            WHERE r.id = address_outage_matches.record_id
+        )
+        WHERE outage_kind = 'outage'
+          AND event_key != (
+            SELECT COALESCE(r.municipality_code, '') || '|' ||
+                   COALESCE(r.outage_start_time, '') || '|' ||
+                   CAST(round(COALESCE(r.centroid_lat, 0.0), 3) AS TEXT) || '|' ||
+                   CAST(round(COALESCE(r.centroid_lon, 0.0), 3) AS TEXT) || '|' ||
+                   COALESCE(r.interruption_type, '')
+            FROM outage_records r
+            WHERE r.id = address_outage_matches.record_id
+          )
+        """
+    )
+    connection.execute(
+        """
+        DELETE FROM address_outage_matches
+        WHERE outage_kind = 'outage'
+          AND event_key IS NOT NULL
+          AND id NOT IN (
+            SELECT id
+            FROM (
+                SELECT m.id,
+                       ROW_NUMBER() OVER (
+                           PARTITION BY m.address_id, m.outage_kind, m.event_key
+                           ORDER BY COALESCE(r.outage_start_time, m.matched_at) DESC,
+                                    m.matched_at DESC,
+                                    m.id DESC
+                       ) AS rank
+                FROM address_outage_matches m
+                LEFT JOIN outage_records r ON r.id = m.record_id
+                WHERE m.outage_kind = 'outage'
+                  AND m.event_key IS NOT NULL
+            )
+            WHERE rank = 1
+          )
+        """
+    )
+    connection.execute(
+        """
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_address_outage_event
+        ON address_outage_matches(address_id, outage_kind, event_key)
+        WHERE event_key IS NOT NULL
+        """
+    )
 
 
 @contextmanager

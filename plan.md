@@ -28,6 +28,18 @@ Deferred to a later About page:
 - cache freshness and archive coverage details
 - methodology notes and explanatory summary material
 
+Map follow-up:
+
+- previous outage matches that only have centroid data, not polygons, should still be retained and shown somehow
+- do not label centroid-only matches as "areas"; design a distinct map treatment for them, such as muted point markers or a separate "previous outage points" layer
+- keep polygon-backed previous outages visually distinct from centroid-only previous outages
+
+Source-code follow-up:
+
+- decode Hydro-Quebec one-letter outage and planned-interruption status codes such as `N`, `R`, `L`, and `A`
+- until meanings are verified from source documentation or source payload context, avoid guessing in the UI
+- decide whether to show decoded labels inline or keep raw source codes behind a small tooltip/popover
+
 ## Goal
 
 Build a web app that starts with a **specific Quebec address** and shows:
