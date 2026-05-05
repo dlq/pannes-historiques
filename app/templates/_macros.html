@@ -35,12 +35,12 @@
              role="button"
              tabindex="0"
              data-map-focus='{{ {"kind": item.outage_kind, "lat": item.centroid_lat, "lon": item.centroid_lon, "geometry": item.geometry_geojson if include_focus_geometry else none, "label": item.start_time, "startTime": item.start_time, "customersAffected": item.customers_affected, "distanceM": item.distance_m} | tojson }}'>
-      <div class="flex flex-wrap items-center justify-between gap-2 sm:gap-3">
-        <div>
+      <div class="grid gap-2 sm:flex sm:items-center sm:justify-between sm:gap-3">
+        <div class="min-w-0">
           {{ card_title(lang, item) }}
           <p class="mt-1 text-sm text-[#4e5662]">{{ item.start_time or t(lang, "unknown") }}</p>
         </div>
-        <div class="flex flex-col items-end gap-1 text-right text-sm text-[#4e5662]">
+        <div class="flex flex-wrap gap-2 text-sm text-[#4e5662] sm:flex-col sm:items-end sm:gap-1 sm:text-right">
           <p class="rounded-md bg-[#f1f1f2] px-2 py-0.5 text-[#223654]">
             {{ item.customers_affected or 0 }} {{ t(lang, "clients") }}
           </p>
@@ -58,12 +58,12 @@
                role="button"
                tabindex="0"
                data-map-focus='{{ {"kind": "previous_outage", "lat": item.centroid_lat, "lon": item.centroid_lon, "geometry": group.geometry_geojson if include_focus_geometry else none, "label": item.start_time, "startTime": item.start_time, "customersAffected": item.customers_affected, "distanceM": item.distance_m} | tojson }}'>
-        <div class="flex flex-wrap items-center justify-between gap-2 sm:gap-3">
-          <div>
+        <div class="grid gap-2 sm:flex sm:items-center sm:justify-between sm:gap-3">
+          <div class="min-w-0">
             {{ card_title(lang, item) }}
             <p class="mt-1 text-sm text-[#4e5662]">{{ item.start_time or t(lang, "unknown") }}</p>
           </div>
-          <div class="flex flex-col items-end gap-1 text-right text-sm text-[#4e5662]">
+          <div class="flex flex-wrap gap-2 text-sm text-[#4e5662] sm:flex-col sm:items-end sm:gap-1 sm:text-right">
             <p class="rounded-md bg-[#f1f1f2] px-2 py-0.5 text-[#223654]">
               {{ item.customers_affected or 0 }} {{ t(lang, "clients") }}
             </p>
