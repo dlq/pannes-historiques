@@ -31,11 +31,11 @@
 {% macro match_rows(lang, matches, empty_message) -%}
   {% if not matches %}<p class="rounded-md bg-[#f1f1f2] p-4 text-sm text-[#4e5662]">{{ empty_message }}</p>{% endif %}
   {% for item in matches[:24] %}
-    <article class="cursor-pointer rounded-md border border-[#c5cad2] p-4 outline-none transition hover:bg-[#f8fafc] focus:ring-2 focus:ring-[#1472bf]"
+    <article class="cursor-pointer rounded-md border border-[#c5cad2] p-3 outline-none transition hover:bg-[#f8fafc] focus:ring-2 focus:ring-[#1472bf] sm:p-4"
              role="button"
              tabindex="0"
              data-map-focus='{{ {"lat": item.centroid_lat, "lon": item.centroid_lon, "geometry": item.geometry_geojson, "label": item.start_time} | tojson }}'>
-      <div class="flex flex-wrap items-center justify-between gap-3">
+      <div class="flex flex-wrap items-center justify-between gap-2 sm:gap-3">
         <div>
           {{ card_title(lang, item) }}
           <p class="mt-1 text-sm text-[#4e5662]">{{ item.start_time or t(lang, "unknown") }}</p>
@@ -54,11 +54,11 @@
   {% if not groups %}<p class="rounded-md bg-[#f1f1f2] p-4 text-sm text-[#4e5662]">{{ empty_message }}</p>{% endif %}
   {% for group in groups %}
     {% for item in group.events[:12] %}
-      <article class="cursor-pointer rounded-md border border-[#c5cad2] p-4 outline-none transition hover:bg-[#f8fafc] focus:ring-2 focus:ring-[#1472bf]"
+      <article class="cursor-pointer rounded-md border border-[#c5cad2] p-3 outline-none transition hover:bg-[#f8fafc] focus:ring-2 focus:ring-[#1472bf] sm:p-4"
                role="button"
                tabindex="0"
                data-map-focus='{{ {"lat": item.centroid_lat, "lon": item.centroid_lon, "geometry": group.geometry_geojson, "label": item.start_time} | tojson }}'>
-        <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="flex flex-wrap items-center justify-between gap-2 sm:gap-3">
           <div>
             {{ card_title(lang, item) }}
             <p class="mt-1 text-sm text-[#4e5662]">{{ item.start_time or t(lang, "unknown") }}</p>

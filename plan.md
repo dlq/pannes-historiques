@@ -67,6 +67,7 @@ Deployment checkpoint:
     - stop embedding map JSON directly in HTML; move map data behind small JSON endpoints
     - store static administrative-region and DAI/disclosure geometries outside the default SQLite search response, likely as precomputed simplified GeoJSON assets
     - evaluate GDAL/OGR geometry simplification for production static assets so broad region polygons stay visually useful without carrying source-level precision
+    - replace the current ad hoc regional polygon simplification; simple ring decimation creates visible gaps and janky region edges, so region choropleth geometry needs topology-aware simplification, dissolved/shared boundaries, or vetted static region GeoJSON
     - show only a compact DAI/disclosure summary in the default map context card, with a link to a separate detail page for large DAI row lists
     - precompute and/or index geometry matches so address searches do not scan large geometry sets in Python
     - move raw and large geometry payloads out of the hot search path, probably R2 for payloads plus D1 metadata/index tables
@@ -907,6 +908,7 @@ Specific things to check:
 - server-side query time for previous outage grouping and disclosure overlays
 - repeated i18n label payloads in every map response
 - whether regional/disclosure geometry can be simplified or cached per response shape
+- whether broad regional choropleth geometry can be simplified without producing visible gaps between adjacent administrative regions
 - whether the map payload should be split from the server-rendered result cards if payload size becomes noticeable
 - whether D1 metadata tables plus R2 geometry payloads can remove large geometry blobs from the hot SQLite/container path
 - whether a larger Cloudflare container instance is needed after the app no longer does avoidable full-scan/full-payload work

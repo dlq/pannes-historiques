@@ -51,7 +51,7 @@
             <p class="mt-3 max-w-2xl text-sm leading-6 text-[#4e5662] sm:text-base">{{ t(lang, "hero_body") }}</p>
           </div>
           <form id="language-form"
-                class="flex min-h-[2.75rem] items-center rounded-md border border-[#c5cad2] bg-[#f1f1f2] p-1"
+                class="flex min-h-[2.75rem] items-center self-end rounded-md border border-[#c5cad2] bg-[#f1f1f2] p-1 lg:self-auto"
                 method="get"
                 action="{{ url_for('index') }}">
             <div class="flex">
@@ -73,9 +73,9 @@
           </form>
         </div>
       </header>
-      <section class="mb-6 min-h-[8.25rem] rounded-lg border border-[#c5cad2] bg-[#f1f1f2] p-5">
+      <section class="mb-6 rounded-lg border border-[#c5cad2] bg-[#f1f1f2] p-4 sm:min-h-[8.25rem] sm:p-5">
         <form id="search-form"
-              class="grid gap-x-4 gap-y-2 sm:min-h-[5.75rem] sm:grid-cols-[minmax(0,1fr)_auto]"
+              class="grid gap-x-4 gap-y-3 sm:min-h-[5.75rem] sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-y-2"
               hx-post="{{ url_for('search') }}"
               hx-target="#results"
               hx-swap="innerHTML"
@@ -87,15 +87,17 @@
           <input type="hidden" name="latitude" value="">
           <input type="hidden" name="longitude" value="">
           <input type="hidden" name="accuracy_m" value="">
-          <div class="flex flex-wrap items-center justify-between gap-2 sm:col-span-2">
+          <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 sm:col-span-2">
             <span class="text-sm font-semibold text-[#223654]">{{ t(lang, "search_label") }}</span>
             <button id="location-search-button"
                     type="button"
                     data-location-url="{{ url_for('search_location') }}"
                     data-current-location-label="{{ t(lang, 'current_location') }}"
                     data-location-unavailable-label="{{ t(lang, 'location_unavailable') }}"
+                    data-location-denied-label="{{ t(lang, 'location_denied') }}"
+                    data-location-timeout-label="{{ t(lang, 'location_timeout') }}"
                     data-locating-label="{{ t(lang, 'locating') }}"
-                    class="text-sm font-semibold text-[#095797] underline-offset-4 hover:underline">
+                    class="text-left text-sm font-semibold text-[#095797] underline-offset-4 hover:underline">
               {{ t(lang, "use_current_location") }}
             </button>
           </div>
@@ -111,12 +113,12 @@
                      placeholder="{{ t(lang, 'search_placeholder') }}"
                      class="h-[3.25rem] w-full rounded-md border border-[#8893a2] bg-white px-4 text-sm text-[#223654] outline-none ring-0 placeholder:text-[#6b778a] focus:border-[#095797] focus:ring-2 focus:ring-[#dae6f0]">
               <div id="address-suggestions"
-                   class="absolute left-0 right-0 top-full z-20 mt-2 hidden rounded-md border border-[#c5cad2] bg-white p-2 shadow-xl">
+                   class="left-0 right-0 top-full z-20 mt-2 hidden rounded-md border border-[#c5cad2] bg-white p-2 shadow-xl sm:absolute">
               </div>
             </div>
           </label>
           <div class="flex">
-            <button class="h-[3.25rem] rounded-md bg-[#095797] px-5 text-sm font-semibold text-white transition hover:bg-[#19406c] focus:outline-none focus:ring-2 focus:ring-[#1472bf] focus:ring-offset-2">
+            <button class="h-[3.25rem] w-full rounded-md bg-[#095797] px-5 text-sm font-semibold text-white transition hover:bg-[#19406c] focus:outline-none focus:ring-2 focus:ring-[#1472bf] focus:ring-offset-2 sm:w-auto">
               {{ t(lang, "search_button") }}
             </button>
           </div>

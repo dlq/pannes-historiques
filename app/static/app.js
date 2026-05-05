@@ -25,6 +25,10 @@ function attachAddressAutocomplete() {
   input.dataset.autocompleteBound = "1";
 
   const closePanel = () => {
+    if (autocompleteTimer) {
+      window.clearTimeout(autocompleteTimer);
+      autocompleteTimer = null;
+    }
     panel.classList.add("hidden");
     panel.innerHTML = "";
   };
@@ -99,6 +103,9 @@ function attachAddressAutocomplete() {
     }
   });
 
+  input.form?.addEventListener("submit", closePanel);
+  input.form?.addEventListener("htmx:beforeRequest", closePanel);
+
   panel.addEventListener("click", (event) => {
     const button = event.target.closest("button[data-address-value]");
     if (!button) return;
@@ -132,11 +139,27 @@ function attachLocationSearch() {
   const currentLocationPrefix = button.dataset.currentLocationLabel || "Current location";
   const locationUnavailable =
     button.dataset.locationUnavailableLabel || "Current location could not be found.";
+  const locationDenied =
+    button.dataset.locationDeniedLabel ||
+    "Location access was not allowed. Search by address instead.";
+  const locationTimeout =
+    button.dataset.locationTimeoutLabel ||
+    "Current location took too long. Search by address instead.";
   const locating = button.dataset.locatingLabel || "Finding location...";
+
+  const renderLocationError = (message) => {
+    results.innerHTML = `<div class="rounded-lg border border-[#cb381f] bg-[#ffdbd6] p-4 text-sm text-[#692519] sm:p-6">${escapeHtml(message)}</div>`;
+  };
+
+  const finishLocationSearch = () => {
+    button.disabled = false;
+    button.textContent = originalLabel;
+    showSearchLoading(false);
+  };
 
   button.addEventListener("click", () => {
     if (!("geolocation" in navigator)) {
-      results.innerHTML = `<div class="border border-[#cb381f] bg-[#ffdbd6] p-6 text-[#692519]">${escapeHtml(locationUnavailable)}</div>`;
+      renderLocationError(locationUnavailable);
       return;
     }
 
@@ -167,6 +190,7 @@ function attachLocationSearch() {
           if (!response.ok) throw new Error(`HTTP ${response.status}`);
           const html = await response.text();
           results.innerHTML = html;
+          attachMapFocusCards();
           if (input) {
             input.value = `${currentLocationPrefix} (${position.coords.latitude.toFixed(5)}, ${position.coords.longitude.toFixed(5)})`;
             searchForm
@@ -183,18 +207,20 @@ function attachLocationSearch() {
             syncLanguageForm();
           }
         } catch (_error) {
-          results.innerHTML = `<div class="border border-[#cb381f] bg-[#ffdbd6] p-6 text-[#692519]">${escapeHtml(locationUnavailable)}</div>`;
+          renderLocationError(locationUnavailable);
         } finally {
-          button.disabled = false;
-          button.textContent = originalLabel;
-          showSearchLoading(false);
+          finishLocationSearch();
         }
       },
-      () => {
-        results.innerHTML = `<div class="border border-[#cb381f] bg-[#ffdbd6] p-6 text-[#692519]">${escapeHtml(locationUnavailable)}</div>`;
-        button.disabled = false;
-        button.textContent = originalLabel;
-        showSearchLoading(false);
+      (error) => {
+        const message =
+          error?.code === 1
+            ? locationDenied
+            : error?.code === 3
+              ? locationTimeout
+              : locationUnavailable;
+        renderLocationError(message);
+        finishLocationSearch();
       },
       { enableHighAccuracy: false, maximumAge: 300000, timeout: 10000 },
     );
