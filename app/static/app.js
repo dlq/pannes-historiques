@@ -263,24 +263,31 @@ function attachSearchRouting() {
 }
 
 function attachMapFocusCards() {
-  for (const card of document.querySelectorAll("[data-map-focus]")) {
-    if (card.dataset.mapFocusBound === "1") continue;
-    card.dataset.mapFocusBound = "1";
-    const focusMap = () => {
-      try {
-        const detail = JSON.parse(card.getAttribute("data-map-focus") || "{}");
-        document.dispatchEvent(new CustomEvent("map-focus", { detail }));
-      } catch (_error) {
-        // Ignore malformed focus payloads; cards remain normal result rows.
-      }
-    };
-    card.addEventListener("click", focusMap);
-    card.addEventListener("keydown", (event) => {
-      if (event.key !== "Enter" && event.key !== " ") return;
-      event.preventDefault();
-      focusMap();
-    });
-  }
+  if (document.body.dataset.mapFocusDelegated === "1") return;
+  document.body.dataset.mapFocusDelegated = "1";
+
+  const focusCard = (card) => {
+    try {
+      const detail = JSON.parse(card.getAttribute("data-map-focus") || "{}");
+      document.dispatchEvent(new CustomEvent("map-focus", { detail }));
+    } catch (_error) {
+      // Ignore malformed focus payloads; cards remain normal result rows.
+    }
+  };
+
+  document.body.addEventListener("click", (event) => {
+    const card = event.target.closest("[data-map-focus]");
+    if (!card) return;
+    focusCard(card);
+  });
+
+  document.body.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    const card = event.target.closest("[data-map-focus]");
+    if (!card) return;
+    event.preventDefault();
+    focusCard(card);
+  });
 }
 
 function escapeHtml(value) {
@@ -619,7 +626,52 @@ class OutageMap extends HTMLElement {
     map.createPane("outagePane");
     map.getPane("outagePane").style.zIndex = 450;
     const bounds = [];
-    const focusMap = (detail) => {
+    let focusItems = [];
+    const numbersClose = (left, right, tolerance = 1) => {
+      if (left == null || right == null) return true;
+      return Math.abs(Number(left) - Number(right)) <= tolerance;
+    };
+    const eventMatchesFocus = (detail, event) => {
+      if (!detail.startTime || !event.start_time) return false;
+      if (detail.startTime !== event.start_time) return false;
+      if (
+        detail.customersAffected != null &&
+        event.customers_affected != null &&
+        Number(detail.customersAffected) !== Number(event.customers_affected)
+      ) {
+        return false;
+      }
+      return numbersClose(detail.distanceM, event.distance_m);
+    };
+    const itemMatchesFocus = (detail, item) => {
+      if (detail.kind && item.kind && detail.kind !== item.kind) return false;
+      if (detail.startTime && item.startTime && detail.startTime !== item.startTime) return false;
+      if (
+        detail.customersAffected != null &&
+        item.customersAffected != null &&
+        Number(detail.customersAffected) !== Number(item.customersAffected)
+      ) {
+        return false;
+      }
+      return numbersClose(detail.distanceM, item.distanceM);
+    };
+    const enrichFocusDetail = (detail) => {
+      if (detail.geometry) return detail;
+      const match = focusItems.find((item) => {
+        if (itemMatchesFocus(detail, item)) return true;
+        if (item.kind !== "previous_outage") return false;
+        return (item.recentEvents || []).some((event) => eventMatchesFocus(detail, event));
+      });
+      if (!match?.geometry) return detail;
+      return {
+        ...detail,
+        lat: detail.lat ?? match.lat,
+        lon: detail.lon ?? match.lon,
+        geometry: match.geometry,
+      };
+    };
+    const focusMap = (rawDetail) => {
+      const detail = enrichFocusDetail(rawDetail || {});
       map.invalidateSize();
       if (detail.geometry) {
         const layer = L.geoJSON(detail.geometry);
@@ -629,8 +681,10 @@ class OutageMap extends HTMLElement {
           return;
         }
       }
-      if (Number.isFinite(detail.lat) && Number.isFinite(detail.lon)) {
-        const itemBounds = L.circle([detail.lat, detail.lon], { radius: 1000 }).getBounds();
+      const lat = Number(detail.lat);
+      const lon = Number(detail.lon);
+      if (Number.isFinite(lat) && Number.isFinite(lon)) {
+        const itemBounds = L.circle([lat, lon], { radius: 1000 }).getBounds();
         map.fitBounds(itemBounds, { padding: [36, 36], maxZoom: 16 });
       }
     };
@@ -682,6 +736,7 @@ class OutageMap extends HTMLElement {
       }
       return 0;
     });
+    focusItems = orderedMatches;
     const renderedGeometryKeys = new Set();
     const renderMatch = (item) => {
       if (item.deferGeometry && !item.geometry) return;

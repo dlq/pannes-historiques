@@ -34,7 +34,7 @@
     <article class="cursor-pointer rounded-md border border-[#c5cad2] p-3 outline-none transition hover:bg-[#f8fafc] focus:ring-2 focus:ring-[#1472bf] sm:p-4"
              role="button"
              tabindex="0"
-             data-map-focus='{{ {"lat": item.centroid_lat, "lon": item.centroid_lon, "geometry": item.geometry_geojson if include_focus_geometry else none, "label": item.start_time} | tojson }}'>
+             data-map-focus='{{ {"kind": item.outage_kind, "lat": item.centroid_lat, "lon": item.centroid_lon, "geometry": item.geometry_geojson if include_focus_geometry else none, "label": item.start_time, "startTime": item.start_time, "customersAffected": item.customers_affected, "distanceM": item.distance_m} | tojson }}'>
       <div class="flex flex-wrap items-center justify-between gap-2 sm:gap-3">
         <div>
           {{ card_title(lang, item) }}
@@ -57,7 +57,7 @@
       <article class="cursor-pointer rounded-md border border-[#c5cad2] p-3 outline-none transition hover:bg-[#f8fafc] focus:ring-2 focus:ring-[#1472bf] sm:p-4"
                role="button"
                tabindex="0"
-               data-map-focus='{{ {"lat": item.centroid_lat, "lon": item.centroid_lon, "geometry": group.geometry_geojson if include_focus_geometry else none, "label": item.start_time} | tojson }}'>
+               data-map-focus='{{ {"kind": "previous_outage", "lat": item.centroid_lat, "lon": item.centroid_lon, "geometry": group.geometry_geojson if include_focus_geometry else none, "label": item.start_time, "startTime": item.start_time, "customersAffected": item.customers_affected, "distanceM": item.distance_m} | tojson }}'>
         <div class="flex flex-wrap items-center justify-between gap-2 sm:gap-3">
           <div>
             {{ card_title(lang, item) }}
