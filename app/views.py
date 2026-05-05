@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import json
+from functools import lru_cache
+from pathlib import Path
 from typing import Any
 
 from .i18n import t
@@ -7,75 +10,24 @@ from .i18n import t
 FIXED_RADIUS_M = 5000
 FIXED_DAYS = 1825
 FIXED_INCLUDE_PLANNED = True
+REGIONAL_GEOMETRY_ASSET = Path(__file__).parent / "static" / "regional_metric_geometries.json"
+DISCLOSURE_GEOMETRY_ASSET = Path(__file__).parent / "static" / "disclosure_geometries.json"
 
 
-def _round_position(position: list[float], precision: int) -> list[float]:
-    return [round(float(position[0]), precision), round(float(position[1]), precision)]
+@lru_cache(maxsize=1)
+def _regional_geometry_asset() -> dict[str, dict[str, Any]]:
+    if not REGIONAL_GEOMETRY_ASSET.exists():
+        return {}
+    payload = json.loads(REGIONAL_GEOMETRY_ASSET.read_text(encoding="utf-8"))
+    return {item["geometryKey"]: item["geometry"] for item in payload.get("geometries", [])}
 
 
-def _simplify_ring(
-    ring: list[list[float]],
-    *,
-    precision: int,
-    max_points: int,
-) -> list[list[float]]:
-    if len(ring) <= 4:
-        return [_round_position(position, precision) for position in ring]
-
-    source = ring[:-1] if ring[0] == ring[-1] else ring
-    if len(source) > max_points:
-        stride = max(1, round(len(source) / max_points))
-        source = source[::stride]
-
-    simplified = [_round_position(position, precision) for position in source]
-    if simplified and simplified[0] != simplified[-1]:
-        simplified.append(simplified[0])
-    return (
-        simplified
-        if len(simplified) >= 4
-        else [_round_position(position, precision) for position in ring]
-    )
-
-
-def _simplify_display_geometry(
-    geometry: dict[str, Any] | None,
-    *,
-    precision: int,
-    max_points: int,
-) -> dict[str, Any] | None:
-    if not geometry or not geometry.get("coordinates"):
-        return geometry
-
-    if geometry["type"] == "Polygon":
-        return {
-            "type": "Polygon",
-            "coordinates": [
-                _simplify_ring(ring, precision=precision, max_points=max_points)
-                for ring in geometry["coordinates"]
-            ],
-        }
-
-    if geometry["type"] == "MultiPolygon":
-        return {
-            "type": "MultiPolygon",
-            "coordinates": [
-                [
-                    _simplify_ring(ring, precision=precision, max_points=max_points)
-                    for ring in polygon
-                ]
-                for polygon in geometry["coordinates"]
-            ],
-        }
-
-    return geometry
-
-
-def _regional_display_geometry(geometry: dict[str, Any] | None) -> dict[str, Any] | None:
-    return _simplify_display_geometry(geometry, precision=4, max_points=500)
-
-
-def _disclosure_display_geometry(geometry: dict[str, Any] | None) -> dict[str, Any] | None:
-    return _simplify_display_geometry(geometry, precision=5, max_points=900)
+@lru_cache(maxsize=1)
+def _disclosure_geometry_asset() -> dict[str, dict[str, Any]]:
+    if not DISCLOSURE_GEOMETRY_ASSET.exists():
+        return {}
+    payload = json.loads(DISCLOSURE_GEOMETRY_ASSET.read_text(encoding="utf-8"))
+    return {item["geometryKey"]: item["geometry"] for item in payload.get("geometries", [])}
 
 
 def _regional_geometry_key(item: dict[str, Any]) -> str:
@@ -87,24 +39,29 @@ def _disclosure_geometry_key(item: dict[str, Any]) -> str:
 
 
 def context_geometry_payload(result: Any) -> dict[str, Any]:
+    regional_geometries = _regional_geometry_asset()
+    disclosure_geometries = _disclosure_geometry_asset()
     return {
         "geometries": [
             {
                 "kind": "regional_metric",
                 "geometryKey": _regional_geometry_key(item),
-                "geometry": _regional_display_geometry(item.get("geometry_geojson")),
+                "geometry": regional_geometries.get(_regional_geometry_key(item))
+                or item.get("geometry_geojson"),
             }
             for item in result.regional_metric_layers
-            if item.get("geometry_geojson")
+            if regional_geometries.get(_regional_geometry_key(item)) or item.get("geometry_geojson")
         ]
         + [
             {
                 "kind": "disclosure",
                 "geometryKey": _disclosure_geometry_key(item),
-                "geometry": _disclosure_display_geometry(item.get("geometry_geojson")),
+                "geometry": disclosure_geometries.get(_disclosure_geometry_key(item))
+                or item.get("geometry_geojson"),
             }
             for item in result.disclosure_layers
-            if item.get("geometry_geojson")
+            if disclosure_geometries.get(_disclosure_geometry_key(item))
+            or item.get("geometry_geojson")
         ]
     }
 

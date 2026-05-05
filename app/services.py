@@ -1366,7 +1366,7 @@ class AppService:
             rows = connection.execute(
                 """
                 SELECT m.*, s.dai_number, s.title, s.attachment_url,
-                       g.geometry_geojson, g.centroid_lon, g.centroid_lat
+                       g.centroid_lon, g.centroid_lat
                 FROM disclosure_annual_metrics m
                 JOIN disclosure_sources s ON s.id = m.source_id
                 LEFT JOIN disclosure_geometries g
@@ -1411,9 +1411,7 @@ class AppService:
                     "long_outage_count": item["long_outage_count"],
                     "centroid_lon": item["centroid_lon"],
                     "centroid_lat": item["centroid_lat"],
-                    "geometry_geojson": json.loads(item["geometry_geojson"])
-                    if item["geometry_geojson"]
-                    else None,
+                    "geometry_geojson": None,
                     "metrics": [],
                 },
             )
@@ -1444,7 +1442,7 @@ class AppService:
                 SELECT e.id, e.start_time, e.end_time, e.duration_seconds, e.customers_affected,
                        e.cause, e.equipment, e.geography_label, e.geography_type, e.precision_label,
                        s.dai_number, s.title, s.attachment_url,
-                       g.geometry_geojson, g.centroid_lon, g.centroid_lat
+                       g.centroid_lon, g.centroid_lat
                 FROM disclosure_outage_events e
                 JOIN disclosure_sources s ON s.id = e.source_id
                 LEFT JOIN disclosure_geometries g
@@ -1481,9 +1479,7 @@ class AppService:
                     "precision_label": item["precision_label"],
                     "centroid_lon": item["centroid_lon"],
                     "centroid_lat": item["centroid_lat"],
-                    "geometry_geojson": json.loads(item["geometry_geojson"])
-                    if item["geometry_geojson"]
-                    else None,
+                    "geometry_geojson": None,
                     "record_count": 0,
                     "start_min": None,
                     "start_max": None,

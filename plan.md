@@ -66,8 +66,8 @@ Deployment checkpoint:
     - render result cards first and lazy-load map overlays after the initial search response
     - stop embedding map JSON directly in HTML; move map data behind small JSON endpoints
     - store static administrative-region and DAI/disclosure geometries outside the default SQLite search response, likely as precomputed simplified GeoJSON assets
-    - evaluate GDAL/OGR geometry simplification for production static assets so broad region polygons stay visually useful without carrying source-level precision
-    - replace the current ad hoc regional polygon simplification; simple ring decimation creates visible gaps and janky region edges, so region choropleth geometry needs topology-aware simplification, dissolved/shared boundaries, or vetted static region GeoJSON
+    - replace the discarded ad hoc regional polygon simplification with an offline GeoPandas/Shapely coverage-simplification pipeline; load the administrative regions as one coverage, validate shared edges, simplify through Shapely/GEOS coverage operations, and export a static GeoJSON asset
+    - simplify broad administrative regions aggressively and topologically; simplify DAI/disclosure geometries only conservatively, because the current DAI/disclosure shapes are not one valid shared-boundary coverage and do not get the same coverage guarantee
     - show only a compact DAI/disclosure summary in the default map context card, with a link to a separate detail page for large DAI row lists
     - precompute and/or index geometry matches so address searches do not scan large geometry sets in Python
     - move raw and large geometry payloads out of the hot search path, probably R2 for payloads plus D1 metadata/index tables
