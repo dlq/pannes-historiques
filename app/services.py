@@ -242,12 +242,7 @@ class AppService:
                 exclude_event_keys={self._outage_display_key(item) for item in outage_matches},
             )
         with timer.step("search.find_disclosure_matches"):
-            disclosure_matches = self._find_disclosure_matches(
-                normalized=normalized,
-                geocode=geocode,
-                radius_m=radius_m,
-                days=days,
-            )
+            disclosure_matches: list[dict[str, Any]] = []
         with timer.step("search.current_map_layers"):
             current_map_layers = self._current_operational_map_layers(
                 include_planned=include_planned
@@ -255,9 +250,7 @@ class AppService:
         with timer.step("search.disclosure_layers"):
             disclosure_layers = self._disclosure_map_layers()
         with timer.step("search.find_disclosure_metrics"):
-            disclosure_metrics = self._find_disclosure_metrics(
-                normalized=normalized, geocode=geocode
-            )
+            disclosure_metrics: list[dict[str, Any]] = []
         with timer.step("search.regional_metric_layers"):
             regional_metric_layers = self._regional_metric_map_layers()
         with timer.step("search.save_matches"):
@@ -374,15 +367,8 @@ class AppService:
             days,
             exclude_event_keys={self._outage_display_key(item) for item in outage_matches},
         )
-        disclosure_matches = self._find_disclosure_matches(
-            normalized=normalized,
-            geocode=geocode,
-            radius_m=radius_m,
-            days=days,
-        )
         current_map_layers = self._current_operational_map_layers(include_planned=include_planned)
         disclosure_layers = self._disclosure_map_layers()
-        disclosure_metrics = self._find_disclosure_metrics(normalized=normalized, geocode=geocode)
         regional_metric_layers = self._regional_metric_map_layers()
         self._save_matches(address_id, outage_matches + archived_outage_matches)
         previous_outage_groups = self._previous_outage_groups(
@@ -412,9 +398,9 @@ class AppService:
             planned_matches=planned_matches,
             previous_outage_groups=previous_outage_groups,
             current_map_layers=current_map_layers,
-            disclosure_matches=disclosure_matches,
+            disclosure_matches=[],
             disclosure_layers=disclosure_layers,
-            disclosure_metrics=disclosure_metrics,
+            disclosure_metrics=[],
             regional_metric_layers=regional_metric_layers,
             radius_m=radius_m,
         )
@@ -819,13 +805,14 @@ class AppService:
         outage_kind: str,
     ) -> list[dict[str, Any]]:
         groups: dict[tuple[str, int | str], dict[str, Any]] = {}
+        geometry_index = self._geometry_rows_by_version(geometry_payload)
         for row in rows:
             centroid_lat = row["centroid_lat"]
             centroid_lon = row["centroid_lon"]
             if centroid_lat is None or centroid_lon is None:
                 continue
             geometry_match = self._find_geometry_match(
-                geometry_payload,
+                geometry_index,
                 row["source_version"],
                 centroid_lat,
                 centroid_lon,
@@ -902,6 +889,7 @@ class AppService:
         outage_kind: str,
     ) -> list[dict[str, Any]]:
         results: list[dict[str, Any]] = []
+        geometry_index = self._geometry_rows_by_version(geometry_payload)
         containing_versions = self._geometry_versions_containing_point(
             geometry_payload,
             latitude=latitude,
@@ -918,7 +906,7 @@ class AppService:
             ] not in containing_versions:
                 continue
             geometry_match = self._find_geometry_match(
-                geometry_payload,
+                geometry_index,
                 row["source_version"],
                 latitude,
                 longitude,
@@ -975,6 +963,21 @@ class AppService:
         return results
 
     @staticmethod
+    def _geometry_rows_by_version(
+        geometry_rows: list[dict[str, Any]],
+    ) -> dict[str, list[dict[str, Any]]]:
+        rows_by_version: dict[str, list[dict[str, Any]]] = {}
+        for row in geometry_rows:
+            rows_by_version.setdefault(row["source_version"], []).append(row)
+        return rows_by_version
+
+    @staticmethod
+    def _geometry_geojson(row: dict[str, Any]) -> dict[str, Any]:
+        if "_geometry_geojson" not in row:
+            row["_geometry_geojson"] = json.loads(row["geometry_geojson"])
+        return row["_geometry_geojson"]
+
+    @staticmethod
     def _geometry_versions_containing_point(
         geometry_rows: list[dict[str, Any]], *, latitude: float, longitude: float
     ) -> set[str]:
@@ -989,16 +992,14 @@ class AppService:
 
     def _find_geometry_match(
         self,
-        geometry_rows: list[dict[str, Any]],
+        geometry_rows_by_version: dict[str, list[dict[str, Any]]],
         source_version: str,
         latitude: float,
         longitude: float,
         row_centroid_lat: float | None,
         row_centroid_lon: float | None,
     ) -> dict[str, Any] | None:
-        same_version_rows = [
-            row for row in geometry_rows if row["source_version"] == source_version
-        ]
+        same_version_rows = geometry_rows_by_version.get(source_version, [])
         if not same_version_rows:
             return None
         assigned_row = self._assign_geometry_row(
@@ -1009,7 +1010,7 @@ class AppService:
         if assigned_row is None:
             return None
 
-        geojson = json.loads(assigned_row["geometry_geojson"])
+        geojson = self._geometry_geojson(assigned_row)
         contains = False
         if assigned_row["bbox_min_lon"] is None or (
             assigned_row["bbox_min_lon"] <= longitude <= assigned_row["bbox_max_lon"]
