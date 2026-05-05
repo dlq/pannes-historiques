@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -31,6 +32,19 @@ def point_in_polygon(point_lon: float, point_lat: float, polygon: list[list[floa
 
 def within_quebec_bounds(latitude: float, longitude: float) -> bool:
     return 44.8 <= latitude <= 62.7 and -79.8 <= longitude <= -57.0
+
+
+def search_bbox(
+    latitude: float, longitude: float, radius_m: int
+) -> tuple[float, float, float, float]:
+    lat_delta = radius_m / 111_320
+    lon_delta = radius_m / max(111_320 * abs(math.cos(math.radians(latitude))), 1)
+    return (
+        latitude - lat_delta,
+        latitude + lat_delta,
+        longitude - lon_delta,
+        longitude + lon_delta,
+    )
 
 
 def clearly_outside_quebec_query(normalized: NormalizedAddress) -> bool:
@@ -615,17 +629,9 @@ class AppService:
         include_planned: bool,
     ) -> list[dict[str, Any]]:
         cutoff = (datetime.now(UTC) - timedelta(days=days)).strftime("%Y-%m-%d %H:%M:%S")
+        lat_min, lat_max, lon_min, lon_max = search_bbox(latitude, longitude, radius_m)
         matches: list[dict[str, Any]] = []
         with open_db(self.settings.db_path) as connection:
-            geometry_rows = connection.execute(
-                """
-                SELECT *
-                FROM outage_geometries
-                ORDER BY id DESC
-                """
-            ).fetchall()
-            geometry_payload = [dict(row) for row in geometry_rows]
-
             outage_rows = connection.execute(
                 """
                 SELECT r.*
@@ -640,10 +646,13 @@ class AppService:
                     LIMIT 1
                   )
                   AND COALESCE(r.outage_start_time, '') >= ?
+                  AND r.centroid_lat BETWEEN ? AND ?
+                  AND r.centroid_lon BETWEEN ? AND ?
                 ORDER BY COALESCE(r.outage_start_time, r.created_at) DESC
                 """,
-                (cutoff,),
+                (cutoff, lat_min, lat_max, lon_min, lon_max),
             ).fetchall()
+            geometry_payload = self._geometry_payload_for_rows(connection, outage_rows)
             matches.extend(
                 self._match_rows(
                     rows=outage_rows,
@@ -670,10 +679,16 @@ class AppService:
                         LIMIT 1
                       )
                       AND COALESCE(p.scheduled_start, '') >= ?
+                      AND p.centroid_lat BETWEEN ? AND ?
+                      AND p.centroid_lon BETWEEN ? AND ?
                     ORDER BY COALESCE(p.scheduled_start, p.created_at) DESC
                     """,
-                    (cutoff,),
+                    (cutoff, lat_min, lat_max, lon_min, lon_max),
                 ).fetchall()
+                geometry_payload = self._geometry_payload_for_rows(
+                    connection,
+                    [*outage_rows, *planned_rows],
+                )
                 matches.extend(
                     self._match_rows(
                         rows=planned_rows,
@@ -704,6 +719,7 @@ class AppService:
         exclude_event_keys: set[tuple[Any, ...]],
     ) -> list[dict[str, Any]]:
         cutoff = (datetime.now(UTC) - timedelta(days=days)).strftime("%Y-%m-%d %H:%M:%S")
+        lat_min, lat_max, lon_min, lon_max = search_bbox(latitude, longitude, radius_m)
         with open_db(self.settings.db_path) as connection:
             latest_snapshot = connection.execute(
                 """
@@ -715,13 +731,6 @@ class AppService:
                 """
             ).fetchone()
             latest_snapshot_id = latest_snapshot["id"] if latest_snapshot else None
-            geometry_rows = connection.execute(
-                """
-                SELECT *
-                FROM outage_geometries
-                ORDER BY id DESC
-                """
-            ).fetchall()
             outage_rows = connection.execute(
                 """
                 SELECT r.*
@@ -730,13 +739,24 @@ class AppService:
                 WHERE s.source_type = 'bismarkers'
                   AND (? IS NULL OR s.id != ?)
                   AND COALESCE(r.outage_start_time, '') >= ?
+                  AND r.centroid_lat BETWEEN ? AND ?
+                  AND r.centroid_lon BETWEEN ? AND ?
                 ORDER BY COALESCE(r.outage_start_time, r.created_at) DESC
                 """,
-                (latest_snapshot_id, latest_snapshot_id, cutoff),
+                (
+                    latest_snapshot_id,
+                    latest_snapshot_id,
+                    cutoff,
+                    lat_min,
+                    lat_max,
+                    lon_min,
+                    lon_max,
+                ),
             ).fetchall()
+            geometry_payload = self._geometry_payload_for_rows(connection, outage_rows)
         matches = self._match_rows(
             rows=outage_rows,
-            geometry_payload=[dict(row) for row in geometry_rows],
+            geometry_payload=geometry_payload,
             latitude=latitude,
             longitude=longitude,
             radius_m=radius_m,
@@ -749,6 +769,23 @@ class AppService:
         ]
         matches.sort(key=lambda item: item["sort_time"] or "", reverse=True)
         return matches
+
+    @staticmethod
+    def _geometry_payload_for_rows(connection, rows) -> list[dict[str, Any]]:
+        source_versions = sorted({row["source_version"] for row in rows if row["source_version"]})
+        if not source_versions:
+            return []
+        placeholders = ",".join("?" for _ in source_versions)
+        geometry_rows = connection.execute(
+            f"""
+            SELECT *
+            FROM outage_geometries
+            WHERE source_version IN ({placeholders})
+            ORDER BY id DESC
+            """,
+            source_versions,
+        ).fetchall()
+        return [dict(row) for row in geometry_rows]
 
     def _current_operational_map_layers(self, include_planned: bool) -> list[dict[str, Any]]:
         return self._cached_context(
