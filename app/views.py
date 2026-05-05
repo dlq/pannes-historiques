@@ -66,7 +66,7 @@ def context_geometry_payload(result: Any) -> dict[str, Any]:
     }
 
 
-def result_context(lang: str, result: Any) -> dict[str, Any]:
+def result_context(lang: str, result: Any, *, include_map_payload: bool = True) -> dict[str, Any]:
     if result.error:
         error_key = "outside_quebec_error" if result.error == "outside_quebec" else "search_error"
         return {"lang": lang, "result": result, "error_message": t(lang, error_key)}
@@ -81,7 +81,18 @@ def result_context(lang: str, result: Any) -> dict[str, Any]:
         ]
         if part
     )
-    map_payload = {
+    map_payload = build_map_payload(lang, result, display_address) if include_map_payload else None
+    return {
+        "lang": lang,
+        "result": result,
+        "display_address": display_address,
+        "map_payload": map_payload,
+        "include_focus_geometry": include_map_payload,
+    }
+
+
+def build_map_payload(lang: str, result: Any, display_address: str) -> dict[str, Any]:
+    return {
         "center": [result.geocode["latitude"], result.geocode["longitude"]],
         "addressLabel": display_address or result.normalized.original,
         "contextGeometryUrl": "/map-context-geometries",
@@ -218,10 +229,4 @@ def result_context(lang: str, result: Any) -> dict[str, Any]:
             for item in result.disclosure_layers
             if item["centroid_lat"] is not None and item["centroid_lon"] is not None
         ],
-    }
-    return {
-        "lang": lang,
-        "result": result,
-        "display_address": display_address,
-        "map_payload": map_payload,
     }

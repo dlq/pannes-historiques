@@ -190,6 +190,7 @@ function attachLocationSearch() {
           if (!response.ok) throw new Error(`HTTP ${response.status}`);
           const html = await response.text();
           results.innerHTML = html;
+          if (window.htmx) window.htmx.process(results);
           attachMapFocusCards();
           if (input) {
             input.value = `${currentLocationPrefix} (${position.coords.latitude.toFixed(5)}, ${position.coords.longitude.toFixed(5)})`;

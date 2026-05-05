@@ -134,6 +134,8 @@ class AppService:
         radius_m: int,
         days: int,
         include_planned: bool,
+        include_map_layers: bool = True,
+        record_history: bool = True,
     ) -> SearchResult:
         timer = current_timer()
         timer.set("search.query_length", len(query or ""))
@@ -244,33 +246,41 @@ class AppService:
         with timer.step("search.find_disclosure_matches"):
             disclosure_matches: list[dict[str, Any]] = []
         with timer.step("search.current_map_layers"):
-            current_map_layers = self._current_operational_map_layers(
-                include_planned=include_planned
+            current_map_layers = (
+                self._current_operational_map_layers(include_planned=include_planned)
+                if include_map_layers
+                else []
             )
         with timer.step("search.disclosure_layers"):
-            disclosure_layers = self._disclosure_map_layers()
+            disclosure_layers = self._disclosure_map_layers() if include_map_layers else []
         with timer.step("search.find_disclosure_metrics"):
             disclosure_metrics: list[dict[str, Any]] = []
         with timer.step("search.regional_metric_layers"):
-            regional_metric_layers = self._regional_metric_map_layers()
+            regional_metric_layers = (
+                self._regional_metric_map_layers() if include_map_layers else []
+            )
         with timer.step("search.save_matches"):
-            self._save_matches(address_id, outage_matches + archived_outage_matches)
+            if record_history:
+                self._save_matches(address_id, outage_matches + archived_outage_matches)
         with timer.step("search.previous_outage_groups"):
             previous_outage_groups = self._previous_outage_groups(
                 address_id=address_id,
                 exclude_event_keys={self._outage_display_key(item) for item in outage_matches},
             )
         with timer.step("search.record_query"):
-            query_count = self._record_query(
-                address_id=address_id,
-                original_query=query,
-                normalized_query=normalized.normalized_line,
-                language=language,
-                radius_m=radius_m,
-                days=days,
-                include_planned=include_planned,
-                cache_hit=cache_hit,
-            )
+            if record_history:
+                query_count = self._record_query(
+                    address_id=address_id,
+                    original_query=query,
+                    normalized_query=normalized.normalized_line,
+                    language=language,
+                    radius_m=radius_m,
+                    days=days,
+                    include_planned=include_planned,
+                    cache_hit=cache_hit,
+                )
+            else:
+                query_count = self._query_count(address_id)
         with timer.step("search.coverage_stats"):
             coverage = self.coverage_stats()
         timer.set("search.match_count", len(matches))
@@ -309,6 +319,8 @@ class AppService:
         radius_m: int,
         days: int,
         include_planned: bool,
+        include_map_layers: bool = True,
+        record_history: bool = True,
     ) -> SearchResult:
         label = f"Current location ({latitude:.5f}, {longitude:.5f})"
         normalized = NormalizedAddress(
@@ -367,24 +379,32 @@ class AppService:
             days,
             exclude_event_keys={self._outage_display_key(item) for item in outage_matches},
         )
-        current_map_layers = self._current_operational_map_layers(include_planned=include_planned)
-        disclosure_layers = self._disclosure_map_layers()
-        regional_metric_layers = self._regional_metric_map_layers()
-        self._save_matches(address_id, outage_matches + archived_outage_matches)
+        current_map_layers = (
+            self._current_operational_map_layers(include_planned=include_planned)
+            if include_map_layers
+            else []
+        )
+        disclosure_layers = self._disclosure_map_layers() if include_map_layers else []
+        regional_metric_layers = self._regional_metric_map_layers() if include_map_layers else []
+        if record_history:
+            self._save_matches(address_id, outage_matches + archived_outage_matches)
         previous_outage_groups = self._previous_outage_groups(
             address_id=address_id,
             exclude_event_keys={self._outage_display_key(item) for item in outage_matches},
         )
-        query_count = self._record_query(
-            address_id=address_id,
-            original_query=label,
-            normalized_query=normalized.normalized_line,
-            language=language,
-            radius_m=radius_m,
-            days=days,
-            include_planned=include_planned,
-            cache_hit=cache_hit,
-        )
+        if record_history:
+            query_count = self._record_query(
+                address_id=address_id,
+                original_query=label,
+                normalized_query=normalized.normalized_line,
+                language=language,
+                radius_m=radius_m,
+                days=days,
+                include_planned=include_planned,
+                cache_hit=cache_hit,
+            )
+        else:
+            query_count = self._query_count(address_id)
         return SearchResult(
             normalized=normalized,
             address_id=address_id,
@@ -572,6 +592,14 @@ class AppService:
                     1 if cache_hit else 0,
                 ),
             )
+            count_row = connection.execute(
+                "SELECT COUNT(*) AS count FROM query_history WHERE address_id = ?",
+                (address_id,),
+            ).fetchone()
+        return int(count_row["count"])
+
+    def _query_count(self, address_id: int) -> int:
+        with open_db(self.settings.db_path) as connection:
             count_row = connection.execute(
                 "SELECT COUNT(*) AS count FROM query_history WHERE address_id = ?",
                 (address_id,),

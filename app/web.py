@@ -5,7 +5,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from uuid import uuid4
 
-from flask import Flask, g, jsonify, render_template, request
+from flask import Flask, g, jsonify, render_template, request, url_for
 
 from .config import Settings, ensure_directories
 from .db import initialize
@@ -89,6 +89,7 @@ def create_app(settings: Settings | None = None) -> Flask:
                     radius_m=radius_m,
                     days=days,
                     include_planned=include_planned,
+                    include_map_layers=True,
                 )
             with current_timer().step("index.result_context"):
                 search_context = result_context(lang, result)
@@ -119,11 +120,35 @@ def create_app(settings: Settings | None = None) -> Flask:
                 radius_m=FIXED_RADIUS_M,
                 days=FIXED_DAYS,
                 include_planned=FIXED_INCLUDE_PLANNED,
+                include_map_layers=False,
+                record_history=False,
             )
         with current_timer().step("search.result_context"):
-            context = result_context(lang, result)
+            context = result_context(lang, result, include_map_payload=False)
+            context["lazy_map_url"] = url_for(
+                "search_map",
+                q=request.form.get("q", ""),
+                lang=lang,
+            )
         with current_timer().step("search.render_template"):
             return render_template("_results.html", **context)
+
+    @app.get("/search-map")
+    def search_map():
+        lang = choose_language(request.args.get("lang"))
+        with current_timer().step("search_map.service"):
+            result = service.search(
+                query=request.args.get("q", ""),
+                language=lang,
+                radius_m=FIXED_RADIUS_M,
+                days=FIXED_DAYS,
+                include_planned=FIXED_INCLUDE_PLANNED,
+                include_map_layers=True,
+            )
+        with current_timer().step("search_map.result_context"):
+            context = result_context(lang, result, include_map_payload=True)
+        with current_timer().step("search_map.render_template"):
+            return render_template("_map_panel.html", **context)
 
     @app.get("/debug/timing/search")
     def debug_timing_search():
@@ -135,6 +160,8 @@ def create_app(settings: Settings | None = None) -> Flask:
                 radius_m=FIXED_RADIUS_M,
                 days=FIXED_DAYS,
                 include_planned=FIXED_INCLUDE_PLANNED,
+                include_map_layers=True,
+                record_history=False,
             )
         current_timer().set("debug_result_error", result.error)
         current_timer().set("debug_match_count", len(result.matches))
@@ -183,11 +210,41 @@ def create_app(settings: Settings | None = None) -> Flask:
                 radius_m=FIXED_RADIUS_M,
                 days=FIXED_DAYS,
                 include_planned=FIXED_INCLUDE_PLANNED,
+                include_map_layers=False,
+                record_history=False,
             )
         with current_timer().step("search_location.result_context"):
-            context = result_context(lang, result)
+            context = result_context(lang, result, include_map_payload=False)
+            context["lazy_map_url"] = url_for(
+                "search_location_map",
+                latitude=request.form.get("latitude") or "0",
+                longitude=request.form.get("longitude") or "0",
+                accuracy_m=request.form.get("accuracy_m") or "",
+                lang=lang,
+            )
         with current_timer().step("search_location.render_template"):
             return render_template("_results.html", **context)
+
+    @app.get("/search-location-map")
+    def search_location_map():
+        lang = choose_language(request.args.get("lang"))
+        with current_timer().step("search_location_map.service"):
+            result = service.search_location(
+                latitude=float(request.args.get("latitude") or "0"),
+                longitude=float(request.args.get("longitude") or "0"),
+                accuracy_m=float(request.args["accuracy_m"])
+                if request.args.get("accuracy_m")
+                else None,
+                language=lang,
+                radius_m=FIXED_RADIUS_M,
+                days=FIXED_DAYS,
+                include_planned=FIXED_INCLUDE_PLANNED,
+                include_map_layers=True,
+            )
+        with current_timer().step("search_location_map.result_context"):
+            context = result_context(lang, result, include_map_payload=True)
+        with current_timer().step("search_location_map.render_template"):
+            return render_template("_map_panel.html", **context)
 
     @app.get("/autocomplete")
     def autocomplete():
