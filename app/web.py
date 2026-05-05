@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from types import SimpleNamespace
 from uuid import uuid4
 
 from flask import Flask, g, jsonify, render_template, request
@@ -11,7 +12,13 @@ from .db import initialize
 from .i18n import choose_language, t
 from .perf import RequestTimer, current_timer, reset_current_timer, set_current_timer
 from .services import AppService
-from .views import FIXED_DAYS, FIXED_INCLUDE_PLANNED, FIXED_RADIUS_M, result_context
+from .views import (
+    FIXED_DAYS,
+    FIXED_INCLUDE_PLANNED,
+    FIXED_RADIUS_M,
+    context_geometry_payload,
+    result_context,
+)
 
 
 def create_app(settings: Settings | None = None) -> Flask:
@@ -149,6 +156,18 @@ def create_app(settings: Settings | None = None) -> Flask:
                 "timing": current_timer().snapshot(),
             }
         )
+
+    @app.get("/map-context-geometries")
+    def map_context_geometries():
+        with current_timer().step("map_context_geometries.layers"):
+            result = SimpleNamespace(
+                regional_metric_layers=service._regional_metric_map_layers(),
+                disclosure_layers=service._disclosure_map_layers(),
+            )
+        with current_timer().step("map_context_geometries.payload"):
+            response = jsonify(context_geometry_payload(result))
+            response.headers["Cache-Control"] = "public, max-age=3600"
+            return response
 
     @app.post("/search-location")
     def search_location():

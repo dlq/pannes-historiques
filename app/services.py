@@ -253,13 +253,13 @@ class AppService:
                 include_planned=include_planned
             )
         with timer.step("search.disclosure_layers"):
-            disclosure_layers = []
+            disclosure_layers = self._disclosure_map_layers()
         with timer.step("search.find_disclosure_metrics"):
             disclosure_metrics = self._find_disclosure_metrics(
                 normalized=normalized, geocode=geocode
             )
         with timer.step("search.regional_metric_layers"):
-            regional_metric_layers = []
+            regional_metric_layers = self._regional_metric_map_layers()
         with timer.step("search.save_matches"):
             self._save_matches(address_id, outage_matches + archived_outage_matches)
         with timer.step("search.previous_outage_groups"):
@@ -381,9 +381,9 @@ class AppService:
             days=days,
         )
         current_map_layers = self._current_operational_map_layers(include_planned=include_planned)
-        disclosure_layers = []
+        disclosure_layers = self._disclosure_map_layers()
         disclosure_metrics = self._find_disclosure_metrics(normalized=normalized, geocode=geocode)
-        regional_metric_layers = []
+        regional_metric_layers = self._regional_metric_map_layers()
         self._save_matches(address_id, outage_matches + archived_outage_matches)
         previous_outage_groups = self._previous_outage_groups(
             address_id=address_id,

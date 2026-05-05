@@ -583,7 +583,6 @@ class OutageMap extends HTMLElement {
     }).addTo(map);
     map.createPane("regionalContextPane");
     map.getPane("regionalContextPane").style.zIndex = 350;
-    map.getPane("regionalContextPane").style.pointerEvents = "none";
     map.createPane("disclosurePane");
     map.getPane("disclosurePane").style.zIndex = 360;
     map.createPane("previousOutagePane");
@@ -656,7 +655,10 @@ class OutageMap extends HTMLElement {
       }
       return 0;
     });
-    for (const item of orderedMatches) {
+    const renderedGeometryKeys = new Set();
+    const renderMatch = (item) => {
+      if (item.deferGeometry && !item.geometry) return;
+      if (item.geometryKey && renderedGeometryKeys.has(item.geometryKey)) return;
       const color =
         item.kind === "planned"
           ? "#06b6d4"
@@ -751,6 +753,7 @@ class OutageMap extends HTMLElement {
           bounds.push(layerBounds.getSouthWest());
           bounds.push(layerBounds.getNorthEast());
         }
+        if (!isDisclosure && !isRegionalMetric) layer.bringToFront();
         rendered = true;
       }
       if (!rendered && item.lat != null && item.lon != null) {
@@ -792,6 +795,10 @@ class OutageMap extends HTMLElement {
         if (!isDisclosure && !isRegionalMetric) marker.bringToFront();
         if (!isDisclosure && !isRegionalMetric) bounds.push([item.lat, item.lon]);
       }
+      if (item.geometryKey) renderedGeometryKeys.add(item.geometryKey);
+    };
+    for (const item of orderedMatches) {
+      renderMatch(item);
     }
     const refresh = () => {
       map.invalidateSize();
@@ -804,6 +811,29 @@ class OutageMap extends HTMLElement {
       }
     };
     requestAnimationFrame(() => setTimeout(refresh, 0));
+    if (data.contextGeometryUrl) {
+      fetch(data.contextGeometryUrl, {
+        headers: { Accept: "application/json" },
+      })
+        .then((response) => {
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          return response.json();
+        })
+        .then((payload) => {
+          const geometries = new Map(
+            (payload.geometries || []).map((item) => [item.geometryKey, item.geometry]),
+          );
+          for (const item of orderedMatches) {
+            if (!item.deferGeometry || !item.geometryKey) continue;
+            item.geometry = geometries.get(item.geometryKey);
+            renderMatch(item);
+          }
+          refresh();
+        })
+        .catch(() => {
+          // Context geometry is secondary; operational outage layers remain usable without it.
+        });
+    }
     if ("ResizeObserver" in window) {
       const observer = new ResizeObserver(() => refresh());
       observer.observe(this);

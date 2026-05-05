@@ -49,6 +49,7 @@ Deployment checkpoint:
 - short-term deployment should remain manual from the local workspace until the container deploy path has had a few clean releases
 - medium-term deployment can move to Cloudflare Workers Builds connected to GitHub, using the same `npx wrangler deploy` command on push
 - keep using `uv` for Python dependency management and checks; use `npm` for Wrangler, Biome, and Cloudflare deployment tooling
+- follow up on TLS/certificate status for `pannes.ca` and `www.pannes.ca`; confirm Cloudflare has issued/activated the certificate and browsers no longer show certificate/security warnings
 - the current production container bundles a baked-in SQLite snapshot, avoiding a separate production database for now
 - production writes inside the container are ephemeral; live collection history, query history, or other durable production writes will need a later storage decision, likely D1 or R2 before considering an external database
 - do not introduce a separate Cloudflare database service until persistent production writes are clearly required
@@ -61,6 +62,15 @@ Deployment checkpoint:
 - review deployment and query performance after the initial Cloudflare Containers launch:
   - initial profiling on 2026-05-04 showed simple routes are fast, but address search was dominated by Python geospatial matching and oversized inline map payloads
   - a first mitigation reduced the search response from roughly 14.4 MB to roughly 562 KB and brought a measured production HTML search down to about 6 seconds, but more optimization is still needed
+  - next likely performance work:
+    - render result cards first and lazy-load map overlays after the initial search response
+    - stop embedding map JSON directly in HTML; move map data behind small JSON endpoints
+    - store static administrative-region and DAI/disclosure geometries outside the default SQLite search response, likely as precomputed simplified GeoJSON assets
+    - evaluate GDAL/OGR geometry simplification for production static assets so broad region polygons stay visually useful without carrying source-level precision
+    - show only a compact DAI/disclosure summary in the default map context card, with a link to a separate detail page for large DAI row lists
+    - precompute and/or index geometry matches so address searches do not scan large geometry sets in Python
+    - move raw and large geometry payloads out of the hot search path, probably R2 for payloads plus D1 metadata/index tables
+    - consider a larger container instance only after reducing app-side work
   - keep the detailed timing evidence in `research.md`
   - continue measuring cold start, first search, repeated search, and image push/deploy times
   - compare baked-in SQLite, D1, R2-backed snapshots, and external database options before changing storage architecture
@@ -891,12 +901,15 @@ Performance is not the primary constraint while the interface and data model are
 Specific things to check:
 
 - size of the embedded `data-map` JSON payload returned with each search
+- whether the initial server-rendered search response can exclude map overlays and let the map hydrate from a later JSON request
 - number and complexity of GeoJSON polygons sent per query
 - Leaflet layer creation cost after each HTMX result swap
 - server-side query time for previous outage grouping and disclosure overlays
 - repeated i18n label payloads in every map response
 - whether regional/disclosure geometry can be simplified or cached per response shape
 - whether the map payload should be split from the server-rendered result cards if payload size becomes noticeable
+- whether D1 metadata tables plus R2 geometry payloads can remove large geometry blobs from the hot SQLite/container path
+- whether a larger Cloudflare container instance is needed after the app no longer does avoidable full-scan/full-payload work
 
 Useful first measurements:
 

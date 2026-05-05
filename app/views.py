@@ -9,6 +9,106 @@ FIXED_DAYS = 1825
 FIXED_INCLUDE_PLANNED = True
 
 
+def _round_position(position: list[float], precision: int) -> list[float]:
+    return [round(float(position[0]), precision), round(float(position[1]), precision)]
+
+
+def _simplify_ring(
+    ring: list[list[float]],
+    *,
+    precision: int,
+    max_points: int,
+) -> list[list[float]]:
+    if len(ring) <= 4:
+        return [_round_position(position, precision) for position in ring]
+
+    source = ring[:-1] if ring[0] == ring[-1] else ring
+    if len(source) > max_points:
+        stride = max(1, round(len(source) / max_points))
+        source = source[::stride]
+
+    simplified = [_round_position(position, precision) for position in source]
+    if simplified and simplified[0] != simplified[-1]:
+        simplified.append(simplified[0])
+    return (
+        simplified
+        if len(simplified) >= 4
+        else [_round_position(position, precision) for position in ring]
+    )
+
+
+def _simplify_display_geometry(
+    geometry: dict[str, Any] | None,
+    *,
+    precision: int,
+    max_points: int,
+) -> dict[str, Any] | None:
+    if not geometry or not geometry.get("coordinates"):
+        return geometry
+
+    if geometry["type"] == "Polygon":
+        return {
+            "type": "Polygon",
+            "coordinates": [
+                _simplify_ring(ring, precision=precision, max_points=max_points)
+                for ring in geometry["coordinates"]
+            ],
+        }
+
+    if geometry["type"] == "MultiPolygon":
+        return {
+            "type": "MultiPolygon",
+            "coordinates": [
+                [
+                    _simplify_ring(ring, precision=precision, max_points=max_points)
+                    for ring in polygon
+                ]
+                for polygon in geometry["coordinates"]
+            ],
+        }
+
+    return geometry
+
+
+def _regional_display_geometry(geometry: dict[str, Any] | None) -> dict[str, Any] | None:
+    return _simplify_display_geometry(geometry, precision=4, max_points=500)
+
+
+def _disclosure_display_geometry(geometry: dict[str, Any] | None) -> dict[str, Any] | None:
+    return _simplify_display_geometry(geometry, precision=5, max_points=900)
+
+
+def _regional_geometry_key(item: dict[str, Any]) -> str:
+    return f"regional:{item['geography_label']}"
+
+
+def _disclosure_geometry_key(item: dict[str, Any]) -> str:
+    return f"disclosure:{item['geography_type']}:{item['municipality_code']}"
+
+
+def context_geometry_payload(result: Any) -> dict[str, Any]:
+    return {
+        "geometries": [
+            {
+                "kind": "regional_metric",
+                "geometryKey": _regional_geometry_key(item),
+                "geometry": _regional_display_geometry(item.get("geometry_geojson")),
+            }
+            for item in result.regional_metric_layers
+            if item.get("geometry_geojson")
+        ]
+        + [
+            {
+                "kind": "disclosure",
+                "geometryKey": _disclosure_geometry_key(item),
+                "geometry": _disclosure_display_geometry(item.get("geometry_geojson")),
+            }
+            for item in result.disclosure_layers
+            if item.get("geometry_geojson")
+        ]
+    }
+
+
 def result_context(lang: str, result: Any) -> dict[str, Any]:
     if result.error:
         error_key = "outside_quebec_error" if result.error == "outside_quebec" else "search_error"
@@ -27,6 +127,7 @@ def result_context(lang: str, result: Any) -> dict[str, Any]:
     map_payload = {
         "center": [result.geocode["latitude"], result.geocode["longitude"]],
         "addressLabel": display_address or result.normalized.original,
+        "contextGeometryUrl": "/map-context-geometries",
         "radiusM": result.radius_m,
         "labels": {
             key: t(lang, key)
@@ -116,7 +217,8 @@ def result_context(lang: str, result: Any) -> dict[str, Any]:
                 "lat": item["centroid_lat"],
                 "lon": item["centroid_lon"],
                 "label": item["geography_label"],
-                "geometry": item.get("geometry_geojson"),
+                "deferGeometry": True,
+                "geometryKey": _regional_geometry_key(item),
                 "sourceDai": item["source_dai"],
                 "sourceTitle": item["source_title"],
                 "sourceUrl": item["source_url"],
@@ -141,7 +243,8 @@ def result_context(lang: str, result: Any) -> dict[str, Any]:
                 "lon": item["centroid_lon"],
                 "label": item["municipality_code"],
                 "regionLabel": t(lang, "disclosure_region"),
-                "geometry": item.get("geometry_geojson"),
+                "deferGeometry": True,
+                "geometryKey": _disclosure_geometry_key(item),
                 "recordCount": item["record_count"],
                 "startMin": item["start_min"],
                 "startMax": item["start_max"],
