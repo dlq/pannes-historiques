@@ -702,6 +702,14 @@ Interpretation:
 - Remaining production search latency is mostly CPU-bound matching work: current outage matching, archived outage matching, and disclosure matching.
 - D1 may help once relational filters and indexes replace some Python-side scanning, but the immediate lesson is not "move all data to D1"; it is "avoid full-map/full-geometry work in an address search."
 
+Follow-up performance ideas to evaluate later:
+
+- Render the text/result-card response first, then lazy-load map overlays. Users should see useful outage results before the map finishes.
+- Replace inline `data-map` JSON with separate JSON endpoints, so HTML remains small and map payloads can be cached, measured, and fetched independently.
+- Precompute or index geometry relationships so address searches do not repeatedly scan large geometry sets in Python.
+- Move raw and large geometry payloads out of the hot path. A likely Cloudflare-native shape is R2 for bulky GeoJSON/KML-derived payloads plus D1 for metadata, lookup tables, and indexes.
+- Keep larger container instances as a later lever, not the first fix. More CPU would help, but it should come after removing avoidable full-scan and full-payload work.
+
 Measurements still needed before changing architecture:
 
 - home page response after idle
