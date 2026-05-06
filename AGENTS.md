@@ -19,6 +19,7 @@
 - Templates: `uv run djlint app/templates --reformat` and `uv run djlint app/templates --lint`.
 - Static JS/CSS assets: `npm run format` and `npm run check`.
 - Prefer `uv run pre-commit run --all-files` when changes span multiple file types.
+- For UI/interface changes, start the local app and use browser inspection/screenshots at desktop and mobile viewport sizes before handoff. Check for responsive layout issues, overlapping text, broken interactions, console errors, and map/search regressions.
 
 ## Data And Runtime
 
