@@ -941,6 +941,17 @@ Open verification:
 - Confirm the next 30-minute cron run bootstraps the D1 disclosure mirror, or investigate any `disclosures_bootstrap` error in `ingestion_runs`.
 - After bootstrap, verify D1 counts match the local export counts and verify at least one raw DAI source object is present in R2.
 
+Follow-up during the 2026-05-06T14:07Z cron:
+
+- The Worker-side Hydro fetch still returned HTTP 406 for `bisversion.json`, even after adding explicit `Accept` headers.
+- The container-side Hydro refresh in the same scheduled run returned HTTP 200 and fetched changed `bis`/`aip` version `20260506100016`.
+- This strongly suggests the 406 is specific to direct Cloudflare Worker-origin fetches to Hydro, not a general problem with the endpoint or with our parser.
+- The disclosure bootstrap succeeded despite the Worker-side Hydro 406 because scheduler steps now continue independently:
+  - D1 mirror counts: 32 sources, 2,680 events, 257 metrics, 126 geometry metadata rows.
+  - R2 raw source archive initially wrote 32 objects, but verification found the DAI-2022-0386 "xlsx" object was actually Hydro's small restricted-access HTML page. Worker direct fetches to `www.hydroquebec.com` have the same foreign/restricted-access problem.
+- Fix: raw DAI R2 archival now copies bytes from the container's local `payload_path` through a private internal route instead of refetching source files directly from Hydro in the Worker.
+- The first D1 disclosure mirror rows were cleared after deploying the fix, so the next 30-minute cron can bootstrap D1/R2 again with correct raw DAI source files.
+
 ## Sources
 
 - [Hydro-Québec open data overview](https://www.hydroquebec.com/documents-donnees/donnees-ouvertes/)

@@ -360,7 +360,7 @@ async function syncDisclosureSourceFiles(env, sources, syncedAt) {
       .first();
     if (existing?.sha256 === source.sha256 && existing?.r2_key) continue;
     try {
-      const payload = await fetchArrayBuffer(source.attachment_url);
+      const payload = await fetchContainerDisclosureSource(env, sourceKey);
       const digest = await sha256Hex(payload.bytes);
       const r2Key = disclosureR2Key(source, digest);
       await env.RAW_BUCKET.put(r2Key, payload.bytes, {
@@ -387,6 +387,29 @@ async function syncDisclosureSourceFiles(env, sources, syncedAt) {
     }
   }
   return { filesArchived, fileErrors };
+}
+
+async function fetchContainerDisclosureSource(env, sourceKey) {
+  const container = env.PANNES_CONTAINER.getByName("web");
+  const url = new URL("https://pannes.ca/internal/disclosures/source-file");
+  url.searchParams.set("source_key", sourceKey);
+  const response = await container.fetch(
+    new Request(url, {
+      headers: {
+        Accept: "*/*",
+        "X-Cloudflare-Internal": "1",
+      },
+    }),
+  );
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`source file returned HTTP ${response.status}: ${text.slice(0, 300)}`);
+  }
+  return {
+    bytes: await response.arrayBuffer(),
+    status: response.status,
+    contentType: response.headers.get("content-type") || "application/octet-stream",
+  };
 }
 
 async function syncDisclosureEvents(db, events, syncedAt) {

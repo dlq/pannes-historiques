@@ -178,6 +178,26 @@ class AppService:
             },
         }
 
+    def disclosure_payload_path(self, source_key: str) -> Path | None:
+        with open_db(self.settings.db_path) as connection:
+            row = connection.execute(
+                """
+                SELECT payload_path
+                FROM disclosure_sources
+                WHERE attachment_url = ?
+                  AND payload_path IS NOT NULL
+                """,
+                (source_key,),
+            ).fetchone()
+        if not row:
+            return None
+        path = Path(row["payload_path"])
+        try:
+            path.relative_to(self.settings.raw_dir)
+        except ValueError:
+            return None
+        return path if path.exists() else None
+
     def run_changed_collection_job(self) -> dict[str, Any]:
         return self._run_job("hydro_changed", self.collect_changed)
 

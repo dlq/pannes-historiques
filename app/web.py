@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import logging
+import mimetypes
 from pathlib import Path
 from types import SimpleNamespace
 from uuid import uuid4
 
-from flask import Flask, g, jsonify, render_template, request, url_for
+from flask import Flask, g, jsonify, render_template, request, send_file, url_for
 
 from .config import Settings, ensure_directories
 from .db import initialize
@@ -292,6 +293,17 @@ def create_app(settings: Settings | None = None) -> Flask:
         if request.headers.get("X-Cloudflare-Internal") != "1":
             return jsonify({"error": "not found"}), 404
         return jsonify(serialize_payload(service.disclosure_export()))
+
+    @app.get("/internal/disclosures/source-file")
+    def internal_disclosure_source_file():
+        if request.headers.get("X-Cloudflare-Internal") != "1":
+            return jsonify({"error": "not found"}), 404
+        source_key = request.args.get("source_key", "")
+        path = service.disclosure_payload_path(source_key)
+        if path is None:
+            return jsonify({"error": "source file not found"}), 404
+        content_type = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
+        return send_file(path, mimetype=content_type, as_attachment=False)
 
     return app
 
