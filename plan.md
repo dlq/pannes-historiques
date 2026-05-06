@@ -38,6 +38,8 @@ Map follow-up:
 - continue refining the lazy map payload and browser rendering cost
 - keep polygon-backed live/API layers visually distinct from centroid-only previous-outage markers
 - decide whether map context should move further from container SQLite/static assets to D1/R2-backed endpoints
+- add a pannes.ca equivalent of Hydro-Québec's `Bilan par région`: a province-wide current-status view with total affected addresses/customers, active interruption count, region-level rows, sorting/search, and links into region-focused map/search views
+- improve on Hydro's regional view by adding pannes.ca-specific context where available: latest source version/freshness, nearby historical observations, disclosure coverage, and clear caveats about current-vs-historical completeness
 
 Source-code follow-up:
 
@@ -106,6 +108,11 @@ Deployment checkpoint:
   - latest production timings after the D1 previous-outage migration are roughly 0.44 seconds for `/`, 0.77 seconds for result-card `POST /search`, 1.12 seconds for lazy `/search-map`, and 0.30 seconds for `/map-context-geometries`
   - next performance focus should be the lazy map payload/rendering and context assembly, not current or previous-outage nearby matching, because those now use D1
   - lazy map payload follow-up now trims disclosure detail to recent samples and renders previous outages as centroid markers instead of embedding older outage polygons; local `/search-map` HTML dropped from roughly 912 KB to roughly 358 KB, and production `/search-map` dropped from roughly 735 KB to roughly 155 KB after deploy
+  - regional-current-status follow-up from Hydro comparison on 2026-05-06:
+    - Hydro's `Bilan par région` is a useful product pattern for a fast "how bad is it right now?" view before address search
+    - pannes.ca should implement this from durable current-feed data rather than the hot Flask/container search path
+    - likely data work: derive or load a reliable municipality-code-to-region mapping, aggregate latest `bis` and `aip` marker rows by region, expose compact D1-backed JSON/HTML endpoints, and cache the province totals with source version/freshness metadata
+    - UI should keep the address-first search primary, but add a compact province/region dashboard entry point near the top of the app or as a dedicated page
   - continue measuring cold start, first search, repeated search, and image push/deploy times
   - compare baked-in SQLite, D1, R2-backed snapshots, and external database options before changing storage architecture
   - research Cloudflare Containers image-layer behavior and whether local Docker Desktop push instability can be avoided with CI/Workers Builds, remote builders, or a different local container runtime
@@ -167,6 +174,12 @@ The core idea is:
 3. app shows whatever we already know for that address and nearby area
 4. if allowed by our ingestion rules and data source constraints, the system refreshes from current Hydro-Québec data and stores the result
 5. repeated address queries plus scheduled snapshot collection gradually build a durable local historical dataset
+
+Near-term product addition:
+
+- add a regional current-status dashboard inspired by Hydro-Québec's `Bilan par région`
+- keep it complementary to address search: province and region totals answer "what is happening right now?", while address search answers "what is known near this place?"
+- use pannes.ca's differentiators in the regional view by showing feed freshness, historical observations, and disclosure/context coverage where those are reliable
 
 ## Language requirement
 
