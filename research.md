@@ -890,6 +890,12 @@ Verification performed:
   - Cloudflare container fetch header for that request: about 2280 ms
 - The previous container SQLite archived matching cost was roughly 1.2 seconds or more for the same test address, so moving previous-outage matching to D1 materially improved app-side latency.
 - A transient D1 auth/API issue appeared while applying the `0003_history_nearby_index.sql` migration, then the migration applied successfully on retry.
+- Production route timings after the D1 history deployment, measured from this development machine on 2026-05-06:
+  - `/`: about 0.44 seconds total, 7.8 KB
+  - `POST /search` for `5220 Rue Jeanne-Mance`: about 0.77 seconds total, 44 KB
+  - `/search-map?q=5220 Rue Jeanne-Mance&lang=fr`: about 1.12 seconds total, 735 KB
+  - `/map-context-geometries`: about 0.30 seconds total, 182 KB
+- Current interpretation: D1 has removed the largest app-side SQLite scans from current and previous-outage nearby matching. The next visible performance work is likely lazy map payload/rendering and context assembly, not another immediate D1 point lookup.
 
 Open verification:
 
