@@ -1,7 +1,7 @@
 # Plan: Address-First Hydro-Québec Outage History App
 
 Date: 2026-04-25
-Last updated: 2026-05-04
+Last updated: 2026-05-05
 
 ## Implementation status as of 2026-05-01
 
@@ -50,9 +50,9 @@ Deployment checkpoint:
 - medium-term deployment can move to Cloudflare Workers Builds connected to GitHub, using the same `npx wrangler deploy` command on push
 - keep using `uv` for Python dependency management and checks; use `npm` for Wrangler, Biome, and Cloudflare deployment tooling
 - follow up on TLS/certificate status for `pannes.ca` and `www.pannes.ca`; confirm Cloudflare has issued/activated the certificate and browsers no longer show certificate/security warnings
-- the current production container bundles a baked-in SQLite snapshot, avoiding a separate production database for now
-- production writes inside the container are ephemeral; live collection history, query history, or other durable production writes will need a later storage decision, likely D1 or R2 before considering an external database
-- do not introduce a separate Cloudflare database service until persistent production writes are clearly required
+- the current production container still bundles a baked-in SQLite snapshot for the user-facing Flask search path
+- production writes inside the container are ephemeral, so durable feed ingestion now uses D1 for normalized rows and R2 for raw payloads
+- D1/R2 are now part of the production architecture, but the main search path has not migrated to them yet
 - D1 research checkpoint as of 2026-05-04:
   - D1 looks cost-effective for normalized relational app data on the current Workers Paid plan
   - the current database is dominated by large geometry rows, so a full SQLite-to-D1 copy is probably not the right first migration
@@ -62,8 +62,10 @@ Deployment checkpoint:
 - durable ingestion checkpoint as of 2026-05-05:
   - Cloudflare D1 database `pannes-historiques` is provisioned for normalized production feed state
   - Cloudflare R2 bucket `pannes-historiques-raw` is provisioned for raw Hydro-Québec version, marker, and polygon payloads
-  - Worker cron runs every 30 minutes for Hydro-Québec `bis` and `aip` version checks; it downloads marker and polygon payloads only when the upstream version changes
+  - Worker cron runs every 30 minutes, offset to minutes `:07` and `:37`, for Hydro-Québec `bis` and `aip` version checks; it downloads marker and polygon payloads only when the upstream version changes
+  - first verified scheduled run at `2026-05-06T00:30Z` wrote `bis` version `20260505202016` with 91 outage records and `aip` version `20260505202016` with 212 planned-interruption records
   - Worker cron also calls the container refresh endpoint so the current Flask/SQLite search path can see the latest feed data without doing user-request-time Hydro API refreshes in production
+  - a container-side job summary serialization bug is fixed in commit `6a5a732` and deployed in Worker version `850fcb67-0839-4509-85a3-6fe7838a8769`; the next cron run still needs to confirm the container refresh summary is clean
   - DAI/disclosure refresh remains a container job with due-date bookkeeping; durable D1/R2 persistence for discovered DAI source files still needs a focused follow-up
   - local development keeps `AUTO_REFRESH_ON_SEARCH` enabled by default, so local queries can still hit the Hydro API while production user searches read container SQLite only
   - next migration step is to make selected production search reads use Worker/D1 endpoints after the scheduled D1 corpus has proven reliable
@@ -84,6 +86,7 @@ Deployment checkpoint:
   - continue measuring cold start, first search, repeated search, and image push/deploy times
   - compare baked-in SQLite, D1, R2-backed snapshots, and external database options before changing storage architecture
   - research Cloudflare Containers image-layer behavior and whether local Docker Desktop push instability can be avoided with CI/Workers Builds, remote builders, or a different local container runtime
+  - previous Cloudflare deploy blocker `durable object bindings require durable object bind permission` was resolved by refreshing Wrangler authorization; keep this in mind if the error returns after account feature changes
   - keep Docker Desktop subscription requirements in mind, but avoid a paid Docker subscription unless licensing or workflow needs clearly require it
   - capture findings and tradeoffs in `research.md` before making a larger storage or deployment architecture change
 
@@ -322,6 +325,7 @@ Run a collector on a schedule and store:
 Current production implementation:
 
 - Worker cron checks `bisversion` and `aipversion` every 30 minutes
+- the production schedule is offset to minutes `:07` and `:37` rather than exact half-hours to avoid polling while upstream files may still be rolling out
 - unchanged versions update `feed_versions.checked_at` without redownloading the larger payloads
 - changed versions are written to D1 as normalized current outage/planned-interruption rows and accumulated `resolved_events`
 - raw version, marker, and polygon payloads are written to R2 for durable provenance

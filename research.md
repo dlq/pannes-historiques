@@ -854,8 +854,8 @@ Implemented schema:
 
 Implemented schedules:
 
-- `*/30 * * * *`: Worker checks `bisversion` and `aipversion`, downloads `bismarkers`, `aipmarkers`, `bispoly`, and `aippoly` only when the upstream version changed, writes marker rows to D1, writes raw payloads to R2, and calls the container `/cron/hydro` endpoint so the current Flask/SQLite app state is refreshed.
-- `0 10 */14 * *`: Worker calls the container `/cron/disclosures` endpoint. The container also checks local job state and skips disclosure collection when it has run successfully within the last 14 days.
+- `7,37 * * * *`: Worker checks `bisversion` and `aipversion`, downloads `bismarkers`, `aipmarkers`, `bispoly`, and `aippoly` only when the upstream version changed, writes marker rows to D1, writes raw payloads to R2, and calls the container `/cron/hydro` endpoint so the current Flask/SQLite app state is refreshed. The offset avoids polling exactly on common half-hour boundaries while upstream files may still be rolling out.
+- `13 10 */14 * *`: Worker calls the container `/cron/disclosures` endpoint. The container also checks local job state and skips disclosure collection when it has run successfully within the last 14 days.
 
 Important architectural boundary:
 

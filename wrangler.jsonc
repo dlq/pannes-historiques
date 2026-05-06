@@ -10,7 +10,7 @@
     "enabled": true
   },
   "triggers": {
-    "crons": ["*/30 * * * *", "0 10 */14 * *"]
+    "crons": ["7,37 * * * *", "13 10 */14 * *"]
   },
   "d1_databases": [
     {
