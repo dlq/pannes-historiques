@@ -52,6 +52,12 @@ Deployment checkpoint:
 - `pannes.ca` is registered in Cloudflare and served by a Cloudflare Workers + Containers deployment
 - keep the container definition in the GitHub repository: `Dockerfile`, `.dockerignore`, `wrangler.jsonc`, `src/worker.js`, `scripts/start.sh`, app code, and lockfiles
 - do not commit built container images; images should be built and pushed by Wrangler or future CI/CD
+- add a separate local-only Docker image for the SQLite-backed Flask app, likely `Dockerfile.local`, before publishing containers to GitHub Container Registry
+  - use a public Python base image rather than a Cloudflare registry base
+  - default to local behavior such as `AUTO_REFRESH_ON_SEARCH=1`
+  - mount `./data` as a persistent volume so local SQLite and raw archives survive container restarts
+  - document whether the image starts with an empty database, a small sample database, or a dated public snapshot
+  - keep this separate from the Cloudflare Containers production image and release it intentionally when it is a reproducible local distribution artifact
 - current deploy command is `npx wrangler deploy`
 - short-term deployment should remain manual from the local workspace until the container deploy path has had a few clean releases
 - medium-term deployment can move to Cloudflare Workers Builds connected to GitHub, using the same `npx wrangler deploy` command on push
