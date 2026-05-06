@@ -174,9 +174,7 @@ def build_map_payload(lang: str, result: Any, display_address: str) -> dict[str,
                 "recentEvents": group["events"][:12],
             }
             for group in result.previous_outage_groups
-            if group.get("geometry_geojson")
-            and group["centroid_lat"] is not None
-            and group["centroid_lon"] is not None
+            if group["centroid_lat"] is not None and group["centroid_lon"] is not None
         ]
         + [
             {
@@ -224,7 +222,7 @@ def build_map_payload(lang: str, result: Any, display_address: str) -> dict[str,
                 "geographyType": item["geography_type"],
                 "precisionLabel": item["precision_label"],
                 "topCauses": item["top_causes"],
-                "recentEvents": item["recent_events"],
+                "recentEvents": item["recent_events"][:12],
             }
             for item in result.disclosure_layers
             if item["centroid_lat"] is not None and item["centroid_lon"] is not None

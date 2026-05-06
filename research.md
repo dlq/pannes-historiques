@@ -896,6 +896,11 @@ Verification performed:
   - `/search-map?q=5220 Rue Jeanne-Mance&lang=fr`: about 1.12 seconds total, 735 KB
   - `/map-context-geometries`: about 0.30 seconds total, 182 KB
 - Current interpretation: D1 has removed the largest app-side SQLite scans from current and previous-outage nearby matching. The next visible performance work is likely lazy map payload/rendering and context assembly, not another immediate D1 point lookup.
+- Local lazy map payload analysis showed that the biggest remaining embedded-map payload was disclosure detail, not R2-eligible geometry. The local `/search-map` HTML for `5220 Rue Jeanne-Mance` was about 912 KB before trimming, with about 600 KB coming from disclosure items carrying full `recentEvents` lists.
+- After trimming disclosure map popup data to the 12 most recent events per area and rendering previous outages as centroid markers instead of embedding old outage polygons, the same local `/search-map` HTML dropped to about 358 KB. Production should be smaller because production current-feed map items come from D1 nearby rows rather than the local all-current map layer.
+- After deploying the map payload trim as Worker/container version `0b68eef2-e0e1-4efe-84ea-4ad8f221cfd7`, production `/search-map?q=5220 Rue Jeanne-Mance&lang=fr` returned about 155 KB in about 0.74 seconds. This is down from about 735 KB before the trim.
+- The trimmed production map payload contained 56 map items: 14 planned-interruption items, 17 previous-outage centroid markers, 17 regional metric items, and 8 disclosure items.
+- A warm production debug search after this deploy showed app-side total timing around 208 ms, with D1 current nearby around 130 ms, D1 history around 72 ms, and previous-outage grouping around 2 ms.
 
 Open verification:
 

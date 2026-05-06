@@ -91,6 +91,7 @@ Deployment checkpoint:
   - keep the detailed timing evidence in `research.md`
   - latest production timings after the D1 previous-outage migration are roughly 0.44 seconds for `/`, 0.77 seconds for result-card `POST /search`, 1.12 seconds for lazy `/search-map`, and 0.30 seconds for `/map-context-geometries`
   - next performance focus should be the lazy map payload/rendering and context assembly, not current or previous-outage nearby matching, because those now use D1
+  - lazy map payload follow-up now trims disclosure detail to recent samples and renders previous outages as centroid markers instead of embedding older outage polygons; local `/search-map` HTML dropped from roughly 912 KB to roughly 358 KB, and production `/search-map` dropped from roughly 735 KB to roughly 155 KB after deploy
   - continue measuring cold start, first search, repeated search, and image push/deploy times
   - compare baked-in SQLite, D1, R2-backed snapshots, and external database options before changing storage architecture
   - research Cloudflare Containers image-layer behavior and whether local Docker Desktop push instability can be avoided with CI/Workers Builds, remote builders, or a different local container runtime

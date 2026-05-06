@@ -1387,12 +1387,13 @@ class AppService:
                        r.id AS record_id, r.customers_affected, r.outage_start_time,
                        r.estimated_restore_time, r.interruption_type, r.status,
                        r.municipality_code, r.centroid_lon, r.centroid_lat,
-                       g.name AS geometry_name, g.geometry_geojson
+                       g.name AS geometry_name
                 FROM address_outage_matches m
                 JOIN outage_records r ON r.id = m.record_id
                 LEFT JOIN outage_geometries g ON g.id = m.geometry_id
                 WHERE m.address_id = ?
                   AND m.outage_kind = 'outage'
+                  AND m.geometry_id IS NOT NULL
                 ORDER BY COALESCE(r.outage_start_time, m.matched_at) DESC
                 """,
                 (address_id,),
@@ -1401,8 +1402,6 @@ class AppService:
         groups: dict[str, dict[str, Any]] = {}
         for row in rows:
             item = dict(row)
-            if not item["geometry_geojson"]:
-                continue
             event = {
                 "municipality_code": item["municipality_code"],
                 "start_time": item["outage_start_time"],
@@ -1428,9 +1427,7 @@ class AppService:
                     "municipality_code": item["municipality_code"],
                     "centroid_lat": item["centroid_lat"],
                     "centroid_lon": item["centroid_lon"],
-                    "geometry_geojson": json.loads(item["geometry_geojson"])
-                    if item["geometry_geojson"]
-                    else None,
+                    "geometry_geojson": None,
                     "events": [],
                     "event_keys": set(),
                 },
