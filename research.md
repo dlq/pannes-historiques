@@ -862,7 +862,8 @@ Important architectural boundary:
 
 - Local development still defaults to user-query-time Hydro API refresh.
 - Production still sets `AUTO_REFRESH_ON_SEARCH=0`, so user searches should not synchronously call the Hydro API.
-- The current Flask search path still reads the container SQLite database, not D1 directly.
+- The current Flask search path now uses D1 for current outage/planned-interruption nearby marker matches when `DURABLE_NEARBY_URL` is set in production.
+- Local development does not set `DURABLE_NEARBY_URL`, so it continues to use the local SQLite/API-refresh path.
 - D1 is now the durable production feed ledger and normalized marker store; R2 is the durable raw payload archive.
 - `/api/durable/nearby` is the first Worker/D1 read endpoint intended for the user-facing lookup path. It takes `lat`, `lon`, optional `radius_m`, and optional `limit`, then returns nearby current outage and planned-interruption marker rows sorted by distance.
 - Polygon KMZ payloads are archived in R2, but Worker-side polygon parsing into durable geometry/index tables is still a follow-up.
@@ -878,11 +879,13 @@ Verification performed:
 - After offsetting the schedule and fixing the Worker schedule handler, verified clean cron runs at `2026-05-06T02:37Z` and `2026-05-06T03:07Z`; the container summary returned `errors: []`.
 - Verified R2 by downloading a remote `bismarkers` object referenced by `hydro_snapshots.r2_key`.
 - Verified `/api/durable/nearby?lat=45.5227&lon=-73.6021&radius_m=5000&limit=50` returned 17 records in about 0.51 seconds from Cloudflare.
+- After wiring Flask production search to `DURABLE_NEARBY_URL`, `/debug/timing/search` showed `search.durable_nearby_fetch` in the timing trace and current map layers dropped from about 205 global layers to 18 nearby D1 records for the test address.
+- Remaining measured bottleneck is archived/previous outage matching in container SQLite, not current feed matching.
 
 Open verification:
 
 - Keep monitoring offset cron runs over a longer period, including unchanged-version runs where only `checked_at` should update.
-- Compare `/api/durable/nearby` with the equivalent Flask search result before wiring it into the UI.
+- Move archived/previous outage matching to durable indexed storage, likely D1 metadata/index rows plus R2 for bulky geometry where needed.
 - Add a safer internal/manual trigger path if scheduled-run debugging becomes necessary; avoid exposing unauthenticated public write endpoints.
 
 ## Sources

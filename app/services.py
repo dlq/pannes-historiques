@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import urllib.parse
+import urllib.request
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -322,11 +324,14 @@ class AppService:
         with timer.step("search.find_disclosure_matches"):
             disclosure_matches: list[dict[str, Any]] = []
         with timer.step("search.current_map_layers"):
-            current_map_layers = (
-                self._current_operational_map_layers(include_planned=include_planned)
-                if include_map_layers
-                else []
-            )
+            if include_map_layers and self.settings.durable_nearby_url:
+                current_map_layers = matches
+            elif include_map_layers:
+                current_map_layers = self._current_operational_map_layers(
+                    include_planned=include_planned
+                )
+            else:
+                current_map_layers = []
         with timer.step("search.disclosure_layers"):
             disclosure_layers = self._disclosure_map_layers() if include_map_layers else []
         with timer.step("search.find_disclosure_metrics"):
@@ -455,11 +460,14 @@ class AppService:
             days,
             exclude_event_keys={self._outage_display_key(item) for item in outage_matches},
         )
-        current_map_layers = (
-            self._current_operational_map_layers(include_planned=include_planned)
-            if include_map_layers
-            else []
-        )
+        if include_map_layers and self.settings.durable_nearby_url:
+            current_map_layers = matches
+        elif include_map_layers:
+            current_map_layers = self._current_operational_map_layers(
+                include_planned=include_planned
+            )
+        else:
+            current_map_layers = []
         disclosure_layers = self._disclosure_map_layers() if include_map_layers else []
         regional_metric_layers = self._regional_metric_map_layers() if include_map_layers else []
         if record_history:
@@ -690,6 +698,15 @@ class AppService:
         days: int,
         include_planned: bool,
     ) -> list[dict[str, Any]]:
+        if self.settings.durable_nearby_url:
+            durable_matches = self._find_durable_current_matches(
+                latitude=latitude,
+                longitude=longitude,
+                radius_m=radius_m,
+                include_planned=include_planned,
+            )
+            if durable_matches is not None:
+                return durable_matches
         cutoff = (datetime.now(UTC) - timedelta(days=days)).strftime("%Y-%m-%d %H:%M:%S")
         matches: list[dict[str, Any]] = []
         with open_db(self.settings.db_path) as connection:
@@ -770,6 +787,91 @@ class AppService:
             reverse=True,
         )
         return matches
+
+    def _find_durable_current_matches(
+        self,
+        *,
+        latitude: float,
+        longitude: float,
+        radius_m: int,
+        include_planned: bool,
+    ) -> list[dict[str, Any]] | None:
+        timer = current_timer()
+        query = urllib.parse.urlencode(
+            {
+                "lat": f"{latitude:.7f}",
+                "lon": f"{longitude:.7f}",
+                "radius_m": str(radius_m),
+                "limit": "500",
+            }
+        )
+        url = f"{self.settings.durable_nearby_url}?{query}"
+        request = urllib.request.Request(
+            url,
+            headers={"User-Agent": "pannes-historiques/0.1 (+https://pannes.ca)"},
+        )
+        try:
+            with timer.step("search.durable_nearby_fetch"):
+                with urllib.request.urlopen(request, timeout=8) as response:
+                    payload = json.loads(response.read().decode("utf-8"))
+        except Exception as exc:
+            timer.set("search.durable_nearby_error", str(exc))
+            return None
+
+        matches = [
+            self._durable_item_to_match(item, radius_m)
+            for item in payload.get("items", [])
+            if include_planned or item.get("kind") != "planned"
+        ]
+        matches = [item for item in matches if item is not None]
+        matches = self._dedupe_matches(matches)
+        matches.sort(
+            key=lambda item: (
+                self._match_rank(item["match_type"]),
+                item["confidence"],
+                item["sort_time"] or "",
+            ),
+            reverse=True,
+        )
+        timer.set("search.durable_nearby_count", len(matches))
+        return matches
+
+    @staticmethod
+    def _durable_item_to_match(item: dict[str, Any], radius_m: int) -> dict[str, Any] | None:
+        outage_kind = "planned" if item.get("kind") == "planned" else "outage"
+        distance_m = item.get("distance_m")
+        if distance_m is None:
+            return None
+        confidence = max(0.45, 0.82 - float(distance_m) / max(radius_m * 1.5, 1))
+        start_time = (
+            item.get("start_time") if outage_kind == "outage" else item.get("scheduled_start")
+        )
+        end_time = (
+            item.get("estimated_restore_time")
+            if outage_kind == "outage"
+            else item.get("scheduled_end")
+        )
+        return {
+            "address_id": None,
+            "outage_kind": outage_kind,
+            "record_id": item.get("id"),
+            "geometry_id": None,
+            "geometry_geojson": None,
+            "match_type": "nearby_match",
+            "distance_m": round(float(distance_m), 1),
+            "confidence": round(confidence, 2),
+            "municipality_code": item.get("municipality_code"),
+            "customers_affected": item.get("customers_affected"),
+            "status": item.get("status"),
+            "interruption_type": item.get("interruption_type")
+            if outage_kind == "outage"
+            else "AIP",
+            "start_time": start_time,
+            "end_time": end_time,
+            "centroid_lat": item.get("centroid_lat"),
+            "centroid_lon": item.get("centroid_lon"),
+            "sort_time": start_time,
+        }
 
     def _find_archived_outage_matches(
         self,

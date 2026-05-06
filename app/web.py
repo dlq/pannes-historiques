@@ -144,6 +144,7 @@ def create_app(settings: Settings | None = None) -> Flask:
                 days=FIXED_DAYS,
                 include_planned=FIXED_INCLUDE_PLANNED,
                 include_map_layers=True,
+                record_history=False,
             )
         with current_timer().step("search_map.result_context"):
             context = result_context(lang, result, include_map_payload=True)
@@ -240,6 +241,7 @@ def create_app(settings: Settings | None = None) -> Flask:
                 days=FIXED_DAYS,
                 include_planned=FIXED_INCLUDE_PLANNED,
                 include_map_layers=True,
+                record_history=False,
             )
         with current_timer().step("search_location_map.result_context"):
             context = result_context(lang, result, include_map_payload=True)
