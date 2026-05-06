@@ -851,6 +851,7 @@ Implemented schema:
 - `current_planned_interruptions` stores the latest normalized `aipmarkers` rows.
 - `resolved_events` accumulates seen outage/planned records across feed versions using a conservative derived key.
 - `ingestion_runs` records scheduled Worker run status and summaries.
+- `idx_current_outage_records_nearby` and `idx_current_planned_interruptions_nearby` support the first D1-backed point/radius lookup.
 
 Implemented schedules:
 
@@ -863,6 +864,7 @@ Important architectural boundary:
 - Production still sets `AUTO_REFRESH_ON_SEARCH=0`, so user searches should not synchronously call the Hydro API.
 - The current Flask search path still reads the container SQLite database, not D1 directly.
 - D1 is now the durable production feed ledger and normalized marker store; R2 is the durable raw payload archive.
+- `/api/durable/nearby` is the first Worker/D1 read endpoint intended for the user-facing lookup path. It takes `lat`, `lon`, optional `radius_m`, and optional `limit`, then returns nearby current outage and planned-interruption marker rows sorted by distance.
 - Polygon KMZ payloads are archived in R2, but Worker-side polygon parsing into durable geometry/index tables is still a follow-up.
 - Durable DAI/R2 persistence is not complete yet; the first DAI schedule still runs the existing container disclosure collector.
 
@@ -873,11 +875,14 @@ Verification performed:
 - `npx wrangler deploy --dry-run` confirmed bindings for `DB`, `RAW_BUCKET`, and `PANNES_CONTAINER`.
 - `npx wrangler deploy` deployed Worker version `dc9a3452-1a39-480a-9c0f-9f5051a7eb9b` with both cron schedules.
 - `https://pannes.ca/api/durable/status` responded with the expected empty D1 state before the first scheduled run.
+- After offsetting the schedule and fixing the Worker schedule handler, verified clean cron runs at `2026-05-06T02:37Z` and `2026-05-06T03:07Z`; the container summary returned `errors: []`.
+- Verified R2 by downloading a remote `bismarkers` object referenced by `hydro_snapshots.r2_key`.
+- Verified `/api/durable/nearby?lat=45.5227&lon=-73.6021&radius_m=5000&limit=50` returned 17 records in about 0.51 seconds from Cloudflare.
 
 Open verification:
 
-- Wait for the next half-hour cron run and confirm `feed_versions`, `hydro_snapshots`, and `ingestion_runs` are populated.
-- Confirm raw R2 objects are written for version, marker, and polygon payloads once a changed Hydro feed version is seen.
+- Keep monitoring offset cron runs over a longer period, including unchanged-version runs where only `checked_at` should update.
+- Compare `/api/durable/nearby` with the equivalent Flask search result before wiring it into the UI.
 - Add a safer internal/manual trigger path if scheduled-run debugging becomes necessary; avoid exposing unauthenticated public write endpoints.
 
 ## Sources

@@ -65,7 +65,9 @@ Deployment checkpoint:
   - Worker cron runs every 30 minutes, offset to minutes `:07` and `:37`, for Hydro-Québec `bis` and `aip` version checks; it downloads marker and polygon payloads only when the upstream version changes
   - first verified scheduled run at `2026-05-06T00:30Z` wrote `bis` version `20260505202016` with 91 outage records and `aip` version `20260505202016` with 212 planned-interruption records
   - Worker cron also calls the container refresh endpoint so the current Flask/SQLite search path can see the latest feed data without doing user-request-time Hydro API refreshes in production
-  - a container-side job summary serialization bug is fixed in commit `6a5a732` and deployed in Worker version `850fcb67-0839-4509-85a3-6fe7838a8769`; the next cron run still needs to confirm the container refresh summary is clean
+  - container refresh summary serialization is fixed; verified offset cron runs at `2026-05-06T02:37Z` and `2026-05-06T03:07Z` returned `errors: []`
+  - R2 raw snapshot storage is verified by downloading a remote `bismarkers` object recorded in D1
+  - first D1-backed user-facing lookup endpoint is live at `/api/durable/nearby`; it returns current outage/planned-interruption rows near a lat/lon without entering the Flask/container SQLite search path
   - DAI/disclosure refresh remains a container job with due-date bookkeeping; durable D1/R2 persistence for discovered DAI source files still needs a focused follow-up
   - local development keeps `AUTO_REFRESH_ON_SEARCH` enabled by default, so local queries can still hit the Hydro API while production user searches read container SQLite only
   - next migration step is to make selected production search reads use Worker/D1 endpoints after the scheduled D1 corpus has proven reliable
@@ -75,6 +77,7 @@ Deployment checkpoint:
   - next likely performance work:
     - render result cards first and lazy-load map overlays after the initial search response
     - stop embedding map JSON directly in HTML; move map data behind small JSON endpoints
+    - wire the Flask search UI or an HTMX fragment to the new D1 `/api/durable/nearby` endpoint for current outage/planned-interruption matches
     - store static administrative-region and DAI/disclosure geometries outside the default SQLite search response, likely as precomputed simplified GeoJSON assets
     - replace the discarded ad hoc regional polygon simplification with an offline GeoPandas/Shapely coverage-simplification pipeline; load the administrative regions as one coverage, validate shared edges, simplify through Shapely/GEOS coverage operations, and export a static GeoJSON asset
     - simplify broad administrative regions aggressively and topologically; simplify DAI/disclosure geometries only conservatively, because the current DAI/disclosure shapes are not one valid shared-boundary coverage and do not get the same coverage guarantee
@@ -330,6 +333,7 @@ Current production implementation:
 - changed versions are written to D1 as normalized current outage/planned-interruption rows and accumulated `resolved_events`
 - raw version, marker, and polygon payloads are written to R2 for durable provenance
 - polygon KMZ payloads are archived in R2 now; parsing them into durable geometry/index tables remains a follow-up
+- `/api/durable/nearby?lat=...&lon=...&radius_m=...` reads current D1 marker rows by bounding box and returns nearby records sorted by distance
 
 This gives us:
 
