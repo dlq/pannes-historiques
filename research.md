@@ -909,6 +909,38 @@ Open verification:
 - Parse and index polygon KMZ payloads from R2 only after deciding the right simplified geometry representation; avoid putting large raw geometry blobs directly in D1.
 - Add a safer internal/manual trigger path if scheduled-run debugging becomes necessary; avoid exposing unauthenticated public write endpoints.
 
+## 2026-05-06: Durable disclosure mirror setup
+
+Implemented the first D1/R2 durability layer for Hydro-Québec access-to-information disclosures.
+
+Implemented shape:
+
+- Container/local SQLite remains the parser and local source of truth for disclosures.
+- A private container-only export route, `/internal/disclosures/export`, returns already-parsed disclosure sources, outage events, annual metrics, and geometry metadata.
+- The public Worker blocks `/internal/*` paths before container forwarding, so this export route is not publicly reachable through `pannes.ca`.
+- D1 migration `0004_disclosure_mirror.sql` creates durable disclosure mirror tables:
+  - `disclosure_sources`
+  - `disclosure_outage_events`
+  - `disclosure_annual_metrics`
+  - `disclosure_geometries`
+- R2 is used for raw DAI source files. Large GeoJSON geometry blobs are not mirrored into D1 in this stage; D1 stores geometry metadata such as centroid and bounding box.
+- The two-week disclosure cron now runs the existing container disclosure collector, exports the parsed local data, mirrors it into D1, and archives raw source files in R2.
+- The 30-minute Hydro cron includes a one-time disclosure bootstrap only when D1 `disclosure_sources` is empty, so the mirror does not wait two weeks for first population.
+
+Verification:
+
+- Local internal export returned HTTP 200 with counts: 32 sources, 2,680 events, 257 metrics, and 126 geometry metadata rows.
+- Local internal export without the private header returned HTTP 404.
+- `npx wrangler d1 migrations apply pannes-historiques --remote` applied `0004_disclosure_mirror.sql`.
+- Deployment version `bf158bd3-cf33-40d6-8f9d-7d5c6703f14b` added the disclosure mirror code.
+- A subsequent hardening deploy version `d975d0f1-8137-4b86-9db7-dbd432d59ad3` changed the scheduler so Hydro fetch failures do not prevent the disclosure bootstrap from running.
+- A 2026-05-06T13:37Z scheduled Hydro run returned HTTP 406 from the Hydro `bisversion.json` endpoint before disclosure bootstrap ran. Local checks from this development machine returned HTTP 200 for the same URL with default curl, Worker-like `User-Agent`, and explicit `Accept` headers, so the 406 appears either transient or specific to the Cloudflare Worker-origin request path. The Worker now sends `Accept: application/json,text/plain,*/*` for Hydro fetches and records per-step cron errors instead of aborting all scheduled work on the first failure.
+
+Open verification:
+
+- Confirm the next 30-minute cron run bootstraps the D1 disclosure mirror, or investigate any `disclosures_bootstrap` error in `ingestion_runs`.
+- After bootstrap, verify D1 counts match the local export counts and verify at least one raw DAI source object is present in R2.
+
 ## Sources
 
 - [Hydro-Québec open data overview](https://www.hydroquebec.com/documents-donnees/donnees-ouvertes/)

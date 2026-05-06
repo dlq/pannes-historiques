@@ -71,9 +71,10 @@ Deployment checkpoint:
   - second D1-backed user-facing lookup endpoint is live at `/api/durable/history-nearby`; it returns accumulated previous outage events from `resolved_events` near a lat/lon
   - production Flask/container searches now opt into `/api/durable/nearby` through `DURABLE_NEARBY_URL`, while local development leaves that setting empty and continues using local SQLite plus API refresh
   - production Flask/container searches derive and use `/api/durable/history-nearby` through `DURABLE_HISTORY_URL`; local development leaves that setting empty and continues using local SQLite plus API refresh
-  - DAI/disclosure refresh remains a container job with due-date bookkeeping; durable D1/R2 persistence for discovered DAI source files still needs a focused follow-up
+  - DAI/disclosure refresh remains a container parsing job with due-date bookkeeping, but D1/R2 durable mirroring is now implemented: D1 stores disclosure source/event/metric/geometry metadata and R2 archives raw DAI source files
+  - D1 disclosure mirror bootstrap runs from the 30-minute cron only while D1 `disclosure_sources` is empty; ongoing disclosure refresh is owned by the two-week disclosure cron
   - local development keeps `AUTO_REFRESH_ON_SEARCH` enabled by default, so local queries can still hit the Hydro API while production user searches read container SQLite only
-  - next migration step is to move the remaining production hot-path data reads out of the baked SQLite snapshot: disclosure/DAI summaries, regional metrics, and bulky map geometry payloads
+  - next migration step is to verify D1 disclosure bootstrap counts, verify raw DAI files in R2, then evaluate moving production disclosure/regional context reads from container SQLite to D1
 - review deployment and query performance after the initial Cloudflare Containers launch:
   - initial profiling on 2026-05-04 showed simple routes are fast, but address search was dominated by Python geospatial matching and oversized inline map payloads
   - a first mitigation reduced the search response from roughly 14.4 MB to roughly 562 KB and brought a measured production HTML search down to about 6 seconds, but more optimization is still needed
@@ -343,6 +344,7 @@ Current production implementation:
 - `/api/durable/history-nearby?lat=...&lon=...&radius_m=...&days=...` reads accumulated D1 `resolved_events` rows by bounding box and returns previous outage events sorted by time/distance
 - production search uses `DURABLE_NEARBY_URL` to fetch current outage/planned-interruption matches from D1; local development does not set this variable and remains on the local SQLite path
 - production search uses `DURABLE_HISTORY_URL` for previous-outage matching; local development does not set this variable and remains on the local SQLite path
+- disclosure mirror tables in D1 now store parsed source, outage event, annual metric, and geometry metadata; raw DAI files are archived in R2
 
 This gives us:
 

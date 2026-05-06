@@ -287,6 +287,12 @@ def create_app(settings: Settings | None = None) -> Flask:
     def cron_disclosures():
         return jsonify(serialize_payload(service.collect_disclosures_if_due()))
 
+    @app.get("/internal/disclosures/export")
+    def internal_disclosures_export():
+        if request.headers.get("X-Cloudflare-Internal") != "1":
+            return jsonify({"error": "not found"}), 404
+        return jsonify(serialize_payload(service.disclosure_export()))
+
     return app
 
 

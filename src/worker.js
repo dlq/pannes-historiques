@@ -33,6 +33,9 @@ export class PannesContainer extends Container {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    if (url.pathname.startsWith("/internal/")) {
+      return new Response("Not found", { status: 404 });
+    }
     if (url.pathname.startsWith("/cron/")) {
       return new Response("Not found", { status: 404 });
     }
@@ -53,7 +56,7 @@ export default {
 
   async scheduled(controller, env, ctx) {
     if (DISCLOSURE_CRONS.has(controller.cron)) {
-      ctx.waitUntil(callContainerCron(env, "/cron/disclosures"));
+      ctx.waitUntil(runDisclosureSchedule(env));
     } else {
       ctx.waitUntil(runHydroSchedule(env));
     }
@@ -89,16 +92,32 @@ async function fetchContainer(request, env) {
 async function runHydroSchedule(env) {
   const started = new Date().toISOString();
   const run = await recordRunStarted(env.DB, "hydro_changed", started);
-  const summary = { d1: null, container: null };
+  const summary = { d1: null, container: null, disclosures_bootstrap: null, errors: [] };
   try {
     summary.d1 = await ingestChangedHydro(env);
-    summary.container = await callContainerCron(env, "/cron/hydro");
-    await recordRunFinished(env.DB, run.meta.last_row_id, "ok", summary);
   } catch (error) {
-    summary.error = String(error?.stack || error);
-    await recordRunFinished(env.DB, run.meta.last_row_id, "error", summary);
-    throw error;
+    summary.errors.push({ step: "d1_hydro", error: String(error?.stack || error) });
   }
+  try {
+    summary.container = await callContainerCron(env, "/cron/hydro");
+  } catch (error) {
+    summary.errors.push({ step: "container_hydro", error: String(error?.stack || error) });
+  }
+  try {
+    summary.disclosures_bootstrap = await syncDisclosuresIfEmpty(env);
+  } catch (error) {
+    summary.errors.push({ step: "disclosures_bootstrap", error: String(error?.stack || error) });
+  }
+  const status = summary.errors.length ? "error" : "ok";
+  await recordRunFinished(env.DB, run.meta.last_row_id, status, summary);
+  if (summary.errors.length) console.error("Hydro schedule completed with errors", summary);
+}
+
+async function syncDisclosuresIfEmpty(env) {
+  const row = await env.DB.prepare("SELECT COUNT(*) AS count FROM disclosure_sources").first();
+  if ((row?.count || 0) > 0) return { skipped: true, reason: "already_bootstrapped" };
+  const exportPayload = await callContainerJson(env, "/internal/disclosures/export");
+  return syncDisclosures(env, exportPayload);
 }
 
 async function callContainerCron(env, path) {
@@ -117,6 +136,39 @@ async function callContainerCron(env, path) {
     // Keep non-JSON responses as text.
   }
   return { status: response.status, body };
+}
+
+async function callContainerJson(env, path) {
+  const container = env.PANNES_CONTAINER.getByName("web");
+  const response = await container.fetch(
+    new Request(`https://pannes.ca${path}`, {
+      headers: {
+        Accept: "application/json",
+        "X-Cloudflare-Internal": "1",
+      },
+    }),
+  );
+  const text = await response.text();
+  if (!response.ok) {
+    throw new Error(`${path} returned HTTP ${response.status}: ${text.slice(0, 300)}`);
+  }
+  return JSON.parse(text);
+}
+
+async function runDisclosureSchedule(env) {
+  const started = new Date().toISOString();
+  const run = await recordRunStarted(env.DB, "disclosures", started);
+  const summary = { container: null, d1: null };
+  try {
+    summary.container = await callContainerCron(env, "/cron/disclosures");
+    const exportPayload = await callContainerJson(env, "/internal/disclosures/export");
+    summary.d1 = await syncDisclosures(env, exportPayload);
+    await recordRunFinished(env.DB, run.meta.last_row_id, "ok", summary);
+  } catch (error) {
+    summary.error = String(error?.stack || error);
+    await recordRunFinished(env.DB, run.meta.last_row_id, "error", summary);
+    throw error;
+  }
 }
 
 async function ingestChangedHydro(env) {
@@ -161,7 +213,10 @@ async function ingestSourceIfChanged(env, source) {
 
 async function fetchArrayBuffer(url) {
   const response = await fetch(url, {
-    headers: { "User-Agent": "pannes-historiques/0.1 (+https://pannes.ca)" },
+    headers: {
+      Accept: "application/json,text/plain,*/*",
+      "User-Agent": "pannes-historiques/0.1 (+https://pannes.ca)",
+    },
   });
   if (!response.ok) {
     throw new Error(`${url} returned HTTP ${response.status}`);
@@ -218,6 +273,303 @@ async function storeSnapshot(env, sourceType, version, payload, extension) {
       payload.status,
     )
     .run();
+}
+
+async function syncDisclosures(env, payload) {
+  const syncedAt = new Date().toISOString();
+  const sourceResult = await syncDisclosureSources(env, payload.sources || [], syncedAt);
+  const [events, metrics, geometries] = await Promise.all([
+    syncDisclosureEvents(env.DB, payload.events || [], syncedAt),
+    syncDisclosureMetrics(env.DB, payload.metrics || [], syncedAt),
+    syncDisclosureGeometries(env.DB, payload.geometries || [], syncedAt),
+  ]);
+  return {
+    sources: sourceResult.sources,
+    source_files_archived: sourceResult.filesArchived,
+    source_file_errors: sourceResult.fileErrors,
+    events,
+    metrics,
+    geometries,
+    exported_counts: payload.counts || null,
+  };
+}
+
+async function syncDisclosureSources(env, sources, syncedAt) {
+  const statements = sources.map((source) =>
+    env.DB.prepare(
+      `
+      INSERT INTO disclosure_sources
+      (source_key, local_id, dai_number, title, source_url, attachment_url, format,
+       published_date, transmitted_date, geography_label, geography_type, extraction_method,
+       precision_label, notes, sha256, fetched_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(source_key) DO UPDATE SET
+        local_id = excluded.local_id,
+        dai_number = excluded.dai_number,
+        title = excluded.title,
+        source_url = excluded.source_url,
+        attachment_url = excluded.attachment_url,
+        format = excluded.format,
+        published_date = excluded.published_date,
+        transmitted_date = excluded.transmitted_date,
+        geography_label = excluded.geography_label,
+        geography_type = excluded.geography_type,
+        extraction_method = excluded.extraction_method,
+        precision_label = excluded.precision_label,
+        notes = excluded.notes,
+        sha256 = excluded.sha256,
+        fetched_at = excluded.fetched_at,
+        updated_at = excluded.updated_at
+      `,
+    ).bind(
+      disclosureSourceKey(source),
+      source.id,
+      source.dai_number,
+      source.title,
+      source.source_url,
+      source.attachment_url,
+      source.format,
+      source.published_date,
+      source.transmitted_date,
+      source.geography_label,
+      source.geography_type,
+      source.extraction_method,
+      source.precision_label,
+      source.notes,
+      source.sha256,
+      source.fetched_at,
+      source.updated_at || source.fetched_at || syncedAt,
+    ),
+  );
+  await batchInChunks(env.DB, statements);
+  const fileResult = await syncDisclosureSourceFiles(env, sources, syncedAt);
+  return { sources: sources.length, ...fileResult };
+}
+
+async function syncDisclosureSourceFiles(env, sources, syncedAt) {
+  if (!env.RAW_BUCKET) return { filesArchived: 0, fileErrors: [] };
+  let filesArchived = 0;
+  const fileErrors = [];
+  for (const source of sources) {
+    if (!source.attachment_url || !source.sha256) continue;
+    const sourceKey = disclosureSourceKey(source);
+    const existing = await env.DB.prepare(
+      "SELECT sha256, r2_key FROM disclosure_sources WHERE source_key = ?",
+    )
+      .bind(sourceKey)
+      .first();
+    if (existing?.sha256 === source.sha256 && existing?.r2_key) continue;
+    try {
+      const payload = await fetchArrayBuffer(source.attachment_url);
+      const digest = await sha256Hex(payload.bytes);
+      const r2Key = disclosureR2Key(source, digest);
+      await env.RAW_BUCKET.put(r2Key, payload.bytes, {
+        httpMetadata: { contentType: payload.contentType },
+        customMetadata: {
+          daiNumber: source.dai_number || "",
+          sourceKey,
+          sha256: digest,
+        },
+      });
+      await env.DB.prepare(
+        `
+        UPDATE disclosure_sources
+        SET r2_key = ?, content_type = ?, sha256 = ?, fetched_at = COALESCE(fetched_at, ?),
+            updated_at = ?
+        WHERE source_key = ?
+        `,
+      )
+        .bind(r2Key, payload.contentType, digest, syncedAt, syncedAt, sourceKey)
+        .run();
+      filesArchived += 1;
+    } catch (error) {
+      fileErrors.push({ source: source.dai_number, error: String(error?.message || error) });
+    }
+  }
+  return { filesArchived, fileErrors };
+}
+
+async function syncDisclosureEvents(db, events, syncedAt) {
+  const statements = events.map((event) => {
+    const sourceKey = event.source_key;
+    const sourceRowId = String(event.source_row_id || event.id || "");
+    return db
+      .prepare(
+        `
+        INSERT INTO disclosure_outage_events
+        (id, source_key, source_row_id, start_time, end_time, duration_seconds,
+         duration_hours, customers_affected, interruption_type, cause, equipment,
+         cause_group, category, geography_label, geography_type, centroid_lon, centroid_lat,
+         precision_label, raw_row_json, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          start_time = excluded.start_time,
+          end_time = excluded.end_time,
+          duration_seconds = excluded.duration_seconds,
+          duration_hours = excluded.duration_hours,
+          customers_affected = excluded.customers_affected,
+          interruption_type = excluded.interruption_type,
+          cause = excluded.cause,
+          equipment = excluded.equipment,
+          cause_group = excluded.cause_group,
+          category = excluded.category,
+          geography_label = excluded.geography_label,
+          geography_type = excluded.geography_type,
+          centroid_lon = excluded.centroid_lon,
+          centroid_lat = excluded.centroid_lat,
+          precision_label = excluded.precision_label,
+          raw_row_json = excluded.raw_row_json,
+          updated_at = excluded.updated_at
+        `,
+      )
+      .bind(
+        disclosureRowKey(sourceKey, "event", sourceRowId),
+        sourceKey,
+        sourceRowId,
+        event.start_time,
+        event.end_time,
+        event.duration_seconds,
+        event.duration_hours,
+        event.customers_affected,
+        event.interruption_type,
+        event.cause,
+        event.equipment,
+        event.cause_group,
+        event.category,
+        event.geography_label,
+        event.geography_type,
+        event.centroid_lon,
+        event.centroid_lat,
+        event.precision_label,
+        event.raw_row_json,
+        syncedAt,
+      );
+  });
+  await batchInChunks(db, statements);
+  return events.length;
+}
+
+async function syncDisclosureMetrics(db, metrics, syncedAt) {
+  const statements = metrics.map((metric) => {
+    const sourceKey = metric.source_key;
+    const rowKey = [
+      metric.year ?? "",
+      metric.period_label ?? "",
+      metric.geography_label ?? "",
+    ].join("|");
+    return db
+      .prepare(
+        `
+        INSERT INTO disclosure_annual_metrics
+        (id, source_key, year, period_label, geography_label, geography_type,
+         outage_count, average_duration_minutes, continuity_index_minutes,
+         long_outage_count, notes, raw_row_json, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          year = excluded.year,
+          period_label = excluded.period_label,
+          geography_label = excluded.geography_label,
+          geography_type = excluded.geography_type,
+          outage_count = excluded.outage_count,
+          average_duration_minutes = excluded.average_duration_minutes,
+          continuity_index_minutes = excluded.continuity_index_minutes,
+          long_outage_count = excluded.long_outage_count,
+          notes = excluded.notes,
+          raw_row_json = excluded.raw_row_json,
+          updated_at = excluded.updated_at
+        `,
+      )
+      .bind(
+        disclosureRowKey(sourceKey, "metric", rowKey),
+        sourceKey,
+        metric.year,
+        metric.period_label,
+        metric.geography_label,
+        metric.geography_type,
+        metric.outage_count,
+        metric.average_duration_minutes,
+        metric.continuity_index_minutes,
+        metric.long_outage_count,
+        metric.notes,
+        metric.raw_row_json,
+        syncedAt,
+      );
+  });
+  await batchInChunks(db, statements);
+  return metrics.length;
+}
+
+async function syncDisclosureGeometries(db, geometries, syncedAt) {
+  const statements = geometries.map((geometry) => {
+    const sourceKey = geometry.source_key;
+    const rowKey = [
+      geometry.geography_label ?? "",
+      geometry.geography_type ?? "",
+      geometry.geometry_source ?? "",
+    ].join("|");
+    return db
+      .prepare(
+        `
+        INSERT INTO disclosure_geometries
+        (id, source_key, geography_label, geography_type, geometry_source, centroid_lon,
+         centroid_lat, bbox_min_lon, bbox_min_lat, bbox_max_lon, bbox_max_lat, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          geography_label = excluded.geography_label,
+          geography_type = excluded.geography_type,
+          geometry_source = excluded.geometry_source,
+          centroid_lon = excluded.centroid_lon,
+          centroid_lat = excluded.centroid_lat,
+          bbox_min_lon = excluded.bbox_min_lon,
+          bbox_min_lat = excluded.bbox_min_lat,
+          bbox_max_lon = excluded.bbox_max_lon,
+          bbox_max_lat = excluded.bbox_max_lat,
+          updated_at = excluded.updated_at
+        `,
+      )
+      .bind(
+        disclosureRowKey(sourceKey, "geometry", rowKey),
+        sourceKey,
+        geometry.geography_label,
+        geometry.geography_type,
+        geometry.geometry_source,
+        geometry.centroid_lon,
+        geometry.centroid_lat,
+        geometry.bbox_min_lon,
+        geometry.bbox_min_lat,
+        geometry.bbox_max_lon,
+        geometry.bbox_max_lat,
+        geometry.updated_at || syncedAt,
+      );
+  });
+  await batchInChunks(db, statements);
+  return geometries.length;
+}
+
+function disclosureSourceKey(source) {
+  return source.attachment_url;
+}
+
+function disclosureRowKey(sourceKey, kind, rowKey) {
+  return `${sourceKey}|${kind}|${rowKey}`;
+}
+
+function disclosureR2Key(source, digest) {
+  const fileName = source.attachment_url.split("/").pop() || "source";
+  return [
+    "hydro_quebec/access_disclosures",
+    sanitizePathPart(source.dai_number || "unknown"),
+    `${digest.slice(0, 16)}-${sanitizePathPart(fileName)}`,
+  ].join("/");
+}
+
+function sanitizePathPart(value) {
+  return String(value)
+    .normalize("NFKD")
+    .replace(/[^\w.-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 120);
 }
 
 async function ingestBisMarkers(db, version, text, updatedAt) {
@@ -397,7 +749,27 @@ async function durableStatusResponse(env) {
   const runs = await env.DB.prepare(
     "SELECT * FROM ingestion_runs ORDER BY started_at DESC, id DESC LIMIT 10",
   ).all();
-  return jsonResponse({ versions: versions.results || [], runs: runs.results || [] });
+  const disclosures = await disclosureCounts(env.DB);
+  return jsonResponse({ versions: versions.results || [], runs: runs.results || [], disclosures });
+}
+
+async function disclosureCounts(db) {
+  const tables = [
+    "disclosure_sources",
+    "disclosure_outage_events",
+    "disclosure_annual_metrics",
+    "disclosure_geometries",
+  ];
+  const counts = {};
+  for (const table of tables) {
+    try {
+      const row = await db.prepare(`SELECT COUNT(*) AS count FROM ${table}`).first();
+      counts[table] = row?.count || 0;
+    } catch (_error) {
+      counts[table] = null;
+    }
+  }
+  return counts;
 }
 
 async function durableNearbyResponse(request, env) {

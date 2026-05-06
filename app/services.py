@@ -126,6 +126,58 @@ class AppService:
                 }
         return self._run_job("disclosures", self.collect_disclosures)
 
+    def disclosure_export(self) -> dict[str, Any]:
+        with open_db(self.settings.db_path) as connection:
+            sources = [dict(row) for row in connection.execute("SELECT * FROM disclosure_sources")]
+            events = [
+                dict(row)
+                for row in connection.execute(
+                    """
+                    SELECT e.*, s.attachment_url AS source_key
+                    FROM disclosure_outage_events e
+                    JOIN disclosure_sources s ON s.id = e.source_id
+                    ORDER BY e.source_id, e.source_row_id
+                    """
+                )
+            ]
+            metrics = [
+                dict(row)
+                for row in connection.execute(
+                    """
+                    SELECT m.*, s.attachment_url AS source_key
+                    FROM disclosure_annual_metrics m
+                    JOIN disclosure_sources s ON s.id = m.source_id
+                    ORDER BY m.source_id, COALESCE(m.year, 0), m.geography_label
+                    """
+                )
+            ]
+            geometries = [
+                dict(row)
+                for row in connection.execute(
+                    """
+                    SELECT g.id, g.source_id, s.attachment_url AS source_key,
+                           g.geography_label, g.geography_type, g.geometry_source,
+                           g.centroid_lon, g.centroid_lat, g.bbox_min_lon, g.bbox_min_lat,
+                           g.bbox_max_lon, g.bbox_max_lat, g.updated_at
+                    FROM disclosure_geometries g
+                    JOIN disclosure_sources s ON s.id = g.source_id
+                    ORDER BY g.source_id, g.geography_label, g.geometry_source
+                    """
+                )
+            ]
+        return {
+            "sources": sources,
+            "events": events,
+            "metrics": metrics,
+            "geometries": geometries,
+            "counts": {
+                "sources": len(sources),
+                "events": len(events),
+                "metrics": len(metrics),
+                "geometries": len(geometries),
+            },
+        }
+
     def run_changed_collection_job(self) -> dict[str, Any]:
         return self._run_job("hydro_changed", self.collect_changed)
 
