@@ -633,6 +633,7 @@ class OutageMap extends HTMLElement {
     map.getPane("outagePane").style.zIndex = 450;
     const bounds = [];
     let focusItems = [];
+    let activeMapFocus = null;
     const numbersClose = (left, right, tolerance = 1) => {
       if (left == null || right == null) return true;
       return Math.abs(Number(left) - Number(right)) <= tolerance;
@@ -676,8 +677,9 @@ class OutageMap extends HTMLElement {
         geometry: match.geometry,
       };
     };
-    const focusMap = (rawDetail) => {
+    const focusMap = (rawDetail, { remember = true } = {}) => {
       const detail = enrichFocusDetail(rawDetail || {});
+      if (remember) activeMapFocus = detail;
       map.invalidateSize();
       if (detail.geometry) {
         const layer = L.geoJSON(detail.geometry);
@@ -901,10 +903,10 @@ class OutageMap extends HTMLElement {
       }
     };
     const replayPendingFocus = () => {
-      const pendingFocus = window.pendingMapFocus;
-      if (!pendingFocus || !this.isConnected) return;
-      focusMap(pendingFocus);
-      if (window.pendingMapFocus === pendingFocus) window.pendingMapFocus = null;
+      const focusDetail = window.pendingMapFocus || activeMapFocus;
+      if (!focusDetail || !this.isConnected) return;
+      focusMap(focusDetail);
+      if (window.pendingMapFocus === focusDetail) window.pendingMapFocus = null;
     };
     requestAnimationFrame(() =>
       setTimeout(() => {
@@ -937,7 +939,13 @@ class OutageMap extends HTMLElement {
         });
     }
     if ("ResizeObserver" in window) {
-      const observer = new ResizeObserver(() => refresh());
+      const observer = new ResizeObserver(() => {
+        if (activeMapFocus) {
+          focusMap(activeMapFocus, { remember: false });
+        } else {
+          refresh();
+        }
+      });
       observer.observe(this);
     }
   }
