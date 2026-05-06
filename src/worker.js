@@ -250,28 +250,39 @@ async function callContainerJsonPost(env, path, payload) {
 }
 
 async function runDisclosureSchedule(env) {
+  await runDisclosureBatchJob(env, {
+    jobName: "disclosures",
+    batchSize: DISCLOSURE_BATCH_SIZE,
+    budgetMs: DISCLOSURE_RUN_BUDGET_MS,
+  });
+}
+
+async function runDisclosureBatchJob(
+  env,
+  { jobName, batchSize, budgetMs, maxBatches = Number.POSITIVE_INFINITY },
+) {
   const started = new Date().toISOString();
-  const run = await recordRunStarted(env.DB, "disclosures", started);
+  const run = await recordRunStarted(env.DB, jobName, started);
   const summary = { batches: [], total_sources: 0, total_events: 0, total_errors: 0 };
   try {
-    const deadline = Date.now() + DISCLOSURE_RUN_BUDGET_MS;
+    const deadline = Date.now() + budgetMs;
     const attempted = new Set();
-    while (Date.now() < deadline) {
-      const sourceKeys = (await dueDisclosureSourceKeys(env.DB, 100)).filter(
+    while (Date.now() < deadline && summary.batches.length < maxBatches) {
+      const candidateSourceKeys = (await dueDisclosureSourceKeys(env.DB, 100)).filter(
         (sourceKey) => !attempted.has(sourceKey),
       );
-      sourceKeys.splice(DISCLOSURE_BATCH_SIZE);
-      if (!sourceKeys.length) {
+      candidateSourceKeys.splice(batchSize);
+      if (!candidateSourceKeys.length) {
         summary.done = true;
         break;
       }
-      for (const sourceKey of sourceKeys) attempted.add(sourceKey);
+      for (const sourceKey of candidateSourceKeys) attempted.add(sourceKey);
       const container = await callContainerJsonPost(env, "/cron/disclosures/batch", {
-        source_keys: sourceKeys,
+        source_keys: candidateSourceKeys,
       });
-      const exportPayload = await callContainerDisclosureExport(env, sourceKeys);
+      const exportPayload = await callContainerDisclosureExport(env, candidateSourceKeys);
       const d1 = await syncDisclosures(env, exportPayload);
-      summary.batches.push({ source_keys: sourceKeys, container, d1 });
+      summary.batches.push({ source_keys: candidateSourceKeys, container, d1 });
       summary.total_sources += d1.sources;
       summary.total_events += d1.events;
       summary.total_errors += d1.source_file_errors.length + (container.errors || []).length;
@@ -282,6 +293,7 @@ async function runDisclosureSchedule(env) {
       summary.remaining = remaining.length ? "yes" : "no";
     }
     await recordRunFinished(env.DB, run.meta.last_row_id, "ok", summary);
+    return summary;
   } catch (error) {
     summary.error = String(error?.stack || error);
     await recordRunFinished(env.DB, run.meta.last_row_id, "error", summary);
