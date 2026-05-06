@@ -9,6 +9,22 @@
   "observability": {
     "enabled": true
   },
+  "triggers": {
+    "crons": ["*/30 * * * *", "0 10 */14 * *"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "pannes-historiques",
+      "database_id": "2981e056-fb74-47d9-b67f-8215fea0ef19"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "RAW_BUCKET",
+      "bucket_name": "pannes-historiques-raw"
+    }
+  ],
   "containers": [
     {
       "class_name": "PannesContainer",

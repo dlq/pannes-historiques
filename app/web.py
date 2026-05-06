@@ -261,6 +261,10 @@ def create_app(settings: Settings | None = None) -> Flask:
     def collect():
         return jsonify(serialize_payload(service.collect()))
 
+    @app.route("/collect/changed", methods=["GET", "POST"])
+    def collect_changed():
+        return jsonify(serialize_payload(service.collect_changed()))
+
     @app.route("/collect/bis", methods=["GET", "POST"])
     def collect_bis():
         return jsonify(serialize_payload(service.collect_current_outages()))
@@ -268,6 +272,18 @@ def create_app(settings: Settings | None = None) -> Flask:
     @app.route("/collect/aip", methods=["GET", "POST"])
     def collect_aip():
         return jsonify(serialize_payload(service.collect_planned_interruptions()))
+
+    @app.route("/collect/disclosures", methods=["GET", "POST"])
+    def collect_disclosures():
+        return jsonify(serialize_payload(service.collect_disclosures()))
+
+    @app.post("/cron/hydro")
+    def cron_hydro():
+        return jsonify(serialize_payload(service.run_changed_collection_job()))
+
+    @app.post("/cron/disclosures")
+    def cron_disclosures():
+        return jsonify(serialize_payload(service.collect_disclosures_if_due()))
 
     return app
 

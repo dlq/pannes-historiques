@@ -59,6 +59,14 @@ Deployment checkpoint:
   - prefer a future hybrid prototype: D1 for indexed metadata/events/cache, R2 for raw snapshots and bulky GeoJSON/KML-derived payloads
   - the current Python container cannot use D1 like a local SQLite file; a Worker binding/API boundary should be proven before moving the main search path
   - keep baked SQLite short term while measuring production latency and deploy reliability
+- durable ingestion checkpoint as of 2026-05-05:
+  - Cloudflare D1 database `pannes-historiques` is provisioned for normalized production feed state
+  - Cloudflare R2 bucket `pannes-historiques-raw` is provisioned for raw Hydro-Québec version, marker, and polygon payloads
+  - Worker cron runs every 30 minutes for Hydro-Québec `bis` and `aip` version checks; it downloads marker and polygon payloads only when the upstream version changes
+  - Worker cron also calls the container refresh endpoint so the current Flask/SQLite search path can see the latest feed data without doing user-request-time Hydro API refreshes in production
+  - DAI/disclosure refresh remains a container job with due-date bookkeeping; durable D1/R2 persistence for discovered DAI source files still needs a focused follow-up
+  - local development keeps `AUTO_REFRESH_ON_SEARCH` enabled by default, so local queries can still hit the Hydro API while production user searches read container SQLite only
+  - next migration step is to make selected production search reads use Worker/D1 endpoints after the scheduled D1 corpus has proven reliable
 - review deployment and query performance after the initial Cloudflare Containers launch:
   - initial profiling on 2026-05-04 showed simple routes are fast, but address search was dominated by Python geospatial matching and oversized inline map payloads
   - a first mitigation reduced the search response from roughly 14.4 MB to roughly 562 KB and brought a measured production HTML search down to about 6 seconds, but more optimization is still needed
@@ -310,6 +318,14 @@ Run a collector on a schedule and store:
 - `aipversion`
 - `aipmarkers`
 - `aippoly`
+
+Current production implementation:
+
+- Worker cron checks `bisversion` and `aipversion` every 30 minutes
+- unchanged versions update `feed_versions.checked_at` without redownloading the larger payloads
+- changed versions are written to D1 as normalized current outage/planned-interruption rows and accumulated `resolved_events`
+- raw version, marker, and polygon payloads are written to R2 for durable provenance
+- polygon KMZ payloads are archived in R2 now; parsing them into durable geometry/index tables remains a follow-up
 
 This gives us:
 

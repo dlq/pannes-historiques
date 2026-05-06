@@ -49,6 +49,21 @@ class HydroCollector:
                 results["errors"].append({"source": source, "error": str(exc)})
         return results
 
+    def collect_changed(self) -> dict[str, Any]:
+        results: dict[str, Any] = {"sources": [], "snapshots": [], "errors": []}
+        for source in ("bis", "aip"):
+            result = self.collect_source_if_changed(source)
+            results["sources"].append(
+                {
+                    "source": source,
+                    "version": result.get("version"),
+                    "changed": result.get("changed", False),
+                }
+            )
+            results["snapshots"].extend(result.get("snapshots", []))
+            results["errors"].extend(result.get("errors", []))
+        return results
+
     def collect_source(self, source: str) -> dict[str, Any]:
         if source not in {"bis", "aip"}:
             raise ValueError(f"unsupported Hydro-Quebec source: {source}")
@@ -60,18 +75,77 @@ class HydroCollector:
             results["errors"].append({"source": source, "error": str(exc)})
         return results
 
+    def collect_source_if_changed(self, source: str) -> dict[str, Any]:
+        if source not in {"bis", "aip"}:
+            raise ValueError(f"unsupported Hydro-Quebec source: {source}")
+        results: dict[str, Any] = {
+            "source": source,
+            "version": None,
+            "changed": False,
+            "snapshots": [],
+            "errors": [],
+        }
+        try:
+            version_payload, status, content_type = fetch_bytes(
+                f"{HYDRO_ROOT}/{source}version.json"
+            )
+            if status != 200:
+                raise RuntimeError(f"version fetch failed for {source}: HTTP {status}")
+            version = self._parse_version(version_payload)
+            results["version"] = version
+            latest = self._latest_payload_version(source)
+            if latest == version:
+                return results
+            results["changed"] = True
+            results["snapshots"].extend(
+                self._fetch_payloads(
+                    source,
+                    version,
+                    version_payload=version_payload,
+                    version_content_type=content_type,
+                )
+            )
+        except Exception as exc:
+            results["errors"].append({"source": source, "error": str(exc)})
+        return results
+
     def _fetch_version(self, source: str) -> str:
         payload, status, _ = fetch_bytes(f"{HYDRO_ROOT}/{source}version.json")
         if status != 200:
             raise RuntimeError(f"version fetch failed for {source}: HTTP {status}")
+        return self._parse_version(payload)
+
+    @staticmethod
+    def _parse_version(payload: bytes) -> str:
         version_data = json.loads(payload.decode("utf-8"))
         if isinstance(version_data, str):
             return version_data
         if isinstance(version_data, dict):
             return str(version_data.get("version") or next(iter(version_data.values())))
-        raise RuntimeError(f"unexpected version payload for {source}")
+        raise RuntimeError("unexpected version payload")
 
-    def _fetch_payloads(self, source: str, version: str) -> list[Snapshot]:
+    def _latest_payload_version(self, source: str) -> str | None:
+        with open_db(self.settings.db_path) as connection:
+            row = connection.execute(
+                """
+                SELECT source_version
+                FROM raw_snapshots
+                WHERE source_type = ?
+                ORDER BY fetched_at DESC, id DESC
+                LIMIT 1
+                """,
+                (f"{source}markers",),
+            ).fetchone()
+        return row["source_version"] if row else None
+
+    def _fetch_payloads(
+        self,
+        source: str,
+        version: str,
+        *,
+        version_payload: bytes | None = None,
+        version_content_type: str | None = None,
+    ) -> list[Snapshot]:
         now = datetime.now(UTC).replace(microsecond=0).isoformat()
         items: list[tuple[str, str, str]] = [
             (f"{source}version", f"{HYDRO_ROOT}/{source}version.json", "json"),
@@ -80,7 +154,12 @@ class HydroCollector:
         ]
         snapshots: list[Snapshot] = []
         for source_type, url, extension in items:
-            payload, status, content_type = fetch_bytes(url)
+            if source_type.endswith("version") and version_payload is not None:
+                payload = version_payload
+                status = 200
+                content_type = version_content_type or "application/json"
+            else:
+                payload, status, content_type = fetch_bytes(url)
             snapshot = self._store_snapshot(
                 source_type=source_type,
                 version=version,

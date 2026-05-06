@@ -86,6 +86,12 @@ class AppService:
         self._clear_context_cache()
         return result
 
+    def collect_changed(self) -> dict[str, Any]:
+        result = self.collector.collect_changed()
+        if any(source.get("changed") for source in result.get("sources", [])):
+            self._clear_context_cache()
+        return result
+
     def collect_current_outages(self) -> dict[str, Any]:
         result = self.collector.collect_source("bis")
         self._clear_context_cache()
@@ -100,6 +106,75 @@ class AppService:
         result = self.disclosure_collector.collect_all()
         self._clear_context_cache()
         return result
+
+    def collect_disclosures_if_due(self, *, min_age_days: int = 14) -> dict[str, Any]:
+        now = datetime.now(UTC).replace(microsecond=0)
+        latest = self._latest_job_run("disclosures")
+        if latest and latest.get("finished_at"):
+            finished_at = datetime.fromisoformat(latest["finished_at"].replace("Z", "+00:00"))
+            age = now - finished_at.astimezone(UTC)
+            if age < timedelta(days=min_age_days):
+                return {
+                    "changed": False,
+                    "skipped": True,
+                    "reason": "not_due",
+                    "last_finished_at": latest["finished_at"],
+                    "next_due_at": (finished_at + timedelta(days=min_age_days)).isoformat(),
+                }
+        return self._run_job("disclosures", self.collect_disclosures)
+
+    def run_changed_collection_job(self) -> dict[str, Any]:
+        return self._run_job("hydro_changed", self.collect_changed)
+
+    def _run_job(self, job_name: str, factory) -> dict[str, Any]:
+        started_at = datetime.now(UTC).replace(microsecond=0).isoformat()
+        run_id = self._record_job_started(job_name, started_at)
+        try:
+            result = factory()
+            self._record_job_finished(run_id, "ok", result)
+            return result
+        except Exception as exc:
+            result = {"errors": [{"job": job_name, "error": str(exc)}]}
+            self._record_job_finished(run_id, "error", result)
+            return result
+
+    def _record_job_started(self, job_name: str, started_at: str) -> int:
+        with open_db(self.settings.db_path) as connection:
+            cursor = connection.execute(
+                """
+                INSERT INTO job_runs (job_name, started_at, status, summary_json)
+                VALUES (?, ?, ?, ?)
+                """,
+                (job_name, started_at, "running", "{}"),
+            )
+            return int(cursor.lastrowid)
+
+    def _record_job_finished(self, run_id: int, status: str, summary: dict[str, Any]) -> None:
+        finished_at = datetime.now(UTC).replace(microsecond=0).isoformat()
+        with open_db(self.settings.db_path) as connection:
+            connection.execute(
+                """
+                UPDATE job_runs
+                SET finished_at = ?, status = ?, summary_json = ?
+                WHERE id = ?
+                """,
+                (finished_at, status, json.dumps(summary, ensure_ascii=True), run_id),
+            )
+
+    def _latest_job_run(self, job_name: str) -> dict[str, Any] | None:
+        with open_db(self.settings.db_path) as connection:
+            row = connection.execute(
+                """
+                SELECT *
+                FROM job_runs
+                WHERE job_name = ?
+                  AND status = 'ok'
+                ORDER BY finished_at DESC, id DESC
+                LIMIT 1
+                """,
+                (job_name,),
+            ).fetchone()
+        return dict(row) if row else None
 
     def _clear_context_cache(self) -> None:
         self._context_cache.clear()

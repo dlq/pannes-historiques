@@ -64,6 +64,15 @@ CREATE TABLE IF NOT EXISTS raw_snapshots (
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS job_runs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    job_name TEXT NOT NULL,
+    started_at TEXT NOT NULL,
+    finished_at TEXT,
+    status TEXT NOT NULL,
+    summary_json TEXT NOT NULL DEFAULT '{}'
+);
+
 CREATE TABLE IF NOT EXISTS outage_records (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     snapshot_id INTEGER NOT NULL REFERENCES raw_snapshots(id),
@@ -246,6 +255,7 @@ CREATE INDEX IF NOT EXISTS idx_query_history_address ON query_history(address_id
 CREATE INDEX IF NOT EXISTS idx_outage_records_centroid ON outage_records(centroid_lat, centroid_lon);
 CREATE INDEX IF NOT EXISTS idx_planned_interruptions_centroid ON planned_interruptions(centroid_lat, centroid_lon);
 CREATE INDEX IF NOT EXISTS idx_raw_snapshots_source ON raw_snapshots(source_type, fetched_at DESC);
+CREATE INDEX IF NOT EXISTS idx_job_runs_name ON job_runs(job_name, started_at DESC);
 CREATE INDEX IF NOT EXISTS idx_disclosure_events_time ON disclosure_outage_events(start_time DESC);
 CREATE INDEX IF NOT EXISTS idx_disclosure_events_geo ON disclosure_outage_events(geography_label, geography_type);
 CREATE INDEX IF NOT EXISTS idx_disclosure_geometries_source ON disclosure_geometries(source_id);

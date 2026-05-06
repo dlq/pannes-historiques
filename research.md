@@ -830,6 +830,56 @@ Expected target architecture if the prototype confirms D1 performance:
 
 The migration should be driven by measured latency and deploy reliability, not by the fact that D1 is available.
 
+## 2026-05-05: Durable scheduled ingestion implementation
+
+This is the first production step toward the hybrid D1/R2 architecture described above. It does not migrate the user-facing search path yet.
+
+Implemented Cloudflare resources:
+
+- D1 database: `pannes-historiques`
+- D1 database id: `2981e056-fb74-47d9-b67f-8215fea0ef19`
+- R2 bucket: `pannes-historiques-raw`
+- Worker bindings:
+  - `DB` for D1
+  - `RAW_BUCKET` for R2
+
+Implemented schema:
+
+- `feed_versions` tracks current `bis` and `aip` versions and check times.
+- `hydro_snapshots` records raw snapshot metadata, content type, status, SHA-256, and R2 object key.
+- `current_outage_records` stores the latest normalized `bismarkers` rows.
+- `current_planned_interruptions` stores the latest normalized `aipmarkers` rows.
+- `resolved_events` accumulates seen outage/planned records across feed versions using a conservative derived key.
+- `ingestion_runs` records scheduled Worker run status and summaries.
+
+Implemented schedules:
+
+- `*/30 * * * *`: Worker checks `bisversion` and `aipversion`, downloads `bismarkers`, `aipmarkers`, `bispoly`, and `aippoly` only when the upstream version changed, writes marker rows to D1, writes raw payloads to R2, and calls the container `/cron/hydro` endpoint so the current Flask/SQLite app state is refreshed.
+- `0 10 */14 * *`: Worker calls the container `/cron/disclosures` endpoint. The container also checks local job state and skips disclosure collection when it has run successfully within the last 14 days.
+
+Important architectural boundary:
+
+- Local development still defaults to user-query-time Hydro API refresh.
+- Production still sets `AUTO_REFRESH_ON_SEARCH=0`, so user searches should not synchronously call the Hydro API.
+- The current Flask search path still reads the container SQLite database, not D1 directly.
+- D1 is now the durable production feed ledger and normalized marker store; R2 is the durable raw payload archive.
+- Polygon KMZ payloads are archived in R2, but Worker-side polygon parsing into durable geometry/index tables is still a follow-up.
+- Durable DAI/R2 persistence is not complete yet; the first DAI schedule still runs the existing container disclosure collector.
+
+Verification performed:
+
+- `npx wrangler d1 migrations apply pannes-historiques --remote` applied the D1 schema.
+- `npx wrangler r2 bucket create pannes-historiques-raw` created the R2 bucket after R2 was enabled on the account.
+- `npx wrangler deploy --dry-run` confirmed bindings for `DB`, `RAW_BUCKET`, and `PANNES_CONTAINER`.
+- `npx wrangler deploy` deployed Worker version `dc9a3452-1a39-480a-9c0f-9f5051a7eb9b` with both cron schedules.
+- `https://pannes.ca/api/durable/status` responded with the expected empty D1 state before the first scheduled run.
+
+Open verification:
+
+- Wait for the next half-hour cron run and confirm `feed_versions`, `hydro_snapshots`, and `ingestion_runs` are populated.
+- Confirm raw R2 objects are written for version, marker, and polygon payloads once a changed Hydro feed version is seen.
+- Add a safer internal/manual trigger path if scheduled-run debugging becomes necessary; avoid exposing unauthenticated public write endpoints.
+
 ## Sources
 
 - [Hydro-Québec open data overview](https://www.hydroquebec.com/documents-donnees/donnees-ouvertes/)
