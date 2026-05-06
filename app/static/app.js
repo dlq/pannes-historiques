@@ -166,6 +166,7 @@ function attachLocationSearch() {
     button.disabled = true;
     button.innerHTML = `<span class="inline-flex items-center gap-2"><span class="h-3 w-3 animate-spin rounded-full border-2 border-[#c5cad2] border-t-[#095797]"></span><span>${escapeHtml(locating)}</span></span>`;
     showSearchLoading(true);
+    window.pendingMapFocus = null;
 
     navigator.geolocation.getCurrentPosition(
       async (position) => {
@@ -240,6 +241,10 @@ function attachSearchRouting() {
     return value.startsWith("current location") || value.startsWith("position actuelle");
   };
 
+  searchForm.addEventListener("htmx:beforeRequest", () => {
+    window.pendingMapFocus = null;
+  });
+
   input.addEventListener("input", () => {
     if (!isCurrentLocationValue()) {
       searchForm.querySelector('[name="latitude"]')?.setAttribute("value", "");
@@ -269,6 +274,7 @@ function attachMapFocusCards() {
   const focusCard = (card) => {
     try {
       const detail = JSON.parse(card.getAttribute("data-map-focus") || "{}");
+      window.pendingMapFocus = detail;
       document.dispatchEvent(new CustomEvent("map-focus", { detail }));
     } catch (_error) {
       // Ignore malformed focus payloads; cards remain normal result rows.
@@ -690,7 +696,9 @@ class OutageMap extends HTMLElement {
     };
     this.handleMapFocus = (event) => {
       if (!this.offsetParent) return;
-      focusMap(event.detail || {});
+      const detail = event.detail || {};
+      focusMap(detail);
+      if (window.pendingMapFocus === detail) window.pendingMapFocus = null;
     };
     document.addEventListener("map-focus", this.handleMapFocus);
     if (data.center) {
@@ -892,7 +900,18 @@ class OutageMap extends HTMLElement {
         map.setView(data.center, 14);
       }
     };
-    requestAnimationFrame(() => setTimeout(refresh, 0));
+    const replayPendingFocus = () => {
+      const pendingFocus = window.pendingMapFocus;
+      if (!pendingFocus || !this.isConnected) return;
+      focusMap(pendingFocus);
+      if (window.pendingMapFocus === pendingFocus) window.pendingMapFocus = null;
+    };
+    requestAnimationFrame(() =>
+      setTimeout(() => {
+        refresh();
+        replayPendingFocus();
+      }, 0),
+    );
     if (data.contextGeometryUrl) {
       fetch(data.contextGeometryUrl, {
         headers: { Accept: "application/json" },
@@ -911,6 +930,7 @@ class OutageMap extends HTMLElement {
             renderMatch(item);
           }
           refresh();
+          replayPendingFocus();
         })
         .catch(() => {
           // Context geometry is secondary; operational outage layers remain usable without it.
