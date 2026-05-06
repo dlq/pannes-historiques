@@ -14,6 +14,14 @@ The prototype now ingests several of the published access-to-information extract
 
 The app stores those records separately from live Info-pannes API records, attaches disclosed-area outlines from OSM/Nominatim/Overpass where available, and renders DAI areas as broad historical context behind the more granular live/API outage layers.
 
+As of 2026-05-06, production also has a Cloudflare-native durable ingestion layer:
+
+- a Worker cron asks the container to collect changed Hydro-Québec payloads and mirrors normalized current outage and planned-interruption rows into D1 while archiving raw payloads in R2
+- D1-backed lookup endpoints serve current nearby matches and accumulated previous-outage nearby matches to the production Flask/container search path
+- a separate bounded two-week disclosure job mirrors parsed DAI source/event/metric/geometry metadata into D1 and archives reachable raw DAI source files in R2
+- broad regional and DAI/disclosure map context is served through lazy map endpoints and precomputed static geometry assets, while previous outages without polygons render as centroid markers
+- embedded SQLite remains part of the container implementation for local development and some disclosure/regional context, but it is no longer the only production data path
+
 ## Short answer
 
 Yes, Hydro-Québec exposes machine-readable outage data, but it appears to be designed for **current / near-real-time** outages and **upcoming planned interruptions**, not a published long-term historical archive.
@@ -832,7 +840,7 @@ The migration should be driven by measured latency and deploy reliability, not b
 
 ## 2026-05-05: Durable scheduled ingestion implementation
 
-This is the first production step toward the hybrid D1/R2 architecture described above. It does not migrate the user-facing search path yet.
+This was the first production step toward the hybrid D1/R2 architecture described above. Later 2026-05-05 and 2026-05-06 work connected production search to narrow D1-backed current and previous-outage nearby endpoints, while other disclosure/regional context still remains partly container/SQLite-backed.
 
 Implemented Cloudflare resources:
 

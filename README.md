@@ -20,7 +20,10 @@ Address-first Hydro-Quebec outage history prototype built from the `plan.md` dir
 - PDF table extraction for regional DAI summary metrics
 - DAI region outline loading from OSM/Nominatim/Overpass with conservative fallback areas
 - always-on DAI area context with page-level details for selected disclosed regions
+- lazy Leaflet map loading that keeps the initial result-card response smaller
+- static simplified geometry assets for regional metrics and DAI/disclosure areas
 - Leaflet map layering that keeps broad DAI areas in the background and live/API outage layers on top
+- Cloudflare Worker D1/R2 ingestion for durable current-feed rows, previous-outage rows, and raw payload archives
 
 ## Run
 
@@ -38,18 +41,28 @@ uv run flask --app app run --debug --host 127.0.0.1 --port 8000
 
 ## Deploy
 
-Production is currently served at `pannes.ca` with Cloudflare Workers + Containers.
+Production is currently served at `pannes.ca` with Cloudflare Workers + Containers, D1, and R2.
 
 ```bash
 npx wrangler deploy
 ```
 
-The deployed container image includes a baked-in SQLite snapshot. This avoids a separate production
-database for now, but writes inside the running container are ephemeral and should not be treated as
-durable production storage.
+The deployed container image still includes a baked-in SQLite snapshot for the Flask/container search
+path and disclosure/regional context. Writes inside the running container are ephemeral and should
+not be treated as durable production storage.
 
-Production disables automatic Hydro-Quebec refreshes during address search (`AUTO_REFRESH_ON_SEARCH=0`);
-run collection separately when the bundled snapshot should be updated.
+D1/R2 are now used for durable production ingestion:
+
+- D1 stores normalized feed versions, current outage rows, planned-interruption rows, resolved
+  previous-outage rows, disclosure metadata, event rows, annual metrics, and geometry metadata.
+- R2 stores raw Hydro-Quebec feed payloads and raw DAI/access-to-information source files.
+- The Worker exposes D1-backed lookup endpoints for current nearby matches and accumulated
+  previous-outage nearby matches.
+
+Production disables automatic Hydro-Quebec refreshes during address search (`AUTO_REFRESH_ON_SEARCH=0`).
+The Worker cron handles changed-feed ingestion and calls the container refresh endpoint so user
+searches do not refresh Hydro data at request time. Run collection manually only for local
+development, one-off backfills, or rebuilding a bundled SQLite snapshot.
 
 ## Collect live Hydro-Quebec data
 
@@ -78,6 +91,11 @@ administrative-region summaries automatically. Newly discovered files that do no
 table pattern are still fetched and registered as `discovered_pending_review` so they can be promoted
 to a richer parser/geometry later.
 
+In production, the Worker also runs a bounded two-week disclosure archival job. It asks the
+container to export already-parsed disclosure data source-by-source, mirrors normalized rows into D1,
+and archives reachable raw source files in R2. Slow or unreachable sources are deferred so one source
+does not block the rest of the catch-up.
+
 Currently supported published DAI extracts include:
 
 - `DAI-2022-0386`: Cote Saint-Luc XLSX extract
@@ -105,9 +123,21 @@ colored region or blue DAI area to populate the scrollable details panel with th
 and metrics. Live/API-derived outage and planned interruption geometries are drawn after DAI areas so
 their smaller, more granular shapes remain visible on top.
 
+Search result cards are rendered first and map overlays are lazy-loaded through `/search-map`.
+Regional and DAI/disclosure context geometries are served through `/map-context-geometries` and the
+precomputed static assets in `app/static/regional_metric_geometries.json` and
+`app/static/disclosure_geometries.json`. Previous outages without polygon geometry are rendered as
+centroid markers instead of older outage polygons.
+
 For the regional summary layer, `Montréal` is treated as the administrative region used by the DAI
 tables, not only the municipal City of Montréal, so its background area includes island
 municipalities outside the city boundary.
+
+To rebuild the static map context assets from `data/app.db`, run:
+
+```bash
+uv run python scripts/build_region_geometry_asset.py
+```
 
 ## DAI test addresses
 
@@ -133,6 +163,7 @@ uv run ruff format .
 uv run djlint app/templates --lint
 uv run djlint app/templates --reformat
 npm install
+npm run format
 npm run check
 npx wrangler deploy --dry-run
 uv run pre-commit install

@@ -3,7 +3,7 @@
 Date: 2026-04-25
 Last updated: 2026-05-06
 
-## Implementation status as of 2026-05-01
+## Implementation status as of 2026-05-06
 
 Several early phases are now implemented in the prototype:
 
@@ -11,6 +11,7 @@ Several early phases are now implemented in the prototype:
 - normalized parsing of live outage, planned interruption, and KML/KMZ geometry feeds
 - address-first search with geocoding, radius matching, and confidence labels
 - bilingual server-rendered UI with HTMX and Leaflet
+- result cards are rendered separately from lazy-loaded map overlays
 - disclosure source tables and a manifest of known DAI outage extracts
 - XLSX ingestion for `DAI-2022-0386`
 - PDF table extraction for supported row-level DAI files:
@@ -18,8 +19,12 @@ Several early phases are now implemented in the prototype:
   - `DAI-2026-0042` Sheenboro, Chichester, L'Isle-aux-Allumettes-Partie-Est, and Waltham
   - `DAI-2025-0333` Saint-Felix-de-Kingsey
 - DAI area geometry loading from OSM/Nominatim/Overpass, with conservative fallback areas where needed
+- static simplified geometry assets for regional metrics and DAI/disclosure map context
 - map layering where broad DAI context areas render behind smaller live/API outage and planned-interruption layers
+- centroid markers for previous-outage matches that do not have polygon geometry
 - the main address interface has been simplified around fixed defaults: 5 km radius, 5-year window, and planned interruptions included
+- Cloudflare Workers + Containers deployment at `pannes.ca`
+- D1/R2-backed durable production ingestion for current feed rows, previous-outage rows, disclosure metadata, and raw payload archives
 
 Deferred to a later About page:
 
@@ -30,9 +35,9 @@ Deferred to a later About page:
 
 Map follow-up:
 
-- previous outage matches that only have centroid data, not polygons, should still be retained and shown somehow
-- do not label centroid-only matches as "areas"; design a distinct map treatment for them, such as muted point markers or a separate "previous outage points" layer
-- keep polygon-backed previous outages visually distinct from centroid-only previous outages
+- continue refining the lazy map payload and browser rendering cost
+- keep polygon-backed live/API layers visually distinct from centroid-only previous-outage markers
+- decide whether map context should move further from container SQLite/static assets to D1/R2-backed endpoints
 
 Source-code follow-up:
 
@@ -50,7 +55,7 @@ Deployment checkpoint:
 - medium-term deployment can move to Cloudflare Workers Builds connected to GitHub, using the same `npx wrangler deploy` command on push
 - keep using `uv` for Python dependency management and checks; use `npm` for Wrangler, Biome, and Cloudflare deployment tooling
 - follow up on TLS/certificate status for `pannes.ca` and `www.pannes.ca`; confirm Cloudflare has issued/activated the certificate and browsers no longer show certificate/security warnings
-- the current production container still bundles a baked-in SQLite snapshot for the user-facing Flask search path
+- the current production container still bundles a baked-in SQLite snapshot for the Flask/container app and remaining disclosure/regional context
 - production writes inside the container are ephemeral, so durable feed ingestion now uses D1 for normalized rows and R2 for raw payloads
 - D1/R2 are now part of the production architecture, and production search uses narrow Worker/D1 endpoints for current nearby matches and accumulated previous-outage nearby matches
 - D1 research checkpoint as of 2026-05-04:
@@ -88,9 +93,10 @@ Deployment checkpoint:
   - next likely performance work:
     - render result cards first and lazy-load map overlays after the initial search response
     - stop embedding map JSON directly in HTML; move map data behind small JSON endpoints
+    - keep `/search-map` and `/map-context-geometries` payloads small enough for mobile and slower networks
     - continue moving remaining container SQLite reads out of the hot search path; current-feed and previous-outage nearby matching now use D1, while regional metric and DAI/disclosure context still build from container SQLite/static payloads
-    - store static administrative-region and DAI/disclosure geometries outside the default SQLite search response, likely as precomputed simplified GeoJSON assets
-    - replace the discarded ad hoc regional polygon simplification with an offline GeoPandas/Shapely coverage-simplification pipeline; load the administrative regions as one coverage, validate shared edges, simplify through Shapely/GEOS coverage operations, and export a static GeoJSON asset
+    - store static administrative-region and DAI/disclosure geometries outside the default SQLite search response as precomputed simplified GeoJSON assets
+    - keep using the offline GeoPandas/Shapely simplification asset build for broad regional/disclosure map context
     - simplify broad administrative regions aggressively and topologically; simplify DAI/disclosure geometries only conservatively, because the current DAI/disclosure shapes are not one valid shared-boundary coverage and do not get the same coverage guarantee
     - show only a compact DAI/disclosure summary in the default map context card, with a link to a separate detail page for large DAI row lists
     - precompute and/or index geometry matches so address searches do not scan large geometry sets in Python

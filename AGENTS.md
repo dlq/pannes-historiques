@@ -25,8 +25,9 @@
 
 - Preserve raw source data and provenance. Prefer deriving new tables, views, or assets from archived raw inputs instead of overwriting or hand-editing source data.
 - Local app command: `uv run python server.py serve`.
-- Production currently runs on Cloudflare Workers + Containers with a baked-in SQLite snapshot. Runtime writes inside the container are ephemeral and are not durable production storage.
-- Treat the embedded SQLite production model as a current implementation detail, not a settled architecture. Cloudflare performance may require moving production data to D1 or another durable store.
+- Production currently runs on Cloudflare Workers + Containers, D1, and R2. The container still includes a baked-in SQLite snapshot for the Flask/container path and some disclosure/regional context.
+- Runtime writes inside the container are ephemeral and are not durable production storage.
+- Treat embedded SQLite as a current implementation detail, not settled architecture. Prefer measured D1/R2 or other durable-store changes when they reduce production latency, durability risk, or hot-path container work.
 - Collection, geocoding, and disclosure discovery may require network access. If a network command fails in the sandbox, report that clearly and request escalation when needed.
 
 ## Deployment
