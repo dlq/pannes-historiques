@@ -2,8 +2,10 @@ import { Container } from "@cloudflare/containers";
 
 const HYDRO_ROOT = "https://pannes.hydroquebec.com/pannes/donnees/v3_0";
 const DISCLOSURE_CRONS = new Set(["0 10 */14 * *", "13 10 */14 * *"]);
-const DISCLOSURE_BATCH_SIZE = 2;
+const DISCLOSURE_BATCH_SIZE = 1;
 const DISCLOSURE_RUN_BUDGET_MS = 90_000;
+const DISCLOSURE_SOURCE_TIMEOUT_MS = 45_000;
+const DISCLOSURE_SOURCE_DEFER_MS = 24 * 60 * 60 * 1000;
 
 export class PannesContainer extends Container {
   defaultPort = 8080;
@@ -229,24 +231,33 @@ async function callContainerJson(env, path) {
   return JSON.parse(text);
 }
 
-async function callContainerJsonPost(env, path, payload) {
+async function callContainerJsonPost(env, path, payload, { timeoutMs } = {}) {
   const container = env.PANNES_CONTAINER.getByName("web");
-  const response = await container.fetch(
-    new Request(`https://pannes.ca${path}`, {
-      method: "POST",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-        "X-Cloudflare-Scheduled": "1",
-      },
-      body: JSON.stringify(payload),
-    }),
-  );
-  const text = await response.text();
-  if (!response.ok) {
-    throw new Error(`${path} returned HTTP ${response.status}: ${text.slice(0, 300)}`);
+  const controller = timeoutMs ? new AbortController() : null;
+  const timeoutId = timeoutMs
+    ? setTimeout(() => controller.abort(`timed out after ${timeoutMs}ms`), timeoutMs)
+    : null;
+  try {
+    const response = await container.fetch(
+      new Request(`https://pannes.ca${path}`, {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+          "X-Cloudflare-Scheduled": "1",
+        },
+        body: JSON.stringify(payload),
+        signal: controller?.signal,
+      }),
+    );
+    const text = await response.text();
+    if (!response.ok) {
+      throw new Error(`${path} returned HTTP ${response.status}: ${text.slice(0, 300)}`);
+    }
+    return JSON.parse(text);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
   }
-  return JSON.parse(text);
 }
 
 async function runDisclosureSchedule(env) {
@@ -277,9 +288,24 @@ async function runDisclosureBatchJob(
         break;
       }
       for (const sourceKey of candidateSourceKeys) attempted.add(sourceKey);
-      const container = await callContainerJsonPost(env, "/cron/disclosures/batch", {
-        source_keys: candidateSourceKeys,
-      });
+      await markDisclosureSourceAttempt(env.DB, candidateSourceKeys);
+      let container = null;
+      try {
+        container = await callContainerJsonPost(
+          env,
+          "/cron/disclosures/batch",
+          {
+            source_keys: candidateSourceKeys,
+          },
+          { timeoutMs: DISCLOSURE_SOURCE_TIMEOUT_MS },
+        );
+      } catch (error) {
+        const errorText = String(error?.stack || error);
+        await markDisclosureSourceError(env.DB, candidateSourceKeys, errorText);
+        summary.batches.push({ source_keys: candidateSourceKeys, error: errorText });
+        summary.total_errors += candidateSourceKeys.length;
+        continue;
+      }
       const exportPayload = await callContainerDisclosureExport(env, candidateSourceKeys);
       const d1 = await syncDisclosures(env, exportPayload);
       summary.batches.push({ source_keys: candidateSourceKeys, container, d1 });
@@ -303,21 +329,64 @@ async function runDisclosureBatchJob(
 
 async function dueDisclosureSourceKeys(db, limit) {
   const cutoff = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
+  const now = new Date().toISOString();
   const result = await db
     .prepare(
       `
       SELECT source_key
       FROM disclosure_sources
-      WHERE r2_key IS NULL
+      WHERE (r2_key IS NULL
          OR fetched_at IS NULL
-         OR fetched_at < ?
-      ORDER BY COALESCE(fetched_at, ''), dai_number
+         OR fetched_at < ?)
+        AND (archival_deferred_until IS NULL OR archival_deferred_until <= ?)
+      ORDER BY
+        CASE WHEN r2_key IS NULL THEN 0 ELSE 1 END,
+        archival_attempt_count,
+        COALESCE(fetched_at, ''),
+        dai_number
       LIMIT ?
       `,
     )
-    .bind(cutoff, limit)
+    .bind(cutoff, now, limit)
     .all();
   return (result.results || []).map((row) => row.source_key).filter(Boolean);
+}
+
+async function markDisclosureSourceAttempt(db, sourceKeys) {
+  const attemptedAt = new Date().toISOString();
+  const statements = sourceKeys.map((sourceKey) =>
+    db
+      .prepare(
+        `
+        UPDATE disclosure_sources
+        SET archival_attempt_count = COALESCE(archival_attempt_count, 0) + 1,
+            archival_last_attempt_at = ?,
+            archival_deferred_until = NULL
+        WHERE source_key = ?
+        `,
+      )
+      .bind(attemptedAt, sourceKey),
+  );
+  await batchInChunks(db, statements);
+}
+
+async function markDisclosureSourceError(db, sourceKeys, errorText) {
+  const attemptedAt = new Date().toISOString();
+  const deferredUntil = new Date(Date.now() + DISCLOSURE_SOURCE_DEFER_MS).toISOString();
+  const statements = sourceKeys.map((sourceKey) =>
+    db
+      .prepare(
+        `
+        UPDATE disclosure_sources
+        SET archival_last_attempt_at = ?,
+            archival_last_error = ?,
+            archival_deferred_until = ?
+        WHERE source_key = ?
+        `,
+      )
+      .bind(attemptedAt, errorText.slice(0, 1000), deferredUntil, sourceKey),
+  );
+  await batchInChunks(db, statements);
 }
 
 async function callContainerDisclosureExport(env, sourceKeys) {
@@ -530,7 +599,9 @@ async function syncDisclosureSourceFiles(env, sources, syncedAt) {
         `
         UPDATE disclosure_sources
         SET r2_key = ?, content_type = ?, sha256 = ?, fetched_at = COALESCE(fetched_at, ?),
-            updated_at = ?
+            updated_at = ?,
+            archival_last_error = NULL,
+            archival_deferred_until = NULL
         WHERE source_key = ?
         `,
       )
