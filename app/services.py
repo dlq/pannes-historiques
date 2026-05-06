@@ -881,6 +881,16 @@ class AppService:
         days: int,
         exclude_event_keys: set[tuple[Any, ...]],
     ) -> list[dict[str, Any]]:
+        if self.settings.durable_history_url:
+            durable_matches = self._find_durable_archived_outage_matches(
+                latitude=latitude,
+                longitude=longitude,
+                radius_m=radius_m,
+                days=days,
+                exclude_event_keys=exclude_event_keys,
+            )
+            if durable_matches is not None:
+                return durable_matches
         cutoff = (datetime.now(UTC) - timedelta(days=days)).strftime("%Y-%m-%d %H:%M:%S")
         with open_db(self.settings.db_path) as connection:
             latest_snapshot = connection.execute(
@@ -927,6 +937,80 @@ class AppService:
         ]
         matches.sort(key=lambda item: item["sort_time"] or "", reverse=True)
         return matches
+
+    def _find_durable_archived_outage_matches(
+        self,
+        *,
+        latitude: float,
+        longitude: float,
+        radius_m: int,
+        days: int,
+        exclude_event_keys: set[tuple[Any, ...]],
+    ) -> list[dict[str, Any]] | None:
+        timer = current_timer()
+        query = urllib.parse.urlencode(
+            {
+                "lat": f"{latitude:.7f}",
+                "lon": f"{longitude:.7f}",
+                "radius_m": str(radius_m),
+                "days": str(days),
+                "limit": "1000",
+            }
+        )
+        url = f"{self.settings.durable_history_url}?{query}"
+        request = urllib.request.Request(
+            url,
+            headers={"User-Agent": "pannes-historiques/0.1 (+https://pannes.ca)"},
+        )
+        try:
+            with timer.step("search.durable_history_fetch"):
+                with urllib.request.urlopen(request, timeout=8) as response:
+                    payload = json.loads(response.read().decode("utf-8"))
+        except Exception as exc:
+            timer.set("search.durable_history_error", str(exc))
+            return None
+
+        matches = [
+            self._durable_history_item_to_match(item, radius_m) for item in payload.get("items", [])
+        ]
+        matches = [item for item in matches if item is not None]
+        matches = [
+            item
+            for item in self._dedupe_matches(matches)
+            if self._outage_display_key(item) not in exclude_event_keys
+        ]
+        matches.sort(key=lambda item: item["sort_time"] or "", reverse=True)
+        timer.set("search.durable_history_count", len(matches))
+        return matches
+
+    @staticmethod
+    def _durable_history_item_to_match(
+        item: dict[str, Any], radius_m: int
+    ) -> dict[str, Any] | None:
+        distance_m = item.get("distance_m")
+        if distance_m is None:
+            return None
+        confidence = max(0.45, 0.82 - float(distance_m) / max(radius_m * 1.5, 1))
+        return {
+            "address_id": None,
+            "outage_kind": "outage",
+            "record_id": item.get("event_key"),
+            "geometry_id": None,
+            "geometry_geojson": None,
+            "match_type": "nearby_match",
+            "distance_m": round(float(distance_m), 1),
+            "confidence": round(confidence, 2),
+            "municipality_code": item.get("municipality_code"),
+            "customers_affected": item.get("customers_affected"),
+            "status": item.get("status"),
+            "interruption_type": item.get("interruption_type"),
+            "start_time": item.get("start_time"),
+            "end_time": item.get("end_time"),
+            "centroid_lat": item.get("centroid_lat"),
+            "centroid_lon": item.get("centroid_lon"),
+            "sort_time": item.get("start_time") or item.get("last_seen_at"),
+            "event_count": item.get("record_count"),
+        }
 
     def _current_operational_map_layers(self, include_planned: bool) -> list[dict[str, Any]]:
         return self._cached_context(

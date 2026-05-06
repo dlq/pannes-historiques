@@ -1,7 +1,7 @@
 # Plan: Address-First Hydro-Québec Outage History App
 
 Date: 2026-04-25
-Last updated: 2026-05-05
+Last updated: 2026-05-06
 
 ## Implementation status as of 2026-05-01
 
@@ -52,7 +52,7 @@ Deployment checkpoint:
 - follow up on TLS/certificate status for `pannes.ca` and `www.pannes.ca`; confirm Cloudflare has issued/activated the certificate and browsers no longer show certificate/security warnings
 - the current production container still bundles a baked-in SQLite snapshot for the user-facing Flask search path
 - production writes inside the container are ephemeral, so durable feed ingestion now uses D1 for normalized rows and R2 for raw payloads
-- D1/R2 are now part of the production architecture, but the main search path has not migrated to them yet
+- D1/R2 are now part of the production architecture, and production search uses narrow Worker/D1 endpoints for current nearby matches and accumulated previous-outage nearby matches
 - D1 research checkpoint as of 2026-05-04:
   - D1 looks cost-effective for normalized relational app data on the current Workers Paid plan
   - the current database is dominated by large geometry rows, so a full SQLite-to-D1 copy is probably not the right first migration
@@ -68,17 +68,19 @@ Deployment checkpoint:
   - container refresh summary serialization is fixed; verified offset cron runs at `2026-05-06T02:37Z` and `2026-05-06T03:07Z` returned `errors: []`
   - R2 raw snapshot storage is verified by downloading a remote `bismarkers` object recorded in D1
   - first D1-backed user-facing lookup endpoint is live at `/api/durable/nearby`; it returns current outage/planned-interruption rows near a lat/lon without entering the Flask/container SQLite search path
+  - second D1-backed user-facing lookup endpoint is live at `/api/durable/history-nearby`; it returns accumulated previous outage events from `resolved_events` near a lat/lon
   - production Flask/container searches now opt into `/api/durable/nearby` through `DURABLE_NEARBY_URL`, while local development leaves that setting empty and continues using local SQLite plus API refresh
+  - production Flask/container searches derive and use `/api/durable/history-nearby` through `DURABLE_HISTORY_URL`; local development leaves that setting empty and continues using local SQLite plus API refresh
   - DAI/disclosure refresh remains a container job with due-date bookkeeping; durable D1/R2 persistence for discovered DAI source files still needs a focused follow-up
   - local development keeps `AUTO_REFRESH_ON_SEARCH` enabled by default, so local queries can still hit the Hydro API while production user searches read container SQLite only
-  - next migration step is to make selected production search reads use Worker/D1 endpoints after the scheduled D1 corpus has proven reliable
+  - next migration step is to move the remaining production hot-path data reads out of the baked SQLite snapshot: disclosure/DAI summaries, regional metrics, and bulky map geometry payloads
 - review deployment and query performance after the initial Cloudflare Containers launch:
   - initial profiling on 2026-05-04 showed simple routes are fast, but address search was dominated by Python geospatial matching and oversized inline map payloads
   - a first mitigation reduced the search response from roughly 14.4 MB to roughly 562 KB and brought a measured production HTML search down to about 6 seconds, but more optimization is still needed
   - next likely performance work:
     - render result cards first and lazy-load map overlays after the initial search response
     - stop embedding map JSON directly in HTML; move map data behind small JSON endpoints
-    - move archived/previous outage matching out of container SQLite; after D1-backed current matching, archived SQLite matching is now the dominant measured search cost
+    - continue moving remaining container SQLite reads out of the hot search path; current-feed and previous-outage nearby matching now use D1, while regional metric and DAI/disclosure context still build from container SQLite/static payloads
     - store static administrative-region and DAI/disclosure geometries outside the default SQLite search response, likely as precomputed simplified GeoJSON assets
     - replace the discarded ad hoc regional polygon simplification with an offline GeoPandas/Shapely coverage-simplification pipeline; load the administrative regions as one coverage, validate shared edges, simplify through Shapely/GEOS coverage operations, and export a static GeoJSON asset
     - simplify broad administrative regions aggressively and topologically; simplify DAI/disclosure geometries only conservatively, because the current DAI/disclosure shapes are not one valid shared-boundary coverage and do not get the same coverage guarantee
@@ -335,7 +337,9 @@ Current production implementation:
 - raw version, marker, and polygon payloads are written to R2 for durable provenance
 - polygon KMZ payloads are archived in R2 now; parsing them into durable geometry/index tables remains a follow-up
 - `/api/durable/nearby?lat=...&lon=...&radius_m=...` reads current D1 marker rows by bounding box and returns nearby records sorted by distance
+- `/api/durable/history-nearby?lat=...&lon=...&radius_m=...&days=...` reads accumulated D1 `resolved_events` rows by bounding box and returns previous outage events sorted by time/distance
 - production search uses `DURABLE_NEARBY_URL` to fetch current outage/planned-interruption matches from D1; local development does not set this variable and remains on the local SQLite path
+- production search uses `DURABLE_HISTORY_URL` for previous-outage matching; local development does not set this variable and remains on the local SQLite path
 
 This gives us:
 

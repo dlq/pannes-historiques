@@ -8,6 +8,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 RAW_DIR = DATA_DIR / "raw"
 DB_PATH = DATA_DIR / "app.db"
+DURABLE_NEARBY_URL = os.environ.get("DURABLE_NEARBY_URL", "")
+DURABLE_HISTORY_URL = os.environ.get("DURABLE_HISTORY_URL", "") or (
+    DURABLE_NEARBY_URL.replace("/nearby", "/history-nearby") if DURABLE_NEARBY_URL else ""
+)
 
 
 @dataclass(frozen=True)
@@ -32,7 +36,8 @@ class Settings:
         "pannes-historiques/0.1 (+https://example.invalid)",
     )
     auto_refresh_on_search: bool = os.environ.get("AUTO_REFRESH_ON_SEARCH", "1") == "1"
-    durable_nearby_url: str = os.environ.get("DURABLE_NEARBY_URL", "")
+    durable_nearby_url: str = DURABLE_NEARBY_URL
+    durable_history_url: str = DURABLE_HISTORY_URL
     refresh_max_age_minutes: int = int(os.environ.get("REFRESH_MAX_AGE_MINUTES", "30"))
     default_radius_m: int = int(os.environ.get("DEFAULT_RADIUS_M", "5000"))
     default_days: int = int(os.environ.get("DEFAULT_DAYS", "1825"))

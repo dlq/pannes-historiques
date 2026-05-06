@@ -11,6 +11,7 @@ export class PannesContainer extends Container {
     APP_HOST: "0.0.0.0",
     APP_PORT: "8080",
     AUTO_REFRESH_ON_SEARCH: "0",
+    DURABLE_HISTORY_URL: "https://pannes.ca/api/durable/history-nearby",
     DURABLE_NEARBY_URL: "https://pannes.ca/api/durable/nearby",
     NOMINATIM_USER_AGENT: "pannes-historiques/0.1 (+https://pannes.ca)",
   };
@@ -43,6 +44,9 @@ export default {
     }
     if (url.pathname === "/api/durable/nearby") {
       return durableNearbyResponse(request, env);
+    }
+    if (url.pathname === "/api/durable/history-nearby") {
+      return durableHistoryNearbyResponse(request, env);
     }
     return fetchContainer(request, env);
   },
@@ -433,6 +437,83 @@ async function durableNearbyResponse(request, env) {
     count: items.length,
     items,
   });
+}
+
+async function durableHistoryNearbyResponse(request, env) {
+  const url = new URL(request.url);
+  const latitude = numberParam(url, "lat");
+  const longitude = numberParam(url, "lon");
+  if (
+    latitude === null ||
+    longitude === null ||
+    latitude < -90 ||
+    latitude > 90 ||
+    longitude < -180 ||
+    longitude > 180
+  ) {
+    return jsonResponse({ error: "lat and lon query parameters are required" }, { status: 400 });
+  }
+  const radiusM = clamp(numberParam(url, "radius_m") ?? 5000, 100, 50000);
+  const days = Math.trunc(clamp(numberParam(url, "days") ?? 1825, 1, 3650));
+  const limit = Math.trunc(clamp(numberParam(url, "limit") ?? 250, 1, 1000));
+  const bbox = boundingBox(latitude, longitude, radiusM);
+  const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+  const rows = await nearbyHistoryRows(env.DB, bbox, cutoff);
+  const items = rows
+    .map((row) => historyItem(row, latitude, longitude))
+    .filter((item) => item.distance_m <= radiusM)
+    .sort((left, right) => {
+      const timeCompare = String(right.start_time || "").localeCompare(
+        String(left.start_time || ""),
+      );
+      return timeCompare || left.distance_m - right.distance_m;
+    })
+    .slice(0, limit);
+  return jsonResponse({
+    query: { latitude, longitude, radius_m: radiusM, days, limit },
+    count: items.length,
+    items,
+  });
+}
+
+async function nearbyHistoryRows(db, bbox, cutoff) {
+  const result = await db
+    .prepare(
+      `
+      SELECT *
+      FROM resolved_events
+      WHERE outage_kind = 'outage'
+        AND centroid_lat BETWEEN ? AND ?
+        AND centroid_lon BETWEEN ? AND ?
+        AND COALESCE(start_time, last_seen_at, '') >= ?
+      `,
+    )
+    .bind(bbox.minLat, bbox.maxLat, bbox.minLon, bbox.maxLon, cutoff.slice(0, 19).replace("T", " "))
+    .all();
+  return result.results || [];
+}
+
+function historyItem(row, latitude, longitude) {
+  return {
+    kind: "outage_history",
+    event_key: row.event_key,
+    distance_m: Math.round(distanceMeters(latitude, longitude, row.centroid_lat, row.centroid_lon)),
+    centroid_lat: row.centroid_lat,
+    centroid_lon: row.centroid_lon,
+    customers_affected: row.customers_max,
+    customers_min: row.customers_min,
+    customers_max: row.customers_max,
+    record_count: row.record_count,
+    start_time: row.start_time,
+    end_time: row.end_time,
+    interruption_type: row.interruption_type,
+    status: row.status,
+    municipality_code: row.municipality_code,
+    source_versions: row.source_versions,
+    first_seen_at: row.first_seen_at,
+    last_seen_at: row.last_seen_at,
+    updated_at: row.updated_at,
+  };
 }
 
 async function nearbyOutageRows(db, version, bbox) {

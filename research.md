@@ -1,7 +1,7 @@
 # Research: Hydro-Québec Historic Outage Data
 
 Date: 2026-04-25
-Last updated: 2026-05-04
+Last updated: 2026-05-06
 
 ## Implementation note
 
@@ -866,6 +866,8 @@ Important architectural boundary:
 - Local development does not set `DURABLE_NEARBY_URL`, so it continues to use the local SQLite/API-refresh path.
 - D1 is now the durable production feed ledger and normalized marker store; R2 is the durable raw payload archive.
 - `/api/durable/nearby` is the first Worker/D1 read endpoint intended for the user-facing lookup path. It takes `lat`, `lon`, optional `radius_m`, and optional `limit`, then returns nearby current outage and planned-interruption marker rows sorted by distance.
+- `/api/durable/history-nearby` is the second Worker/D1 read endpoint intended for the user-facing lookup path. It takes `lat`, `lon`, optional `radius_m`, `days`, and `limit`, then returns nearby accumulated outage events from `resolved_events`.
+- Production Flask search uses `DURABLE_HISTORY_URL` for archived/previous outage matching. Local development does not set this URL, so local search still uses the local SQLite/API-refresh path.
 - Polygon KMZ payloads are archived in R2, but Worker-side polygon parsing into durable geometry/index tables is still a follow-up.
 - Durable DAI/R2 persistence is not complete yet; the first DAI schedule still runs the existing container disclosure collector.
 
@@ -880,12 +882,20 @@ Verification performed:
 - Verified R2 by downloading a remote `bismarkers` object referenced by `hydro_snapshots.r2_key`.
 - Verified `/api/durable/nearby?lat=45.5227&lon=-73.6021&radius_m=5000&limit=50` returned 17 records in about 0.51 seconds from Cloudflare.
 - After wiring Flask production search to `DURABLE_NEARBY_URL`, `/debug/timing/search` showed `search.durable_nearby_fetch` in the timing trace and current map layers dropped from about 205 global layers to 18 nearby D1 records for the test address.
-- Remaining measured bottleneck is archived/previous outage matching in container SQLite, not current feed matching.
+- After adding `idx_resolved_events_nearby` and `/api/durable/history-nearby`, production `/debug/timing/search?q=5220%20Rue%20Jeanne-Mance&lang=fr` showed both D1 read paths active:
+  - `search.durable_nearby_fetch`: about 371 ms
+  - `search.durable_history_fetch`: about 60 ms
+  - `search.find_archived_outage_matches`: about 61 ms
+  - total app timing: about 681 ms
+  - Cloudflare container fetch header for that request: about 2280 ms
+- The previous container SQLite archived matching cost was roughly 1.2 seconds or more for the same test address, so moving previous-outage matching to D1 materially improved app-side latency.
+- A transient D1 auth/API issue appeared while applying the `0003_history_nearby_index.sql` migration, then the migration applied successfully on retry.
 
 Open verification:
 
 - Keep monitoring offset cron runs over a longer period, including unchanged-version runs where only `checked_at` should update.
-- Move archived/previous outage matching to durable indexed storage, likely D1 metadata/index rows plus R2 for bulky geometry where needed.
+- Move remaining production hot-path reads out of the baked SQLite snapshot where it is clearly beneficial: DAI/disclosure summaries, regional metric context, and bulky geometry/map payloads.
+- Parse and index polygon KMZ payloads from R2 only after deciding the right simplified geometry representation; avoid putting large raw geometry blobs directly in D1.
 - Add a safer internal/manual trigger path if scheduled-run debugging becomes necessary; avoid exposing unauthenticated public write endpoints.
 
 ## Sources
