@@ -558,13 +558,34 @@ class DisclosureCollector:
 
     def collect_all(self) -> dict[str, Any]:
         sources, discovered_count = self._sources_for_collection()
+        return self.collect_sources(
+            [source.attachment_url for source in sources],
+            sources=sources,
+            discovered_count=discovered_count,
+        )
+
+    def collect_sources(
+        self,
+        source_keys: list[str],
+        *,
+        sources: list[DisclosureSource] | None = None,
+        discovered_count: int | None = None,
+    ) -> dict[str, Any]:
+        if sources is None:
+            sources, resolved_discovered_count = self._sources_for_collection()
+            if discovered_count is None:
+                discovered_count = resolved_discovered_count
+        requested = set(source_keys)
         results: dict[str, Any] = {
             "sources": [],
             "events": 0,
             "errors": [],
-            "discovered_sources": discovered_count,
+            "discovered_sources": discovered_count or 0,
+            "requested_sources": len(requested),
         }
         for source in sources:
+            if source.attachment_url not in requested:
+                continue
             try:
                 source_id = self._register_source(source)
                 source_result = self._collect_source(source_id, source)

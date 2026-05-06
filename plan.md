@@ -77,7 +77,8 @@ Deployment checkpoint:
   - production container image now installs `curl` because the disclosure downloader falls back to the `curl` binary when Python `urllib` cannot fetch Hydro disclosure attachments
   - local development keeps `AUTO_REFRESH_ON_SEARCH` enabled by default, so local queries can still hit the Hydro API while production user searches read container SQLite only
   - next migration step is to verify Hydro cron after the same-run container snapshot handoff, verify the next two-week DAI cron archives real raw files in R2, then evaluate moving production disclosure/regional context reads from container SQLite to D1
-  - before relying on full DAI R2 archival in production, chunk disclosure ingestion by source or small batches; a manual production `/collect/disclosures` smoke request ran longer than two minutes, which is too long for a comfortable single scheduled Worker/container handoff
+  - DAI chunking implementation is in progress: the container can collect selected disclosure source keys and export only those rows; the Worker selects due D1 sources in small batches, calls the container batch endpoint, and mirrors each completed batch into D1/R2 within a bounded scheduled-run budget
+  - before relying on full DAI R2 archival in production, verify a real scheduled or manually-triggered batch run; a manual production `/collect/disclosures` smoke request ran longer than two minutes, which is too long for a comfortable single scheduled Worker/container handoff
 - review deployment and query performance after the initial Cloudflare Containers launch:
   - initial profiling on 2026-05-04 showed simple routes are fast, but address search was dominated by Python geospatial matching and oversized inline map payloads
   - a first mitigation reduced the search response from roughly 14.4 MB to roughly 562 KB and brought a measured production HTML search down to about 6 seconds, but more optimization is still needed

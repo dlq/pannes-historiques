@@ -110,6 +110,11 @@ class AppService:
         self._clear_context_cache()
         return result
 
+    def collect_disclosure_sources(self, source_keys: list[str]) -> dict[str, Any]:
+        result = self.disclosure_collector.collect_sources(source_keys)
+        self._clear_context_cache()
+        return result
+
     def collect_disclosures_if_due(self, *, min_age_days: int = 14) -> dict[str, Any]:
         now = datetime.now(UTC).replace(microsecond=0)
         latest = self._latest_job_run("disclosures")
@@ -126,43 +131,67 @@ class AppService:
                 }
         return self._run_job("disclosures", self.collect_disclosures)
 
-    def disclosure_export(self) -> dict[str, Any]:
+    def disclosure_export(self, source_keys: list[str] | None = None) -> dict[str, Any]:
+        source_filter = ""
+        params: list[Any] = []
+        if source_keys:
+            placeholders = ",".join("?" for _ in source_keys)
+            source_filter = f" WHERE attachment_url IN ({placeholders})"
+            params = list(source_keys)
         with open_db(self.settings.db_path) as connection:
-            sources = [dict(row) for row in connection.execute("SELECT * FROM disclosure_sources")]
+            sources = [
+                dict(row)
+                for row in connection.execute(
+                    f"SELECT * FROM disclosure_sources{source_filter}",
+                    params,
+                )
+            ]
+            event_filter = ""
+            joined_params: list[Any] = []
+            if source_keys:
+                placeholders = ",".join("?" for _ in source_keys)
+                event_filter = f" WHERE s.attachment_url IN ({placeholders})"
+                joined_params = list(source_keys)
             events = [
                 dict(row)
                 for row in connection.execute(
-                    """
+                    f"""
                     SELECT e.*, s.attachment_url AS source_key
                     FROM disclosure_outage_events e
                     JOIN disclosure_sources s ON s.id = e.source_id
+                    {event_filter}
                     ORDER BY e.source_id, e.source_row_id
-                    """
+                    """,
+                    joined_params,
                 )
             ]
             metrics = [
                 dict(row)
                 for row in connection.execute(
-                    """
+                    f"""
                     SELECT m.*, s.attachment_url AS source_key
                     FROM disclosure_annual_metrics m
                     JOIN disclosure_sources s ON s.id = m.source_id
+                    {event_filter}
                     ORDER BY m.source_id, COALESCE(m.year, 0), m.geography_label
-                    """
+                    """,
+                    joined_params,
                 )
             ]
             geometries = [
                 dict(row)
                 for row in connection.execute(
-                    """
+                    f"""
                     SELECT g.id, g.source_id, s.attachment_url AS source_key,
                            g.geography_label, g.geography_type, g.geometry_source,
                            g.centroid_lon, g.centroid_lat, g.bbox_min_lon, g.bbox_min_lat,
                            g.bbox_max_lon, g.bbox_max_lat, g.updated_at
                     FROM disclosure_geometries g
                     JOIN disclosure_sources s ON s.id = g.source_id
+                    {event_filter}
                     ORDER BY g.source_id, g.geography_label, g.geometry_source
-                    """
+                    """,
+                    joined_params,
                 )
             ]
         return {

@@ -288,11 +288,24 @@ def create_app(settings: Settings | None = None) -> Flask:
     def cron_disclosures():
         return jsonify(serialize_payload(service.collect_disclosures_if_due()))
 
+    @app.post("/cron/disclosures/batch")
+    def cron_disclosures_batch():
+        if request.headers.get("X-Cloudflare-Scheduled") != "1":
+            return jsonify({"error": "not found"}), 404
+        payload = request.get_json(silent=True) or {}
+        source_keys = payload.get("source_keys") or []
+        if not isinstance(source_keys, list) or not all(
+            isinstance(source_key, str) for source_key in source_keys
+        ):
+            return jsonify({"error": "source_keys must be a list of strings"}), 400
+        return jsonify(serialize_payload(service.collect_disclosure_sources(source_keys)))
+
     @app.get("/internal/disclosures/export")
     def internal_disclosures_export():
         if request.headers.get("X-Cloudflare-Internal") != "1":
             return jsonify({"error": "not found"}), 404
-        return jsonify(serialize_payload(service.disclosure_export()))
+        source_keys = request.args.getlist("source_key")
+        return jsonify(serialize_payload(service.disclosure_export(source_keys or None)))
 
     @app.get("/internal/disclosures/source-file")
     def internal_disclosure_source_file():

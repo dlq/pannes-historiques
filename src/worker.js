@@ -2,6 +2,8 @@ import { Container } from "@cloudflare/containers";
 
 const HYDRO_ROOT = "https://pannes.hydroquebec.com/pannes/donnees/v3_0";
 const DISCLOSURE_CRONS = new Set(["0 10 */14 * *", "13 10 */14 * *"]);
+const DISCLOSURE_BATCH_SIZE = 2;
+const DISCLOSURE_RUN_BUDGET_MS = 90_000;
 
 export class PannesContainer extends Container {
   defaultPort = 8080;
@@ -227,20 +229,89 @@ async function callContainerJson(env, path) {
   return JSON.parse(text);
 }
 
+async function callContainerJsonPost(env, path, payload) {
+  const container = env.PANNES_CONTAINER.getByName("web");
+  const response = await container.fetch(
+    new Request(`https://pannes.ca${path}`, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "X-Cloudflare-Scheduled": "1",
+      },
+      body: JSON.stringify(payload),
+    }),
+  );
+  const text = await response.text();
+  if (!response.ok) {
+    throw new Error(`${path} returned HTTP ${response.status}: ${text.slice(0, 300)}`);
+  }
+  return JSON.parse(text);
+}
+
 async function runDisclosureSchedule(env) {
   const started = new Date().toISOString();
   const run = await recordRunStarted(env.DB, "disclosures", started);
-  const summary = { container: null, d1: null };
+  const summary = { batches: [], total_sources: 0, total_events: 0, total_errors: 0 };
   try {
-    summary.container = await callContainerCron(env, "/cron/disclosures");
-    const exportPayload = await callContainerJson(env, "/internal/disclosures/export");
-    summary.d1 = await syncDisclosures(env, exportPayload);
+    const deadline = Date.now() + DISCLOSURE_RUN_BUDGET_MS;
+    const attempted = new Set();
+    while (Date.now() < deadline) {
+      const sourceKeys = (await dueDisclosureSourceKeys(env.DB, 100)).filter(
+        (sourceKey) => !attempted.has(sourceKey),
+      );
+      sourceKeys.splice(DISCLOSURE_BATCH_SIZE);
+      if (!sourceKeys.length) {
+        summary.done = true;
+        break;
+      }
+      for (const sourceKey of sourceKeys) attempted.add(sourceKey);
+      const container = await callContainerJsonPost(env, "/cron/disclosures/batch", {
+        source_keys: sourceKeys,
+      });
+      const exportPayload = await callContainerDisclosureExport(env, sourceKeys);
+      const d1 = await syncDisclosures(env, exportPayload);
+      summary.batches.push({ source_keys: sourceKeys, container, d1 });
+      summary.total_sources += d1.sources;
+      summary.total_events += d1.events;
+      summary.total_errors += d1.source_file_errors.length + (container.errors || []).length;
+      if ((container.errors || []).length) break;
+    }
+    if (!summary.done) {
+      const remaining = await dueDisclosureSourceKeys(env.DB, 1);
+      summary.remaining = remaining.length ? "yes" : "no";
+    }
     await recordRunFinished(env.DB, run.meta.last_row_id, "ok", summary);
   } catch (error) {
     summary.error = String(error?.stack || error);
     await recordRunFinished(env.DB, run.meta.last_row_id, "error", summary);
     throw error;
   }
+}
+
+async function dueDisclosureSourceKeys(db, limit) {
+  const cutoff = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
+  const result = await db
+    .prepare(
+      `
+      SELECT source_key
+      FROM disclosure_sources
+      WHERE r2_key IS NULL
+         OR fetched_at IS NULL
+         OR fetched_at < ?
+      ORDER BY COALESCE(fetched_at, ''), dai_number
+      LIMIT ?
+      `,
+    )
+    .bind(cutoff, limit)
+    .all();
+  return (result.results || []).map((row) => row.source_key).filter(Boolean);
+}
+
+async function callContainerDisclosureExport(env, sourceKeys) {
+  const path = new URL("https://pannes.ca/internal/disclosures/export");
+  for (const sourceKey of sourceKeys) path.searchParams.append("source_key", sourceKey);
+  return callContainerJson(env, `${path.pathname}${path.search}`);
 }
 
 async function ingestChangedHydro(env) {
