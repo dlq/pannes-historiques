@@ -951,6 +951,11 @@ Follow-up during the 2026-05-06T14:07Z cron:
   - R2 raw source archive initially wrote 32 objects, but verification found the DAI-2022-0386 "xlsx" object was actually Hydro's small restricted-access HTML page. Worker direct fetches to `www.hydroquebec.com` have the same foreign/restricted-access problem.
 - Fix: raw DAI R2 archival now copies bytes from the container's local `payload_path` through a private internal route instead of refetching source files directly from Hydro in the Worker.
 - The first D1 disclosure mirror rows were cleared after deploying the fix, so the next 30-minute cron can bootstrap D1/R2 again with correct raw DAI source files.
+- Because the container filesystem is ephemeral, the Worker must copy raw Hydro/DAI payloads during the same scheduled run that caused the container to fetch them. The cron flow now treats container-local files as a same-run handoff only; D1 and R2 are still the durable storage layer.
+- Hydro D1/R2 ingestion now follows the same pattern as DAI: the container fetches/parses Hydro, then the Worker copies raw snapshot files from the container and mirrors normalized marker rows into D1. This avoids direct Worker-origin Hydro fetches, which were returning HTTP 406.
+- The 2026-05-06T14:37Z real cron showed that combining Hydro refresh with a disclosure bootstrap is too fragile: the Hydro container call reported `Network connection lost`, and disclosure source-file archival returned 404s because the container had only exported baked-in DB metadata rather than refetched current payload files in that same run.
+- Follow-up fix: keep the 30-minute Hydro cron limited to Hydro refresh and D1/R2 Hydro mirroring; leave DAI/disclosure downloading and R2 archival to the two-week disclosure cron. The production container image also needs the `curl` binary because the disclosure downloader falls back to `curl` when Python `urllib` fails against Hydro attachment URLs.
+- After adding `curl`, a manual production `/collect/disclosures` smoke request no longer failed immediately with missing `curl`, but it ran longer than two minutes and was stopped before the next Hydro cron window. Treat full disclosure collection as too heavy for a single scheduled handoff; next implementation should chunk DAI ingestion by source or small batches and mirror each completed payload to R2/D1 independently.
 
 ## Sources
 

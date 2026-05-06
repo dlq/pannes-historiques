@@ -198,6 +198,14 @@ class AppService:
             return None
         return path if path.exists() else None
 
+    def raw_snapshot_payload_path(self, payload_path: str) -> Path | None:
+        path = Path(payload_path)
+        try:
+            path.relative_to(self.settings.raw_dir)
+        except ValueError:
+            return None
+        return path if path.exists() else None
+
     def run_changed_collection_job(self) -> dict[str, Any]:
         return self._run_job("hydro_changed", self.collect_changed)
 

@@ -305,6 +305,17 @@ def create_app(settings: Settings | None = None) -> Flask:
         content_type = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
         return send_file(path, mimetype=content_type, as_attachment=False)
 
+    @app.get("/internal/raw-snapshot")
+    def internal_raw_snapshot():
+        if request.headers.get("X-Cloudflare-Internal") != "1":
+            return jsonify({"error": "not found"}), 404
+        payload_path = request.args.get("payload_path", "")
+        path = service.raw_snapshot_payload_path(payload_path)
+        if path is None:
+            return jsonify({"error": "snapshot file not found"}), 404
+        content_type = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
+        return send_file(path, mimetype=content_type, as_attachment=False)
+
     return app
 
 

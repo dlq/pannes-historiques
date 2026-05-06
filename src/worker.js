@@ -92,32 +92,16 @@ async function fetchContainer(request, env) {
 async function runHydroSchedule(env) {
   const started = new Date().toISOString();
   const run = await recordRunStarted(env.DB, "hydro_changed", started);
-  const summary = { d1: null, container: null, disclosures_bootstrap: null, errors: [] };
-  try {
-    summary.d1 = await ingestChangedHydro(env);
-  } catch (error) {
-    summary.errors.push({ step: "d1_hydro", error: String(error?.stack || error) });
-  }
+  const summary = { d1: null, container: null, errors: [] };
   try {
     summary.container = await callContainerCron(env, "/cron/hydro");
+    summary.d1 = await syncHydroFromContainerResult(env, summary.container);
   } catch (error) {
-    summary.errors.push({ step: "container_hydro", error: String(error?.stack || error) });
-  }
-  try {
-    summary.disclosures_bootstrap = await syncDisclosuresIfEmpty(env);
-  } catch (error) {
-    summary.errors.push({ step: "disclosures_bootstrap", error: String(error?.stack || error) });
+    summary.errors.push({ step: "container_hydro_sync", error: String(error?.stack || error) });
   }
   const status = summary.errors.length ? "error" : "ok";
   await recordRunFinished(env.DB, run.meta.last_row_id, status, summary);
   if (summary.errors.length) console.error("Hydro schedule completed with errors", summary);
-}
-
-async function syncDisclosuresIfEmpty(env) {
-  const row = await env.DB.prepare("SELECT COUNT(*) AS count FROM disclosure_sources").first();
-  if ((row?.count || 0) > 0) return { skipped: true, reason: "already_bootstrapped" };
-  const exportPayload = await callContainerJson(env, "/internal/disclosures/export");
-  return syncDisclosures(env, exportPayload);
 }
 
 async function callContainerCron(env, path) {
@@ -136,6 +120,94 @@ async function callContainerCron(env, path) {
     // Keep non-JSON responses as text.
   }
   return { status: response.status, body };
+}
+
+async function syncHydroFromContainerResult(env, containerResult) {
+  if (!containerResult || containerResult.status !== 200) {
+    throw new Error(`container hydro returned HTTP ${containerResult?.status ?? "unknown"}`);
+  }
+  const body = containerResult.body || {};
+  if (Array.isArray(body.errors) && body.errors.length) {
+    throw new Error(`container hydro errors: ${JSON.stringify(body.errors)}`);
+  }
+  const snapshots = body.snapshots || [];
+  const results = [];
+  for (const sourceInfo of body.sources || []) {
+    results.push(await syncHydroSourceFromContainer(env, sourceInfo, snapshots));
+  }
+  return results;
+}
+
+async function syncHydroSourceFromContainer(env, sourceInfo, snapshots) {
+  const checkedAt = new Date().toISOString();
+  const source = sourceInfo.source;
+  const version = sourceInfo.version;
+  if (!source || !version) return { source, version, changed: false, skipped: "missing_version" };
+  if (!sourceInfo.changed) {
+    await upsertFeedVersion(env.DB, source, version, checkedAt);
+    return { source, version, changed: false };
+  }
+
+  const relevantSnapshots = snapshots.filter(
+    (snapshot) =>
+      snapshot.version === version &&
+      [`${source}version`, `${source}markers`, `${source}poly`].includes(snapshot.source_type),
+  );
+  const markerSnapshot = relevantSnapshots.find(
+    (snapshot) => snapshot.source_type === `${source}markers`,
+  );
+  if (!markerSnapshot) {
+    throw new Error(`container hydro summary did not include ${source} marker snapshot`);
+  }
+
+  let markerPayload = null;
+  for (const snapshot of relevantSnapshots) {
+    const payload = await fetchContainerRawSnapshot(env, snapshot);
+    await storeSnapshot(
+      env,
+      snapshot.source_type,
+      snapshot.version,
+      payload,
+      snapshotExtension(snapshot.source_type),
+    );
+    if (snapshot.source_type === `${source}markers`) markerPayload = payload;
+  }
+
+  if (!markerPayload) throw new Error(`container hydro did not provide ${source} marker payload`);
+  const count =
+    source === "bis"
+      ? await ingestBisMarkers(env.DB, version, decodeUtf8(markerPayload.bytes), checkedAt)
+      : await ingestAipMarkers(env.DB, version, decodeUtf8(markerPayload.bytes), checkedAt);
+  await upsertFeedVersion(env.DB, source, version, checkedAt);
+  return { source, version, changed: true, records: count };
+}
+
+async function fetchContainerRawSnapshot(env, snapshot) {
+  const container = env.PANNES_CONTAINER.getByName("web");
+  const url = new URL("https://pannes.ca/internal/raw-snapshot");
+  url.searchParams.set("payload_path", snapshot.payload_path);
+  const response = await container.fetch(
+    new Request(url, {
+      headers: {
+        Accept: "*/*",
+        "X-Cloudflare-Internal": "1",
+      },
+    }),
+  );
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`raw snapshot returned HTTP ${response.status}: ${text.slice(0, 300)}`);
+  }
+  return {
+    bytes: await response.arrayBuffer(),
+    status: response.status,
+    contentType:
+      response.headers.get("content-type") || snapshot.content_type || "application/octet-stream",
+  };
+}
+
+function snapshotExtension(sourceType) {
+  return sourceType.endsWith("poly") ? "kmz" : "json";
 }
 
 async function callContainerJson(env, path) {
