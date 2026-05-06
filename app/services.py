@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Any
 
 from .addressing import NormalizedAddress, normalize_address, normalize_text
@@ -158,7 +159,7 @@ class AppService:
                 SET finished_at = ?, status = ?, summary_json = ?
                 WHERE id = ?
                 """,
-                (finished_at, status, json.dumps(summary, ensure_ascii=True), run_id),
+                (finished_at, status, json.dumps(json_safe(summary), ensure_ascii=True), run_id),
             )
 
     def _latest_job_run(self, job_name: str) -> dict[str, Any] | None:
@@ -1666,3 +1667,15 @@ class AppService:
             raw_text,
         ]
         return normalize_text(" ".join(str(value) for value in values if value))
+
+
+def json_safe(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {key: json_safe(item) for key, item in value.items()}
+    if isinstance(value, list | tuple):
+        return [json_safe(item) for item in value]
+    if isinstance(value, Path):
+        return str(value)
+    if hasattr(value, "__dict__"):
+        return json_safe(vars(value))
+    return value
