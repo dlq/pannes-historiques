@@ -114,6 +114,12 @@ Deployment checkpoint:
   - latest production timings after the D1 previous-outage migration are roughly 0.44 seconds for `/`, 0.77 seconds for result-card `POST /search`, 1.12 seconds for lazy `/search-map`, and 0.30 seconds for `/map-context-geometries`
   - next performance focus should be the lazy map payload/rendering and context assembly, not current or previous-outage nearby matching, because those now use D1
   - lazy map payload follow-up now trims disclosure detail to recent samples and renders previous outages as centroid markers instead of embedding older outage polygons; local `/search-map` HTML dropped from roughly 912 KB to roughly 358 KB, and production `/search-map` dropped from roughly 735 KB to roughly 155 KB after deploy
+  - add a rigorous browser regression suite before further map/search UI work:
+    - cover lazy result rendering with Playwright or equivalent browser automation, not only unit tests
+    - regression case: submit a known address, click a result card before the lazy map finishes loading, wait for `/search-map` and `/map-context-geometries`, and assert the map remains focused on the clicked outage/detail instead of recentering on the searched address
+    - regression case: click an operational outage, a planned interruption, a previous-outage row, a DAI/disclosure layer, and a regional metric layer, then assert the detail panel and map focus remain stable after deferred geometry loads and resize refreshes
+    - include both `fr` and `en` search flows, desktop and mobile viewport sizes, and a repeated-search/cache-hit path
+    - run the suite locally before release deploys that touch `app/static/app.js`, `_map_panel.html`, `_result_cards.html`, or lazy map/search endpoints
   - regional-current-status follow-up from Hydro comparison on 2026-05-06:
     - Hydro's `Bilan par région` is a useful product pattern for a fast "how bad is it right now?" view before address search
     - pannes.ca should implement this from durable current-feed data rather than the hot Flask/container search path
