@@ -1,7 +1,7 @@
 # Research: Hydro-Québec Historic Outage Data
 
 Date: 2026-04-25
-Last updated: 2026-05-06
+Last updated: 2026-05-07
 
 ## Implementation note
 
@@ -968,6 +968,7 @@ Follow-up during the 2026-05-06T14:07Z cron:
 - Production batch proof on 2026-05-06: a temporary protected Worker route ran one selected small source (`DAI-2021-0328`) in about 7 seconds. The container fetched a PDF, the Worker archived it to R2 at `hydro_quebec/access_disclosures/DAI-2021-0328/83e8ed62886f3834-dai-2021-0328-lettre-reponse.pdf`, D1 stored `content_type='application/pdf'`, and the downloaded R2 object was verified as a PDF with SHA-256 `83e8ed62886f3834def5f88206b599137e08c2ed005a01a41f1c7f01be051f4f`. An earlier proof attempt against large `DAI-2022-0386` ran too long and was manually cancelled, so per-source timeout/skip handling is still needed for expensive sources.
 - Follow-up implementation adds D1 archival attempt columns (`archival_attempt_count`, `archival_last_attempt_at`, `archival_last_error`, `archival_deferred_until`) and changes scheduled DAI catch-up to one source per batch with a per-source timeout/defer policy. This is intended to let the R2/D1 base finish for all reachable DAI sources while leaving expensive sources deferred instead of blocking the rest of the catch-up.
 - Catch-up result on 2026-05-06: after deploying attempt/defer tracking, protected catch-up runs archived all immediately reachable disclosure sources. D1 reported `due_now = 0`, `archived = 29`, `total = 32`, and `deferred = 3`. Deferred sources were `DAI-2022-0386`, `DAI-2025-0275`, and `DAI-2025-0333`, each with a 45-second timeout and `archival_deferred_until` on 2026-05-07. This is acceptable for the R2/D1 base: reachable sources are durable in R2/D1, and expensive sources are explicitly tracked rather than silently blocking scheduled ingestion.
+- Completion result on 2026-05-07: the deferred sources were processed successfully and the D1/R2 base catch-up finished. D1 reported `archive_due_now = 0`, `parse_due_now = 0`, and `32/32` disclosure sources archived and parsed.
 
 ## Sources
 

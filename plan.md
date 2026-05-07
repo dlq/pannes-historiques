@@ -1,4 +1,4 @@
-# Plan: Address-First Hydro-Québec Outage History App
+# Plan: Hydro-Québec Outage History App
 
 Date: 2026-04-25
 Last updated: 2026-05-07
@@ -89,13 +89,13 @@ Acceptance target for 0.2.0:
 - perceived first result time remains fast: cards/search feedback should render before heavy map/context geometry
 - the interface remains clearly a pannes.ca prototype, while still feeling congruent with Hydro-Québec and Québec.ca visual language
 
-## Implementation status as of 2026-05-06
+## Implementation status as of 2026-05-07
 
 Several early phases are now implemented in the prototype:
 
 - live Hydro-Québec snapshot collection and local raw archival
 - normalized parsing of live outage, planned interruption, and KML/KMZ geometry feeds
-- address-first search with geocoding, radius matching, and confidence labels
+- direct search with geocoding, radius matching, confidence labels, and current-location support
 - bilingual server-rendered UI with HTMX and Leaflet
 - result cards are rendered separately from lazy-loaded map overlays
 - disclosure source tables and a manifest of known DAI outage extracts
@@ -108,7 +108,7 @@ Several early phases are now implemented in the prototype:
 - static simplified geometry assets for regional metrics and DAI/disclosure map context
 - map layering where broad DAI context areas render behind smaller live/API outage and planned-interruption layers
 - centroid markers for previous-outage matches that do not have polygon geometry
-- the main address interface has been simplified around fixed defaults: 5 km radius, 5-year window, and planned interruptions included
+- the main search interface has been simplified around fixed defaults: 5 km radius, 5-year window, and planned interruptions included
 - Cloudflare Workers + Containers deployment at `pannes.ca`
 - D1/R2-backed durable production ingestion for current feed rows, previous-outage rows, disclosure metadata, and raw payload archives
 
@@ -210,7 +210,7 @@ Deployment checkpoint:
     - Hydro's `Bilan par région` is a useful product pattern for a fast "how bad is it right now?" view before address search
     - pannes.ca should implement this from durable current-feed data rather than the hot Flask/container search path
     - likely data work: derive or load a reliable municipality-code-to-region mapping, aggregate latest `bis` and `aip` marker rows by region, expose compact D1-backed JSON/HTML endpoints, and cache the province totals with source version/freshness metadata
-    - UI should keep the address-first search primary, but add a compact province/region dashboard entry point near the top of the app or as a dedicated page
+    - UI should keep direct search primary, but add a compact province/region dashboard entry point near the top of the app or as a dedicated page
   - continue measuring cold start, first search, repeated search, and image push/deploy times
   - compare baked-in SQLite, D1, R2-backed snapshots, and external database options before changing storage architecture
   - research Cloudflare Containers image-layer behavior and whether local Docker Desktop push instability can be avoided with CI/Workers Builds, remote builders, or a different local container runtime
@@ -241,7 +241,7 @@ The project has moved beyond only researching access-to-information disclosures.
 What is already in place:
 
 - live Hydro-Québec snapshot archival and normalization
-- address-first search with bilingual server-rendered UI
+- direct search with bilingual server-rendered UI
 - archive span, freshness, and confidence framing in the results experience
 - row-level XLSX disclosure ingestion for Côte Saint-Luc
 - row-level PDF extraction for Outremont, Saint-Félix-de-Kingsey, Sheenboro, Chichester, Waltham, and L'Isle-aux-Allumettes-Partie-Est
@@ -255,7 +255,7 @@ Planning consequence:
 
 ## Product direction
 
-The address-first approach is a good pivot.
+The direct-search approach is a good pivot.
 
 Why it is attractive:
 
@@ -376,7 +376,7 @@ Kepler.gl is strong, but for this app Leaflet is the better default.
 
 Why Leaflet fits better:
 
-- this product is **address-first**, not dataset-exploration-first
+- this product should start from a concrete place or query, not dataset-exploration-first
 - the interaction model is relatively focused:
   - show an address
   - show nearby outage polygons or centroids
@@ -792,7 +792,7 @@ Each result set should communicate:
 
 ## Hotspot strategy
 
-The address-first app can still become a hotspot app later.
+The direct-search app can still become a hotspot app later.
 
 The progression should be:
 
@@ -981,7 +981,7 @@ This language should appear in:
 
 For the first release, I would aim for:
 
-- a clean address-first experience
+- a clean direct-search experience
 - transparent confidence labels
 - nearby outage history with adjustable radius
 - scheduled archival running in the background
@@ -1111,7 +1111,7 @@ The recommended path is:
 1. use HTMX, bare Web Components, and Tailwind CSS as the default UI stack
 2. treat bilingual French/English support as a foundational requirement, not a future enhancement
 3. use Leaflet as the default mapping library because it fits the focused, server-rendered, address-centric interaction model better than Kepler.gl
-4. build a server-rendered address-first app
+4. build a server-rendered direct-search app
 5. archive Hydro-Québec’s live outage feeds on a schedule
 6. ingest published access-to-information disclosures as a separate historical-context source
 7. derive address histories from raw snapshots and geometry matches

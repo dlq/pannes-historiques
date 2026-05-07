@@ -6,7 +6,7 @@ Hydro-Quebec outage history prototype built from the `plan.md` direction.
 
 - Local server app
   - Flask app factory with Jinja templates, static assets, and bilingual server-rendered UI
-  - HTMX search flow and plain Web Components for timeline, cache freshness, and the map shell
+  - HTMX search flow plus plain Web Components for the map shell and detail panels
   - SQLite persistence plus raw Hydro-Quebec snapshot archival on local disk
   - Hydro feed parsing, address normalization, cached geocoding, spatial matching, and first-pass resolved-event deduplication
 - Historical disclosure and map context
