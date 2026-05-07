@@ -4,7 +4,8 @@ const HYDRO_ROOT = "https://pannes.hydroquebec.com/pannes/donnees/v3_0";
 const DISCLOSURE_CRONS = new Set(["0 10 */14 * *", "13 10 */14 * *"]);
 const DISCLOSURE_BATCH_SIZE = 1;
 const DISCLOSURE_RUN_BUDGET_MS = 90_000;
-const DISCLOSURE_SOURCE_TIMEOUT_MS = 45_000;
+const DISCLOSURE_FETCH_TIMEOUT_MS = 45_000;
+const DISCLOSURE_PARSE_TIMEOUT_MS = 60_000;
 const DISCLOSURE_SOURCE_DEFER_MS = 24 * 60 * 60 * 1000;
 
 export class PannesContainer extends Container {
@@ -260,6 +261,41 @@ async function callContainerJsonPost(env, path, payload, { timeoutMs } = {}) {
   }
 }
 
+async function callContainerBytesPost(
+  env,
+  path,
+  payload,
+  { sourceKey, contentType, timeoutMs } = {},
+) {
+  const container = env.PANNES_CONTAINER.getByName("web");
+  const controller = timeoutMs ? new AbortController() : null;
+  const timeoutId = timeoutMs
+    ? setTimeout(() => controller.abort(`timed out after ${timeoutMs}ms`), timeoutMs)
+    : null;
+  try {
+    const response = await container.fetch(
+      new Request(`https://pannes.ca${path}`, {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": contentType || "application/octet-stream",
+          "X-Cloudflare-Scheduled": "1",
+          "X-Disclosure-Source-Key": sourceKey || "",
+        },
+        body: payload,
+        signal: controller?.signal,
+      }),
+    );
+    const text = await response.text();
+    if (!response.ok) {
+      throw new Error(`${path} returned HTTP ${response.status}: ${text.slice(0, 300)}`);
+    }
+    return JSON.parse(text);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+}
+
 async function runDisclosureSchedule(env) {
   await runDisclosureBatchJob(env, {
     jobName: "disclosures",
@@ -274,49 +310,89 @@ async function runDisclosureBatchJob(
 ) {
   const started = new Date().toISOString();
   const run = await recordRunStarted(env.DB, jobName, started);
-  const summary = { batches: [], total_sources: 0, total_events: 0, total_errors: 0 };
+  const summary = {
+    archives: [],
+    parses: [],
+    total_sources: 0,
+    total_events: 0,
+    total_errors: 0,
+  };
   try {
     const deadline = Date.now() + budgetMs;
-    const attempted = new Set();
-    while (Date.now() < deadline && summary.batches.length < maxBatches) {
-      const candidateSourceKeys = (await dueDisclosureSourceKeys(env.DB, 100)).filter(
-        (sourceKey) => !attempted.has(sourceKey),
+    const attemptedArchives = new Set();
+    const attemptedParses = new Set();
+    while (Date.now() < deadline && summary.archives.length + summary.parses.length < maxBatches) {
+      let didWork = false;
+      const archiveSources = (await dueDisclosureArchiveSources(env.DB, 100)).filter(
+        (source) => !attemptedArchives.has(source.source_key),
       );
-      candidateSourceKeys.splice(batchSize);
-      if (!candidateSourceKeys.length) {
+      archiveSources.splice(batchSize);
+      for (const source of archiveSources) {
+        attemptedArchives.add(source.source_key);
+        await markDisclosureSourceAttempt(env.DB, [source.source_key]);
+        try {
+          const archived = await archiveDisclosureSource(env, source);
+          summary.archives.push(archived);
+        } catch (error) {
+          const errorText = String(error?.stack || error);
+          await markDisclosureSourceError(env.DB, [source.source_key], errorText);
+          summary.archives.push({
+            source_key: source.source_key,
+            dai_number: source.dai_number,
+            error: errorText,
+          });
+          summary.total_errors += 1;
+        }
+        didWork = true;
+        if (Date.now() >= deadline) break;
+      }
+
+      if (Date.now() >= deadline) break;
+
+      const parseSources = (await dueDisclosureParseSources(env.DB, 100)).filter(
+        (source) => !attemptedParses.has(source.source_key),
+      );
+      parseSources.splice(batchSize);
+      for (const source of parseSources) {
+        attemptedParses.add(source.source_key);
+        await markDisclosureParseAttempt(env.DB, [source.source_key]);
+        try {
+          const parsed = await parseDisclosureSource(env, source);
+          summary.parses.push(parsed);
+          summary.total_sources += parsed.d1.sources;
+          summary.total_events += parsed.d1.events;
+          summary.total_errors += parsed.d1.source_file_errors.length;
+        } catch (error) {
+          const errorText = String(error?.stack || error);
+          await markDisclosureParseError(env.DB, [source.source_key], errorText);
+          summary.parses.push({
+            source_key: source.source_key,
+            dai_number: source.dai_number,
+            error: errorText,
+          });
+          summary.total_errors += 1;
+        }
+        didWork = true;
+        if (Date.now() >= deadline) break;
+      }
+
+      if (!didWork) {
         summary.done = true;
         break;
       }
-      for (const sourceKey of candidateSourceKeys) attempted.add(sourceKey);
-      await markDisclosureSourceAttempt(env.DB, candidateSourceKeys);
-      let container = null;
-      try {
-        container = await callContainerJsonPost(
-          env,
-          "/cron/disclosures/batch",
-          {
-            source_keys: candidateSourceKeys,
-          },
-          { timeoutMs: DISCLOSURE_SOURCE_TIMEOUT_MS },
-        );
-      } catch (error) {
-        const errorText = String(error?.stack || error);
-        await markDisclosureSourceError(env.DB, candidateSourceKeys, errorText);
-        summary.batches.push({ source_keys: candidateSourceKeys, error: errorText });
-        summary.total_errors += candidateSourceKeys.length;
-        continue;
-      }
-      const exportPayload = await callContainerDisclosureExport(env, candidateSourceKeys);
-      const d1 = await syncDisclosures(env, exportPayload);
-      summary.batches.push({ source_keys: candidateSourceKeys, container, d1 });
-      summary.total_sources += d1.sources;
-      summary.total_events += d1.events;
-      summary.total_errors += d1.source_file_errors.length + (container.errors || []).length;
-      if ((container.errors || []).length) break;
     }
     if (!summary.done) {
-      const remaining = await dueDisclosureSourceKeys(env.DB, 1);
-      summary.remaining = remaining.length ? "yes" : "no";
+      const [remainingArchives, remainingParses] = await Promise.all([
+        dueDisclosureArchiveSources(env.DB, 1),
+        dueDisclosureParseSources(env.DB, 1),
+      ]);
+      summary.remaining =
+        remainingArchives.length || remainingParses.length
+          ? {
+              archives: remainingArchives.length ? "yes" : "no",
+              parses: remainingParses.length ? "yes" : "no",
+            }
+          : "no";
     }
     await recordRunFinished(env.DB, run.meta.last_row_id, "ok", summary);
     return summary;
@@ -327,13 +403,13 @@ async function runDisclosureBatchJob(
   }
 }
 
-async function dueDisclosureSourceKeys(db, limit) {
+async function dueDisclosureArchiveSources(db, limit) {
   const cutoff = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
   const now = new Date().toISOString();
   const result = await db
     .prepare(
       `
-      SELECT source_key
+      SELECT source_key, dai_number, attachment_url, format
       FROM disclosure_sources
       WHERE (r2_key IS NULL
          OR fetched_at IS NULL
@@ -349,7 +425,26 @@ async function dueDisclosureSourceKeys(db, limit) {
     )
     .bind(cutoff, now, limit)
     .all();
-  return (result.results || []).map((row) => row.source_key).filter(Boolean);
+  return result.results || [];
+}
+
+async function dueDisclosureParseSources(db, limit) {
+  const now = new Date().toISOString();
+  const result = await db
+    .prepare(
+      `
+      SELECT source_key, dai_number, attachment_url, format, r2_key, content_type, sha256, fetched_at
+      FROM disclosure_sources
+      WHERE r2_key IS NOT NULL
+        AND (parsed_at IS NULL OR (fetched_at IS NOT NULL AND parsed_at < fetched_at))
+        AND (parse_deferred_until IS NULL OR parse_deferred_until <= ?)
+      ORDER BY parse_attempt_count, COALESCE(parsed_at, ''), dai_number
+      LIMIT ?
+      `,
+    )
+    .bind(now, limit)
+    .all();
+  return result.results || [];
 }
 
 async function markDisclosureSourceAttempt(db, sourceKeys) {
@@ -387,6 +482,127 @@ async function markDisclosureSourceError(db, sourceKeys, errorText) {
       .bind(attemptedAt, errorText.slice(0, 1000), deferredUntil, sourceKey),
   );
   await batchInChunks(db, statements);
+}
+
+async function markDisclosureParseAttempt(db, sourceKeys) {
+  const attemptedAt = new Date().toISOString();
+  const statements = sourceKeys.map((sourceKey) =>
+    db
+      .prepare(
+        `
+        UPDATE disclosure_sources
+        SET parse_attempt_count = COALESCE(parse_attempt_count, 0) + 1,
+            parse_last_attempt_at = ?,
+            parse_deferred_until = NULL
+        WHERE source_key = ?
+        `,
+      )
+      .bind(attemptedAt, sourceKey),
+  );
+  await batchInChunks(db, statements);
+}
+
+async function markDisclosureParseError(db, sourceKeys, errorText) {
+  const attemptedAt = new Date().toISOString();
+  const deferredUntil = new Date(Date.now() + DISCLOSURE_SOURCE_DEFER_MS).toISOString();
+  const statements = sourceKeys.map((sourceKey) =>
+    db
+      .prepare(
+        `
+        UPDATE disclosure_sources
+        SET parse_last_attempt_at = ?,
+            parse_last_error = ?,
+            parse_deferred_until = ?
+        WHERE source_key = ?
+        `,
+      )
+      .bind(attemptedAt, errorText.slice(0, 1000), deferredUntil, sourceKey),
+  );
+  await batchInChunks(db, statements);
+}
+
+async function markDisclosureParsed(db, sourceKey) {
+  const parsedAt = new Date().toISOString();
+  await db
+    .prepare(
+      `
+      UPDATE disclosure_sources
+      SET parsed_at = ?,
+          parse_last_error = NULL,
+          parse_deferred_until = NULL,
+          updated_at = ?
+      WHERE source_key = ?
+      `,
+    )
+    .bind(parsedAt, parsedAt, sourceKey)
+    .run();
+}
+
+async function archiveDisclosureSource(env, source) {
+  if (!env.RAW_BUCKET) throw new Error("RAW_BUCKET binding is not configured");
+  const fetchedAt = new Date().toISOString();
+  const payload = await fetchArrayBuffer(source.attachment_url, {
+    accept: source.format === "pdf" ? "application/pdf,*/*" : "*/*",
+    timeoutMs: DISCLOSURE_FETCH_TIMEOUT_MS,
+  });
+  const digest = await sha256Hex(payload.bytes);
+  const r2Key = disclosureR2Key(source, digest);
+  await env.RAW_BUCKET.put(r2Key, payload.bytes, {
+    httpMetadata: { contentType: payload.contentType },
+    customMetadata: {
+      daiNumber: source.dai_number || "",
+      sourceKey: source.source_key,
+      sha256: digest,
+    },
+  });
+  await env.DB.prepare(
+    `
+    UPDATE disclosure_sources
+    SET r2_key = ?,
+        content_type = ?,
+        sha256 = ?,
+        fetched_at = ?,
+        updated_at = ?,
+        archival_last_error = NULL,
+        archival_deferred_until = NULL,
+        parsed_at = CASE WHEN sha256 = ? THEN parsed_at ELSE NULL END
+    WHERE source_key = ?
+    `,
+  )
+    .bind(r2Key, payload.contentType, digest, fetchedAt, fetchedAt, digest, source.source_key)
+    .run();
+  return {
+    source_key: source.source_key,
+    dai_number: source.dai_number,
+    r2_key: r2Key,
+    sha256: digest,
+    bytes: payload.bytes.byteLength,
+  };
+}
+
+async function parseDisclosureSource(env, source) {
+  if (!env.RAW_BUCKET) throw new Error("RAW_BUCKET binding is not configured");
+  const object = await env.RAW_BUCKET.get(source.r2_key);
+  if (!object) throw new Error(`R2 object not found: ${source.r2_key}`);
+  const bytes = await object.arrayBuffer();
+  const container = await callContainerBytesPost(env, "/cron/disclosures/parse-source", bytes, {
+    sourceKey: source.source_key,
+    contentType:
+      source.content_type || object.httpMetadata?.contentType || "application/octet-stream",
+    timeoutMs: DISCLOSURE_PARSE_TIMEOUT_MS,
+  });
+  if ((container.errors || []).length) {
+    throw new Error(JSON.stringify(container.errors));
+  }
+  const exportPayload = await callContainerDisclosureExport(env, [source.source_key]);
+  const d1 = await syncDisclosures(env, exportPayload);
+  await markDisclosureParsed(env.DB, source.source_key);
+  return {
+    source_key: source.source_key,
+    dai_number: source.dai_number,
+    container,
+    d1,
+  };
 }
 
 async function callContainerDisclosureExport(env, sourceKeys) {
@@ -435,22 +651,34 @@ async function ingestSourceIfChanged(env, source) {
   return { source, version, changed: true, records: count };
 }
 
-async function fetchArrayBuffer(url) {
-  const response = await fetch(url, {
-    headers: {
-      Accept: "application/json,text/plain,*/*",
-      "User-Agent": "pannes-historiques/0.1 (+https://pannes.ca)",
-    },
-  });
-  if (!response.ok) {
-    throw new Error(`${url} returned HTTP ${response.status}`);
+async function fetchArrayBuffer(
+  url,
+  { accept = "application/json,text/plain,*/*", timeoutMs = null } = {},
+) {
+  const controller = timeoutMs ? new AbortController() : null;
+  const timeoutId = timeoutMs
+    ? setTimeout(() => controller.abort(`timed out after ${timeoutMs}ms`), timeoutMs)
+    : null;
+  try {
+    const response = await fetch(url, {
+      headers: {
+        Accept: accept,
+        "User-Agent": "pannes-historiques/0.1 (+https://pannes.ca)",
+      },
+      signal: controller?.signal,
+    });
+    if (!response.ok) {
+      throw new Error(`${url} returned HTTP ${response.status}`);
+    }
+    const bytes = await response.arrayBuffer();
+    return {
+      bytes,
+      status: response.status,
+      contentType: response.headers.get("content-type") || "application/octet-stream",
+    };
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
   }
-  const bytes = await response.arrayBuffer();
-  return {
-    bytes,
-    status: response.status,
-    contentType: response.headers.get("content-type") || "application/octet-stream",
-  };
 }
 
 function decodeUtf8(buffer) {

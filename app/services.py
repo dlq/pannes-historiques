@@ -115,6 +115,21 @@ class AppService:
         self._clear_context_cache()
         return result
 
+    def collect_disclosure_source_payload(
+        self,
+        source_key: str,
+        payload: bytes,
+        *,
+        content_type: str = "application/octet-stream",
+    ) -> dict[str, Any]:
+        result = self.disclosure_collector.collect_source_payload(
+            source_key,
+            payload,
+            content_type=content_type,
+        )
+        self._clear_context_cache()
+        return result
+
     def collect_disclosures_if_due(self, *, min_age_days: int = 14) -> dict[str, Any]:
         now = datetime.now(UTC).replace(microsecond=0)
         latest = self._latest_job_run("disclosures")

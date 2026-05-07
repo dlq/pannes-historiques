@@ -595,6 +595,36 @@ class DisclosureCollector:
                 results["errors"].append({"source": source.dai_number, "error": str(exc)})
         return results
 
+    def collect_source_payload(
+        self,
+        source_key: str,
+        payload: bytes,
+        *,
+        content_type: str = "application/octet-stream",
+    ) -> dict[str, Any]:
+        sources, discovered_count = self._sources_for_collection()
+        source = next(
+            (candidate for candidate in sources if candidate.attachment_url == source_key), None
+        )
+        results: dict[str, Any] = {
+            "sources": [],
+            "events": 0,
+            "errors": [],
+            "discovered_sources": discovered_count,
+            "requested_sources": 1,
+        }
+        if source is None:
+            results["errors"].append({"source": source_key, "error": "unknown disclosure source"})
+            return results
+        try:
+            source_id = self._register_source(source)
+            source_result = self._collect_source_payload(source_id, source, payload, content_type)
+            results["sources"].append(source_result)
+            results["events"] += source_result["events"]
+        except Exception as exc:
+            results["errors"].append({"source": source.dai_number, "error": str(exc)})
+        return results
+
     def _sources_for_collection(self) -> tuple[list[DisclosureSource], int]:
         sources = list(DISCLOSURE_SOURCES)
         known_urls = {source.attachment_url for source in sources}
@@ -614,6 +644,15 @@ class DisclosureCollector:
         payload, status, content_type = fetch_bytes(source.attachment_url)
         if status != 200:
             raise RuntimeError(f"{source.dai_number} fetch failed: HTTP {status}")
+        return self._collect_source_payload(source_id, source, payload, content_type)
+
+    def _collect_source_payload(
+        self,
+        source_id: int,
+        source: DisclosureSource,
+        payload: bytes,
+        content_type: str,
+    ) -> dict[str, Any]:
         payload_path = self._store_payload(source, payload)
         fetched_at = datetime.now(UTC).replace(microsecond=0).isoformat()
         sha256 = hashlib.sha256(payload).hexdigest()

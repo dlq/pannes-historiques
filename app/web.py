@@ -300,6 +300,27 @@ def create_app(settings: Settings | None = None) -> Flask:
             return jsonify({"error": "source_keys must be a list of strings"}), 400
         return jsonify(serialize_payload(service.collect_disclosure_sources(source_keys)))
 
+    @app.post("/cron/disclosures/parse-source")
+    def cron_disclosures_parse_source():
+        if request.headers.get("X-Cloudflare-Scheduled") != "1":
+            return jsonify({"error": "not found"}), 404
+        source_key = request.headers.get("X-Disclosure-Source-Key", "")
+        if not source_key:
+            return jsonify({"error": "missing source key"}), 400
+        payload = request.get_data(cache=False)
+        if not payload:
+            return jsonify({"error": "empty payload"}), 400
+        content_type = request.headers.get("Content-Type") or "application/octet-stream"
+        return jsonify(
+            serialize_payload(
+                service.collect_disclosure_source_payload(
+                    source_key,
+                    payload,
+                    content_type=content_type,
+                )
+            )
+        )
+
     @app.get("/internal/disclosures/export")
     def internal_disclosures_export():
         if request.headers.get("X-Cloudflare-Internal") != "1":
