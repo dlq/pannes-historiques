@@ -1,7 +1,93 @@
 # Plan: Address-First Hydro-Québec Outage History App
 
 Date: 2026-04-25
-Last updated: 2026-05-06
+Last updated: 2026-05-07
+
+## 0.2.0 planning: map-first responsive interface
+
+The next substantial product/design direction should revisit the page structure around a map-first interaction model, closer to `maps.google.com` or `maps.apple.com` than the current document-flow dashboard.
+
+The current mobile layout works, but it is not pleasant enough on a phone. The page still feels like a desktop report compressed into a narrow viewport, and the user has to scroll through cards while the map is only one section among many. For 0.2.0, treat the map as the persistent spatial surface and put search/results/context into overlays.
+
+Primary design goal:
+
+- make the map fill the browser viewport and remain visually present throughout the interaction
+- keep address/current-location search prominent without forcing the user through a long document page
+- show outage information in an overlay that can collapse, expand, and move out of the way
+- make desktop and mobile feel like intentional variants of the same map-first app, not separate layouts patched with breakpoints
+
+Desktop layout direction:
+
+- full-viewport Leaflet map as the base layer
+- search overlay near the top, likely centred or top-left depending on final visual balance
+- result/detail panel as a left-side overlay with a controlled width
+- map context/detail panel can either live in the same left overlay as a selected-state view or appear as a secondary panel only when needed
+- keep the overlay visually congruent with the Hydro-Québec/Québec.ca-inspired style: restrained, clear, squared, and not glassy or decorative
+- provide clear panel states:
+  - no search yet
+  - searching/loading
+  - current/new outages
+  - planned interruptions
+  - previous outages
+  - selected map feature context
+  - error/outside-Quebec/geocode failure
+
+Mobile layout direction:
+
+- full-viewport map underneath everything
+- search overlay at the bottom by default, because it is easier to reach one-handed
+- results overlay as a bottom sheet that can be dragged or snapped between states
+- likely bottom-sheet states:
+  - collapsed: compact search bar and current query summary
+  - mid: first few result cards plus tabs or section controls
+  - expanded: full result list/detail context
+- when a result card is tapped, recenter/zoom the map and keep the sheet at a useful mid-height rather than covering the selected map area completely
+- when a map feature is tapped, show concise context in the sheet and allow the user to expand for details
+- use touch-friendly controls and enough vertical spacing without letting cards become huge
+- avoid horizontal scrolling in the sheet unless the user is viewing an explicitly tabular/detail page
+
+Information architecture questions for 0.2.0:
+
+- decide whether current outages, planned interruptions, previous outages, and disclosure/context are sections in one sheet or tabs/segmented controls inside the overlay
+- decide whether the DAI/disclosure detailed row list stays out of the map-first page and opens as a separate detail page
+- decide whether the region/current-status dashboard belongs in the same map-first shell or remains a separate page
+- decide how much current-query state should be visible while the sheet is collapsed
+- decide whether desktop uses one combined side panel or separate search and results panels
+
+Technical planning:
+
+- preserve the lazy-loading architecture because it materially improves perceived speed
+- avoid embedding large map payloads in the first HTML response
+- keep result cards usable before the lazy map payload has fully loaded; queued map focus behaviour must remain covered by regression tests
+- consider introducing a small client-side shell component for overlay state, but keep server-rendered result fragments and HTMX where they remain simpler
+- design the map shell so it can work with:
+  - initial no-query page
+  - address search
+  - current-location search
+  - language switch
+  - browser back/forward
+  - shared URL with query parameters
+- keep accessibility in scope:
+  - bottom sheet must be keyboard reachable and screen-reader understandable
+  - focus should move predictably after search and after selecting a card/map feature
+  - drag-only behaviour must have button/keyboard equivalents
+  - map-only interactions need list equivalents
+- test on real iPhone Safari as part of 0.2.0 acceptance, not only desktop responsive emulation
+
+Risks and constraints:
+
+- Leaflet controls, attribution, popups, and custom overlays can collide on small screens if we do not reserve space deliberately
+- bottom-sheet gestures can fight with page scrolling if implemented casually
+- map-first UI may make long historical/disclosure context harder to read; detailed historical tables may need separate pages
+- mobile browser viewport units are tricky because iOS Safari chrome expands/collapses; use modern viewport units and test carefully
+- the current Tailwind-CDN/server-rendered structure can support an overlay redesign, but the CSS and template organization may need cleanup before large UI work
+
+Acceptance target for 0.2.0:
+
+- on mobile, a user can search by address or current location, see the map immediately, tap/swipe through result cards in a bottom sheet, and recenter the map without losing context
+- on desktop, a user can search, compare result categories, and inspect map context without the page feeling like a long scroll report
+- perceived first result time remains fast: cards/search feedback should render before heavy map/context geometry
+- the interface remains clearly a pannes.ca prototype, while still feeling congruent with Hydro-Québec and Québec.ca visual language
 
 ## Implementation status as of 2026-05-06
 
