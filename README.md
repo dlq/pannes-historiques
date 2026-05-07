@@ -1,29 +1,22 @@
 # Pannes Historiques
 
-Address-first Hydro-Quebec outage history prototype built from the `plan.md` direction.
+Hydro-Quebec outage history prototype built from the `plan.md` direction.
 
 ## What is implemented
 
-- Flask app factory with Jinja templates and static assets
-- bilingual French/English server-rendered UI
-- HTMX search flow
-- plain Web Components for timeline, cache freshness, and map shell
-- SQLite persistence for addresses, queries, raw snapshots, parsed outages, planned interruptions, geometries, and derived matches
-- raw Hydro-Quebec snapshot archival on local disk
-- normalization and parsing pipeline for marker and KMZ/KML polygon feeds
-- address normalization and cached geocoding with Nominatim plus a Quebec city-centroid fallback
-- address-to-outage matching using polygon containment, centroid radius, and municipality fallback
-- first-pass resolved event deduplication across repeated snapshots
-- access-to-information disclosure source registry
-- XLSX ingestion for published historical outage extracts
-- PDF table extraction for supported published DAI outage files
-- PDF table extraction for regional DAI summary metrics
-- DAI region outline loading from OSM/Nominatim/Overpass with conservative fallback areas
-- always-on DAI area context with page-level details for selected disclosed regions
-- lazy Leaflet map loading that keeps the initial result-card response smaller
-- static simplified geometry assets for regional metrics and DAI/disclosure areas
-- Leaflet map layering that keeps broad DAI areas in the background and live/API outage layers on top
-- Cloudflare Worker D1/R2 ingestion for durable current-feed rows, previous-outage rows, and raw payload archives
+- Local server app
+  - Flask app factory with Jinja templates, static assets, and bilingual server-rendered UI
+  - HTMX search flow and plain Web Components for timeline, cache freshness, and the map shell
+  - SQLite persistence plus raw Hydro-Quebec snapshot archival on local disk
+  - Hydro feed parsing, address normalization, cached geocoding, spatial matching, and first-pass resolved-event deduplication
+- Historical disclosure and map context
+  - access-to-information disclosure source registry plus XLSX and supported PDF extraction
+  - DAI region outlines from OSM/Nominatim/Overpass with conservative fallback areas
+  - always-on disclosure context, lazy Leaflet loading, and simplified geometry assets for regional and local overlays
+- Deployed Cloudflare path
+  - Worker + container deployment for `pannes.ca`
+  - durable D1/R2-backed ingestion for current-feed rows, previous-outage rows, and raw archives
+  - Worker-backed lookup endpoints and scheduled refresh/disclosure archival
 
 ## Run
 
