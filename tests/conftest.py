@@ -99,25 +99,25 @@ class StubService:
         return []
 
     def collect(self):
-        return {}
+        return {"kind": "collect"}
 
     def collect_changed(self):
-        return {}
+        return {"kind": "collect_changed"}
 
     def collect_current_outages(self):
-        return {}
+        return {"kind": "collect_current_outages"}
 
     def collect_planned_interruptions(self):
-        return {}
+        return {"kind": "collect_planned_interruptions"}
 
     def collect_disclosures(self):
-        return {}
+        return {"kind": "collect_disclosures"}
 
     def run_changed_collection_job(self):
-        return {}
+        return {"kind": "run_changed_collection_job"}
 
     def collect_disclosures_if_due(self):
-        return {}
+        return {"kind": "collect_disclosures_if_due"}
 
     def collect_disclosure_sources(self, source_keys):
         return {"source_keys": source_keys}
