@@ -27,6 +27,12 @@ Current focus:
 - `v0.1.3` is the next release in progress
 - the goal is to land a real automated test baseline before starting the `0.2.x` UI work
 
+Testing follow-up by release line:
+
+- `0.1.x`: establish the baseline with deterministic unit tests and route smoke coverage
+- `0.2.x`: expand into browser regression coverage for the map-first UI, lazy map/result timing, mobile sheet behavior, keyboard/focus behavior, back-forward state, language-switch flows, and current-location flows
+- `0.3.x`: expand into architecture and data-pipeline coverage for D1/R2-backed reads, ingestion/export/mirroring paths, broader disclosure parser fixtures, and performance-sensitive integration cases
+
 ## 0.2.0 planning: map-first responsive interface
 
 The next substantial product/design direction should revisit the page structure around a map-first interaction model, closer to `maps.google.com` or `maps.apple.com` than the current document-flow dashboard.

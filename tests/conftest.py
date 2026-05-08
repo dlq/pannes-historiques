@@ -10,7 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app.addressing import NormalizedAddress
 from app.config import Settings
-from app.services import SearchResult
+from app.services import AppService, SearchResult
 
 
 def make_search_result() -> SearchResult:
@@ -152,3 +152,18 @@ def app_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     app.config["TESTING"] = True
     app.testing_stub_service = StubService.last_instance  # type: ignore[attr-defined]
     return app.test_client()
+
+
+@pytest.fixture
+def service_factory(tmp_path: Path):
+    def build(**overrides):
+        settings = Settings(
+            base_dir=tmp_path,
+            data_dir=tmp_path / "data",
+            raw_dir=tmp_path / "data" / "raw",
+            db_path=tmp_path / "data" / "app.db",
+            **overrides,
+        )
+        return AppService(settings)
+
+    return build

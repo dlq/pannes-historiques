@@ -44,6 +44,9 @@ indent = 2
 max_line_length = 120
 ignore = "H006,H030,H031"
 
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
 [tool.setuptools.packages.find]
 include = ["app*"]
 

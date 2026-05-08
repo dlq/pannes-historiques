@@ -169,6 +169,10 @@ Python linting and formatting use Ruff. Jinja template linting and formatting us
 JavaScript linting and formatting for `app/static/` use Biome. Pre-commit runs the same local
 checks before commits once installed.
 
+Current automated coverage is intentionally still lightweight. The suite covers address and
+geocoding helpers, disclosure normalization helpers, service-layer decision paths, route smoke
+tests, and payload serialization without making live network calls or using production credentials.
+
 ## Notes
 
 - The app preserves raw evidence and derives address views from it.
