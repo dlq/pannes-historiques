@@ -1,7 +1,7 @@
 # Plan: Hydro-Québec Outage History App
 
 Date: 2026-04-25
-Last updated: 2026-05-07
+Last updated: 2026-05-08
 
 ## Release roadmap
 
@@ -24,8 +24,9 @@ The near-term release lines should be split this way:
 
 Current focus:
 
-- `v0.1.3` is the next release in progress
-- the goal is to land a real automated test baseline before starting the `0.2.x` UI work
+- `v0.1.3` is complete: the repo now has a real automated baseline with `pytest`, route smoke coverage, helper coverage, and service-layer decision-path coverage
+- `v0.1.4` is the next release in progress
+- the goal for `v0.1.4` is browser regression coverage for lazy map/result behavior before starting the `0.2.x` UI work
 
 Testing follow-up by release line:
 
