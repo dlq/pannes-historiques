@@ -151,6 +151,7 @@ Useful test queries:
 
 ```bash
 uv sync
+uv run pytest
 uv run ruff check .
 uv run ruff format .
 uv run djlint app/templates --lint
@@ -163,9 +164,10 @@ uv run pre-commit install
 uv run pre-commit run --all-files
 ```
 
-Python dependencies and commands are managed by `uv`. Python linting and formatting use Ruff.
-Jinja template linting and formatting use djLint. JavaScript linting and formatting for
-`app/static/` use Biome. Pre-commit runs the same local checks before commits once installed.
+Python dependencies and commands are managed by `uv`. Automated Python tests run with `pytest`.
+Python linting and formatting use Ruff. Jinja template linting and formatting use djLint.
+JavaScript linting and formatting for `app/static/` use Biome. Pre-commit runs the same local
+checks before commits once installed.
 
 ## Notes
 

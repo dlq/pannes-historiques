@@ -3,6 +3,30 @@
 Date: 2026-04-25
 Last updated: 2026-05-07
 
+## Release roadmap
+
+The near-term release lines should be split this way:
+
+- `0.1.x`: stabilize the current product shape
+  - `v0.1.3`: formal test suite baseline with `pytest`, deterministic service/geocoding tests, and route smoke coverage
+  - `v0.1.4`: browser regressions for lazy map/result behavior, including click-before-map-load cases
+  - `v0.1.5`: geocoder hardening, caching, normalization, and clearer ambiguous/failure UX
+  - `v0.1.6`: operational cleanup, docs/env cleanup, verified status-code decoding, and small UI consistency fixes
+- `0.2.x`: map-first UI and interaction redesign
+  - `v0.2.0`: map-first responsive shell for desktop and mobile
+  - `v0.2.1`: result/detail interaction refinement and selected-state behavior
+  - `v0.2.2`: search entry, current-location, history/back-forward, and lightweight region-entry improvements
+  - `v0.2.3`: accessibility and usability hardening for the new UI
+- `0.3.x`: architecture and product expansion
+  - move more production reads off container SQLite/static assets toward D1-backed paths
+  - broaden province/region analytics and `Bilan par région`-style views
+  - expand disclosure ingestion, geometry enrichment, and geocoder-provider options
+
+Current focus:
+
+- `v0.1.3` is the next release in progress
+- the goal is to land a real automated test baseline before starting the `0.2.x` UI work
+
 ## 0.2.0 planning: map-first responsive interface
 
 The next substantial product/design direction should revisit the page structure around a map-first interaction model, closer to `maps.google.com` or `maps.apple.com` than the current document-flow dashboard.
