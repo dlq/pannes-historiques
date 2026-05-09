@@ -12,6 +12,11 @@ FIXED_DAYS = 1825
 FIXED_INCLUDE_PLANNED = True
 REGIONAL_GEOMETRY_ASSET = Path(__file__).parent / "static" / "regional_metric_geometries.json"
 DISCLOSURE_GEOMETRY_ASSET = Path(__file__).parent / "static" / "disclosure_geometries.json"
+HYDRO_STATUS_LABEL_KEYS = {
+    "A": "hydro_status_assigned",
+    "L": "hydro_status_crew_at_work",
+    "R": "hydro_status_crew_en_route",
+}
 
 
 @lru_cache(maxsize=1)
@@ -36,6 +41,14 @@ def _regional_geometry_key(item: dict[str, Any]) -> str:
 
 def _disclosure_geometry_key(item: dict[str, Any]) -> str:
     return f"disclosure:{item['geography_type']}:{item['municipality_code']}"
+
+
+def hydro_status_label(lang: str, status: str | None) -> str:
+    code = (status or "").strip().upper()
+    if not code:
+        return t(lang, "unknown")
+    label_key = HYDRO_STATUS_LABEL_KEYS.get(code)
+    return t(lang, label_key) if label_key else code
 
 
 def context_geometry_payload(result: Any) -> dict[str, Any]:
@@ -151,6 +164,7 @@ def build_map_payload(lang: str, result: Any, display_address: str) -> dict[str,
                 "customersAffected": item["customers_affected"],
                 "distanceM": item["distance_m"],
                 "status": item["status"],
+                "statusLabel": hydro_status_label(lang, item["status"]),
                 "startTime": item["start_time"],
                 "endTime": item["end_time"],
                 "municipalityCode": item["municipality_code"],
@@ -176,6 +190,10 @@ def build_map_payload(lang: str, result: Any, display_address: str) -> dict[str,
                 else None,
                 "distanceM": group["events"][0]["distance_m"] if group["events"] else None,
                 "status": group["events"][0]["status"] if group["events"] else None,
+                "statusLabel": hydro_status_label(
+                    lang,
+                    group["events"][0]["status"] if group["events"] else None,
+                ),
                 "startTime": group["events"][0]["start_time"] if group["events"] else None,
                 "latestStartTime": group["latest_start_time"],
                 "recentEvents": group["events"][:12],

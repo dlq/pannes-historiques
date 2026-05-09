@@ -1,7 +1,7 @@
 # Plan: Hydro-Québec Outage History App
 
 Date: 2026-04-25
-Last updated: 2026-05-08
+Last updated: 2026-05-09
 
 ## Release roadmap
 
@@ -11,11 +11,10 @@ The near-term release lines should be split this way:
   - `v0.1.3`: formal test suite baseline with `pytest`, deterministic service/geocoding tests, and route smoke coverage
   - `v0.1.4`: combined hardening sprint covering browser-regression setup for the current UI, geocoder hardening, operational cleanup, docs/env cleanup, verified status-code decoding, and small UI consistency fixes
 - `0.2.x`: map-first UI and interaction redesign
-  - `v0.2.0`: repo-owned Playwright browser regression baseline runnable outside Codex
-  - `v0.2.1`: map-first responsive shell for desktop and mobile
-  - `v0.2.2`: result/detail interaction refinement and selected-state behavior
-  - `v0.2.3`: search entry, current-location, history/back-forward, and lightweight region-entry improvements
-  - `v0.2.4`: accessibility and usability hardening for the new UI
+  - `v0.2.0`: map-first responsive shell for desktop and mobile
+  - `v0.2.1`: result/detail interaction refinement and selected-state behavior
+  - `v0.2.2`: search entry, current-location, history/back-forward, and lightweight region-entry improvements
+  - `v0.2.3`: accessibility and usability hardening for the new UI
 - `0.3.x`: architecture and product expansion
   - move more production reads off container SQLite/static assets toward D1-backed paths
   - broaden province/region analytics and `Bilan par région`-style views
@@ -35,64 +34,21 @@ Current focus:
   - clicking a result before the lazy map finishes loading
   - current-location search
   - language-switch state preservation
+- Nominatim hardening is now implemented with Quebec-specific shorthand expansion, stronger civic-address ranking, clearer underspecified-address failure copy, and focused tests
+- remaining `v0.1.4` release work is limited to docs/release cleanup plus a status-code decoding decision; do not decode Hydro-Quebec one-letter status codes unless meanings can be verified from source evidence
 - the first planned `0.2.x` step after that hardening sprint is the map-first responsive redesign
 
 Testing follow-up by release line:
 
 - `0.1.x`: establish the baseline with deterministic unit tests and route smoke coverage
-- `0.2.x`: add Playwright as a normal repo dependency with documented `npm` scripts and tests for current lazy map/result timing before implementing the map-first UI; then expand coverage for mobile sheet behavior, keyboard/focus behavior, back-forward state, language-switch flows, and current-location flows
+- `0.2.x`: expand Playwright coverage for mobile sheet behavior, keyboard/focus behavior, back-forward state, language-switch flows, and current-location flows as the map-first UI is implemented
 - `0.3.x`: expand into architecture and data-pipeline coverage for D1/R2-backed reads, ingestion/export/mirroring paths, broader disclosure parser fixtures, and performance-sensitive integration cases
 
-## 0.2.0 planning: repo-owned Playwright browser tests
-
-Before starting the map-first UI redesign, add browser tests that contributors can run without Codex-specific tooling.
-
-Goal:
-
-- make interface regressions repeatable from a normal checkout
-- cover the existing lazy-load behaviour before changing the interface shell
-- give future map-first/mobile-bottom-sheet work a safety net
-- make CI/browser testing possible without relying on Codex Browser Use
-
-Proposed setup:
-
-- add `@playwright/test` as an npm dev dependency
-- add `playwright.config.ts`
-- add `tests/e2e/*.spec.ts`
-- add npm scripts:
-  - `test:e2e`
-  - `test:e2e:ui`
-  - `test:e2e:mobile` if separate mobile-focused runs are useful
-- configure Playwright `webServer` to start the Flask app so contributors can run one command
-- document setup in `README.md`, including:
-  - `npm install`
-  - `npx playwright install`
-  - `npm run test:e2e`
-
-Initial test coverage:
-
-- page loads in English and French
-- address search returns result cards
-- lazy map loads after result cards
-- clicking a result card before the lazy map finishes loading still recentres the map after the map appears
-- clicking operational outage, planned interruption, previous-outage, DAI/disclosure, and regional metric map features updates the detail context consistently
-- mobile viewport keeps the map prominent and result ordering usable
-- current-location denied/unavailable states render cleanly
-- language switch preserves a usable query/search state
-
-Implementation notes:
-
-- prefer deterministic fixture/search data where possible so tests do not depend on live Hydro-Québec responses
-- start with Chromium because it is the easiest CI baseline; add WebKit/mobile Safari-like coverage once the main suite is stable
-- keep tests high-level and user-behaviour focused rather than tightly coupled to DOM internals
-- use screenshots only for debugging or targeted visual assertions, not as the primary assertion style
-- ensure the suite can run locally on a clean machine and in CI with documented prerequisites
-
-## 0.2.1 planning: map-first responsive interface
+## 0.2.0 planning: map-first responsive interface
 
 The next substantial product/design direction should revisit the page structure around a map-first interaction model, closer to `maps.google.com` or `maps.apple.com` than the current document-flow dashboard.
 
-The current mobile layout works, but it is not pleasant enough on a phone. The page still feels like a desktop report compressed into a narrow viewport, and the user has to scroll through cards while the map is only one section among many. For 0.2.1, treat the map as the persistent spatial surface and put search/results/context into overlays.
+The current mobile layout works, but it is not pleasant enough on a phone. The page still feels like a desktop report compressed into a narrow viewport, and the user has to scroll through cards while the map is only one section among many. For 0.2.0, treat the map as the persistent spatial surface and put search/results/context into overlays.
 
 Primary design goal:
 

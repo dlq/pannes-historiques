@@ -2,7 +2,7 @@ from types import SimpleNamespace
 
 from conftest import make_search_result
 
-from app.views import context_geometry_payload, result_context
+from app.views import context_geometry_payload, hydro_status_label, result_context
 
 
 def test_result_context_builds_display_address_and_map_payload():
@@ -65,3 +65,12 @@ def test_context_geometry_payload_prefers_static_or_inline_geometry():
 
     assert payload["geometries"][0]["kind"] == "regional_metric"
     assert payload["geometries"][1]["kind"] == "disclosure"
+
+
+def test_hydro_status_label_decodes_verified_codes_and_preserves_unknown_codes():
+    assert hydro_status_label("en", "A") == "Work assigned"
+    assert hydro_status_label("en", "L") == "Crew at work"
+    assert hydro_status_label("en", "R") == "Crew en route"
+    assert hydro_status_label("fr", "A") == "Travaux assignes"
+    assert hydro_status_label("en", "N") == "N"
+    assert hydro_status_label("en", "") == "Unknown"

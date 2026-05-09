@@ -1,9 +1,18 @@
 # Research: Hydro-Québec Historic Outage Data
 
 Date: 2026-04-25
-Last updated: 2026-05-07
+Last updated: 2026-05-09
 
 ## Implementation note
+
+Status-code decoding checkpoint:
+
+- Hydro-Quebec's open-data catalogue for `pannes-interruptions` documents outage and planned-interruption status codes `A`, `L`, and `R`.
+- English labels from the catalogue: `A` = `work assigned`, `L` = `crew at work`, `R` = `crew en route`.
+- French labels from the catalogue: `A` = `travaux assignes`, `L` = `equipe au travail`, `R` = `equipe en route`.
+- The same page lists a default/blank status, but it does not document the `N` status observed in current live payloads.
+- Conclusion: decode `A`, `L`, and `R`; preserve unknown codes such as `N` as raw source codes until their meaning is verified.
+- Source: https://donnees.hydroquebec.com/explore/dataset/pannes-interruptions/
 
 The prototype now ingests several of the published access-to-information extracts identified in this research:
 
