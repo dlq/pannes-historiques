@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import math
+import re
 import time
 import urllib.parse
 import urllib.request
@@ -36,6 +37,32 @@ QUEBEC_CITY_CENTROIDS = {
     "lisle aux allumettes": (45.8750, -77.0500),
     "isle aux allumettes": (45.8750, -77.0500),
 }
+
+QUEBEC_CARDINAL_VARIANTS = {
+    " o ": " ouest ",
+    " e ": " est ",
+    " n ": " nord ",
+    " s ": " sud ",
+}
+
+STREET_TOKEN_EQUIVALENTS = {
+    "st": "saint",
+    "ste": "sainte",
+    "av": "avenue",
+    "boul": "boulevard",
+    "bd": "boulevard",
+    "ch": "chemin",
+    "rte": "route",
+    "mtl": "montreal",
+    "qc": "quebec",
+}
+
+QUEBEC_ADDRESS_TYPES = {"house", "residential", "building", "apartments", "terrace"}
+QUEBEC_SETTLEMENT_TYPES = {"neighbourhood", "suburb", "quarter", "hamlet", "town", "village"}
+QUEBEC_ABBREVIATION_RE = re.compile(
+    r"\b(?:st|ste|av|boul|bd|ch|rte)\b|\b[OENS]\.\b|\b[OENS]\b$",
+    re.IGNORECASE,
+)
 
 
 @dataclass(frozen=True)
@@ -93,7 +120,8 @@ class GeocodingService:
 
         suggestions: list[dict[str, Any]] = []
         seen: set[str] = set()
-        for candidate in self._autocomplete_queries(cleaned):
+        candidate_queries = self._autocomplete_queries(cleaned)
+        for candidate in candidate_queries:
             payload = self._nominatim_search(candidate, language=language, limit=max(limit, 8))
             for item in payload:
                 suggestion = self._suggestion_from_item(item)
@@ -101,10 +129,19 @@ class GeocodingService:
                 if key in seen:
                     continue
                 seen.add(key)
-                suggestion["_score"] = self._suggestion_score(cleaned, suggestion)
+                suggestion["_score"] = self._suggestion_score(
+                    cleaned, suggestion, candidate_queries
+                )
                 suggestions.append(suggestion)
         ranked = [item for item in suggestions if item["_score"] > 0]
-        ranked.sort(key=lambda item: (item["_score"], item["label"]), reverse=True)
+        ranked.sort(
+            key=lambda item: (
+                item["_score"],
+                item.get("_importance", 0.0),
+                item["label"],
+            ),
+            reverse=True,
+        )
         results = [{k: v for k, v in item.items() if k != "_score"} for item in ranked[:limit]]
         self._suggest_cache[cache_key] = (time.time(), results)
         return results
@@ -191,6 +228,12 @@ class GeocodingService:
         province = "Quebec"
         if normalized.original:
             candidates.append(f"{normalized.original}, {province}, Canada")
+            if self._needs_query_expansion(normalized.original):
+                candidates.extend(
+                    f"{variant}, {province}, Canada"
+                    for variant in self._query_variants(normalized.original)
+                    if variant != normalized.original
+                )
         canonical_parts = [normalized.street_line]
         if normalized.city:
             canonical_parts.append(normalized.city)
@@ -209,13 +252,14 @@ class GeocodingService:
         return unique_candidates
 
     def _autocomplete_queries(self, query: str) -> list[str]:
-        lowered = query.lower()
-        candidates = [query]
-        if "montreal" not in lowered and "montréal" not in lowered and "quebec" not in lowered:
-            candidates.append(f"{query}, Montreal, Quebec, Canada")
-            candidates.append(f"{query}, Quebec, Canada")
+        lowered = normalize_text(query)
+        base_variants = self._query_variants(query)
+        candidates = list(base_variants)
+        if "montreal" not in lowered and "quebec" not in lowered:
+            candidates.extend(f"{variant}, Montreal, Quebec, Canada" for variant in base_variants)
+            candidates.extend(f"{variant}, Quebec, Canada" for variant in base_variants)
         else:
-            candidates.append(f"{query}, Canada")
+            candidates.extend(f"{variant}, Canada" for variant in base_variants)
         seen: set[str] = set()
         unique_candidates: list[str] = []
         for candidate in candidates:
@@ -272,9 +316,17 @@ class GeocodingService:
             "province": province,
             "postal_code": postal_code,
             "display_name": item.get("display_name", ""),
+            "_type": item.get("type", ""),
+            "_class": item.get("class", ""),
+            "_importance": float(item.get("importance", 0.0)),
         }
 
-    def _suggestion_score(self, query: str, suggestion: dict[str, Any]) -> int:
+    def _suggestion_score(
+        self,
+        query: str,
+        suggestion: dict[str, Any],
+        candidate_queries: list[str],
+    ) -> int:
         normalized_query = normalize_text(query)
         normalized_label = normalize_text(
             " ".join(
@@ -293,6 +345,10 @@ class GeocodingService:
             return 0
 
         score = 0
+        numeric_tokens = [token for token in query_tokens if token.isdigit()]
+        query_has_cardinal = any(
+            token in normalized_query.split() for token in {"ouest", "est", "nord", "sud"}
+        )
         for token in query_tokens:
             if token.isdigit():
                 if any(label_token == token for label_token in label_tokens):
@@ -302,7 +358,7 @@ class GeocodingService:
                 continue
             if token in {"rue", "avenue", "boulevard", "chemin", "route"}:
                 if token in label_tokens:
-                    score += 1
+                    score += 2
                 continue
             if any(label_token.startswith(token) for label_token in label_tokens):
                 score += 4
@@ -310,9 +366,53 @@ class GeocodingService:
                 score += 2
             else:
                 return 0
+        if numeric_tokens and not suggestion.get("value", "").strip().split()[0:1]:
+            return 0
+        if suggestion.get("_type") in QUEBEC_ADDRESS_TYPES:
+            score += 6
+        elif suggestion.get("_type") in QUEBEC_SETTLEMENT_TYPES:
+            score -= 4
+        if suggestion.get("_class") == "building":
+            score += 2
+        if suggestion.get("postal_code"):
+            score += 2
+        if query_has_cardinal and any(
+            token in label_tokens for token in {"ouest", "est", "nord", "sud"}
+        ):
+            score += 3
+        if any("montreal" in normalize_text(candidate) for candidate in candidate_queries) and (
+            "montreal" in normalized_label
+        ):
+            score += 2
         if "montreal" in normalized_label or "montreal" in normalized_query:
             score += 1
         return score
+
+    def _query_variants(self, query: str) -> list[str]:
+        variants = [query]
+        expanded = self._expand_quebec_terms(query)
+        raw_cleaned = " ".join(query.split()).strip(" ,").lower()
+        if expanded.lower() != raw_cleaned:
+            variants.append(expanded)
+        seen: set[str] = set()
+        unique: list[str] = []
+        for variant in variants:
+            cleaned = " ".join(variant.split()).strip(" ,")
+            if cleaned and cleaned.lower() not in seen:
+                seen.add(cleaned.lower())
+                unique.append(cleaned)
+        return unique
+
+    def _expand_quebec_terms(self, query: str) -> str:
+        value = f" {normalize_text(query)} "
+        for source, target in QUEBEC_CARDINAL_VARIANTS.items():
+            value = value.replace(source, target)
+        for source, target in STREET_TOKEN_EQUIVALENTS.items():
+            value = re.sub(rf"\b{re.escape(source)}\b", target, value)
+        return " ".join(value.split())
+
+    def _needs_query_expansion(self, query: str) -> bool:
+        return bool(QUEBEC_ABBREVIATION_RE.search(query))
 
     def _fallback_city(self, normalized: NormalizedAddress) -> GeocodeResult | None:
         key = normalized.city.strip().lower()

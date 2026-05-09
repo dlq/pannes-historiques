@@ -68,7 +68,14 @@ def context_geometry_payload(result: Any) -> dict[str, Any]:
 
 def result_context(lang: str, result: Any, *, include_map_payload: bool = True) -> dict[str, Any]:
     if result.error:
-        error_key = "outside_quebec_error" if result.error == "outside_quebec" else "search_error"
+        if result.error == "outside_quebec":
+            error_key = "outside_quebec_error"
+        elif result.error == "geocode_failed" and not (
+            result.normalized.city or result.normalized.postal_code
+        ):
+            error_key = "search_error_add_city"
+        else:
+            error_key = "search_error"
         return {"lang": lang, "result": result, "error_message": t(lang, error_key)}
 
     display_address = ", ".join(
