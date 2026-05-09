@@ -9,9 +9,7 @@ The near-term release lines should be split this way:
 
 - `0.1.x`: stabilize the current product shape
   - `v0.1.3`: formal test suite baseline with `pytest`, deterministic service/geocoding tests, and route smoke coverage
-  - `v0.1.4`: small current-interface maintenance, bug fixes, docs/env cleanup, and release hygiene as needed
-  - `v0.1.5`: geocoder hardening, caching, normalization, and clearer ambiguous/failure UX
-  - `v0.1.6`: operational cleanup, docs/env cleanup, verified status-code decoding, and small UI consistency fixes
+  - `v0.1.4`: combined hardening sprint covering browser-regression setup for the current UI, geocoder hardening, operational cleanup, docs/env cleanup, verified status-code decoding, and small UI consistency fixes
 - `0.2.x`: map-first UI and interaction redesign
   - `v0.2.0`: repo-owned Playwright browser regression baseline runnable outside Codex
   - `v0.2.1`: map-first responsive shell for desktop and mobile
@@ -26,8 +24,18 @@ The near-term release lines should be split this way:
 Current focus:
 
 - `v0.1.3` is complete: the repo now has a real automated baseline with `pytest`, route smoke coverage, helper coverage, and service-layer decision-path coverage
-- `v0.1.4` can remain a small maintenance/release-hygiene patch if needed
-- the first planned `0.2.x` step is a repo-owned Playwright suite so contributors can run browser/interface regressions outside Codex before the map-first redesign begins
+- `v0.1.4` is now the remaining `0.1.x` hardening sprint, replacing the earlier split between `v0.1.4`, `v0.1.5`, and `v0.1.6`
+- the current `v0.1.4` scope is:
+  - repo-owned Playwright coverage for the current lazy map/result flow
+  - Nominatim hardening: caching, normalization, and clearer ambiguous/failure UX
+  - operational/docs cleanup, verified status-code decoding, and small UI consistency fixes
+- Playwright baseline is now implemented in the repo with a deterministic fixture server, Chromium + mobile-Chromium projects, and regression coverage for:
+  - initial English/French render
+  - search result rendering plus lazy map load
+  - clicking a result before the lazy map finishes loading
+  - current-location search
+  - language-switch state preservation
+- the first planned `0.2.x` step after that hardening sprint is the map-first responsive redesign
 
 Testing follow-up by release line:
 

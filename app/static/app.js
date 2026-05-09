@@ -680,6 +680,9 @@ class OutageMap extends HTMLElement {
     const focusMap = (rawDetail, { remember = true } = {}) => {
       const detail = enrichFocusDetail(rawDetail || {});
       if (remember) activeMapFocus = detail;
+      this.dataset.activeFocusKind = detail.kind || "";
+      this.dataset.activeFocusLabel = detail.label || "";
+      this.dataset.activeFocusStartTime = detail.startTime || "";
       map.invalidateSize();
       if (detail.geometry) {
         const layer = L.geoJSON(detail.geometry);

@@ -152,6 +152,9 @@ Useful test queries:
 ```bash
 uv sync
 uv run pytest
+npx playwright install chromium
+npm run test:e2e
+npm run test:e2e:mobile
 uv run ruff check .
 uv run ruff format .
 uv run djlint app/templates --lint
@@ -165,13 +168,15 @@ uv run pre-commit run --all-files
 ```
 
 Python dependencies and commands are managed by `uv`. Automated Python tests run with `pytest`.
-Python linting and formatting use Ruff. Jinja template linting and formatting use djLint.
+Repo-owned browser regression tests run with Playwright against a deterministic local fixture
+server. Python linting and formatting use Ruff. Jinja template linting and formatting use djLint.
 JavaScript linting and formatting for `app/static/` use Biome. Pre-commit runs the same local
 checks before commits once installed.
 
 Current automated coverage is intentionally still lightweight. The suite covers address and
 geocoding helpers, disclosure normalization helpers, service-layer decision paths, route smoke
-tests, and payload serialization without making live network calls or using production credentials.
+tests, payload serialization, and browser-level search/map regressions without making live network
+calls or using production credentials.
 
 ## Notes
 
