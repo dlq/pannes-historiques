@@ -37,6 +37,7 @@ Current focus:
 - Nominatim hardening is now implemented with Quebec-specific shorthand expansion, stronger civic-address ranking, clearer underspecified-address failure copy, and focused tests
 - remaining `v0.1.4` release work is limited to docs/release cleanup plus a status-code decoding decision; do not decode Hydro-Quebec one-letter status codes unless meanings can be verified from source evidence
 - the first planned `0.2.x` step after that hardening sprint is the map-first responsive redesign
+- defer the full UI audit to `v0.2.0`; it should review CSS/Tailwind class usage, client-side JS behaviour, and Jinja template structure together before or during the map-first redesign
 
 Testing follow-up by release line:
 
@@ -56,6 +57,7 @@ Primary design goal:
 - keep address/current-location search prominent without forcing the user through a long document page
 - show outage information in an overlay that can collapse, expand, and move out of the way
 - make desktop and mobile feel like intentional variants of the same map-first app, not separate layouts patched with breakpoints
+- perform a full UI audit across CSS/Tailwind classes, JavaScript interaction code, and Jinja templates so the redesign is based on a coherent interface model rather than incremental page tweaks
 
 Desktop layout direction:
 
