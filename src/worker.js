@@ -38,6 +38,10 @@ export class PannesContainer extends Container {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    if (url.hostname === "www.pannes.ca") {
+      url.hostname = "pannes.ca";
+      return Response.redirect(url.toString(), 308);
+    }
     if (url.pathname.startsWith("/internal/")) {
       return new Response("Not found", { status: 404 });
     }
