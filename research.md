@@ -881,11 +881,11 @@ Important architectural boundary:
 - Production still sets `AUTO_REFRESH_ON_SEARCH=0`, so user searches should not synchronously call the Hydro API.
 - The current Flask search path now uses D1 for current outage/planned-interruption nearby marker matches when `DURABLE_NEARBY_URL` is set in production.
 - Local development does not set `DURABLE_NEARBY_URL`, so it continues to use the local SQLite/API-refresh path.
-- D1 is now the durable production feed ledger and normalized marker store; R2 is the durable raw payload archive.
+- D1 is now the durable production feed ledger, normalized marker store, and current Hydro polygon geometry/index store; R2 is the durable raw payload archive.
 - `/api/durable/nearby` is the first Worker/D1 read endpoint intended for the user-facing lookup path. It takes `lat`, `lon`, optional `radius_m`, and optional `limit`, then returns nearby current outage and planned-interruption marker rows sorted by distance.
 - `/api/durable/history-nearby` is the second Worker/D1 read endpoint intended for the user-facing lookup path. It takes `lat`, `lon`, optional `radius_m`, `days`, and `limit`, then returns nearby accumulated outage events from `resolved_events`.
 - Production Flask search uses `DURABLE_HISTORY_URL` for archived/previous outage matching. Local development does not set this URL, so local search still uses the local SQLite/API-refresh path.
-- Polygon KMZ payloads are archived in R2, but Worker-side polygon parsing into durable geometry/index tables is still a follow-up.
+- Polygon KMZ payloads are archived in R2 and parsed by the Worker into D1 `hydro_polygon_geometries`; a real production cron on 2026-05-12T14:07Z wrote `bispoly` version `20260512100020` with 113 polygons and `aippoly` version `20260512100021` with 137 polygons.
 - Durable DAI/R2 persistence is not complete yet; the first DAI schedule still runs the existing container disclosure collector.
 
 Verification performed:

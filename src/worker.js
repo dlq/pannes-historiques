@@ -1,4 +1,5 @@
 import { Container } from "@cloudflare/containers";
+import { unzipSync } from "fflate";
 
 const HYDRO_ROOT = "https://pannes.hydroquebec.com/pannes/donnees/v3_0";
 const DISCLOSURE_CRONS = new Set(["0 10 */14 * *", "13 10 */14 * *"]);
@@ -165,11 +166,15 @@ async function syncHydroSourceFromContainer(env, sourceInfo, snapshots) {
   const markerSnapshot = relevantSnapshots.find(
     (snapshot) => snapshot.source_type === `${source}markers`,
   );
+  const polySnapshot = relevantSnapshots.find(
+    (snapshot) => snapshot.source_type === `${source}poly`,
+  );
   if (!markerSnapshot) {
     throw new Error(`container hydro summary did not include ${source} marker snapshot`);
   }
 
   let markerPayload = null;
+  let polyPayload = null;
   for (const snapshot of relevantSnapshots) {
     const payload = await fetchContainerRawSnapshot(env, snapshot);
     await storeSnapshot(
@@ -180,15 +185,25 @@ async function syncHydroSourceFromContainer(env, sourceInfo, snapshots) {
       snapshotExtension(snapshot.source_type),
     );
     if (snapshot.source_type === `${source}markers`) markerPayload = payload;
+    if (snapshot.source_type === `${source}poly`) polyPayload = payload;
   }
 
   if (!markerPayload) throw new Error(`container hydro did not provide ${source} marker payload`);
+  if (!polySnapshot || !polyPayload)
+    throw new Error(`container hydro summary did not include ${source} polygon payload`);
   const count =
     source === "bis"
       ? await ingestBisMarkers(env.DB, version, decodeUtf8(markerPayload.bytes), checkedAt)
       : await ingestAipMarkers(env.DB, version, decodeUtf8(markerPayload.bytes), checkedAt);
+  const polygonCount = await ingestHydroPolygons(
+    env.DB,
+    `${source}poly`,
+    version,
+    polyPayload.bytes,
+    checkedAt,
+  );
   await upsertFeedVersion(env.DB, source, version, checkedAt);
-  return { source, version, changed: true, records: count };
+  return { source, version, changed: true, records: count, polygons: polygonCount };
 }
 
 async function fetchContainerRawSnapshot(env, snapshot) {
@@ -644,15 +659,16 @@ async function ingestSourceIfChanged(env, source) {
   await storeSnapshot(env, `${source}version`, version, versionPayload, "json");
   await storeSnapshot(env, markerType, version, markers, "json");
   await storeSnapshot(env, polyType, version, poly, "kmz");
+  const polygonCount = await ingestHydroPolygons(env.DB, polyType, version, poly.bytes, checkedAt);
 
   if (source === "bis") {
     const count = await ingestBisMarkers(env.DB, version, decodeUtf8(markers.bytes), checkedAt);
     await upsertFeedVersion(env.DB, source, version, checkedAt);
-    return { source, version, changed: true, records: count };
+    return { source, version, changed: true, records: count, polygons: polygonCount };
   }
   const count = await ingestAipMarkers(env.DB, version, decodeUtf8(markers.bytes), checkedAt);
   await upsertFeedVersion(env.DB, source, version, checkedAt);
-  return { source, version, changed: true, records: count };
+  return { source, version, changed: true, records: count, polygons: polygonCount };
 }
 
 async function fetchArrayBuffer(
@@ -1132,6 +1148,100 @@ async function ingestAipMarkers(db, version, text, updatedAt) {
   await batchInChunks(db, statements);
   await upsertResolvedEvents(db, "planned", version, rows, updatedAt);
   return rows.length;
+}
+
+async function ingestHydroPolygons(db, sourceType, version, kmzBuffer, updatedAt) {
+  const features = parseKmzPolygons(kmzBuffer);
+  const statements = features.map((feature, index) => {
+    const polygonId = feature.polygon_id || String(index);
+    return db
+      .prepare(
+        `
+        INSERT OR REPLACE INTO hydro_polygon_geometries
+        (id, source_type, source_version, polygon_id, name, centroid_lon, centroid_lat,
+         bbox_min_lon, bbox_min_lat, bbox_max_lon, bbox_max_lat, geometry_geojson,
+         raw_coordinates, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `,
+      )
+      .bind(
+        `${sourceType}:${version}:${polygonId}`,
+        sourceType,
+        version,
+        polygonId,
+        feature.name,
+        feature.centroid_lon,
+        feature.centroid_lat,
+        feature.bbox[0],
+        feature.bbox[1],
+        feature.bbox[2],
+        feature.bbox[3],
+        JSON.stringify(feature.geometry),
+        feature.raw_coordinates,
+        updatedAt,
+      );
+  });
+  await batchInChunks(db, statements);
+  return features.length;
+}
+
+function parseKmzPolygons(kmzBuffer) {
+  const files = unzipSync(new Uint8Array(kmzBuffer));
+  const kmlName = Object.keys(files).find((name) => name.endsWith(".kml"));
+  if (!kmlName) return [];
+  return parseKmlPolygons(new TextDecoder().decode(files[kmlName]));
+}
+
+function parseKmlPolygons(kmlText) {
+  const features = [];
+  for (const placemark of kmlText.matchAll(/<Placemark\b[\s\S]*?<\/Placemark>/g)) {
+    const placemarkText = placemark[0];
+    const polygonMatch = placemarkText.match(/<Polygon\b[\s\S]*?<\/Polygon>/);
+    if (!polygonMatch) continue;
+    const coordinates = extractTagText(polygonMatch[0], "coordinates").trim();
+    if (!coordinates) continue;
+    const points = [];
+    for (const chunk of coordinates.split(/\s+/)) {
+      const [rawLon, rawLat] = chunk.split(",");
+      const lon = Number.parseFloat(rawLon);
+      const lat = Number.parseFloat(rawLat);
+      if (Number.isFinite(lon) && Number.isFinite(lat)) points.push([lon, lat]);
+    }
+    if (points.length < 3) continue;
+    const lons = points.map((point) => point[0]);
+    const lats = points.map((point) => point[1]);
+    const name = extractTagText(placemarkText, "name");
+    features.push({
+      polygon_id: name,
+      name,
+      centroid_lon: lons.reduce((sum, lon) => sum + lon, 0) / lons.length,
+      centroid_lat: lats.reduce((sum, lat) => sum + lat, 0) / lats.length,
+      bbox: [Math.min(...lons), Math.min(...lats), Math.max(...lons), Math.max(...lats)],
+      geometry: { type: "Polygon", coordinates: [points] },
+      raw_coordinates: coordinates,
+    });
+  }
+  return features;
+}
+
+function extractTagText(text, tagName) {
+  const match = text.match(new RegExp(`<${tagName}(?:\\s[^>]*)?>([\\s\\S]*?)<\\/${tagName}>`));
+  if (!match) return "";
+  return decodeXmlEntities(
+    match[1]
+      .replace(/^<!\[CDATA\[/, "")
+      .replace(/\]\]>$/, "")
+      .trim(),
+  );
+}
+
+function decodeXmlEntities(value) {
+  return value
+    .replaceAll("&lt;", "<")
+    .replaceAll("&gt;", ">")
+    .replaceAll("&quot;", '"')
+    .replaceAll("&apos;", "'")
+    .replaceAll("&amp;", "&");
 }
 
 async function upsertResolvedEvents(db, outageKind, version, rows, updatedAt) {

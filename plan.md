@@ -506,7 +506,7 @@ Current production implementation:
 - unchanged versions update `feed_versions.checked_at` without redownloading the larger payloads
 - changed versions are written to D1 as normalized current outage/planned-interruption rows and accumulated `resolved_events`
 - raw version, marker, and polygon payloads are written to R2 for durable provenance
-- polygon KMZ payloads are archived in R2 now; parsing them into durable geometry/index tables remains a follow-up
+- polygon KMZ payloads are parsed by the Worker and written to D1 `hydro_polygon_geometries` with bbox/centroid metadata and GeoJSON text, while raw KMZ files remain archived in R2
 - `/api/durable/nearby?lat=...&lon=...&radius_m=...` reads current D1 marker rows by bounding box and returns nearby records sorted by distance
 - `/api/durable/history-nearby?lat=...&lon=...&radius_m=...&days=...` reads accumulated D1 `resolved_events` rows by bounding box and returns previous outage events sorted by time/distance
 - production search uses `DURABLE_NEARBY_URL` to fetch current outage/planned-interruption matches from D1; local development does not set this variable and remains on the local SQLite path

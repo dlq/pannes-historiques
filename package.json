@@ -19,5 +19,8 @@
     "@cloudflare/containers": "^0.3.3",
     "@playwright/test": "^1.56.1",
     "wrangler": "^4.87.0"
+  },
+  "dependencies": {
+    "fflate": "^0.8.2"
   }
 }
