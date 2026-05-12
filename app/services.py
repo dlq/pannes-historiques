@@ -84,6 +84,43 @@ class AppService:
         self.disclosure_collector = DisclosureCollector(settings)
         self._context_cache: dict[str, Any] = {}
 
+    def _durable_runtime_get(
+        self, path: str, query: dict[str, str] | None = None
+    ) -> dict[str, Any] | None:
+        if not self.settings.durable_runtime_url:
+            return None
+        suffix = f"/{path.lstrip('/')}"
+        encoded = f"?{urllib.parse.urlencode(query)}" if query else ""
+        request = urllib.request.Request(
+            f"{self.settings.durable_runtime_url}{suffix}{encoded}",
+            headers={"User-Agent": "pannes-historiques/0.1 (+https://pannes.ca)"},
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=8) as response:
+                return json.loads(response.read().decode("utf-8"))
+        except Exception as exc:
+            current_timer().set(f"durable_runtime_{path.replace('/', '_')}_error", str(exc))
+            return None
+
+    def _durable_runtime_post(self, path: str, payload: dict[str, Any]) -> dict[str, Any] | None:
+        if not self.settings.durable_runtime_url:
+            return None
+        request = urllib.request.Request(
+            f"{self.settings.durable_runtime_url}/{path.lstrip('/')}",
+            data=json.dumps(payload, ensure_ascii=True).encode("utf-8"),
+            headers={
+                "Content-Type": "application/json",
+                "User-Agent": "pannes-historiques/0.1 (+https://pannes.ca)",
+            },
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=8) as response:
+                return json.loads(response.read().decode("utf-8"))
+        except Exception as exc:
+            current_timer().set(f"durable_runtime_{path.replace('/', '_')}_error", str(exc))
+            return None
+
     def collect(self) -> dict[str, Any]:
         result = self.collector.collect_all()
         self._clear_context_cache()
@@ -637,6 +674,11 @@ class AppService:
         return self._cached_context("collector_status", self._collector_status)
 
     def _collector_status(self) -> dict[str, Any]:
+        if self.settings.durable_runtime_url:
+            payload = self._durable_runtime_get("status")
+            if payload and payload.get("collector"):
+                return payload["collector"]
+            return {"snapshot_count": 0, "latest": None, "earliest": None}
         with open_db(self.settings.db_path) as connection:
             count = connection.execute("SELECT COUNT(*) AS count FROM raw_snapshots").fetchone()[
                 "count"
@@ -657,6 +699,23 @@ class AppService:
         return self._cached_context("coverage_stats", self._coverage_stats)
 
     def _coverage_stats(self) -> dict[str, Any]:
+        if self.settings.durable_runtime_url:
+            payload = self._durable_runtime_get("status")
+            if payload and payload.get("coverage"):
+                return payload["coverage"]
+            return {
+                "outage_count": 0,
+                "planned_count": 0,
+                "event_count": 0,
+                "geometry_count": 0,
+                "outage_min_time": None,
+                "outage_max_time": None,
+                "planned_min_time": None,
+                "planned_max_time": None,
+                "disclosure_source_count": 0,
+                "disclosure_event_count": 0,
+                "disclosure_metric_count": 0,
+            }
         with open_db(self.settings.db_path) as connection:
             outage_count = connection.execute(
                 "SELECT COUNT(*) AS count FROM outage_records"
@@ -719,6 +778,14 @@ class AppService:
         self, normalized: NormalizedAddress, geocode: dict[str, Any]
     ) -> tuple[int, bool]:
         geocode = self._geocode_dict(geocode)
+        if self.settings.durable_runtime_url:
+            payload = self._durable_runtime_post(
+                "address",
+                {"normalized": vars(normalized), "geocode": geocode},
+            )
+            if payload:
+                return int(payload["address_id"]), bool(payload["cache_hit"])
+            raise RuntimeError("D1 runtime address upsert failed")
         with open_db(self.settings.db_path) as connection:
             existing = connection.execute(
                 "SELECT id FROM addresses WHERE normalized_line = ?",
@@ -782,6 +849,23 @@ class AppService:
         include_planned: bool,
         cache_hit: bool,
     ) -> int:
+        if self.settings.durable_runtime_url:
+            payload = self._durable_runtime_post(
+                "query",
+                {
+                    "address_id": address_id,
+                    "original_query": original_query,
+                    "normalized_query": normalized_query,
+                    "language": language,
+                    "radius_m": radius_m,
+                    "days": days,
+                    "include_planned": include_planned,
+                    "cache_hit": cache_hit,
+                },
+            )
+            if payload:
+                return int(payload["count"])
+            return 0
         with open_db(self.settings.db_path) as connection:
             connection.execute(
                 """
@@ -807,6 +891,11 @@ class AppService:
         return int(count_row["count"])
 
     def _query_count(self, address_id: int) -> int:
+        if self.settings.durable_runtime_url:
+            payload = self._durable_runtime_get("query-count", {"address_id": str(address_id)})
+            if payload:
+                return int(payload["count"])
+            return 0
         with open_db(self.settings.db_path) as connection:
             count_row = connection.execute(
                 "SELECT COUNT(*) AS count FROM query_history WHERE address_id = ?",
@@ -1470,6 +1559,17 @@ class AppService:
         )
 
     def _save_matches(self, address_id: int, matches: list[dict[str, Any]]) -> None:
+        if self.settings.durable_runtime_url:
+            payload_matches = [
+                {**item, "event_key": self._outage_event_key(item)}
+                for item in matches
+                if item["outage_kind"] == "outage"
+            ]
+            self._durable_runtime_post(
+                "matches",
+                {"address_id": address_id, "matches": payload_matches},
+            )
+            return
         with open_db(self.settings.db_path) as connection:
             for item in matches:
                 if item["outage_kind"] != "outage":
@@ -1504,6 +1604,22 @@ class AppService:
     def _previous_outage_groups(
         self, *, address_id: int, exclude_event_keys: set[tuple[Any, ...]]
     ) -> list[dict[str, Any]]:
+        if self.settings.durable_runtime_url:
+            payload = self._durable_runtime_get("previous-groups", {"address_id": str(address_id)})
+            if payload:
+                groups = []
+                for group in payload.get("groups", []):
+                    events = [
+                        event
+                        for event in group.get("events", [])
+                        if self._outage_display_key(event) not in exclude_event_keys
+                    ]
+                    if not events:
+                        continue
+                    group = {**group, "events": events, "event_count": len(events)}
+                    groups.append(group)
+                return groups
+            return []
         with open_db(self.settings.db_path) as connection:
             rows = connection.execute(
                 """
@@ -1774,6 +1890,11 @@ class AppService:
         )
 
     def _build_regional_metric_map_layers(self) -> list[dict[str, Any]]:
+        if self.settings.durable_runtime_url:
+            payload = self._durable_runtime_get("map-context")
+            if payload and "regional_metric_layers" in payload:
+                return payload["regional_metric_layers"]
+            return []
         with open_db(self.settings.db_path) as connection:
             rows = connection.execute(
                 """
@@ -1848,6 +1969,11 @@ class AppService:
         return self._cached_context("disclosure_map_layers", self._build_disclosure_map_layers)
 
     def _build_disclosure_map_layers(self) -> list[dict[str, Any]]:
+        if self.settings.durable_runtime_url:
+            payload = self._durable_runtime_get("map-context")
+            if payload and "disclosure_layers" in payload:
+                return payload["disclosure_layers"]
+            return []
         with open_db(self.settings.db_path) as connection:
             rows = connection.execute(
                 """

@@ -147,6 +147,11 @@ class GeocodingService:
         return results
 
     def _from_cache(self, normalized_query: str) -> GeocodeResult | None:
+        if self.settings.durable_runtime_url:
+            durable = self._from_durable_cache(normalized_query)
+            if durable is not None:
+                return durable
+            return None
         with open_db(self.settings.db_path) as connection:
             row = connection.execute(
                 """
@@ -171,6 +176,9 @@ class GeocodingService:
         )
 
     def _store_cache(self, normalized_query: str, result: GeocodeResult) -> None:
+        if self.settings.durable_runtime_url:
+            self._store_durable_cache(normalized_query, result)
+            return
         with open_db(self.settings.db_path) as connection:
             connection.execute(
                 """
@@ -191,6 +199,63 @@ class GeocodingService:
                     json.dumps(result.raw_json, ensure_ascii=True),
                 ),
             )
+
+    def _from_durable_cache(self, normalized_query: str) -> GeocodeResult | None:
+        url = (
+            f"{self.settings.durable_runtime_url}/geocode-cache?"
+            f"{urllib.parse.urlencode({'normalized_query': normalized_query})}"
+        )
+        request = urllib.request.Request(
+            url,
+            headers={"User-Agent": self.settings.nominatim_user_agent},
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=5) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+        except Exception:
+            return None
+        row = payload.get("item")
+        if not row:
+            return None
+        return GeocodeResult(
+            provider=row["provider"],
+            confidence=row["confidence"],
+            quality=row["quality"],
+            latitude=row["latitude"],
+            longitude=row["longitude"],
+            city=row["city"] or "",
+            province=row["province"] or "",
+            postal_code=row["postal_code"] or "",
+            raw_json=json.loads(row["raw_json"]),
+        )
+
+    def _store_durable_cache(self, normalized_query: str, result: GeocodeResult) -> None:
+        payload = {
+            "normalized_query": normalized_query,
+            "provider": result.provider,
+            "confidence": result.confidence,
+            "quality": result.quality,
+            "latitude": result.latitude,
+            "longitude": result.longitude,
+            "city": result.city,
+            "province": result.province,
+            "postal_code": result.postal_code,
+            "raw_json": result.raw_json,
+        }
+        request = urllib.request.Request(
+            f"{self.settings.durable_runtime_url}/geocode-cache",
+            data=json.dumps(payload).encode("utf-8"),
+            headers={
+                "Content-Type": "application/json",
+                "User-Agent": self.settings.nominatim_user_agent,
+            },
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=5):
+                return
+        except Exception:
+            return
 
     def _nominatim(self, normalized: NormalizedAddress) -> GeocodeResult | None:
         for query in self._candidate_queries(normalized):

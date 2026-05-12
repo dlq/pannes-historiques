@@ -19,6 +19,7 @@ export class PannesContainer extends Container {
     AUTO_REFRESH_ON_SEARCH: "0",
     DURABLE_HISTORY_URL: "https://pannes.ca/api/durable/history-nearby",
     DURABLE_NEARBY_URL: "https://pannes.ca/api/durable/nearby",
+    DURABLE_RUNTIME_URL: "https://pannes.ca/api/durable/runtime",
     NOMINATIM_USER_AGENT: "pannes-historiques/0.1 (+https://pannes.ca)",
   };
 
@@ -60,6 +61,9 @@ export default {
     }
     if (url.pathname === "/api/durable/history-nearby") {
       return durableHistoryNearbyResponse(request, env);
+    }
+    if (url.pathname.startsWith("/api/durable/runtime")) {
+      return durableRuntimeResponse(request, env);
     }
     return fetchContainer(request, env);
   },
@@ -1361,6 +1365,483 @@ async function disclosureCounts(db) {
     }
   }
   return counts;
+}
+
+async function durableRuntimeResponse(request, env) {
+  const url = new URL(request.url);
+  const suffix = url.pathname.replace("/api/durable/runtime", "") || "/";
+  if (suffix === "/geocode-cache") return runtimeGeocodeCacheResponse(request, env, url);
+  if (suffix === "/address" && request.method === "POST")
+    return runtimeAddressResponse(request, env);
+  if (suffix === "/query" && request.method === "POST") return runtimeQueryResponse(request, env);
+  if (suffix === "/query-count" && request.method === "GET")
+    return runtimeQueryCountResponse(env, url);
+  if (suffix === "/matches" && request.method === "POST")
+    return runtimeMatchesResponse(request, env);
+  if (suffix === "/previous-groups" && request.method === "GET")
+    return runtimePreviousGroupsResponse(env, url);
+  if (suffix === "/status" && request.method === "GET") return runtimeStatusResponse(env);
+  if (suffix === "/map-context" && request.method === "GET") return runtimeMapContextResponse(env);
+  return jsonResponse({ error: "runtime endpoint not found" }, { status: 404 });
+}
+
+async function runtimeGeocodeCacheResponse(request, env, url) {
+  if (request.method === "GET") {
+    const normalizedQuery = url.searchParams.get("normalized_query") || "";
+    if (!normalizedQuery) return jsonResponse({ item: null });
+    const row = await env.DB.prepare(
+      `
+      SELECT provider, confidence, quality, latitude, longitude, city, province, postal_code, raw_json
+      FROM runtime_geocode_cache
+      WHERE normalized_query = ?
+      `,
+    )
+      .bind(normalizedQuery)
+      .first();
+    return jsonResponse({ item: row || null });
+  }
+  if (request.method !== "POST")
+    return jsonResponse({ error: "method not allowed" }, { status: 405 });
+  const payload = await request.json();
+  const item = payload.item || payload;
+  const now = new Date().toISOString();
+  await env.DB.prepare(
+    `
+    INSERT INTO runtime_geocode_cache
+    (normalized_query, provider, confidence, quality, latitude, longitude, city, province,
+     postal_code, raw_json, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(normalized_query) DO UPDATE SET
+      provider = excluded.provider,
+      confidence = excluded.confidence,
+      quality = excluded.quality,
+      latitude = excluded.latitude,
+      longitude = excluded.longitude,
+      city = excluded.city,
+      province = excluded.province,
+      postal_code = excluded.postal_code,
+      raw_json = excluded.raw_json,
+      updated_at = excluded.updated_at
+    `,
+  )
+    .bind(
+      item.normalized_query,
+      item.provider,
+      item.confidence,
+      item.quality,
+      item.latitude,
+      item.longitude,
+      item.city || "",
+      item.province || "",
+      item.postal_code || "",
+      JSON.stringify(item.raw_json || {}),
+      now,
+    )
+    .run();
+  return jsonResponse({ ok: true });
+}
+
+async function runtimeAddressResponse(request, env) {
+  const payload = await request.json();
+  const normalized = payload.normalized || {};
+  const geocode = payload.geocode || {};
+  const existing = await env.DB.prepare(
+    "SELECT id FROM runtime_addresses WHERE normalized_line = ?",
+  )
+    .bind(normalized.normalized_line)
+    .first();
+  if (existing) {
+    await env.DB.prepare(
+      `
+      UPDATE runtime_addresses
+      SET updated_at = CURRENT_TIMESTAMP,
+          latitude = ?,
+          longitude = ?,
+          geocoder = ?,
+          geocoder_confidence = ?,
+          geocode_quality = ?
+      WHERE id = ?
+      `,
+    )
+      .bind(
+        geocode.latitude,
+        geocode.longitude,
+        geocode.provider,
+        geocode.confidence,
+        geocode.quality,
+        existing.id,
+      )
+      .run();
+    return jsonResponse({ address_id: existing.id, cache_hit: true });
+  }
+  const result = await env.DB.prepare(
+    `
+    INSERT INTO runtime_addresses
+    (original_query, normalized_line, street_line, unit, city, province, postal_code,
+     latitude, longitude, geocoder, geocoder_confidence, geocode_quality)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `,
+  )
+    .bind(
+      normalized.original || "",
+      normalized.normalized_line,
+      normalized.street_line || "",
+      normalized.unit || "",
+      geocode.city || normalized.city || "",
+      normalized.province || "",
+      geocode.postal_code || normalized.postal_code || "",
+      geocode.latitude,
+      geocode.longitude,
+      geocode.provider,
+      geocode.confidence,
+      geocode.quality,
+    )
+    .run();
+  return jsonResponse({ address_id: result.meta.last_row_id, cache_hit: false });
+}
+
+async function runtimeQueryResponse(request, env) {
+  const payload = await request.json();
+  await env.DB.prepare(
+    `
+    INSERT INTO runtime_query_history
+    (address_id, original_query, normalized_query, language, radius_m, time_window_days,
+     include_planned, cache_hit)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `,
+  )
+    .bind(
+      payload.address_id,
+      payload.original_query || "",
+      payload.normalized_query || "",
+      payload.language || "fr",
+      payload.radius_m,
+      payload.days,
+      payload.include_planned ? 1 : 0,
+      payload.cache_hit ? 1 : 0,
+    )
+    .run();
+  return runtimeQueryCountResponse(env, null, payload.address_id);
+}
+
+async function runtimeQueryCountResponse(env, url, addressId = null) {
+  const resolvedAddressId = addressId ?? Number(url.searchParams.get("address_id"));
+  const row = await env.DB.prepare(
+    "SELECT COUNT(*) AS count FROM runtime_query_history WHERE address_id = ?",
+  )
+    .bind(resolvedAddressId)
+    .first();
+  return jsonResponse({ count: row?.count || 0 });
+}
+
+async function runtimeMatchesResponse(request, env) {
+  const payload = await request.json();
+  const addressId = payload.address_id;
+  const matches = Array.isArray(payload.matches) ? payload.matches : [];
+  const statements = matches
+    .filter((item) => item.outage_kind === "outage" && item.event_key)
+    .map((item) =>
+      env.DB.prepare(
+        `
+        INSERT INTO runtime_address_outage_matches
+        (address_id, outage_kind, record_id, event_key, geometry_id, match_type, distance_m,
+         confidence, event_json, matched_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(address_id, outage_kind, event_key) DO UPDATE SET
+          record_id = excluded.record_id,
+          geometry_id = excluded.geometry_id,
+          match_type = excluded.match_type,
+          distance_m = excluded.distance_m,
+          confidence = excluded.confidence,
+          event_json = excluded.event_json,
+          matched_at = excluded.matched_at
+        `,
+      ).bind(
+        addressId,
+        item.outage_kind,
+        String(item.record_id ?? ""),
+        item.event_key,
+        item.geometry_id === null || item.geometry_id === undefined
+          ? null
+          : String(item.geometry_id),
+        item.match_type,
+        item.distance_m,
+        item.confidence,
+        JSON.stringify(item),
+      ),
+    );
+  await batchInChunks(env.DB, statements);
+  return jsonResponse({ ok: true, count: statements.length });
+}
+
+async function runtimePreviousGroupsResponse(env, url) {
+  const addressId = Number(url.searchParams.get("address_id"));
+  const result = await env.DB.prepare(
+    `
+    SELECT event_json, matched_at
+    FROM runtime_address_outage_matches
+    WHERE address_id = ?
+      AND outage_kind = 'outage'
+    ORDER BY matched_at DESC
+    LIMIT 250
+    `,
+  )
+    .bind(addressId)
+    .all();
+  const groups = new Map();
+  for (const row of result.results || []) {
+    const item = JSON.parse(row.event_json);
+    const key =
+      item.geometry_id !== null && item.geometry_id !== undefined
+        ? `geometry:${item.geometry_id}`
+        : `centroid:${Number(item.centroid_lat || 0).toFixed(3)}:${Number(item.centroid_lon || 0).toFixed(3)}`;
+    if (!groups.has(key)) {
+      groups.set(key, {
+        geometry_id: item.geometry_id,
+        label: item.municipality_code || `${item.centroid_lat}, ${item.centroid_lon}`,
+        municipality_code: item.municipality_code,
+        centroid_lat: item.centroid_lat,
+        centroid_lon: item.centroid_lon,
+        geometry_geojson: item.geometry_geojson || null,
+        events: [],
+      });
+    }
+    groups.get(key).events.push({ ...item, matched_at: row.matched_at });
+  }
+  const items = [...groups.values()].map((group) => {
+    group.events.sort((left, right) =>
+      String(right.sort_time || right.start_time || "").localeCompare(
+        String(left.sort_time || left.start_time || ""),
+      ),
+    );
+    group.event_count = group.events.length;
+    group.latest_start_time = group.events[0]?.start_time || null;
+    return group;
+  });
+  items.sort((left, right) =>
+    String(right.latest_start_time || "").localeCompare(String(left.latest_start_time || "")),
+  );
+  return jsonResponse({ groups: items });
+}
+
+async function runtimeStatusResponse(env) {
+  const versions = await env.DB.prepare("SELECT * FROM feed_versions").all();
+  const snapshots = await env.DB.prepare("SELECT COUNT(*) AS count FROM hydro_snapshots").first();
+  const latest = await env.DB.prepare(
+    "SELECT source_type, source_version, fetched_at FROM hydro_snapshots ORDER BY fetched_at DESC LIMIT 1",
+  ).first();
+  const earliest = await env.DB.prepare(
+    "SELECT source_type, source_version, fetched_at FROM hydro_snapshots ORDER BY fetched_at ASC LIMIT 1",
+  ).first();
+  const coverage = await durableCoverage(env.DB);
+  return jsonResponse({
+    collector: {
+      snapshot_count: snapshots?.count || 0,
+      latest: latest || null,
+      earliest: earliest || null,
+    },
+    coverage,
+    versions: versions.results || [],
+  });
+}
+
+async function durableCoverage(db) {
+  const outage = await db.prepare("SELECT COUNT(*) AS count FROM current_outage_records").first();
+  const planned = await db
+    .prepare("SELECT COUNT(*) AS count FROM current_planned_interruptions")
+    .first();
+  const events = await db.prepare("SELECT COUNT(*) AS count FROM resolved_events").first();
+  const geometries = await db
+    .prepare("SELECT COUNT(*) AS count FROM hydro_polygon_geometries")
+    .first();
+  const sources = await db.prepare("SELECT COUNT(*) AS count FROM disclosure_sources").first();
+  const disclosureEvents = await db
+    .prepare("SELECT COUNT(*) AS count FROM disclosure_outage_events")
+    .first();
+  const metrics = await db
+    .prepare("SELECT COUNT(*) AS count FROM disclosure_annual_metrics")
+    .first();
+  const outageRange = await db
+    .prepare(
+      "SELECT MIN(outage_start_time) AS min_time, MAX(outage_start_time) AS max_time FROM current_outage_records",
+    )
+    .first();
+  const plannedRange = await db
+    .prepare(
+      "SELECT MIN(scheduled_start) AS min_time, MAX(scheduled_start) AS max_time FROM current_planned_interruptions",
+    )
+    .first();
+  return {
+    outage_count: outage?.count || 0,
+    planned_count: planned?.count || 0,
+    event_count: events?.count || 0,
+    geometry_count: geometries?.count || 0,
+    outage_min_time: outageRange?.min_time || null,
+    outage_max_time: outageRange?.max_time || null,
+    planned_min_time: plannedRange?.min_time || null,
+    planned_max_time: plannedRange?.max_time || null,
+    disclosure_source_count: sources?.count || 0,
+    disclosure_event_count: disclosureEvents?.count || 0,
+    disclosure_metric_count: metrics?.count || 0,
+  };
+}
+
+async function runtimeMapContextResponse(env) {
+  const [regional, disclosure] = await Promise.all([
+    runtimeRegionalMetricLayers(env.DB),
+    runtimeDisclosureLayers(env.DB),
+  ]);
+  return jsonResponse({ regional_metric_layers: regional, disclosure_layers: disclosure });
+}
+
+async function runtimeRegionalMetricLayers(db) {
+  const rows = await db
+    .prepare(
+      `
+      SELECT m.*, s.dai_number, s.title, s.attachment_url, g.centroid_lon, g.centroid_lat
+      FROM disclosure_annual_metrics m
+      JOIN disclosure_sources s ON s.source_key = m.source_key
+      LEFT JOIN disclosure_geometries g
+        ON g.source_key = s.source_key
+       AND g.geography_label = m.geography_label
+      WHERE m.geography_type = 'administrative_region'
+      ORDER BY m.geography_label, COALESCE(m.year, 0) DESC, s.dai_number DESC
+      `,
+    )
+    .all();
+  const groups = new Map();
+  for (const item of rows.results || []) {
+    const key = item.geography_label;
+    if (!groups.has(key)) {
+      groups.set(key, {
+        outage_kind: "regional_metric",
+        source_dai: item.dai_number,
+        source_title: item.title,
+        source_url: item.attachment_url,
+        source_dais: [],
+        geography_label: item.geography_label,
+        geography_type: item.geography_type,
+        year: item.year,
+        period_label: item.period_label,
+        outage_count: item.outage_count,
+        average_duration_minutes: item.average_duration_minutes,
+        continuity_index_minutes: item.continuity_index_minutes,
+        long_outage_count: item.long_outage_count,
+        centroid_lon: item.centroid_lon,
+        centroid_lat: item.centroid_lat,
+        geometry_geojson: null,
+        metrics: [],
+      });
+    }
+    const group = groups.get(key);
+    if (!group.source_dais.includes(item.dai_number)) group.source_dais.push(item.dai_number);
+    group.metrics.push({
+      source_dai: item.dai_number,
+      source_title: item.title,
+      source_url: item.attachment_url,
+      year: item.year,
+      period_label: item.period_label,
+      outage_count: item.outage_count,
+      average_duration_minutes: item.average_duration_minutes,
+      continuity_index_minutes: item.continuity_index_minutes,
+      long_outage_count: item.long_outage_count,
+    });
+  }
+  return [...groups.values()].sort((left, right) =>
+    String(left.geography_label).localeCompare(String(right.geography_label)),
+  );
+}
+
+async function runtimeDisclosureLayers(db) {
+  const rows = await db
+    .prepare(
+      `
+      SELECT e.id, e.start_time, e.end_time, e.duration_seconds, e.customers_affected,
+             e.cause, e.equipment, e.geography_label, e.geography_type, e.precision_label,
+             s.dai_number, s.title, s.attachment_url, g.centroid_lon, g.centroid_lat
+      FROM disclosure_outage_events e
+      JOIN disclosure_sources s ON s.source_key = e.source_key
+      LEFT JOIN disclosure_geometries g
+        ON g.source_key = s.source_key
+       AND g.geography_label = e.geography_label
+      ORDER BY COALESCE(e.start_time, e.updated_at) DESC
+      `,
+    )
+    .all();
+  const groups = new Map();
+  for (const item of rows.results || []) {
+    const key = `${item.geography_type}:${item.geography_label}`;
+    if (!groups.has(key)) {
+      groups.set(key, {
+        outage_kind: "disclosure",
+        source_dai: item.dai_number,
+        source_title: item.title,
+        source_url: item.attachment_url,
+        source_dais: [],
+        source_titles: {},
+        municipality_code: item.geography_label,
+        geography_type: item.geography_type,
+        precision_label: item.precision_label,
+        centroid_lon: item.centroid_lon,
+        centroid_lat: item.centroid_lat,
+        geometry_geojson: null,
+        record_count: 0,
+        start_min: null,
+        start_max: null,
+        duration_seconds_total: 0,
+        cause_counts: {},
+        recent_events: [],
+      });
+    }
+    const group = groups.get(key);
+    if (!group.source_dais.includes(item.dai_number)) {
+      group.source_dais.push(item.dai_number);
+      group.source_titles[item.dai_number] = item.title;
+    }
+    group.record_count += 1;
+    if (item.start_time) {
+      group.start_min = group.start_min
+        ? String(group.start_min) < item.start_time
+          ? group.start_min
+          : item.start_time
+        : item.start_time;
+      group.start_max = group.start_max
+        ? String(group.start_max) > item.start_time
+          ? group.start_max
+          : item.start_time
+        : item.start_time;
+    }
+    if (item.duration_seconds !== null) group.duration_seconds_total += item.duration_seconds;
+    const cause = item.cause || "Unknown";
+    group.cause_counts[cause] = (group.cause_counts[cause] || 0) + 1;
+    if (group.recent_events.length < 12) {
+      group.recent_events.push({
+        start_time: item.start_time,
+        end_time: item.end_time,
+        duration_seconds: item.duration_seconds,
+        cause: item.cause,
+        row_area: item.equipment,
+        customers_affected: item.customers_affected,
+        source_dai: item.dai_number,
+      });
+    }
+  }
+  return [...groups.values()]
+    .map((group) => {
+      const topCauses = Object.entries(group.cause_counts)
+        .sort(
+          (left, right) => right[1] - left[1] || String(right[0]).localeCompare(String(left[0])),
+        )
+        .slice(0, 4)
+        .map(([cause, count]) => ({ cause, count }));
+      const { cause_counts: _causeCounts, ...publicGroup } = group;
+      return { ...publicGroup, top_causes: topCauses };
+    })
+    .sort((left, right) =>
+      `${left.source_dai}:${left.municipality_code}`.localeCompare(
+        `${right.source_dai}:${right.municipality_code}`,
+      ),
+    );
 }
 
 async function durableNearbyResponse(request, env) {

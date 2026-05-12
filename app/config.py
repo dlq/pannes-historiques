@@ -12,6 +12,7 @@ DURABLE_NEARBY_URL = os.environ.get("DURABLE_NEARBY_URL", "")
 DURABLE_HISTORY_URL = os.environ.get("DURABLE_HISTORY_URL", "") or (
     DURABLE_NEARBY_URL.replace("/nearby", "/history-nearby") if DURABLE_NEARBY_URL else ""
 )
+DURABLE_RUNTIME_URL = os.environ.get("DURABLE_RUNTIME_URL", "")
 
 
 @dataclass(frozen=True)
@@ -38,6 +39,7 @@ class Settings:
     auto_refresh_on_search: bool = os.environ.get("AUTO_REFRESH_ON_SEARCH", "1") == "1"
     durable_nearby_url: str = DURABLE_NEARBY_URL
     durable_history_url: str = DURABLE_HISTORY_URL
+    durable_runtime_url: str = DURABLE_RUNTIME_URL
     refresh_max_age_minutes: int = int(os.environ.get("REFRESH_MAX_AGE_MINUTES", "30"))
     default_radius_m: int = int(os.environ.get("DEFAULT_RADIUS_M", "5000"))
     default_days: int = int(os.environ.get("DEFAULT_DAYS", "1825"))

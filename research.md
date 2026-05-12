@@ -979,6 +979,14 @@ Follow-up during the 2026-05-06T14:07Z cron:
 - Catch-up result on 2026-05-06: after deploying attempt/defer tracking, protected catch-up runs archived all immediately reachable disclosure sources. D1 reported `due_now = 0`, `archived = 29`, `total = 32`, and `deferred = 3`. Deferred sources were `DAI-2022-0386`, `DAI-2025-0275`, and `DAI-2025-0333`, each with a 45-second timeout and `archival_deferred_until` on 2026-05-07. This is acceptable for the R2/D1 base: reachable sources are durable in R2/D1, and expensive sources are explicitly tracked rather than silently blocking scheduled ingestion.
 - Completion result on 2026-05-07: the deferred sources were processed successfully and the D1/R2 base catch-up finished. D1 reported `archive_due_now = 0`, `parse_due_now = 0`, and `32/32` disclosure sources archived and parsed.
 
+Follow-up implementation on 2026-05-12:
+
+- Added D1 runtime-state schema for production-only app state: geocode cache, addresses, query history, and saved address/outage match groups.
+- Added `DURABLE_RUNTIME_URL` so the Cloudflare container can keep local SQLite behavior in local deployments while using Worker/D1 runtime endpoints in production.
+- Added Worker runtime endpoints for geocode cache, address upsert, query recording/counts, saved match groups, collector/coverage status, and disclosure/regional map context.
+- Production user-facing runtime state should no longer silently fall back to container SQLite when `DURABLE_RUNTIME_URL` is configured. If the D1 runtime endpoint fails, the affected production path should return an empty/default response or error instead of writing ephemeral container SQLite.
+- Remaining SQLite dependency is now primarily the container parser/handoff implementation: Hydro and DAI collection still use the container's local SQLite as a same-run parse/export workspace before the Worker mirrors durable outputs to D1/R2. Removing that requires either moving the parsers into the Worker or changing the container parser to emit export JSON without persisting through local SQLite.
+
 ## Sources
 
 - [Hydro-Québec open data overview](https://www.hydroquebec.com/documents-donnees/donnees-ouvertes/)

@@ -192,7 +192,7 @@ Deployment checkpoint:
 - medium-term deployment can move to Cloudflare Workers Builds connected to GitHub, using the same `npx wrangler deploy` command on push
 - keep using `uv` for Python dependency management and checks; use `npm` for Wrangler, Biome, and Cloudflare deployment tooling
 - follow up on TLS/certificate status for `pannes.ca` and `www.pannes.ca`; confirm Cloudflare has issued/activated the certificate and browsers no longer show certificate/security warnings
-- the current production container still bundles a baked-in SQLite snapshot for the Flask/container app and remaining disclosure/regional context
+- the current production container still bundles a baked-in SQLite snapshot for local-compatible Flask code paths, but production is being migrated so user-facing runtime reads/writes go through Worker D1/R2 endpoints when durable URLs are configured
 - production writes inside the container are ephemeral, so durable feed ingestion now uses D1 for normalized rows and R2 for raw payloads
 - D1/R2 are now part of the production architecture, and production search uses narrow Worker/D1 endpoints for current nearby matches and accumulated previous-outage nearby matches
 - D1 research checkpoint as of 2026-05-04:
@@ -217,13 +217,13 @@ Deployment checkpoint:
   - DAI/disclosure refresh is owned by the two-week disclosure cron; do not piggyback the heavy disclosure bootstrap on the 30-minute Hydro cron because it can hold the scheduled Worker open while the container downloads/parses many source files
   - earlier direct Worker-origin Hydro feed fetches returned HTTP 406, but later scheduled runs succeeded; if 406s return, keep errors step-scoped and prefer resumable durable checkpoints over single all-or-nothing cron work
   - production container image now installs `curl` because the disclosure downloader falls back to the `curl` binary when Python `urllib` cannot fetch Hydro disclosure attachments
-  - local development keeps `AUTO_REFRESH_ON_SEARCH` enabled by default, so local queries can still hit the Hydro API while production user searches read container SQLite only
-  - next migration step is to evaluate moving production disclosure/regional context reads from container SQLite to D1
+  - local development keeps `AUTO_REFRESH_ON_SEARCH` enabled by default, so local queries can still hit the Hydro API while production user searches use durable Worker/D1 endpoints where configured
+  - next migration step is to verify and deploy the production runtime-state cutover: geocode cache, addresses, query history, saved match groups, collector/coverage status, and disclosure/regional map context now have D1-backed Worker endpoints via `DURABLE_RUNTIME_URL`
   - DAI chunking is implemented in archive/parse phases: the Worker selects due D1 sources one at a time, archives raw source files to R2, parses archived bytes through the container, and mirrors each completed source into D1/R2 within a bounded scheduled-run budget
   - DAI batch proof completed on 2026-05-06: a temporary protected manual trigger processed `DAI-2021-0328`, archived a real PDF to R2, updated its D1 `r2_key`, and reduced due disclosure sources from 32 to 31; the temporary trigger was removed after verification
   - per-source archival and parse attempt/defer tracking is deployed in D1: failed or slow sources are recorded, deferred for later, and no longer block other due DAI sources from making durable progress
   - DAI R2/D1 base catch-up completed on 2026-05-07: D1 reports `archive_due_now = 0`, `parse_due_now = 0`, and `32/32` disclosure sources archived and parsed; the previously deferred `DAI-2022-0386`, `DAI-2025-0275`, and `DAI-2025-0333` are now archived in R2 and parsed into D1
-  - remaining non-base migration work stays here for later: move disclosure/regional context reads to D1, finish search-path performance work, and reduce container SQLite dependence in user-facing reads
+  - remaining non-base migration work stays here for later: remove container SQLite from the Hydro/DAI parser handoff itself, finish search-path performance work, and reduce the container toward rendering/orchestration only
 - review deployment and query performance after the initial Cloudflare Containers launch:
   - initial profiling on 2026-05-04 showed simple routes are fast, but address search was dominated by Python geospatial matching and oversized inline map payloads
   - a first mitigation reduced the search response from roughly 14.4 MB to roughly 562 KB and brought a measured production HTML search down to about 6 seconds, but more optimization is still needed
@@ -231,7 +231,7 @@ Deployment checkpoint:
     - render result cards first and lazy-load map overlays after the initial search response
     - stop embedding map JSON directly in HTML; move map data behind small JSON endpoints
     - keep `/search-map` and `/map-context-geometries` payloads small enough for mobile and slower networks
-    - continue moving remaining container SQLite reads out of the hot search path; current-feed and previous-outage nearby matching now use D1, while regional metric and DAI/disclosure context still build from container SQLite/static payloads
+    - continue moving remaining container SQLite reads out of the hot search path; current-feed, previous-outage nearby matching, runtime app state, status/coverage summaries, and disclosure/regional map context now have D1-backed production paths
     - store static administrative-region and DAI/disclosure geometries outside the default SQLite search response as precomputed simplified GeoJSON assets
     - keep using the offline GeoPandas/Shapely simplification asset build for broad regional/disclosure map context
     - simplify broad administrative regions aggressively and topologically; simplify DAI/disclosure geometries only conservatively, because the current DAI/disclosure shapes are not one valid shared-boundary coverage and do not get the same coverage guarantee
