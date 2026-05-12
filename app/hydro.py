@@ -64,6 +64,24 @@ class HydroCollector:
             results["errors"].extend(result.get("errors", []))
         return results
 
+    def collect_changed_against(self, existing_versions: dict[str, str | None]) -> dict[str, Any]:
+        results: dict[str, Any] = {"sources": [], "snapshots": [], "errors": []}
+        for source in ("bis", "aip"):
+            result = self.collect_source_if_changed_against(
+                source,
+                existing_versions.get(source),
+            )
+            results["sources"].append(
+                {
+                    "source": source,
+                    "version": result.get("version"),
+                    "changed": result.get("changed", False),
+                }
+            )
+            results["snapshots"].extend(result.get("snapshots", []))
+            results["errors"].extend(result.get("errors", []))
+        return results
+
     def collect_source(self, source: str) -> dict[str, Any]:
         if source not in {"bis", "aip"}:
             raise ValueError(f"unsupported Hydro-Quebec source: {source}")
@@ -99,6 +117,41 @@ class HydroCollector:
             results["changed"] = True
             results["snapshots"].extend(
                 self._fetch_payloads(
+                    source,
+                    version,
+                    version_payload=version_payload,
+                    version_content_type=content_type,
+                )
+            )
+        except Exception as exc:
+            results["errors"].append({"source": source, "error": str(exc)})
+        return results
+
+    def collect_source_if_changed_against(
+        self, source: str, existing_version: str | None
+    ) -> dict[str, Any]:
+        if source not in {"bis", "aip"}:
+            raise ValueError(f"unsupported Hydro-Quebec source: {source}")
+        results: dict[str, Any] = {
+            "source": source,
+            "version": None,
+            "changed": False,
+            "snapshots": [],
+            "errors": [],
+        }
+        try:
+            version_payload, status, content_type = fetch_bytes(
+                f"{HYDRO_ROOT}/{source}version.json"
+            )
+            if status != 200:
+                raise RuntimeError(f"version fetch failed for {source}: HTTP {status}")
+            version = self._parse_version(version_payload)
+            results["version"] = version
+            if existing_version == version:
+                return results
+            results["changed"] = True
+            results["snapshots"].extend(
+                self._fetch_payload_files(
                     source,
                     version,
                     version_payload=version_payload,
@@ -174,6 +227,42 @@ class HydroCollector:
                 self._ingest_markers(snapshot, payload)
             if source_type.endswith("poly"):
                 self._ingest_polygons(snapshot, payload)
+        return snapshots
+
+    def _fetch_payload_files(
+        self,
+        source: str,
+        version: str,
+        *,
+        version_payload: bytes | None = None,
+        version_content_type: str | None = None,
+    ) -> list[Snapshot]:
+        now = datetime.now(UTC).replace(microsecond=0).isoformat()
+        items: list[tuple[str, str, str]] = [
+            (f"{source}version", f"{HYDRO_ROOT}/{source}version.json", "json"),
+            (f"{source}markers", f"{HYDRO_ROOT}/{source}markers{version}.json", "json"),
+            (f"{source}poly", f"{HYDRO_ROOT}/{source}poly{version}.kmz", "kmz"),
+        ]
+        snapshots: list[Snapshot] = []
+        for source_type, url, extension in items:
+            if source_type.endswith("version") and version_payload is not None:
+                payload = version_payload
+                status = 200
+                content_type = version_content_type or "application/json"
+            else:
+                payload, status, content_type = fetch_bytes(url)
+            if status != 200:
+                raise RuntimeError(f"payload fetch failed for {source_type}: HTTP {status}")
+            snapshots.append(
+                self._store_snapshot(
+                    source_type=source_type,
+                    version=version,
+                    fetched_at=now,
+                    payload=payload,
+                    content_type=content_type,
+                    extension=extension,
+                )
+            )
         return snapshots
 
     def _store_snapshot(

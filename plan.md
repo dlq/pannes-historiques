@@ -223,7 +223,8 @@ Deployment checkpoint:
   - DAI batch proof completed on 2026-05-06: a temporary protected manual trigger processed `DAI-2021-0328`, archived a real PDF to R2, updated its D1 `r2_key`, and reduced due disclosure sources from 32 to 31; the temporary trigger was removed after verification
   - per-source archival and parse attempt/defer tracking is deployed in D1: failed or slow sources are recorded, deferred for later, and no longer block other due DAI sources from making durable progress
   - DAI R2/D1 base catch-up completed on 2026-05-07: D1 reports `archive_due_now = 0`, `parse_due_now = 0`, and `32/32` disclosure sources archived and parsed; the previously deferred `DAI-2022-0386`, `DAI-2025-0275`, and `DAI-2025-0333` are now archived in R2 and parsed into D1
-  - remaining non-base migration work stays here for later: remove container SQLite from the Hydro/DAI parser handoff itself, finish search-path performance work, and reduce the container toward rendering/orchestration only
+  - Hydro parser handoff now uses D1 as the production version ledger: the Worker reads `feed_versions`, asks the container only to fetch changed Hydro version/marker/polygon payload bytes, then keeps D1/R2 responsible for normalized rows, polygon geometries, and raw payload archives
+  - remaining non-base migration work stays here for later: remove container SQLite from the DAI parser handoff itself, finish search-path performance work, and reduce the container toward rendering/orchestration only
 - review deployment and query performance after the initial Cloudflare Containers launch:
   - initial profiling on 2026-05-04 showed simple routes are fast, but address search was dominated by Python geospatial matching and oversized inline map payloads
   - a first mitigation reduced the search response from roughly 14.4 MB to roughly 562 KB and brought a measured production HTML search down to about 6 seconds, but more optimization is still needed

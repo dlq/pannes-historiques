@@ -108,7 +108,16 @@ async function runHydroSchedule(env) {
   const run = await recordRunStarted(env.DB, "hydro_changed", started);
   const summary = { d1: null, container: null, errors: [] };
   try {
-    summary.container = await callContainerCron(env, "/cron/hydro");
+    const versions = await currentFeedVersionMap(env.DB);
+    summary.container = {
+      status: 200,
+      body: await callContainerJsonPost(
+        env,
+        "/cron/hydro/durable-fetch",
+        { versions },
+        { timeoutMs: 90_000 },
+      ),
+    };
     summary.d1 = await syncHydroFromContainerResult(env, summary.container);
   } catch (error) {
     summary.errors.push({ step: "container_hydro_sync", error: String(error?.stack || error) });
@@ -116,6 +125,11 @@ async function runHydroSchedule(env) {
   const status = summary.errors.length ? "error" : "ok";
   await recordRunFinished(env.DB, run.meta.last_row_id, status, summary);
   if (summary.errors.length) console.error("Hydro schedule completed with errors", summary);
+}
+
+async function currentFeedVersionMap(db) {
+  const rows = await db.prepare("SELECT source, version FROM feed_versions").all();
+  return Object.fromEntries((rows.results || []).map((row) => [row.source, row.version]));
 }
 
 async function callContainerCron(env, path) {

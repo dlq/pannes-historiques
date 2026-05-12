@@ -987,6 +987,14 @@ Follow-up implementation on 2026-05-12:
 - Production user-facing runtime state should no longer silently fall back to container SQLite when `DURABLE_RUNTIME_URL` is configured. If the D1 runtime endpoint fails, the affected production path should return an empty/default response or error instead of writing ephemeral container SQLite.
 - Remaining SQLite dependency is now primarily the container parser/handoff implementation: Hydro and DAI collection still use the container's local SQLite as a same-run parse/export workspace before the Worker mirrors durable outputs to D1/R2. Removing that requires either moving the parsers into the Worker or changing the container parser to emit export JSON without persisting through local SQLite.
 
+Hydro parser/handoff update later on 2026-05-12:
+
+- The 30-minute production Hydro cron now reads current `bis`/`aip` versions from D1 `feed_versions` and passes those versions to the container.
+- The container's protected `/cron/hydro/durable-fetch` path fetches only changed Hydro version, marker, and polygon payload bytes and returns snapshot metadata/content to the Worker. It does not register snapshots or ingest markers/polygons into container SQLite.
+- The Worker remains responsible for R2 raw snapshot archival and D1 marker/polygon/feed-version writes, so production Hydro freshness and parser handoff no longer depend on container SQLite state.
+- Local development remains on the existing SQLite/API-refresh path because the durable-fetch path is only called by the Worker cron.
+- Remaining parser/handoff dependency: DAI/disclosure parsing still uses the container as a parser workspace before D1/R2 mirroring. Keep that migration separate from the Hydro path so disclosure parser changes can be tested with their own fixtures and scheduled-run evidence.
+
 ## Sources
 
 - [Hydro-Québec open data overview](https://www.hydroquebec.com/documents-donnees/donnees-ouvertes/)

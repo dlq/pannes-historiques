@@ -132,6 +132,13 @@ class AppService:
             self._clear_context_cache()
         return result
 
+    def collect_changed_for_durable(
+        self, existing_versions: dict[str, str | None]
+    ) -> dict[str, Any]:
+        result = self.collector.collect_changed_against(existing_versions)
+        result["mode"] = "durable_fetch"
+        return result
+
     def collect_current_outages(self) -> dict[str, Any]:
         result = self.collector.collect_source("bis")
         self._clear_context_cache()

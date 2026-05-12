@@ -284,6 +284,20 @@ def create_app(settings: Settings | None = None) -> Flask:
     def cron_hydro():
         return jsonify(serialize_payload(service.run_changed_collection_job()))
 
+    @app.post("/cron/hydro/durable-fetch")
+    def cron_hydro_durable_fetch():
+        if request.headers.get("X-Cloudflare-Scheduled") != "1":
+            return jsonify({"error": "not found"}), 404
+        payload = request.get_json(silent=True) or {}
+        versions = payload.get("versions") or {}
+        if not isinstance(versions, dict):
+            return jsonify({"error": "versions must be an object"}), 400
+        existing_versions = {
+            source: versions.get(source) if isinstance(versions.get(source), str) else None
+            for source in ("bis", "aip")
+        }
+        return jsonify(serialize_payload(service.collect_changed_for_durable(existing_versions)))
+
     @app.post("/cron/disclosures")
     def cron_disclosures():
         return jsonify(serialize_payload(service.collect_disclosures_if_due()))
