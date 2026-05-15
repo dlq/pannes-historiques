@@ -1,7 +1,7 @@
 # Plan: Hydro-Québec Outage History App
 
 Date: 2026-04-25
-Last updated: 2026-05-09
+Last updated: 2026-05-15
 
 ## Release roadmap
 
@@ -59,6 +59,18 @@ Primary design goal:
 - make desktop and mobile feel like intentional variants of the same map-first app, not separate layouts patched with breakpoints
 - perform a full UI audit across CSS/Tailwind classes, JavaScript interaction code, and Jinja templates so the redesign is based on a coherent interface model rather than incremental page tweaks
 
+Reference-product direction:
+
+- bias toward Transit app plus Apple Maps rather than a sprawling Google Maps clone:
+  - Transit-like: immediate local context, map always present, nearby/currently relevant information without forcing the user through filters first
+  - Apple Maps-like: calm visual hierarchy, restrained panels, search as an overlay, and native-feeling focused detail views
+  - Google Maps-like: persistent spatial canvas, strong selected-state behavior, and search/results/details layered over the map
+  - Citymapper-like: dense but readable cards, clear status/recency information, and a "what should I do now?" bias
+- use Waze as a reference only for incident semantics such as recency, reported-nearby language, and confidence/status treatment; avoid its playful visual language
+- use Zillow/Redfin/Airbnb map-search patterns for map/list synchronization, selected marker/card behavior, and mobile bottom-sheet browsing
+- use weather/radar apps as references for layer toggles, legends, feed freshness, and current-vs-historical overlay clarity
+- treat PowerOutage.us and traditional utility outage maps as domain comparables for useful density, regional status summaries, legends, and outage-count conventions; do not copy their weaker mobile-first posture or drift into a GIS-dashboard feel
+
 Desktop layout direction:
 
 - full-viewport Leaflet map as the base layer
@@ -102,6 +114,13 @@ Technical planning:
 - preserve the lazy-loading architecture because it materially improves perceived speed
 - avoid embedding large map payloads in the first HTML response
 - keep result cards usable before the lazy map payload has fully loaded; queued map focus behaviour must remain covered by regression tests
+- keep Flask, Jinja, HTMX, Leaflet, and small vanilla JS/Web Components for the first redesign pass; do not introduce React or another large client framework unless the shell state becomes unmanageable
+- restructure the current page into a map app shell:
+  - `index.html` owns the viewport shell, search placement, and panel/sheet containers
+  - Jinja partials continue to own result/detail content where server rendering is simpler
+  - JavaScript owns map state, panel/sheet state, selected item state, and cached boot state
+  - named CSS classes should own repeated shell, panel, sheet, and state styling; Tailwind utility strings can remain for local/simple styling
+- define explicit client states such as idle, searching, results, selected current outage, selected planned interruption, selected previous outage, selected disclosure/region, and error
 - consider introducing a small client-side shell component for overlay state, but keep server-rendered result fragments and HTMX where they remain simpler
 - design the map shell so it can work with:
   - initial no-query page
@@ -117,6 +136,28 @@ Technical planning:
   - map-only interactions need list equivalents
 - test on real iPhone Safari as part of 0.2.0 acceptance, not only desktop responsive emulation
 
+Startup and performance strategy:
+
+- design startup around a stale-first, refresh-in-background model so the app feels fast even when the cheap container/VM path is slow
+- on first paint, load a minimal shell and immediately render the previous useful local state from browser storage when available:
+  - last query or current-location coordinates
+  - last geocode/display address
+  - last map center/zoom
+  - last selected item
+  - last result summary/cards
+  - last map payload without large deferred geometry
+  - payload schema version, feed/source version, and timestamp
+- clearly label cached state with age and refresh status, for example "shown from last visit", "updated N minutes ago", and "refreshing current outages"
+- refresh volatile data asynchronously after shell paint; current outages and planned interruptions should update before slower historical/context layers
+- split data by volatility:
+  - static/slow: DAI areas, regional metrics, historical disclosure context
+  - medium: previous outage history near an address
+  - fast/current: current outages and planned interruptions
+  - user-local: last query, viewport, selected item, and panel state
+- prefer long-lived cache headers/ETags for static context geometry and short TTL caching for current nearby/status endpoints
+- avoid waking the container for startup paths that Cloudflare Worker, D1, R2, or static assets can serve directly
+- consider lightweight JSON endpoints for boot/status/current overlays if the existing fragment endpoints are too heavy for startup
+
 Risks and constraints:
 
 - Leaflet controls, attribution, popups, and custom overlays can collide on small screens if we do not reserve space deliberately
@@ -124,12 +165,15 @@ Risks and constraints:
 - map-first UI may make long historical/disclosure context harder to read; detailed historical tables may need separate pages
 - mobile browser viewport units are tricky because iOS Safari chrome expands/collapses; use modern viewport units and test carefully
 - the current Tailwind-CDN/server-rendered structure can support an overlay redesign, but the CSS and template organization may need cleanup before large UI work
+- stale-first startup can confuse users if source freshness is not visible; every cached/current layer needs clear age and refresh language
+- local browser cache needs a schema version and conservative invalidation so stale payloads do not break the shell after template/JS changes
 
 Acceptance target for 0.2.0:
 
 - on mobile, a user can search by address or current location, see the map immediately, tap/swipe through result cards in a bottom sheet, and recenter the map without losing context
 - on desktop, a user can search, compare result categories, and inspect map context without the page feeling like a long scroll report
 - perceived first result time remains fast: cards/search feedback should render before heavy map/context geometry
+- returning users see their last useful location/results immediately while current outage overlays refresh in the background
 - the interface remains clearly a pannes.ca prototype, while still feeling congruent with Hydro-Québec and Québec.ca visual language
 
 ## Implementation status as of 2026-05-07

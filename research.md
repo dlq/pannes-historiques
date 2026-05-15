@@ -1,7 +1,35 @@
 # Research: Hydro-Québec Historic Outage Data
 
 Date: 2026-04-25
-Last updated: 2026-05-09
+Last updated: 2026-05-15
+
+## UI comparable notes for 0.2.0
+
+Observed references and interpretation:
+
+- Transit app is the strongest product comparable for the 0.2.0 interaction model. Its support docs describe the main screen as a map with the user's location plus nearby transit lines and next departures, and its product site emphasizes showing nearby options immediately with no required search. For pannes.ca, the analogous goal is: show the last/current local outage context immediately, keep the map present, and let live data refresh into place.
+- Apple Maps is the strongest visual and interaction comparable for restraint: search and details are overlays on a persistent map, with focused panels rather than dashboard sections.
+- Google Maps is useful for map/search/result/detail layering, selected marker/card behavior, and preserving spatial context while moving between search, browsing, and detail states. It should not be copied as a full feature model because pannes.ca should stay narrower and calmer.
+- Citymapper is useful for dense but readable status cards and a "what should I do now?" bias.
+- Waze is useful only for incident semantics such as reported-nearby language, freshness, and confidence/status treatment; its visual tone is not a fit.
+- Zillow/Redfin/Airbnb-style map search is a useful reference for map/list synchronization, selected card-to-marker behavior, and mobile bottom-sheet browsing.
+- Weather/radar apps are useful references for map layer toggles, legends, feed freshness, and making current-vs-historical overlays legible.
+- PowerOutage.us and traditional utility outage maps are useful domain references for density, regional summaries, legends, and outage-count/status conventions. PowerOutage.us is not strongly mobile-first, but it is still a credible domain comparable rather than only a negative example. pannes.ca should borrow the useful outage-map conventions without becoming a GIS dashboard compressed into a phone viewport.
+
+Sources checked:
+
+- Transit support: https://help.transitapp.com/article/93-how-to-use-transit
+- Transit product site: https://transitapp.com/
+- Apple Maps: https://www.apple.com/maps/
+- Google Maps overview: https://www.google.com/maps/about/
+- Citymapper: https://citymapper.com/
+
+Performance conclusion for 0.2.0:
+
+- The map-first redesign should be built around stale-first startup with background refresh. A returning user should see the previous useful location, cards, selected state, and map viewport immediately from local browser cache while current outage/planned-interruption overlays refresh asynchronously.
+- Cached state must be visibly labeled with age and refresh status so stale-first behavior feels intentional and honest.
+- Current overlays should be separated from slow/static context geometry. Static DAI/regional geometry should use long-lived cache headers or static assets; current nearby/status data should use short TTLs; previous outage/history context can tolerate longer cache windows.
+- The cheap container/VM path should not sit on the critical first-paint path when Cloudflare Worker, D1, R2, browser storage, or static assets can answer the startup need.
 
 ## Implementation note
 
