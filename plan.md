@@ -49,7 +49,7 @@ Testing follow-up by release line:
 
 The next substantial product/design direction should revisit the page structure around a map-first interaction model, closer to `maps.google.com` or `maps.apple.com` than the current document-flow dashboard.
 
-The current mobile layout works, but it is not pleasant enough on a phone. The page still feels like a desktop report compressed into a narrow viewport, and the user has to scroll through cards while the map is only one section among many. For 0.2.0, treat the map as the persistent spatial surface and put search/results/context into overlays.
+The primary reason for this UI change is that pannes.ca does not currently feel good enough on mobile. The current mobile layout works, but it is not pleasant enough on a phone. The page still feels like a desktop report compressed into a narrow viewport, and the user has to scroll through cards while the map is only one section among many. For 0.2.0, treat the map as the persistent spatial surface and put search/results/context into overlays.
 
 Primary design goal:
 
