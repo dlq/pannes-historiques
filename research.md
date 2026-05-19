@@ -1023,6 +1023,70 @@ Hydro parser/handoff update later on 2026-05-12:
 - Local development remains on the existing SQLite/API-refresh path because the durable-fetch path is only called by the Worker cron.
 - Remaining parser/handoff dependency: DAI/disclosure parsing still uses the container as a parser workspace before D1/R2 mirroring. Keep that migration separate from the Hydro path so disclosure parser changes can be tested with their own fixtures and scheduled-run evidence.
 
+## 2026-05-16: PowerOutage benchmark and map-stack comparison
+
+Added comparison targets:
+
+- `https://poweroutage.com/ca/`
+- `https://poweroutage.us/`
+
+Observed PowerOutage product shape:
+
+- PowerOutage is not primarily an exact-address service-status product like Hydro-Québec Info-pannes. It is a multi-utility, regional/national outage intelligence dashboard.
+- PowerOutage Canada presents national/province outage totals, province drilldown, provider tables, untracked providers, and an approximately 10-minute site-wide data update cycle.
+- The Quebec page exposes tracked customers, customers out, provider-level rows such as Hydro-Québec/Hydro-Sherbrooke/New Brunswick Power, and untracked providers such as Hydro Westmount.
+- The Hydro-Québec utility page exposes provider totals plus county/MRC-level rows with customers tracked and customers out.
+- PowerOutage US has a stronger commercial platform around the public map: national totals, state and utility rankings, alert/reporting affordances, products for REST API, embeddable maps, smart alerts, precision reporting, historical intelligence, and enterprise dashboards.
+- PowerOutage's own About/use-data pages state that they aggregate utility outage data, store collected historical information, support heavy traffic during major events, and sell/use enterprise products. Their public pages emphasize broad coverage, not local cause/restoration detail for one customer premise.
+- PowerOutage reports coverage figures on its public pages: 96% US, 95% Canadian, and 89% UK coverage.
+- PowerOutage's public changelog says the 2025 rewrite rebuilt maps using D3.js and MapLibre GL, switched to TopoJSON for faster map loading, added 3D extrusion maps, and added historical/timeline visualization controls.
+
+Product implications for pannes.ca:
+
+- Hydro-Québec remains the closest benchmark for exact customer-facing service status, outage reporting, planned interruption workflows, and mobile/followed-address notifications.
+- PowerOutage is the better benchmark for the proposed `Bilan par région` direction: province/national status first, region/provider rows, percentage/severity scales, provider drilldown, outage rankings, and dashboard/alert productization.
+- pannes.ca should not try to become a generic multi-utility dashboard immediately. The stronger niche remains Hydro-Québec + Quebec-specific address/history/disclosure context.
+- A useful hybrid direction is:
+  - Hydro-like exact/current status framing where the data supports it.
+  - PowerOutage-like province/region/MRC summary views for situational awareness.
+  - pannes.ca-specific historical and access-to-information context where Hydro and PowerOutage public pages do not expose detail.
+- For a regional dashboard, consider showing:
+  - current customers/addresses out
+  - active interruption count
+  - affected percentage where denominator is available
+  - latest Hydro source version and collection timestamp
+  - region/MRC/provider rows
+  - links to map and address search
+  - historical/disclosure context as secondary expandable detail
+
+Map stack comparison:
+
+- Current pannes.ca stack is Leaflet + raster/base tiles + GeoJSON overlays. This is still the pragmatic default for the current product because it is simple, open source, small, easy to debug, and a good fit for modest numbers of polygons/markers and server-rendered HTMX pages.
+- Leaflet is less ideal if pannes.ca evolves toward PowerOutage-style dashboard maps with many features, smooth choropleths, animated timelapse, vector-tile filtering, 3D extrusion, or GPU-rendered large datasets. Leaflet can be extended, but large overlay payloads and DOM/SVG/canvas layer management become the performance bottleneck.
+- MapLibre GL JS is the strongest open-source candidate for the next major map iteration. It is WebGL/GPU-accelerated, renders vector tiles and MapLibre styles client-side, supports data-driven styling, and matches the direction PowerOutage publicly says it took for its rewrite. The tradeoff is higher implementation complexity: vector tile generation/serving, style JSON, feature-state handling, WebGL testing, and migration of current Leaflet UI glue.
+- Apple MapKit JS is attractive for high-quality Apple Maps basemaps and a generous free daily limit, but it is a proprietary hosted map service with token setup, service-call quotas, less ecosystem flexibility for custom outage data workflows, and less obvious fit for open-source/provenance-oriented pannes.ca. It should not be the default for this project unless the product specifically needs Apple basemaps/look-and-feel.
+- Google Maps JavaScript API is the strongest proprietary choice for consumer-grade basemaps, places/geocoding/autocomplete ecosystem, Street View, and broad user familiarity. The downside is pay-as-you-go billing, API key/billing dependency, license restrictions, and weaker alignment with an open-data/outage-research product that wants control over derived data, caching, and custom overlays.
+- Recommended sequencing:
+  1. Keep Leaflet while the main performance issue is payload size/context assembly rather than renderer capability.
+  2. Build the `Bilan par région` and MRC/region aggregates in D1 first; renderer choice should follow the data model.
+  3. If region/MRC maps, choropleths, or timelapse become central, prototype MapLibre with precomputed vector tiles or PMTiles/MBTiles-derived static tiles.
+  4. Avoid Apple/Google as the primary outage overlay renderer unless a specific proprietary capability is worth the dependency and usage terms.
+
+Sources checked:
+
+- PowerOutage Canada: https://poweroutage.com/ca/
+- PowerOutage Quebec: https://poweroutage.com/ca/province/quebec
+- PowerOutage Hydro-Québec utility page: https://poweroutage.com/ca/utility/1297
+- PowerOutage US: https://poweroutage.us/
+- PowerOutage About: https://poweroutage.us/about
+- PowerOutage Use Our Data: https://poweroutage.us/use-our-data
+- Leaflet: https://leafletjs.com/
+- MapLibre GL JS: https://maplibre.org/projects/gl-js/
+- Apple MapKit JS: https://developer.apple.com/documentation/mapkitjs
+- Apple Maps on the Web: https://developer.apple.com/maps/web/
+- Google Maps JavaScript API usage and billing: https://developers.google.com/maps/documentation/javascript/usage-and-billing
+- Google Maps Platform pricing: https://developers.google.com/maps/billing-and-pricing/pricing
+
 ## Sources
 
 - [Hydro-Québec open data overview](https://www.hydroquebec.com/documents-donnees/donnees-ouvertes/)
