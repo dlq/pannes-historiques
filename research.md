@@ -1,7 +1,7 @@
 # Research: Hydro-Québec Historic Outage Data
 
 Date: 2026-04-25
-Last updated: 2026-05-15
+Last updated: 2026-05-19
 
 ## UI comparable notes for 0.2.0
 
@@ -58,6 +58,14 @@ As of 2026-05-06, production also has a Cloudflare-native durable ingestion laye
 - a separate bounded two-week disclosure job mirrors parsed DAI source/event/metric/geometry metadata into D1 and archives reachable raw DAI source files in R2
 - broad regional and DAI/disclosure map context is served through lazy map endpoints and precomputed static geometry assets, while previous outages without polygons render as centroid markers
 - embedded SQLite remains part of the container implementation for local development and some disclosure/regional context, but it is no longer the only production data path
+
+Production runtime map-layer checkpoint, 2026-05-19:
+
+- A live Cloudflare deployment of the map-first UI exposed two production-only map-context regressions: `Pannes deja vues` was empty on the default page, and current/planned sections rendered centroid markers because the container consumed durable rows that did not include polygon geometry.
+- The fix adds Worker runtime endpoints for operational map layers and previous map layers. They read D1 feed rows plus `hydro_polygon_geometries`, assign nearest Hydro polygon geometry where available, and return geometry-bearing Leaflet layer payloads to the Flask/container renderer.
+- Flask now prefers those runtime endpoints when `DURABLE_RUNTIME_URL` is configured, then falls back to the older durable hydro endpoint and finally to local SQLite. View rendering now tolerates omitted optional layer fields from JSON payloads.
+- Live verification after deployment version `9f607e6a-3e6f-4b3e-b660-51137cb5302e` showed `/?lang=fr&v=7a31f06c` returning HTTP 200 with 262 map matches, 201 current/planned operational layers with 201 geometries, and 36 previous-outage layers with 36 geometries.
+- Rollout observation: a new deployment can briefly return `Error proxying request to container: The container is not running`; a `/healthz` request started the container, after which the same page and map payload checks passed. Future deploy verification should explicitly prime health and then check page payload geometry counts.
 
 ## Short answer
 

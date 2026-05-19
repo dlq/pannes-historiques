@@ -142,7 +142,7 @@ def test_search_location_returns_outside_quebec_for_non_quebec_coordinates(
     assert result.geocode["provider"] == "browser_geolocation"
 
 
-def test_search_location_uses_matches_as_map_layers_with_durable_nearby(
+def test_search_location_uses_operational_map_layers_with_durable_nearby(
     service_factory, monkeypatch
 ):
     service = service_factory(
@@ -175,6 +175,29 @@ def test_search_location_uses_matches_as_map_layers_with_durable_nearby(
             }
         ],
     )
+    map_layers = [
+        {
+            "outage_kind": "outage",
+            "record_id": "map-1",
+            "geometry_id": "g-1",
+            "geometry_geojson": {"type": "Polygon", "coordinates": []},
+            "match_type": "current_feed_map",
+            "distance_m": None,
+            "confidence": 0.5,
+            "municipality_code": "Montreal",
+            "customers_affected": 10,
+            "status": "N",
+            "interruption_type": "P",
+            "start_time": "2026-05-08 10:00:00",
+            "end_time": None,
+            "centroid_lat": 45.5,
+            "centroid_lon": -73.56,
+            "sort_time": "2026-05-08 10:00:00",
+        }
+    ]
+    monkeypatch.setattr(
+        service, "_current_operational_map_layers", lambda include_planned: map_layers
+    )
     monkeypatch.setattr(service, "_find_archived_outage_matches", lambda *args, **kwargs: [])
     monkeypatch.setattr(service, "_previous_outage_groups", lambda **kwargs: [])
     monkeypatch.setattr(service, "_query_count", lambda address_id: 3)
@@ -193,8 +216,30 @@ def test_search_location_uses_matches_as_map_layers_with_durable_nearby(
 
     assert result.error is None
     assert result.query_count == 3
-    assert result.current_map_layers == result.matches
+    assert result.current_map_layers == map_layers
     assert result.normalized.normalized_line == "current location 45.50000,-73.56000"
+
+
+def test_durable_runtime_operational_and_previous_map_layers(service_factory, monkeypatch):
+    service = service_factory(durable_runtime_url="https://example.invalid")
+
+    def fake_runtime_get(path, query=None):
+        if path == "operational-map-layers":
+            assert query == {"include_planned": "1"}
+            return {"layers": [{"outage_kind": "outage", "geometry_geojson": {}}]}
+        if path == "previous-map-layers":
+            assert query == {"limit": "12"}
+            return {"layers": [{"outage_kind": "previous_outage"}]}
+        raise AssertionError(path)
+
+    monkeypatch.setattr(service, "_durable_runtime_get", fake_runtime_get)
+
+    assert service._build_current_operational_map_layers(True) == [
+        {"outage_kind": "outage", "geometry_geojson": {}}
+    ]
+    assert service._build_previous_operational_map_layers(12) == [
+        {"outage_kind": "previous_outage"}
+    ]
 
 
 def test_find_current_matches_returns_durable_matches_without_local_fallback(

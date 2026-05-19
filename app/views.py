@@ -252,19 +252,19 @@ def _operational_map_item(
         "matchType": item["match_type"],
         "lat": item["centroid_lat"],
         "lon": item["centroid_lon"],
-        "label": item["start_time"],
+        "label": item.get("start_time"),
         "kindLabel": t(lang, item["outage_kind"]),
         "matchLabel": t(lang, "current_feed_map"),
         "geometry": item.get("geometry_geojson"),
-        "customersAffected": item["customers_affected"],
-        "distanceM": item["distance_m"]
-        if item["distance_m"] is not None
+        "customersAffected": item.get("customers_affected"),
+        "distanceM": item.get("distance_m")
+        if item.get("distance_m") is not None
         else _distance_from_reference(item["centroid_lat"], item["centroid_lon"], reference),
-        "status": item["status"],
-        "statusLabel": hydro_status_label(lang, item["status"]),
-        "startTime": item["start_time"],
-        "endTime": item["end_time"],
-        "municipalityCode": item["municipality_code"],
+        "status": item.get("status"),
+        "statusLabel": hydro_status_label(lang, item.get("status")),
+        "startTime": item.get("start_time"),
+        "endTime": item.get("end_time"),
+        "municipalityCode": item.get("municipality_code"),
         "eventCount": item.get("event_count"),
         "recentEvents": item.get("recent_events", [])[:12],
     }

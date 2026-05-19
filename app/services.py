@@ -496,9 +496,7 @@ class AppService:
         with timer.step("search.find_disclosure_matches"):
             disclosure_matches: list[dict[str, Any]] = []
         with timer.step("search.current_map_layers"):
-            if include_map_layers and self.settings.durable_nearby_url:
-                current_map_layers = matches
-            elif include_map_layers:
+            if include_map_layers:
                 current_map_layers = self._current_operational_map_layers(
                     include_planned=include_planned
                 )
@@ -643,9 +641,7 @@ class AppService:
             days,
             exclude_event_keys={self._outage_display_key(item) for item in outage_matches},
         )
-        if include_map_layers and self.settings.durable_nearby_url:
-            current_map_layers = matches
-        elif include_map_layers:
+        if include_map_layers:
             current_map_layers = self._current_operational_map_layers(
                 include_planned=include_planned
             )
@@ -1263,6 +1259,9 @@ class AppService:
 
     def _build_previous_operational_map_layers(self, limit: int) -> list[dict[str, Any]]:
         if self.settings.durable_runtime_url:
+            payload = self._durable_runtime_get("previous-map-layers", {"limit": str(limit)})
+            if payload:
+                return payload.get("layers", [])
             return []
         with open_db(self.settings.db_path) as connection:
             current_rows = connection.execute(
@@ -1300,6 +1299,13 @@ class AppService:
                 """,
                 (limit * 4,),
             ).fetchall()
+            geometry_rows = connection.execute(
+                """
+                SELECT *
+                FROM outage_geometries
+                ORDER BY id DESC
+                """
+            ).fetchall()
         current_keys = {
             self._outage_display_key(
                 {
@@ -1328,7 +1334,7 @@ class AppService:
         ]
         layers = self._map_layers_for_rows(
             rows=rows,
-            geometry_payload=[],
+            geometry_payload=[dict(row) for row in geometry_rows],
             outage_kind="outage",
         )
         for layer in layers:
@@ -1337,6 +1343,14 @@ class AppService:
         return layers[:limit]
 
     def _build_current_operational_map_layers(self, include_planned: bool) -> list[dict[str, Any]]:
+        if self.settings.durable_runtime_url:
+            payload = self._durable_runtime_get(
+                "operational-map-layers",
+                {"include_planned": "1" if include_planned else "0"},
+            )
+            if payload:
+                return payload.get("layers", [])
+
         if self.settings.durable_nearby_url:
             layers = self._durable_current_operational_map_layers()
             if layers:

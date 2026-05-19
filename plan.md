@@ -1,7 +1,7 @@
 # Plan: Hydro-Québec Outage History App
 
 Date: 2026-04-25
-Last updated: 2026-05-18
+Last updated: 2026-05-19
 
 ## Release roadmap
 
@@ -24,6 +24,7 @@ The near-term release lines should be split this way:
 
 Current focus:
 
+- `v0.2.0` map-first responsive shell is deployed on `pannes.ca`; the remaining `0.2.x` work is refinement, regression coverage, and payload/performance hardening rather than first implementation
 - `v0.1.3` is complete: the repo now has a real automated baseline with `pytest`, route smoke coverage, helper coverage, and service-layer decision-path coverage
 - `v0.1.4` is now the remaining `0.1.x` hardening sprint, replacing the earlier split between `v0.1.4`, `v0.1.5`, and `v0.1.6`
 - the current `v0.1.4` scope is:
@@ -48,6 +49,26 @@ Testing follow-up by release line:
 - `0.3.x`: expand into architecture and data-pipeline coverage for D1/R2-backed reads, ingestion/export/mirroring paths, broader disclosure parser fixtures, and performance-sensitive integration cases
 
 ## 0.2.0 planning: map-first responsive interface
+
+Implementation checkpoint, 2026-05-19:
+
+- the map-first UI is now live in production, with desktop side-panel and narrow-view bottom-sheet layouts
+- production current outages, planned interruptions, and previous-outage context now use D1-backed Worker runtime map-layer endpoints when `DURABLE_RUNTIME_URL` is configured:
+  - `/api/durable/runtime/operational-map-layers?include_planned=1`
+  - `/api/durable/runtime/previous-map-layers?limit=36`
+- those runtime map-layer endpoints attach Hydro polygon geometry from D1 `hydro_polygon_geometries`; the Flask/container path now uses them before falling back to the older durable hydro endpoint or local SQLite
+- deployed verification on `pannes.ca` showed the default French page returning map data with current/planned and previous-outage layer geometry present, not only centroid markers
+- the production container still renders the Flask/Jinja shell; D1/R2 are the durable data plane for current feed rows, previous rows, raw archives, and now runtime map-context layers
+- rollout can briefly expose an inactive-container 500 while a new container starts; deployment checks should include a `/healthz` prime plus a full page/map-payload verification after the container reports running
+
+Next 0.2.x work:
+
+- add browser regression coverage for production-shaped map context: current outage, planned interruption, previous outage, disclosure, regional layer, desktop panel, and mobile bottom sheet
+- reduce initial and lazy map payload size by moving more geometry behind explicit on-demand endpoints or simplified/R2-backed assets
+- improve selected-state behavior so tapping a list row or map feature keeps sheet/panel state, map focus, and detail context stable across deferred map/context loads
+- refine narrow-view expanded sheet behavior so all four context sections remain discoverable even when all row lists cannot fit at once
+- define a clearer current/previous/disclosure layer control or legend pattern that does not clutter the primary map surface
+- continue moving startup and runtime map reads off the container hot path where Worker + D1 can answer directly
 
 The next substantial product/design direction should revisit the page structure around a map-first interaction model, closer to `maps.google.com` or `maps.apple.com` than the current document-flow dashboard.
 
