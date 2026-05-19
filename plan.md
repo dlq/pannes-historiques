@@ -1,7 +1,7 @@
 # Plan: Hydro-Québec Outage History App
 
 Date: 2026-04-25
-Last updated: 2026-05-15
+Last updated: 2026-05-18
 
 ## Release roadmap
 
@@ -19,6 +19,8 @@ The near-term release lines should be split this way:
   - move more production reads off container SQLite/static assets toward D1-backed paths
   - broaden province/region analytics and `Bilan par région`-style views
   - expand disclosure ingestion, geometry enrichment, and geocoder-provider options
+  - revisit UI information density, map-layer colours, panel layout, and section/list hierarchy after the 0.2.x map-first interface has had real use
+  - design an About/colophon surface and a more intentional legend/help pattern for map layer meaning, source caveats, freshness, and attribution
 
 Current focus:
 
@@ -205,6 +207,7 @@ Deferred to a later About page:
 - quality and limit caveats
 - cache freshness and archive coverage details
 - methodology notes and explanatory summary material
+- map-layer legend/help content that explains current outages, planned interruptions, previous outages, disclosure/DAI context, and regional burden without relying on a persistent floating legend
 
 Map follow-up:
 

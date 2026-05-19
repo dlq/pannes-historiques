@@ -124,6 +124,65 @@ def test_autocomplete_queries_expand_quebec_direction_and_street_abbreviations()
     ]
 
 
+def test_default_city_context_is_added_for_street_only_civic_queries():
+    settings = SimpleNamespace(
+        nominatim_url="https://example.invalid/search",
+        nominatim_user_agent="pannes-historiques-test",
+        db_path=":memory:",
+    )
+    service = GeocodingService(settings)
+    normalized = NormalizedAddress(
+        original="5220 Rue Jeanne-Mance",
+        normalized_line="5220 rue jeanne-mance, QC",
+        street_line="5220 rue jeanne-mance",
+        city="",
+        province="QC",
+        postal_code="",
+        unit="",
+    )
+
+    contextual = service._default_city_context(normalized)
+
+    assert contextual is not None
+    assert contextual.original == "5220 Rue Jeanne-Mance, Montreal, QC"
+    assert contextual.normalized_line == "5220 rue jeanne-mance, montreal, QUEBEC"
+    assert contextual.city == "montreal"
+
+
+def test_geocode_uses_default_city_context_when_street_only_lookup_misses(monkeypatch):
+    settings = SimpleNamespace(
+        nominatim_url="https://example.invalid/search",
+        nominatim_user_agent="pannes-historiques-test",
+        db_path=":memory:",
+        durable_runtime_url="",
+    )
+    service = GeocodingService(settings)
+    normalized = NormalizedAddress(
+        original="5220 Rue Jeanne-Mance",
+        normalized_line="5220 rue jeanne-mance, QC",
+        street_line="5220 rue jeanne-mance",
+        city="",
+        province="QC",
+        postal_code="",
+        unit="",
+    )
+    stored: list[str] = []
+
+    monkeypatch.setattr(service, "_from_cache", lambda _query: None)
+    monkeypatch.setattr(service, "_nominatim", lambda _normalized: None)
+    monkeypatch.setattr(service, "_store_cache", lambda query, _result: stored.append(query))
+
+    result = service.geocode(normalized)
+
+    assert result is not None
+    assert result.provider == "fallback_city_centroid"
+    assert result.city == "Montreal"
+    assert stored == [
+        "5220 rue jeanne-mance, QC",
+        "5220 rue jeanne-mance, montreal, QUEBEC",
+    ]
+
+
 def test_suggestion_score_prefers_complete_civic_address_matches():
     settings = SimpleNamespace(
         nominatim_url="https://example.invalid/search",

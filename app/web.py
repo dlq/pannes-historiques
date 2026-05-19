@@ -6,7 +6,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from uuid import uuid4
 
-from flask import Flask, g, jsonify, render_template, request, send_file, url_for
+from flask import Flask, g, jsonify, render_template, request, send_file
 
 from .config import Settings, ensure_directories
 from .db import initialize
@@ -18,6 +18,7 @@ from .views import (
     FIXED_INCLUDE_PLANNED,
     FIXED_RADIUS_M,
     context_geometry_payload,
+    default_map_payload,
     result_context,
 )
 
@@ -33,6 +34,13 @@ def create_app(settings: Settings | None = None) -> Flask:
     app.config["APP_SETTINGS"] = settings
     app.config["APP_SERVICE"] = service
     app.jinja_env.globals["t"] = t
+    static_root = Path(app.static_folder or "")
+    app.jinja_env.globals["static_version"] = int(
+        max(
+            (static_root / "app.css").stat().st_mtime,
+            (static_root / "app.js").stat().st_mtime,
+        )
+    )
 
     @app.before_request
     def start_request_timer():
@@ -94,6 +102,15 @@ def create_app(settings: Settings | None = None) -> Flask:
                 )
             with current_timer().step("index.result_context"):
                 search_context = result_context(lang, result)
+        else:
+            with current_timer().step("index.default_map_layers"):
+                default_map = default_map_payload(
+                    lang,
+                    service._regional_metric_map_layers(),
+                    service._disclosure_map_layers(),
+                    service._current_operational_map_layers(include_planned=include_planned),
+                    service._previous_operational_map_layers(),
+                )
 
         with current_timer().step("index.render_template"):
             return render_template(
@@ -102,6 +119,7 @@ def create_app(settings: Settings | None = None) -> Flask:
                 include_planned=include_planned,
                 initial_query=query,
                 lang=lang,
+                default_map_payload=default_map if not query else None,
                 radius_m=radius_m,
                 result_context=search_context,
                 settings=settings,
@@ -121,16 +139,11 @@ def create_app(settings: Settings | None = None) -> Flask:
                 radius_m=FIXED_RADIUS_M,
                 days=FIXED_DAYS,
                 include_planned=FIXED_INCLUDE_PLANNED,
-                include_map_layers=False,
+                include_map_layers=True,
                 record_history=False,
             )
         with current_timer().step("search.result_context"):
-            context = result_context(lang, result, include_map_payload=False)
-            context["lazy_map_url"] = url_for(
-                "search_map",
-                q=request.form.get("q", ""),
-                lang=lang,
-            )
+            context = result_context(lang, result, include_map_payload=True)
         with current_timer().step("search.render_template"):
             return render_template("_results.html", **context)
 
@@ -212,18 +225,11 @@ def create_app(settings: Settings | None = None) -> Flask:
                 radius_m=FIXED_RADIUS_M,
                 days=FIXED_DAYS,
                 include_planned=FIXED_INCLUDE_PLANNED,
-                include_map_layers=False,
+                include_map_layers=True,
                 record_history=False,
             )
         with current_timer().step("search_location.result_context"):
-            context = result_context(lang, result, include_map_payload=False)
-            context["lazy_map_url"] = url_for(
-                "search_location_map",
-                latitude=request.form.get("latitude") or "0",
-                longitude=request.form.get("longitude") or "0",
-                accuracy_m=request.form.get("accuracy_m") or "",
-                lang=lang,
-            )
+            context = result_context(lang, result, include_map_payload=True)
         with current_timer().step("search_location.render_template"):
             return render_template("_results.html", **context)
 

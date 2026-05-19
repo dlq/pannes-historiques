@@ -43,6 +43,7 @@ def make_search_result() -> SearchResult:
         planned_matches=[],
         previous_outage_groups=[],
         current_map_layers=[],
+        previous_map_layers=[],
         disclosure_matches=[],
         disclosure_layers=[],
         disclosure_metrics=[],
@@ -96,7 +97,82 @@ class StubService:
         return []
 
     def _disclosure_map_layers(self):
-        return []
+        return [
+            {
+                "centroid_lat": 45.51,
+                "centroid_lon": -73.61,
+                "municipality_code": "Outremont",
+                "record_count": 4,
+                "start_min": "2022-01-12 05:10:00",
+                "start_max": "2025-09-03 18:22:00",
+                "duration_seconds_total": 44280,
+                "source_dai": "DAI-2025-0275",
+                "source_title": "Outremont disclosure extract",
+                "source_dais": ["DAI-2025-0275"],
+                "source_titles": {"DAI-2025-0275": "Outremont disclosure extract"},
+                "geography_type": "municipality",
+                "precision_label": "municipality",
+                "top_causes": [{"cause": "Vegetation", "count": 2}],
+                "recent_events": [],
+            }
+        ]
+
+    def _current_operational_map_layers(self, include_planned: bool):
+        layers = [
+            {
+                "outage_kind": "outage",
+                "match_type": "current_feed_map",
+                "centroid_lat": 45.52,
+                "centroid_lon": -73.62,
+                "start_time": "2026-05-16 12:00:00",
+                "end_time": None,
+                "geometry_geojson": None,
+                "customers_affected": 42,
+                "distance_m": None,
+                "status": "A",
+                "municipality_code": "66023",
+                "event_count": 1,
+                "recent_events": [],
+            }
+        ]
+        if include_planned:
+            layers.append(
+                {
+                    "outage_kind": "planned",
+                    "match_type": "current_feed_map",
+                    "centroid_lat": 45.53,
+                    "centroid_lon": -73.63,
+                    "start_time": "2026-05-17 09:00:00",
+                    "end_time": "2026-05-17 11:00:00",
+                    "geometry_geojson": None,
+                    "customers_affected": 15,
+                    "distance_m": None,
+                    "status": "",
+                    "municipality_code": "66023",
+                    "event_count": 1,
+                    "recent_events": [],
+                }
+            )
+        return layers
+
+    def _previous_operational_map_layers(self, limit: int = 36):
+        return [
+            {
+                "outage_kind": "previous_outage",
+                "match_type": "previous_context_map",
+                "centroid_lat": 45.54,
+                "centroid_lon": -73.64,
+                "start_time": "2026-05-15 10:00:00",
+                "end_time": "2026-05-15 12:00:00",
+                "geometry_geojson": None,
+                "customers_affected": 9,
+                "distance_m": None,
+                "status": "R",
+                "municipality_code": "66023",
+                "event_count": 1,
+                "recent_events": [],
+            }
+        ][:limit]
 
     def collect(self):
         return {"kind": "collect"}

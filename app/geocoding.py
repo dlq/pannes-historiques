@@ -63,6 +63,9 @@ QUEBEC_ABBREVIATION_RE = re.compile(
     r"\b(?:st|ste|av|boul|bd|ch|rte)\b|\b[OENS]\.\b|\b[OENS]\b$",
     re.IGNORECASE,
 )
+CIVIC_STREET_RE = re.compile(r"^\d+[a-z]?\s+\S+", re.IGNORECASE)
+DEFAULT_CITY_CONTEXT = "montreal"
+DEFAULT_CITY_LABEL = "Montreal"
 
 
 @dataclass(frozen=True)
@@ -91,6 +94,17 @@ class GeocodingService:
             current_timer().set("geocode_provider", cached.provider)
             return cached
 
+        contextual = self._default_city_context(normalized)
+        if contextual:
+            with current_timer().step("geocode.context_cache_lookup"):
+                contextual_cached = self._from_cache(contextual.normalized_line)
+            if contextual_cached:
+                current_timer().set("geocode_cache_hit", True)
+                current_timer().set("geocode_provider", contextual_cached.provider)
+                with current_timer().step("geocode.store_cache"):
+                    self._store_cache(normalized.normalized_line, contextual_cached)
+                return contextual_cached
+
         current_timer().set("geocode_cache_hit", False)
         with current_timer().step("geocode.nominatim"):
             live = self._nominatim(normalized)
@@ -100,12 +114,27 @@ class GeocodingService:
                 self._store_cache(normalized.normalized_line, live)
             return live
 
+        if contextual:
+            with current_timer().step("geocode.context_nominatim"):
+                live = self._nominatim(contextual)
+            if live:
+                current_timer().set("geocode_provider", live.provider)
+                with current_timer().step("geocode.store_cache"):
+                    self._store_cache(normalized.normalized_line, live)
+                    self._store_cache(contextual.normalized_line, live)
+                return live
+
         with current_timer().step("geocode.fallback_city"):
             fallback = self._fallback_city(normalized)
+        if fallback is None and contextual:
+            with current_timer().step("geocode.context_fallback_city"):
+                fallback = self._fallback_city(contextual)
         if fallback:
             current_timer().set("geocode_provider", fallback.provider)
             with current_timer().step("geocode.store_cache"):
                 self._store_cache(normalized.normalized_line, fallback)
+                if contextual:
+                    self._store_cache(contextual.normalized_line, fallback)
         return fallback
 
     def suggest(self, query: str, language: str = "fr", limit: int = 5) -> list[dict[str, Any]]:
@@ -478,6 +507,21 @@ class GeocodingService:
 
     def _needs_query_expansion(self, query: str) -> bool:
         return bool(QUEBEC_ABBREVIATION_RE.search(query))
+
+    def _default_city_context(self, normalized: NormalizedAddress) -> NormalizedAddress | None:
+        if normalized.city or normalized.postal_code:
+            return None
+        if not CIVIC_STREET_RE.search(normalized.street_line):
+            return None
+        return NormalizedAddress(
+            original=f"{normalized.original}, {DEFAULT_CITY_LABEL}, QC",
+            normalized_line=", ".join([normalized.street_line, DEFAULT_CITY_CONTEXT, "QUEBEC"]),
+            street_line=normalized.street_line,
+            city=DEFAULT_CITY_CONTEXT,
+            province="QUEBEC",
+            postal_code="",
+            unit=normalized.unit,
+        )
 
     def _fallback_city(self, normalized: NormalizedAddress) -> GeocodeResult | None:
         key = normalized.city.strip().lower()

@@ -127,6 +127,129 @@ function showSearchLoading(show) {
   loading.style.display = show ? "block" : "";
 }
 
+function attachMobilePanelDrawer() {
+  const panel = document.querySelector("#results");
+  if (!panel) return;
+
+  let handle = panel.querySelector(".ph-panel-drawer-handle");
+  if (!handle) {
+    handle = document.createElement("button");
+    handle.type = "button";
+    handle.className = "ph-panel-drawer-handle";
+    handle.setAttribute("aria-label", "Resize results panel");
+    panel.prepend(handle);
+  }
+
+  if (handle.dataset.drawerBound === "1") return;
+  handle.dataset.drawerBound = "1";
+  let dragStartY = 0;
+  let dragged = false;
+  let suppressClick = false;
+
+  const mobilePanelMinHeight = () => {
+    if (!window.matchMedia("(max-width: 767px)").matches) return 136;
+    const summaries = Array.from(panel.querySelectorAll(".ph-context-section-summary"));
+    if (!summaries.length) return 192;
+    const handleHeight = handle.getBoundingClientRect().height || 20;
+    const sections = panel.querySelector(".ph-result-sections");
+    const sectionStyles = sections ? window.getComputedStyle(sections) : null;
+    const sectionPadding = sectionStyles
+      ? Number.parseFloat(sectionStyles.paddingTop) + Number.parseFloat(sectionStyles.paddingBottom)
+      : 16;
+    const gap = sectionStyles ? Number.parseFloat(sectionStyles.rowGap || sectionStyles.gap) : 8;
+    const summaryHeight = summaries.reduce(
+      (total, summary) => total + summary.getBoundingClientRect().height,
+      0,
+    );
+    return Math.ceil(
+      handleHeight + sectionPadding + gap * (summaries.length - 1) + summaryHeight + 24,
+    );
+  };
+
+  const clampHeight = (value) => {
+    const min = mobilePanelMinHeight();
+    const max = Math.max(min, window.innerHeight - 112);
+    return Math.min(Math.max(value, min), max);
+  };
+
+  const syncDrawerState = (height) => {
+    const expanded =
+      window.matchMedia("(max-width: 767px)").matches && height >= window.innerHeight * 0.54;
+    panel.classList.toggle("is-expanded", expanded);
+  };
+
+  const setPanelHeight = (clientY) => {
+    const nextHeight = clampHeight(window.innerHeight - clientY - 12);
+    document.documentElement.style.setProperty("--ph-mobile-panel-height", `${nextHeight}px`);
+    syncDrawerState(nextHeight);
+  };
+
+  handle.addEventListener("pointerdown", (event) => {
+    if (!window.matchMedia("(max-width: 767px)").matches) return;
+    event.preventDefault();
+    dragStartY = event.clientY;
+    dragged = false;
+    handle.setPointerCapture(event.pointerId);
+    setPanelHeight(event.clientY);
+  });
+
+  handle.addEventListener("pointermove", (event) => {
+    if (!handle.hasPointerCapture(event.pointerId)) return;
+    if (Math.abs(event.clientY - dragStartY) > 6) {
+      dragged = true;
+    }
+    setPanelHeight(event.clientY);
+  });
+
+  handle.addEventListener("pointerup", (event) => {
+    if (handle.hasPointerCapture(event.pointerId)) {
+      handle.releasePointerCapture(event.pointerId);
+    }
+    suppressClick = dragged;
+  });
+
+  handle.addEventListener("click", (event) => {
+    if (!window.matchMedia("(max-width: 767px)").matches) return;
+    if (suppressClick) {
+      event.preventDefault();
+      suppressClick = false;
+      return;
+    }
+    const current = panel.getBoundingClientRect().height;
+    const target =
+      current < window.innerHeight * 0.48 ? window.innerHeight * 0.62 : window.innerHeight * 0.36;
+    const nextHeight = clampHeight(target);
+    document.documentElement.style.setProperty("--ph-mobile-panel-height", `${nextHeight}px`);
+    syncDrawerState(nextHeight);
+  });
+
+  syncDrawerState(panel.getBoundingClientRect().height);
+}
+
+function updateShellState() {
+  const hasSearchResults = Array.from(document.querySelectorAll("#results [data-map-focus]")).some(
+    (item) => !item.closest(".ph-default-context-list"),
+  );
+  document.body.classList.toggle("ph-has-results", hasSearchResults);
+  attachMobilePanelDrawer();
+}
+
+function applyResultsHtml(html, results) {
+  const container = document.createElement("div");
+  container.innerHTML = html;
+  for (const node of Array.from(container.querySelectorAll("[hx-swap-oob]"))) {
+    if (!node.id) continue;
+    const target = document.getElementById(node.id);
+    if (target) {
+      target.innerHTML = node.innerHTML;
+      if (window.htmx) window.htmx.process(target);
+    }
+    node.remove();
+  }
+  results.innerHTML = container.innerHTML;
+  updateShellState();
+}
+
 function attachLocationSearch() {
   const button = document.querySelector("#location-search-button");
   const input = document.querySelector("#address-input");
@@ -135,7 +258,8 @@ function attachLocationSearch() {
   if (!button || !results || button.dataset.locationBound === "1") return;
   button.dataset.locationBound = "1";
 
-  const originalLabel = button.textContent.trim();
+  const originalHtml = button.innerHTML;
+  const originalAriaLabel = button.getAttribute("aria-label") || button.textContent.trim();
   const currentLocationPrefix = button.dataset.currentLocationLabel || "Current location";
   const locationUnavailable =
     button.dataset.locationUnavailableLabel || "Current location could not be found.";
@@ -153,7 +277,8 @@ function attachLocationSearch() {
 
   const finishLocationSearch = () => {
     button.disabled = false;
-    button.textContent = originalLabel;
+    button.innerHTML = originalHtml;
+    button.setAttribute("aria-label", originalAriaLabel);
     showSearchLoading(false);
   };
 
@@ -164,7 +289,8 @@ function attachLocationSearch() {
     }
 
     button.disabled = true;
-    button.innerHTML = `<span class="inline-flex items-center gap-2"><span class="h-3 w-3 animate-spin rounded-full border-2 border-[#c5cad2] border-t-[#095797]"></span><span>${escapeHtml(locating)}</span></span>`;
+    button.setAttribute("aria-label", locating);
+    button.innerHTML = `<span class="ph-button-spinner" aria-hidden="true"></span><span class="sr-only">${escapeHtml(locating)}</span>`;
     showSearchLoading(true);
     window.pendingMapFocus = null;
 
@@ -190,7 +316,7 @@ function attachLocationSearch() {
           });
           if (!response.ok) throw new Error(`HTTP ${response.status}`);
           const html = await response.text();
-          results.innerHTML = html;
+          applyResultsHtml(html, results);
           if (window.htmx) window.htmx.process(results);
           attachMapFocusCards();
           if (input) {
@@ -319,37 +445,55 @@ function formatDateTimeCell(value, labels = {}) {
   return `<span class="block font-semibold text-[#223654]">${escapeHtml(date)}</span>${time ? `<span class="block text-[#4e5662]">${escapeHtml(time)}</span>` : ""}`;
 }
 
+function localizeCause(cause) {
+  if (document.documentElement.lang !== "en") return cause;
+  const causes = {
+    Accident: "Accident",
+    Animal: "Animal",
+    "Bris equipement": "Equipment failure",
+    "Bris équipement": "Equipment failure",
+    Défaillance: "Equipment failure",
+    Entretien: "Maintenance",
+    "Incendie / Fuite de gaz": "Fire / gas leak",
+    Indéterminé: "Undetermined",
+    Pannes: "Outages",
+    Protection: "Protection",
+    Végétation: "Vegetation",
+  };
+  return causes[cause] || cause;
+}
+
 function disclosurePopup(item, labels = {}) {
   const causes = (item.topCauses || [])
-    .map((cause) => `<li>${escapeHtml(cause.cause)} (${escapeHtml(cause.count)})</li>`)
+    .map(
+      (cause) => `<li>${escapeHtml(localizeCause(cause.cause))} (${escapeHtml(cause.count)})</li>`,
+    )
     .join("");
   const events = (item.recentEvents || [])
     .map(
       (event) =>
         `<tr class="border-b border-blue-100 last:border-0">
-          <td class="px-1.5 py-2 align-top">${formatDateTimeCell(event.start_time, labels)}</td>
-          <td class="px-1.5 py-2 align-top">${formatDateTimeCell(event.end_time, labels)}</td>
-          <td class="truncate px-1.5 py-2 align-top" title="${escapeHtml(event.row_area || "")}">${escapeHtml(event.row_area || "")}</td>
-          <td class="truncate px-1.5 py-2 align-top" title="${escapeHtml(event.cause || label(labels, "unknown", "unknown"))}">${escapeHtml(event.cause || label(labels, "unknown", "unknown"))}</td>
-          <td class="px-1.5 py-2 text-right align-top">${escapeHtml(formatDuration(event.duration_seconds, labels))}</td>
-          <td class="px-1.5 py-2 text-right align-top">${escapeHtml(event.customers_affected ?? "")}</td>
+          <td class="px-1 py-1.5 align-top">${formatDateTimeCell(event.start_time, labels)}</td>
+          <td class="px-1 py-1.5 align-top">${formatDateTimeCell(event.end_time, labels)}</td>
+          <td class="truncate px-1 py-1.5 align-top" title="${escapeHtml(event.row_area || "")}">${escapeHtml(event.row_area || "")}</td>
+          <td class="truncate px-1 py-1.5 align-top" title="${escapeHtml(localizeCause(event.cause) || label(labels, "unknown", "unknown"))}">${escapeHtml(localizeCause(event.cause) || label(labels, "unknown", "unknown"))}</td>
+          <td class="px-1 py-1.5 text-right align-top">${escapeHtml(formatDuration(event.duration_seconds, labels))}</td>
+          <td class="px-1 py-1.5 text-right align-top">${escapeHtml(event.customers_affected ?? "")}</td>
         </tr>`,
     )
     .join("");
-  const sources = (item.sourceDais || []).map((source) => escapeHtml(source)).join(", ");
   return `
-      <div class="space-y-2 text-sm">
-      <div class="font-semibold">${escapeHtml(item.label || "")}</div>
-      ${sources ? `<div>${escapeHtml(label(labels, "sources", "Sources"))}: ${sources}</div>` : `<div>${escapeHtml(item.sourceDai || "")}</div>`}
-      <div>${escapeHtml(item.recordCount || 0)} ${escapeHtml(label(labels, "published_dai_records", "published DAI records"))}</div>
-      <div>${escapeHtml(item.startMin || label(labels, "unknown", "unknown"))} → ${escapeHtml(item.startMax || label(labels, "unknown", "unknown"))}</div>
-      <div>${escapeHtml(label(labels, "total_disclosed_duration", "Total disclosed duration"))}: ${escapeHtml(formatDuration(item.durationSecondsTotal, labels))}</div>
-      ${causes ? `<div><div class="font-medium">${escapeHtml(label(labels, "top_causes", "Top causes"))}</div><ul class="ml-4 list-disc">${causes}</ul></div>` : ""}
+      <div class="flex h-full min-h-0 flex-col gap-3 text-sm">
+      <div class="grid gap-2 text-[#223654]">
+        <div>${escapeHtml(item.startMin || label(labels, "unknown", "unknown"))} → ${escapeHtml(item.startMax || label(labels, "unknown", "unknown"))}</div>
+        <div>${escapeHtml(label(labels, "cumulative_disclosed_duration", "Cumulative disclosed outage duration"))}: ${escapeHtml(formatDuration(item.durationSecondsTotal, labels))}</div>
+      </div>
+      ${causes ? `<div><div class="font-medium text-[#223654]">${escapeHtml(label(labels, "top_causes", "Top causes"))}</div><ul class="ml-4 mt-1 list-disc leading-snug">${causes}</ul></div>` : ""}
       ${
         events
-          ? `<div>
+          ? `<div class="flex min-h-0 flex-1 flex-col">
               <div class="font-medium">${escapeHtml(label(labels, "extracted_rows", "Extracted rows"))}</div>
-              <div class="mt-2 max-h-[24rem] overflow-auto bg-white ring-1 ring-blue-100">
+              <div class="mt-2 min-h-0 flex-1 overflow-auto bg-white ring-1 ring-blue-100">
                 <table class="w-full min-w-[40rem] table-fixed text-left text-xs">
                   <colgroup>
                     <col class="w-[18%]">
@@ -361,12 +505,12 @@ function disclosurePopup(item, labels = {}) {
                   </colgroup>
                   <thead class="sticky top-0 bg-blue-50 uppercase tracking-[0.12em] text-blue-700">
                     <tr>
-                      <th class="px-1.5 py-2">${escapeHtml(label(labels, "start", "Start"))}</th>
-                      <th class="px-1.5 py-2">${escapeHtml(label(labels, "end", "End"))}</th>
-                      <th class="px-1.5 py-2">${escapeHtml(label(labels, "area", "Area"))}</th>
-                      <th class="px-1.5 py-2">${escapeHtml(label(labels, "cause", "Cause"))}</th>
-                      <th class="px-1.5 py-2 text-right">${escapeHtml(label(labels, "duration_short", "Dur."))}</th>
-                      <th class="px-1.5 py-2 text-right">${escapeHtml(label(labels, "clients", "clients"))}</th>
+                      <th class="px-1 py-1.5">${escapeHtml(label(labels, "start", "Start"))}</th>
+                      <th class="px-1 py-1.5">${escapeHtml(label(labels, "end", "End"))}</th>
+                      <th class="px-1 py-1.5">${escapeHtml(label(labels, "area", "Area"))}</th>
+                      <th class="px-1 py-1.5">${escapeHtml(label(labels, "cause", "Cause"))}</th>
+                      <th class="px-1 py-1.5 text-right">${escapeHtml(label(labels, "duration_short", "Dur."))}</th>
+                      <th class="px-1 py-1.5 text-right">${escapeHtml(label(labels, "clients", "clients"))}</th>
                     </tr>
                   </thead>
                   <tbody class="text-slate-700">${events}</tbody>
@@ -375,13 +519,24 @@ function disclosurePopup(item, labels = {}) {
             </div>`
           : ""
       }
-      <div class="text-xs text-slate-500">${escapeHtml(item.geographyType || "")} · ${escapeHtml(item.precisionLabel || "")}</div>
     </div>
   `;
 }
 
 function disclosureTooltip(item, labels = {}) {
   return `${escapeHtml(item.label || item.sourceDai || "DAI")} · ${escapeHtml(item.regionLabel || label(labels, "disclosure_region", "Disclosure region"))}`;
+}
+
+function disclosureSummaryPopup(item, labels = {}) {
+  const sources = (item.sourceDais || []).join(", ") || item.sourceDai || "";
+  return `
+    <div class="space-y-1 text-sm">
+      <div class="font-semibold text-[#223654]">${escapeHtml(item.label || "")}</div>
+      ${sources ? `<div class="text-[#4e5662]">${escapeHtml(sources)}</div>` : ""}
+      <div>${escapeHtml(item.recordCount || 0)} ${escapeHtml(label(labels, "published_dai_records", "published DAI records"))}</div>
+      <div class="text-xs text-[#6b778a]">${escapeHtml(label(labels, "disclosure_events", "Published events"))}: ${escapeHtml(item.startMin || label(labels, "unknown", "unknown"))} - ${escapeHtml(item.startMax || label(labels, "unknown", "unknown"))}</div>
+    </div>
+  `;
 }
 
 function operationalTooltip(item, labels = {}) {
@@ -403,16 +558,39 @@ function metricValue(item) {
   if (Number.isFinite(item.continuityIndexMinutes)) return item.continuityIndexMinutes;
   if (Number.isFinite(item.outageCount)) return item.outageCount;
   if (Number.isFinite(item.longOutageCount)) return item.longOutageCount;
-  return 0;
+  return null;
 }
 
 function metricColor(value, maxValue) {
+  if (value == null) return null;
   const ratio = Math.max(0, Math.min(1, value / Math.max(maxValue, 1)));
-  if (ratio > 0.8) return "#991b1b";
-  if (ratio > 0.6) return "#dc2626";
-  if (ratio > 0.4) return "#f97316";
-  if (ratio > 0.2) return "#facc15";
-  return "#fef3c7";
+  if (ratio > 0.8) return "#8b1e3f";
+  if (ratio > 0.6) return "#c2410c";
+  if (ratio > 0.4) return "#ea580c";
+  if (ratio > 0.2) return "#ca8a04";
+  return "#0f766e";
+}
+
+function contextRegionColor(item) {
+  const palette = ["#2563eb", "#0f766e", "#7c3aed", "#be123c", "#0369a1", "#a16207"];
+  const key = item.geometryKey || item.label || "";
+  let hash = 0;
+  for (let index = 0; index < key.length; index += 1) {
+    hash = (hash * 31 + key.charCodeAt(index)) % palette.length;
+  }
+  return palette[hash];
+}
+
+function regionalColor(item, maxValue) {
+  return metricColor(metricValue(item), maxValue) || contextRegionColor(item);
+}
+
+function regionalFillOpacity(item) {
+  return metricValue(item) == null ? 0.04 : 0.16;
+}
+
+function regionalWeight(item) {
+  return metricValue(item) == null ? 0.8 : 1.2;
 }
 
 function mapPane(item) {
@@ -430,7 +608,11 @@ function regionalBurdenText(item, labels = {}) {
 }
 
 function regionalMetricTooltip(item, labels = {}) {
-  return `${escapeHtml(item.label || "Region")} · ${escapeHtml(regionalBurdenText(item, labels))}: ${escapeHtml(item.continuityIndexMinutes ?? "?")}`;
+  const value = metricValue(item);
+  if (value == null) {
+    return `${escapeHtml(item.label || "Region")} · ${escapeHtml(regionalBurdenText(item, labels))}: unavailable`;
+  }
+  return `${escapeHtml(item.label || "Region")} · ${escapeHtml(regionalBurdenText(item, labels))}: ${escapeHtml(value)}`;
 }
 
 function geometryWeight(item) {
@@ -452,40 +634,72 @@ function geometryPoints(geometry) {
   return [];
 }
 
+function fetchJson(url, options = {}) {
+  if (typeof fetch === "function") {
+    return fetch(url, options).then((response) => {
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return response.json();
+    });
+  }
+  return new Promise((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    request.open("GET", url);
+    request.setRequestHeader("Accept", options.headers?.Accept || "application/json");
+    request.onload = () => {
+      if (request.status < 200 || request.status >= 300) {
+        reject(new Error(`HTTP ${request.status}`));
+        return;
+      }
+      try {
+        resolve(JSON.parse(request.responseText));
+      } catch (error) {
+        reject(error);
+      }
+    };
+    request.onerror = () => reject(new Error("Network request failed"));
+    request.send();
+  });
+}
+
 class DaiDetailPanel extends HTMLElement {
   uiLabels() {
     return this.labels || {};
   }
 
   connectedCallback() {
+    if (this.dataset.closeBound !== "1") {
+      this.dataset.closeBound = "1";
+      this.addEventListener("click", (event) => {
+        if (!event.target.closest("[data-dai-detail-close]")) return;
+        this.renderEmpty();
+      });
+    }
     this.renderEmpty();
   }
 
   renderEmpty() {
-    const title = this.getAttribute("title-label") || "DAI details";
-    const empty = this.getAttribute("empty-label") || "Click a blue DAI area on the map.";
-    this.innerHTML = `
-      <div class="rounded-lg border border-[#c5cad2] bg-[#f1f1f2] p-4 text-sm text-[#4e5662]">
-        <div class="font-semibold text-[#223654]">${escapeHtml(title)}</div>
-        <p class="mt-2">${escapeHtml(empty)}</p>
-      </div>
-    `;
+    this.hidden = true;
+    this.innerHTML = "";
   }
 
   renderDisclosure(item) {
     const labels = this.uiLabels();
     const title = this.getAttribute("title-label") || "DAI details";
+    this.hidden = false;
     this.innerHTML = `
-      <div class="rounded-lg border border-[#c5cad2] bg-[#f1f1f2] p-4">
-        <div class="mb-3 flex flex-wrap items-start justify-between gap-3">
-          <div>
+      <div class="flex h-full min-h-0 flex-col rounded-lg border border-[#c5cad2] bg-white/95 p-4 shadow-lg">
+        <div class="mb-3 flex flex-none flex-wrap items-start justify-between gap-3">
+          <div class="min-w-0">
             <p class="text-xs font-semibold uppercase tracking-[0.14em] text-[#095797]">${escapeHtml(title)}</p>
             <h4 class="mt-1 text-base font-semibold text-[#223654]">${escapeHtml(item.label || "")}</h4>
             <p class="mt-1 text-sm text-[#4e5662]">${escapeHtml((item.sourceDais || []).join(", ") || item.sourceDai || "")}</p>
           </div>
-          <div class="rounded-md border border-[#dae6f0] bg-white px-3 py-2 text-sm font-semibold text-[#095797]">${escapeHtml(item.recordCount || 0)} ${escapeHtml(label(labels, "rows", "rows"))}</div>
+          <div class="flex items-start gap-2">
+            <div class="rounded-md border border-[#dae6f0] bg-white px-3 py-2 text-sm font-semibold text-[#095797]">${escapeHtml(item.recordCount || 0)} ${escapeHtml(label(labels, "rows", "rows"))}</div>
+            <button type="button" class="rounded-md border border-[#c5cad2] bg-white px-2 py-1 text-sm font-semibold text-[#4e5662] hover:bg-[#f1f1f2]" data-dai-detail-close aria-label="${escapeHtml(label(labels, "close", "Close"))}">×</button>
+          </div>
         </div>
-        <div class="max-h-[28rem] overflow-auto pr-2">
+        <div class="min-h-0 flex-1 overflow-hidden pr-2">
           ${disclosurePopup(item, labels)}
         </div>
       </div>
@@ -516,6 +730,7 @@ class DaiDetailPanel extends HTMLElement {
       sourceCount === 1 ? "dai_source" : "dai_sources",
       sourceCount === 1 ? "DAI source" : "DAI sources",
     );
+    this.hidden = false;
     this.innerHTML = `
       <div class="rounded-lg border border-[#c5cad2] bg-[#f1f1f2] p-4">
         <p class="text-xs font-semibold uppercase tracking-[0.14em] text-[#095797]">${escapeHtml(title)}</p>
@@ -594,6 +809,7 @@ class DaiDetailPanel extends HTMLElement {
           <div class="rounded-md border border-[#dae6f0] bg-white px-3 py-2"><dt class="text-[#6b778a]">${escapeHtml(label(labels, "status", "Status"))}</dt><dd class="font-semibold text-[#223654]">${escapeHtml(item.statusLabel || item.status || label(labels, "unknown", "unknown"))}</dd></div>
           ${item.eventCount ? `<div class="rounded-md border border-[#dae6f0] bg-white px-3 py-2"><dt class="text-[#6b778a]">${escapeHtml(label(labels, "rows", "rows"))}</dt><dd class="font-semibold text-[#223654]">${escapeHtml(item.eventCount)}</dd></div>` : ""}
         </dl>`;
+    this.hidden = false;
     this.innerHTML = `
       <div class="rounded-lg border border-[#c5cad2] bg-[#f1f1f2] p-4">
         <p class="text-xs font-semibold uppercase tracking-[0.14em] text-[#095797]">${escapeHtml(title)}</p>
@@ -612,10 +828,11 @@ class OutageMap extends HTMLElement {
     const data = JSON.parse(raw);
     this.innerHTML = '<div class="h-full w-full"></div>';
     const root = this.firstElementChild;
-    const detailPanel = this.parentElement?.querySelector("dai-detail-panel");
+    const detailPanel = document.querySelector("dai-detail-panel");
     const labels = data.labels || {};
     if (detailPanel) detailPanel.labels = labels;
-    const map = L.map(root).setView(data.center || [46.8, -71.2], 11);
+    const map = L.map(root, { zoomControl: false }).setView(data.center || [46.8, -71.2], 11);
+    L.control.zoom({ position: "topright" }).addTo(map);
     L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
       attribution:
         '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
@@ -634,6 +851,40 @@ class OutageMap extends HTMLElement {
     const bounds = [];
     let focusItems = [];
     let activeMapFocus = null;
+    const visibleMapPadding = (base = 36) => {
+      const rail = document.querySelector(".ph-side-rail");
+      const mapRect = root.getBoundingClientRect();
+      const railRect = rail?.getBoundingClientRect();
+      const isMobileLayout = window.matchMedia("(max-width: 767px)").matches;
+      const leftOverlay =
+        railRect &&
+        !isMobileLayout &&
+        railRect.right > mapRect.left &&
+        railRect.left < mapRect.right
+          ? Math.max(0, railRect.right - mapRect.left + 16)
+          : 0;
+      const bottomOverlay =
+        railRect && railRect.bottom > mapRect.top && railRect.top < mapRect.bottom && isMobileLayout
+          ? Math.max(0, mapRect.bottom - railRect.top + 16)
+          : 0;
+      return {
+        padding: [base, base],
+        paddingTopLeft: [leftOverlay + base, base],
+        paddingBottomRight: [base, bottomOverlay + base],
+        leftOverlay,
+        bottomOverlay,
+      };
+    };
+    const offsetCenterForVisibleMap = (center, zoom) => {
+      const { leftOverlay, bottomOverlay } = visibleMapPadding();
+      if (leftOverlay <= 0 && bottomOverlay <= 0) return center;
+      const projected = map.project(center, zoom);
+      const adjusted = L.point(projected.x - leftOverlay / 2, projected.y + bottomOverlay / 2);
+      return map.unproject(adjusted, zoom);
+    };
+    const setVisibleCenter = (center, zoom) => {
+      map.setView(offsetCenterForVisibleMap(center, zoom), zoom);
+    };
     const numbersClose = (left, right, tolerance = 1) => {
       if (left == null || right == null) return true;
       return Math.abs(Number(left) - Number(right)) <= tolerance;
@@ -652,6 +903,8 @@ class OutageMap extends HTMLElement {
     };
     const itemMatchesFocus = (detail, item) => {
       if (detail.kind && item.kind && detail.kind !== item.kind) return false;
+      if (detail.geometryKey && item.geometryKey) return detail.geometryKey === item.geometryKey;
+      if (detail.label && item.label && detail.kind && detail.label !== item.label) return false;
       if (detail.startTime && item.startTime && detail.startTime !== item.startTime) return false;
       if (
         detail.customersAffected != null &&
@@ -662,13 +915,22 @@ class OutageMap extends HTMLElement {
       }
       return numbersClose(detail.distanceM, item.distanceM);
     };
-    const enrichFocusDetail = (detail) => {
-      if (detail.geometry) return detail;
-      const match = focusItems.find((item) => {
+    const findFocusMatch = (detail) =>
+      focusItems.find((item) => {
         if (itemMatchesFocus(detail, item)) return true;
         if (item.kind !== "previous_outage") return false;
         return (item.recentEvents || []).some((event) => eventMatchesFocus(detail, event));
       });
+    const enrichFocusDetail = (detail) => {
+      if (detail.geometry) return detail;
+      if (
+        detail.kind === "previous_outage" &&
+        Number.isFinite(Number(detail.lat)) &&
+        Number.isFinite(Number(detail.lon))
+      ) {
+        return detail;
+      }
+      const match = findFocusMatch(detail);
       if (!match?.geometry) return detail;
       return {
         ...detail,
@@ -678,7 +940,14 @@ class OutageMap extends HTMLElement {
       };
     };
     const focusMap = (rawDetail, { remember = true } = {}) => {
-      const detail = enrichFocusDetail(rawDetail || {});
+      const raw = rawDetail || {};
+      const matchedItem = findFocusMatch(raw);
+      if (matchedItem?.kind === "disclosure") {
+        if (remember) showDisclosure(matchedItem);
+        restackDisclosureLayers();
+      }
+      if (matchedItem?.kind === "regional_metric" && remember) showRegionalMetric(matchedItem);
+      const detail = enrichFocusDetail(raw);
       if (remember) activeMapFocus = detail;
       this.dataset.activeFocusKind = detail.kind || "";
       this.dataset.activeFocusLabel = detail.label || "";
@@ -688,15 +957,15 @@ class OutageMap extends HTMLElement {
         const layer = L.geoJSON(detail.geometry);
         const layerBounds = layer.getBounds();
         if (layerBounds.isValid()) {
-          map.fitBounds(layerBounds, { padding: [36, 36], maxZoom: 16 });
+          map.fitBounds(layerBounds, { ...visibleMapPadding(36), maxZoom: 16 });
           return;
         }
       }
       const lat = Number(detail.lat);
       const lon = Number(detail.lon);
       if (Number.isFinite(lat) && Number.isFinite(lon)) {
-        const itemBounds = L.circle([lat, lon], { radius: 1000 }).getBounds();
-        map.fitBounds(itemBounds, { padding: [36, 36], maxZoom: 16 });
+        const targetZoom = Math.max(map.getZoom(), 13);
+        setVisibleCenter([lat, lon], targetZoom);
       }
     };
     this.handleMapFocus = (event) => {
@@ -706,18 +975,17 @@ class OutageMap extends HTMLElement {
       if (window.pendingMapFocus === detail) window.pendingMapFocus = null;
     };
     document.addEventListener("map-focus", this.handleMapFocus);
-    if (data.center) {
+    if (data.center && data.showAddressMarker !== false) {
       L.marker(data.center)
         .addTo(map)
         .bindPopup(data.addressLabel || label(labels, "address", "Address"));
       bounds.push(data.center);
     }
-    const metricMax = Math.max(
-      1,
-      ...(data.matches || [])
-        .filter((item) => item.kind === "regional_metric")
-        .map((item) => metricValue(item)),
-    );
+    const metricValues = (data.matches || [])
+      .filter((item) => item.kind === "regional_metric")
+      .map((item) => metricValue(item))
+      .filter((value) => value != null);
+    const metricMax = Math.max(1, ...metricValues);
     const showDisclosure = (item) => {
       if (detailPanel && typeof detailPanel.renderDisclosure === "function") {
         detailPanel.renderDisclosure(item);
@@ -740,6 +1008,15 @@ class OutageMap extends HTMLElement {
         new CustomEvent("operational-layer-selected", { bubbles: true, detail: item }),
       );
     };
+    const disclosureLayers = [];
+    const restackDisclosureLayers = () => {
+      const orderedDisclosureLayers = disclosureLayers
+        .slice()
+        .sort((left, right) => right.weight - left.weight);
+      for (const { layer } of orderedDisclosureLayers) {
+        layer.bringToFront();
+      }
+    };
     const orderedMatches = [...(data.matches || [])].sort((left, right) => {
       const rank = { regional_metric: 0, disclosure: 1, previous_outage: 2, planned: 3, outage: 3 };
       const rankDifference = (rank[left.kind] ?? 3) - (rank[right.kind] ?? 3);
@@ -756,11 +1033,11 @@ class OutageMap extends HTMLElement {
       if (item.geometryKey && renderedGeometryKeys.has(item.geometryKey)) return;
       const color =
         item.kind === "planned"
-          ? "#06b6d4"
+          ? "#0891b2"
           : item.kind === "disclosure"
             ? "#2563eb"
             : item.kind === "regional_metric"
-              ? metricColor(metricValue(item), metricMax)
+              ? regionalColor(item, metricMax)
               : item.kind === "previous_outage"
                 ? "#64748b"
                 : "#f59e0b";
@@ -774,29 +1051,35 @@ class OutageMap extends HTMLElement {
           style: {
             color,
             weight: isRegionalMetric
-              ? 1.5
+              ? regionalWeight(item)
               : isDisclosure
-                ? 2.5
+                ? 2
                 : isPreviousOutage
                   ? 2
                   : item.matchType === "direct_match"
-                    ? 3
-                    : 2,
-            dashArray: isDisclosure ? "8 5" : isPreviousOutage ? "4 6" : null,
+                    ? 4
+                    : 3,
+            opacity: isRegionalMetric ? 0.36 : isDisclosure ? 0.72 : 1,
+            dashArray: isPreviousOutage ? "4 6" : null,
             fillColor: color,
             fillOpacity: isRegionalMetric
-              ? 0.28
+              ? regionalFillOpacity(item)
               : isDisclosure
-                ? 0.18
+                ? 0.16
                 : isPreviousOutage
                   ? 0.1
                   : item.kind === "planned"
-                    ? 0.16
-                    : 0.22,
+                    ? 0.34
+                    : 0.38,
           },
         }).addTo(map);
         if (isDisclosure) {
-          layer.on("click", () => showDisclosure(item));
+          disclosureLayers.push({ layer, weight: geometryWeight(item) });
+          layer.on("click", () => {
+            showDisclosure(item);
+            restackDisclosureLayers();
+          });
+          layer.bindPopup(disclosureSummaryPopup(item, labels), { maxWidth: 280 });
           layer.bindTooltip(disclosureTooltip(item, labels), { sticky: true });
         } else if (isRegionalMetric) {
           layer.on("click", () => showRegionalMetric(item));
@@ -821,20 +1104,34 @@ class OutageMap extends HTMLElement {
           pane: mapPane(item),
           style: {
             color,
-            weight: isRegionalMetric ? 1.5 : isPreviousOutage ? 2 : 2.5,
-            dashArray: isDisclosure ? "8 5" : isPreviousOutage ? "4 6" : null,
+            weight: isRegionalMetric
+              ? regionalWeight(item)
+              : isDisclosure
+                ? 2
+                : isPreviousOutage
+                  ? 2
+                  : 3,
+            opacity: isRegionalMetric ? 0.36 : isDisclosure ? 0.72 : 1,
+            dashArray: isPreviousOutage ? "4 6" : null,
             fillColor: color,
             fillOpacity: isRegionalMetric
-              ? 0.28
+              ? regionalFillOpacity(item)
               : isDisclosure
-                ? 0.18
+                ? 0.16
                 : isPreviousOutage
                   ? 0.1
-                  : 0.22,
+                  : item.kind === "planned"
+                    ? 0.34
+                    : 0.38,
           },
         }).addTo(map);
         if (isDisclosure) {
-          layer.on("click", () => showDisclosure(item));
+          disclosureLayers.push({ layer, weight: geometryWeight(item) });
+          layer.on("click", () => {
+            showDisclosure(item);
+            restackDisclosureLayers();
+          });
+          layer.bindPopup(disclosureSummaryPopup(item, labels), { maxWidth: 280 });
           layer.bindTooltip(disclosureTooltip(item, labels), { sticky: true });
         } else if (isRegionalMetric) {
           layer.on("click", () => showRegionalMetric(item));
@@ -867,7 +1164,7 @@ class OutageMap extends HTMLElement {
                   ? 8
                   : 6,
           color,
-          weight: isRegionalMetric ? 2 : isDisclosure ? 3 : isPreviousOutage ? 1.5 : 2,
+          weight: isRegionalMetric ? 2 : isDisclosure ? 3.5 : isPreviousOutage ? 1.5 : 2,
           fillColor: color,
           fillOpacity: isRegionalMetric
             ? 0.48
@@ -890,19 +1187,22 @@ class OutageMap extends HTMLElement {
         if (!isDisclosure && !isRegionalMetric) marker.bringToFront();
         if (!isDisclosure && !isRegionalMetric) bounds.push([item.lat, item.lon]);
       }
-      if (item.geometryKey) renderedGeometryKeys.add(item.geometryKey);
+      if (item.geometryKey && item.geometry) renderedGeometryKeys.add(item.geometryKey);
     };
     for (const item of orderedMatches) {
       renderMatch(item);
     }
+    restackDisclosureLayers();
     const refresh = () => {
       map.invalidateSize();
       if (data.center && Number.isFinite(data.radiusM)) {
-        map.setView(data.center, 14);
+        setVisibleCenter(data.center, data.zoom || 14);
+      } else if (data.center && data.preserveInitialView) {
+        setVisibleCenter(data.center, data.zoom || 14);
       } else if (bounds.length > 1) {
-        map.fitBounds(bounds, { padding: [24, 24], maxZoom: 16 });
+        map.fitBounds(bounds, { ...visibleMapPadding(24), maxZoom: 16 });
       } else if (data.center) {
-        map.setView(data.center, 14);
+        setVisibleCenter(data.center, data.zoom || 14);
       }
     };
     const replayPendingFocus = () => {
@@ -918,24 +1218,23 @@ class OutageMap extends HTMLElement {
       }, 0),
     );
     if (data.contextGeometryUrl) {
-      fetch(data.contextGeometryUrl, {
+      fetchJson(data.contextGeometryUrl, {
         headers: { Accept: "application/json" },
       })
-        .then((response) => {
-          if (!response.ok) throw new Error(`HTTP ${response.status}`);
-          return response.json();
-        })
         .then((payload) => {
           const geometries = new Map(
             (payload.geometries || []).map((item) => [item.geometryKey, item.geometry]),
           );
-          for (const item of orderedMatches) {
-            if (!item.deferGeometry || !item.geometryKey) continue;
-            item.geometry = geometries.get(item.geometryKey);
-            renderMatch(item);
-          }
-          refresh();
-          replayPendingFocus();
+          requestAnimationFrame(() => {
+            map.invalidateSize();
+            for (const item of orderedMatches) {
+              if (!item.deferGeometry || !item.geometryKey) continue;
+              item.geometry = geometries.get(item.geometryKey);
+              renderMatch(item);
+            }
+            refresh();
+            replayPendingFocus();
+          });
         })
         .catch(() => {
           // Context geometry is secondary; operational outage layers remain usable without it.
@@ -967,6 +1266,7 @@ document.addEventListener("DOMContentLoaded", () => {
   attachLocationSearch();
   attachSearchRouting();
   attachMapFocusCards();
+  updateShellState();
   document.body.addEventListener("input", syncLanguageForm);
   document.body.addEventListener("change", syncLanguageForm);
 });
@@ -977,4 +1277,5 @@ document.body.addEventListener("htmx:afterSwap", () => {
   attachLocationSearch();
   attachSearchRouting();
   attachMapFocusCards();
+  updateShellState();
 });

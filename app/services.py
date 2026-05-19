@@ -66,6 +66,7 @@ class SearchResult:
     planned_matches: list[dict[str, Any]]
     previous_outage_groups: list[dict[str, Any]]
     current_map_layers: list[dict[str, Any]]
+    previous_map_layers: list[dict[str, Any]]
     disclosure_matches: list[dict[str, Any]]
     disclosure_layers: list[dict[str, Any]]
     disclosure_metrics: list[dict[str, Any]]
@@ -407,6 +408,7 @@ class AppService:
                 planned_matches=[],
                 previous_outage_groups=[],
                 current_map_layers=[],
+                previous_map_layers=[],
                 disclosure_matches=[],
                 disclosure_layers=[],
                 disclosure_metrics=[],
@@ -438,6 +440,7 @@ class AppService:
                 planned_matches=[],
                 previous_outage_groups=[],
                 current_map_layers=[],
+                previous_map_layers=[],
                 disclosure_matches=[],
                 disclosure_layers=[],
                 disclosure_metrics=[],
@@ -463,6 +466,7 @@ class AppService:
                 planned_matches=[],
                 previous_outage_groups=[],
                 current_map_layers=[],
+                previous_map_layers=[],
                 disclosure_matches=[],
                 disclosure_layers=[],
                 disclosure_metrics=[],
@@ -500,6 +504,10 @@ class AppService:
                 )
             else:
                 current_map_layers = []
+        with timer.step("search.previous_map_layers"):
+            previous_map_layers = (
+                self._previous_operational_map_layers() if include_map_layers else []
+            )
         with timer.step("search.disclosure_layers"):
             disclosure_layers = self._disclosure_map_layers() if include_map_layers else []
         with timer.step("search.find_disclosure_metrics"):
@@ -551,6 +559,7 @@ class AppService:
             planned_matches=planned_matches,
             previous_outage_groups=previous_outage_groups,
             current_map_layers=current_map_layers,
+            previous_map_layers=previous_map_layers,
             disclosure_matches=disclosure_matches,
             disclosure_layers=disclosure_layers,
             disclosure_metrics=disclosure_metrics,
@@ -607,6 +616,7 @@ class AppService:
                 planned_matches=[],
                 previous_outage_groups=[],
                 current_map_layers=[],
+                previous_map_layers=[],
                 disclosure_matches=[],
                 disclosure_layers=[],
                 disclosure_metrics=[],
@@ -636,6 +646,7 @@ class AppService:
             )
         else:
             current_map_layers = []
+        previous_map_layers = self._previous_operational_map_layers() if include_map_layers else []
         disclosure_layers = self._disclosure_map_layers() if include_map_layers else []
         regional_metric_layers = self._regional_metric_map_layers() if include_map_layers else []
         if record_history:
@@ -670,6 +681,7 @@ class AppService:
             planned_matches=planned_matches,
             previous_outage_groups=previous_outage_groups,
             current_map_layers=current_map_layers,
+            previous_map_layers=previous_map_layers,
             disclosure_matches=[],
             disclosure_layers=disclosure_layers,
             disclosure_metrics=[],
@@ -1237,6 +1249,87 @@ class AppService:
             f"current_operational_map_layers:{int(include_planned)}",
             lambda: self._build_current_operational_map_layers(include_planned),
         )
+
+    def _previous_operational_map_layers(self, limit: int = 36) -> list[dict[str, Any]]:
+        return self._cached_context(
+            f"previous_operational_map_layers:{limit}",
+            lambda: self._build_previous_operational_map_layers(limit),
+        )
+
+    def _build_previous_operational_map_layers(self, limit: int) -> list[dict[str, Any]]:
+        if self.settings.durable_runtime_url:
+            return []
+        with open_db(self.settings.db_path) as connection:
+            current_rows = connection.execute(
+                """
+                SELECT r.*
+                FROM outage_records r
+                JOIN raw_snapshots s ON s.id = r.snapshot_id
+                WHERE s.source_type = 'bismarkers'
+                  AND s.id = (
+                    SELECT id
+                    FROM raw_snapshots
+                    WHERE source_type = 'bismarkers'
+                    ORDER BY fetched_at DESC, id DESC
+                    LIMIT 1
+                  )
+                """
+            ).fetchall()
+            rows = connection.execute(
+                """
+                SELECT r.*
+                FROM outage_records r
+                JOIN raw_snapshots s ON s.id = r.snapshot_id
+                WHERE s.source_type = 'bismarkers'
+                  AND r.centroid_lat IS NOT NULL
+                  AND r.centroid_lon IS NOT NULL
+                  AND s.id != (
+                    SELECT id
+                    FROM raw_snapshots
+                    WHERE source_type = 'bismarkers'
+                    ORDER BY fetched_at DESC, id DESC
+                    LIMIT 1
+                  )
+                ORDER BY COALESCE(r.outage_start_time, r.created_at) DESC
+                LIMIT ?
+                """,
+                (limit * 4,),
+            ).fetchall()
+        current_keys = {
+            self._outage_display_key(
+                {
+                    "municipality_code": row["municipality_code"],
+                    "start_time": row["outage_start_time"],
+                    "centroid_lat": row["centroid_lat"],
+                    "centroid_lon": row["centroid_lon"],
+                    "interruption_type": row["interruption_type"],
+                }
+            )
+            for row in current_rows
+        }
+        rows = [
+            row
+            for row in rows
+            if self._outage_display_key(
+                {
+                    "municipality_code": row["municipality_code"],
+                    "start_time": row["outage_start_time"],
+                    "centroid_lat": row["centroid_lat"],
+                    "centroid_lon": row["centroid_lon"],
+                    "interruption_type": row["interruption_type"],
+                }
+            )
+            not in current_keys
+        ]
+        layers = self._map_layers_for_rows(
+            rows=rows,
+            geometry_payload=[],
+            outage_kind="outage",
+        )
+        for layer in layers:
+            layer["outage_kind"] = "previous_outage"
+            layer["match_type"] = "previous_context_map"
+        return layers[:limit]
 
     def _build_current_operational_map_layers(self, include_planned: bool) -> list[dict[str, Any]]:
         with open_db(self.settings.db_path) as connection:
