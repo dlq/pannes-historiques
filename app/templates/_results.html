@@ -1,12 +1,12 @@
 {% if result.error %}
   <div class="rounded-lg border border-[#cb381f] bg-[#ffdbd6] p-6 text-[#692519]">{{ error_message }}</div>
 {% else %}
-  <div class="grid items-start gap-6 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] xl:grid-cols-[minmax(28rem,34rem)_minmax(0,1fr)]">
+  <div id="map-surface-content" class="ph-map-stage" hx-swap-oob="innerHTML">
     {% if map_payload %}
       {% include "_map_panel.html" %}
-    {% elif lazy_map_url %}
-      {% include "_map_placeholder.html" %}
     {% endif %}
-    {% include "_result_cards.html" %}
   </div>
+  {% with context_map_payload=map_payload, context_variant="search" %}
+    {% include "_default_context_list.html" %}
+  {% endwith %}
 {% endif %}

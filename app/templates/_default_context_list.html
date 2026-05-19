@@ -1,0 +1,108 @@
+{% set context_payload = context_map_payload if context_map_payload is defined else default_map_payload %}
+{% set context_variant = context_variant if context_variant is defined else "default" %}
+{% set current_outages = context_payload.matches | selectattr("kind", "equalto", "outage") | list %}
+{% set planned_outages = context_payload.matches | selectattr("kind", "equalto", "planned") | list %}
+{% set previous_outages = context_payload.matches | selectattr("kind", "equalto", "previous_outage") | list %}
+{% set disclosures = context_payload.matches | selectattr("kind", "equalto", "disclosure") | list %}
+<div class="ph-result-sections ph-map-context-list {{ 'ph-default-context-list' if context_variant == 'default' else 'ph-search-context-list' }}">
+  <details class="ph-context-section ph-result-card rounded-lg shadow-sm" open>
+    <summary class="ph-context-section-summary">
+      <h3 class="border-l-4 border-[#f59e0b] pl-2 text-sm font-semibold leading-tight text-[#223654]">
+        {{ t(lang, "current_outages") }}
+      </h3>
+      <span class="text-xs text-[#6b778a]">{{ current_outages | length }} {{ t(lang, "rows") }}</span>
+    </summary>
+    <div class="ph-context-rows">
+      {% for item in current_outages %}
+        <article class="ph-context-row ph-match-row"
+                 role="button"
+                 tabindex="0"
+                 data-map-focus='{{ {"kind": "outage", "lat": item.lat, "lon": item.lon, "label": item.label, "startTime": item.startTime, "customersAffected": item.customersAffected, "distanceM": item.distanceM} | tojson }}'>
+          <div class="min-w-0">
+            <p class="truncate font-semibold text-[#095797]">
+              <span class="text-[#6b778a]">{{ t(lang, "start") }}</span>
+              {{ item.startTime or t(lang, "unknown") }}
+            </p>
+            <p class="truncate text-[#4e5662]">{{ item.statusLabel }}</p>
+          </div>
+          <p class="ph-context-pill bg-[#f8e69a]">{{ item.customersAffected or 0 }} {{ t(lang, "clients") }}</p>
+        </article>
+      {% endfor %}
+      {% if not current_outages %}<p class="ph-context-empty">{{ t(lang, "outage_archive_empty") }}</p>{% endif %}
+    </div>
+  </details>
+  <details class="ph-context-section ph-result-card rounded-lg shadow-sm" open>
+    <summary class="ph-context-section-summary">
+      <h3 class="border-l-4 border-[#06b6d4] pl-2 text-sm font-semibold leading-tight text-[#223654]">
+        {{ t(lang, "planned_panel") }}
+      </h3>
+      <span class="text-xs text-[#6b778a]">{{ planned_outages | length }} {{ t(lang, "rows") }}</span>
+    </summary>
+    <div class="ph-context-rows">
+      {% for item in planned_outages %}
+        <article class="ph-context-row ph-match-row"
+                 role="button"
+                 tabindex="0"
+                 data-map-focus='{{ {"kind": "planned", "lat": item.lat, "lon": item.lon, "label": item.label, "startTime": item.startTime, "customersAffected": item.customersAffected, "distanceM": item.distanceM} | tojson }}'>
+          <div class="min-w-0">
+            <p class="truncate font-semibold text-[#095797]">
+              <span class="text-[#6b778a]">{{ t(lang, "start") }}</span>
+              {{ item.startTime or t(lang, "unknown") }}
+            </p>
+            <p class="truncate text-[#4e5662]">
+              <span>{{ t(lang, "end") }}</span>
+              {{ item.endTime or t(lang, "unknown") }}
+            </p>
+          </div>
+          <p class="ph-context-pill bg-[#dae6f0]">{{ item.customersAffected or 0 }} {{ t(lang, "clients") }}</p>
+        </article>
+      {% endfor %}
+      {% if not planned_outages %}<p class="ph-context-empty">{{ t(lang, "planned_empty") }}</p>{% endif %}
+    </div>
+  </details>
+  <details class="ph-context-section ph-result-card rounded-lg shadow-sm" open>
+    <summary class="ph-context-section-summary">
+      <h3 class="border-l-4 border-[#64748b] pl-2 text-sm font-semibold leading-tight text-[#223654]">
+        {{ t(lang, "previous_outages_legend") }}
+      </h3>
+      <span class="text-xs text-[#6b778a]">{{ previous_outages | length }} {{ t(lang, "rows") }}</span>
+    </summary>
+    <div class="ph-context-rows">
+      {% for item in previous_outages %}
+        <article class="ph-context-row ph-match-row"
+                 role="button"
+                 tabindex="0"
+                 data-map-focus='{{ {"kind": "previous_outage", "lat": item.lat, "lon": item.lon, "label": item.label, "startTime": item.startTime, "customersAffected": item.customersAffected, "distanceM": item.distanceM} | tojson }}'>
+          <div class="min-w-0">
+            <p class="truncate font-semibold text-[#095797]">
+              <span class="text-[#6b778a]">{{ t(lang, "start") }}</span>
+              {{ item.startTime or t(lang, "unknown") }}
+            </p>
+          </div>
+          <p class="ph-context-pill bg-[#f1f1f2]">{{ item.customersAffected or 0 }} {{ t(lang, "clients") }}</p>
+        </article>
+      {% endfor %}
+      {% if not previous_outages %}<p class="ph-context-empty">{{ t(lang, "previous_outages_empty") }}</p>{% endif %}
+    </div>
+  </details>
+  <details class="ph-context-section ph-result-card rounded-lg shadow-sm" open>
+    <summary class="ph-context-section-summary">
+      <h3 class="border-l-4 border-[#1d4ed8] pl-2 text-sm font-semibold leading-tight text-[#223654]">
+        {{ t(lang, "disclosure") }}
+      </h3>
+      <span class="text-xs text-[#6b778a]">{{ disclosures | length }} {{ t(lang, "rows") }}</span>
+    </summary>
+    <div class="ph-context-rows">
+      {% for item in disclosures %}
+        <article class="ph-context-row ph-match-row"
+                 role="button"
+                 tabindex="0"
+                 data-map-focus='{{ {"kind": "disclosure", "lat": item.lat, "lon": item.lon, "label": item.label, "geometryKey": item.geometryKey, "distanceM": item.distanceM} | tojson }}'>
+          <span class="min-w-0 truncate font-semibold text-[#095797]">{{ item.label }}</span>
+          <span class="ph-context-pill bg-[#f1f1f2]">{{ item.recordCount }} {{ t(lang, "rows") }}</span>
+        </article>
+      {% endfor %}
+      {% if not disclosures %}<p class="ph-context-empty">{{ t(lang, "disclosure_empty") }}</p>{% endif %}
+    </div>
+  </details>
+</div>

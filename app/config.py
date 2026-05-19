@@ -34,7 +34,7 @@ class Settings:
     )
     nominatim_user_agent: str = os.environ.get(
         "NOMINATIM_USER_AGENT",
-        "pannes-historiques/0.1 (+https://example.invalid)",
+        "pannes-historiques/0.1 (+https://github.com/dlq/pannes-historiques)",
     )
     auto_refresh_on_search: bool = os.environ.get("AUTO_REFRESH_ON_SEARCH", "1") == "1"
     durable_nearby_url: str = DURABLE_NEARBY_URL

@@ -13,14 +13,33 @@ async function runSearch(page: Page) {
 
 test("page loads in English and French", async ({ page }) => {
   await page.goto("/?lang=en");
-  await expect(
-    page.getByRole("heading", { name: "Start from a specific Quebec address" }),
-  ).toBeVisible();
+  await expect(page.locator(".ph-brand-mark")).toHaveText("Pannes Historiques");
+  await expect(page.locator("#address-input")).toBeVisible();
+  await expect(page.locator("outage-map")).toBeVisible();
+  await expect(page.locator(".leaflet-control-zoom")).toBeVisible();
+  await expect
+    .poll(() =>
+      page.locator("outage-map").evaluate((map) => {
+        const payload = JSON.parse(map.getAttribute("data-map") || "{}");
+        return payload.matches?.filter((item) => item.kind === "disclosure").length || 0;
+      }),
+    )
+    .toBeGreaterThan(0);
+  await expect
+    .poll(() =>
+      page.locator(".leaflet-pane path").evaluateAll(
+        (paths) =>
+          paths.filter((path) => {
+            const box = path.getBoundingClientRect();
+            return box.width > 0 && box.height > 0;
+          }).length,
+      ),
+    )
+    .toBeGreaterThan(0);
 
   await page.goto("/?lang=fr");
-  await expect(
-    page.getByRole("heading", { name: "Commencez par une adresse precise au Quebec" }),
-  ).toBeVisible();
+  await expect(page.locator(".ph-brand-mark")).toHaveText("Pannes Historiques");
+  await expect(page.locator("#address-input")).toBeVisible();
 });
 
 test("search renders result cards and lazy-loads the map", async ({ page }) => {
@@ -28,6 +47,25 @@ test("search renders result cards and lazy-loads the map", async ({ page }) => {
   await expect(page.locator("[data-map-focus]").first()).toBeVisible();
   await expect(page.locator("outage-map")).toBeVisible();
   await expect(page.locator("outage-map")).toHaveAttribute("data-map");
+});
+
+test("autocomplete menu appears above existing result cards", async ({ page }) => {
+  await runSearch(page);
+  await page.locator("#address-input").fill("5220");
+  await expect(page.locator("#address-suggestions")).toBeVisible();
+
+  const stacking = await page.evaluate(() => ({
+    suggestions: Number.parseInt(
+      window.getComputedStyle(document.querySelector("#address-suggestions")!).zIndex,
+      10,
+    ),
+    results: Number.parseInt(
+      window.getComputedStyle(document.querySelector("#results")!).zIndex,
+      10,
+    ),
+  }));
+
+  expect(stacking.suggestions).toBeGreaterThan(stacking.results);
 });
 
 test("clicking a result before lazy map load replays focus after the map appears", async ({

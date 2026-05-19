@@ -1,10 +1,9 @@
-<div class="order-1 space-y-6 lg:order-2"
+<div class="ph-map-panel"
      hx-get="{{ lazy_map_url }}"
      hx-trigger="load"
      hx-swap="outerHTML">
-  <section class="rounded-lg border border-[#c5cad2] bg-white p-4 shadow-sm sm:p-5">
-    <h3 class="border-l-4 border-[#e0ad03] pl-3 text-lg font-semibold text-[#223654]">{{ t(lang, "map_panel") }}</h3>
-    <div class="mt-4 flex h-[22rem] items-center justify-center rounded-md border border-[#c5cad2] bg-[#f1f1f2] text-sm text-[#4e5662] sm:h-[28rem]">
+  <section>
+    <div class="ph-map-visual-center h-full min-h-full bg-[#f1f1f2] text-sm text-[#4e5662]">
       <div class="flex items-center gap-3">
         <span class="h-4 w-4 animate-spin rounded-full border-2 border-[#c5cad2] border-t-[#095797]"></span>
         <span>{{ t(lang, "loading_results") }}</span>

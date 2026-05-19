@@ -140,6 +140,7 @@ def _regional_metric_layers() -> list[dict[str, object]]:
             "centroid_lat": 45.5405,
             "centroid_lon": -73.6372,
             "geography_label": "Montreal",
+            "geometry_geojson": _polygon(-73.95, 45.35, -73.45, 45.7),
             "source_dai": "DAI-2026-0077",
             "source_title": "Administrative region summary",
             "source_url": "https://example.invalid/dai-2026-0077",
@@ -218,6 +219,23 @@ def _build_result(*, location_query: bool = False) -> SearchResult:
         planned_matches=planned_matches,
         previous_outage_groups=previous_groups,
         current_map_layers=[*outage_matches, *planned_matches],
+        previous_map_layers=[
+            {
+                "outage_kind": "previous_outage",
+                "match_type": "previous_context_map",
+                "centroid_lat": 45.5171,
+                "centroid_lon": -73.6040,
+                "start_time": "2024-07-03 09:10:00",
+                "end_time": "2024-07-03 11:40:00",
+                "customers_affected": 57,
+                "distance_m": None,
+                "status": "R",
+                "municipality_code": "66023",
+                "geometry_geojson": _polygon(-73.61, 45.51, -73.59, 45.53),
+                "event_count": 1,
+                "recent_events": [],
+            }
+        ],
         disclosure_matches=[],
         disclosure_layers=_disclosure_layers(),
         disclosure_metrics=[],
@@ -278,6 +296,31 @@ class E2EStubService:
 
     def _disclosure_map_layers(self) -> list[dict[str, object]]:
         return _disclosure_layers()
+
+    def _current_operational_map_layers(self, include_planned: bool) -> list[dict[str, object]]:
+        layers = _outage_matches()
+        if include_planned:
+            layers = [*layers, *_planned_matches()]
+        return layers
+
+    def _previous_operational_map_layers(self, limit: int = 36) -> list[dict[str, object]]:
+        return [
+            {
+                "outage_kind": "previous_outage",
+                "match_type": "previous_context_map",
+                "centroid_lat": 45.5171,
+                "centroid_lon": -73.6040,
+                "start_time": "2024-07-03 09:10:00",
+                "end_time": "2024-07-03 11:40:00",
+                "customers_affected": 57,
+                "distance_m": None,
+                "status": "R",
+                "municipality_code": "66023",
+                "geometry_geojson": _polygon(-73.61, 45.51, -73.59, 45.53),
+                "event_count": 1,
+                "recent_events": [],
+            }
+        ][:limit]
 
     def collect(self) -> dict[str, object]:
         return {"kind": "collect"}

@@ -13,7 +13,7 @@ def test_search_route_uses_fixed_defaults(app_client):
     assert call["radius_m"] == 5000
     assert call["days"] == 1825
     assert call["include_planned"] is True
-    assert call["include_map_layers"] is False
+    assert call["include_map_layers"] is True
     assert call["record_history"] is False
 
 
@@ -54,7 +54,7 @@ def test_search_location_route_uses_fixed_defaults(app_client):
     assert call["radius_m"] == 5000
     assert call["days"] == 1825
     assert call["include_planned"] is True
-    assert call["include_map_layers"] is False
+    assert call["include_map_layers"] is True
     assert call["record_history"] is False
 
 
@@ -70,7 +70,9 @@ def test_map_context_geometries_route_returns_json(app_client):
     response = app_client.get("/map-context-geometries")
 
     assert response.status_code == 200
-    assert response.get_json() == {"geometries": []}
+    payload = response.get_json()
+    assert payload["geometries"]
+    assert payload["geometries"][0]["kind"] == "regional_metric"
 
 
 def test_debug_timing_search_route_returns_expected_shape(app_client):
