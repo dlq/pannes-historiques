@@ -1394,6 +1394,10 @@ async function durableRuntimeResponse(request, env) {
     return runtimeMatchesResponse(request, env);
   if (suffix === "/previous-groups" && request.method === "GET")
     return runtimePreviousGroupsResponse(env, url);
+  if (suffix === "/operational-map-layers" && request.method === "GET")
+    return runtimeOperationalMapLayersResponse(env, url);
+  if (suffix === "/previous-map-layers" && request.method === "GET")
+    return runtimePreviousMapLayersResponse(env, url);
   if (suffix === "/status" && request.method === "GET") return runtimeStatusResponse(env);
   if (suffix === "/map-context" && request.method === "GET") return runtimeMapContextResponse(env);
   return jsonResponse({ error: "runtime endpoint not found" }, { status: 404 });
@@ -1636,6 +1640,184 @@ async function runtimePreviousGroupsResponse(env, url) {
     String(right.latest_start_time || "").localeCompare(String(left.latest_start_time || "")),
   );
   return jsonResponse({ groups: items });
+}
+
+async function runtimeOperationalMapLayersResponse(env, url) {
+  const includePlanned = url.searchParams.get("include_planned") !== "0";
+  const versions = await env.DB.prepare("SELECT * FROM feed_versions").all();
+  const versionMap = new Map((versions.results || []).map((row) => [row.source, row.version]));
+  const [outageRows, plannedRows, outageGeometries, plannedGeometries] = await Promise.all([
+    latestRows(env.DB, "bis", "current_outage_records"),
+    includePlanned ? latestRows(env.DB, "aip", "current_planned_interruptions") : [],
+    hydroGeometryRows(env.DB, "bispoly", [versionMap.get("bis")]),
+    includePlanned ? hydroGeometryRows(env.DB, "aippoly", [versionMap.get("aip")]) : [],
+  ]);
+  const layers = [
+    ...operationalMapLayers(outageRows, outageGeometries, "outage"),
+    ...operationalMapLayers(plannedRows, plannedGeometries, "planned"),
+  ];
+  return jsonResponse({ layers });
+}
+
+async function runtimePreviousMapLayersResponse(env, url) {
+  const limit = Math.trunc(clamp(numberParam(url, "limit") ?? 36, 1, 250));
+  const currentRows = await latestRows(env.DB, "bis", "current_outage_records");
+  const currentKeys = new Set(
+    currentRows.map((row) =>
+      eventKey(
+        "outage",
+        row.municipality_code,
+        row.centroid_lat,
+        row.centroid_lon,
+        row.interruption_type,
+        row.outage_start_time,
+      ),
+    ),
+  );
+  const result = await env.DB.prepare(
+    `
+    SELECT *
+    FROM resolved_events
+    WHERE outage_kind = 'outage'
+      AND centroid_lat IS NOT NULL
+      AND centroid_lon IS NOT NULL
+    ORDER BY COALESCE(start_time, last_seen_at, updated_at) DESC
+    LIMIT ?
+    `,
+  )
+    .bind(limit * 4)
+    .all();
+  const rows = (result.results || []).filter((row) => !currentKeys.has(row.event_key));
+  const versions = [
+    ...new Set(
+      rows.flatMap((row) =>
+        String(row.source_versions || "")
+          .split(",")
+          .map((version) => version.trim())
+          .filter(Boolean),
+      ),
+    ),
+  ];
+  const geometries = await hydroGeometryRows(env.DB, "bispoly", versions);
+  const layers = operationalMapLayers(rows, geometries, "previous_outage").slice(0, limit);
+  return jsonResponse({ layers });
+}
+
+async function hydroGeometryRows(db, sourceType, versions) {
+  const uniqueVersions = [...new Set((versions || []).filter(Boolean))];
+  if (!uniqueVersions.length) return [];
+  const placeholders = uniqueVersions.map(() => "?").join(", ");
+  const result = await db
+    .prepare(
+      `
+      SELECT *
+      FROM hydro_polygon_geometries
+      WHERE source_type = ?
+        AND source_version IN (${placeholders})
+      `,
+    )
+    .bind(sourceType, ...uniqueVersions)
+    .all();
+  return result.results || [];
+}
+
+function operationalMapLayers(rows, geometryRows, outageKind) {
+  const groups = new Map();
+  const geometriesByVersion = new Map();
+  for (const geometry of geometryRows || []) {
+    const parsed = { ...geometry, geometry_geojson: JSON.parse(geometry.geometry_geojson) };
+    if (!geometriesByVersion.has(parsed.source_version)) {
+      geometriesByVersion.set(parsed.source_version, []);
+    }
+    geometriesByVersion.get(parsed.source_version).push(parsed);
+  }
+
+  for (const row of rows || []) {
+    if (!Number.isFinite(row.centroid_lat) || !Number.isFinite(row.centroid_lon)) continue;
+    const geometry = assignedHydroGeometry(row, geometriesByVersion);
+    const geometryId = geometry?.id || null;
+    const key = `${outageKind}:${geometryId || row.id || row.event_key}`;
+    const isOutage = outageKind === "outage" || outageKind === "previous_outage";
+    const startTime = isOutage ? row.outage_start_time || row.start_time : row.scheduled_start;
+    const endTime = isOutage ? row.estimated_restore_time || row.end_time : row.scheduled_end;
+    const customersAffected = isOutage
+      ? row.customers_affected ?? row.customers_max ?? row.customers_min
+      : row.customers_affected;
+    const event = {
+      start_time: startTime,
+      end_time: endTime,
+      customers_affected: customersAffected,
+      status: row.status,
+      municipality_code: row.municipality_code,
+      centroid_lat: row.centroid_lat,
+      centroid_lon: row.centroid_lon,
+      distance_m: null,
+    };
+    if (!groups.has(key)) {
+      groups.set(key, {
+        outage_kind: outageKind,
+        record_id: row.id || row.event_key,
+        geometry_id: geometryId,
+        geometry_geojson: geometry?.geometry_geojson || null,
+        match_type:
+          outageKind === "previous_outage" ? "previous_context_map" : "current_feed_map",
+        distance_m: null,
+        confidence: 0.5,
+        municipality_code: row.municipality_code,
+        customers_affected: customersAffected,
+        status: row.status,
+        interruption_type: isOutage ? row.interruption_type : "AIP",
+        start_time: startTime,
+        end_time: endTime,
+        centroid_lat: row.centroid_lat,
+        centroid_lon: row.centroid_lon,
+        sort_time: startTime || row.last_seen_at || row.updated_at,
+        event_count: row.record_count || 1,
+        recent_events: [event],
+      });
+    } else {
+      const group = groups.get(key);
+      group.event_count += row.record_count || 1;
+      group.recent_events.push(event);
+      group.customers_affected = (group.customers_affected || 0) + (customersAffected || 0);
+      if (String(startTime || "") > String(group.start_time || "")) {
+        group.start_time = startTime;
+        group.end_time = endTime;
+        group.status = row.status;
+        group.sort_time = startTime || row.last_seen_at || row.updated_at;
+      }
+    }
+  }
+  return [...groups.values()].sort((left, right) =>
+    String(right.sort_time || "").localeCompare(String(left.sort_time || "")),
+  );
+}
+
+function assignedHydroGeometry(row, geometriesByVersion) {
+  const versions = [
+    row.source_version,
+    ...String(row.source_versions || "")
+      .split(",")
+      .map((version) => version.trim())
+      .filter(Boolean),
+  ].filter(Boolean);
+  const candidates = versions.flatMap((version) => geometriesByVersion.get(version) || []);
+  if (!candidates.length) return null;
+  return candidates.reduce((best, candidate) => {
+    const bestDistance = distanceMeters(
+      row.centroid_lat,
+      row.centroid_lon,
+      best.centroid_lat,
+      best.centroid_lon,
+    );
+    const candidateDistance = distanceMeters(
+      row.centroid_lat,
+      row.centroid_lon,
+      candidate.centroid_lat,
+      candidate.centroid_lon,
+    );
+    return candidateDistance < bestDistance ? candidate : best;
+  }, candidates[0]);
 }
 
 async function runtimeStatusResponse(env) {
