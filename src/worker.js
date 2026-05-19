@@ -1738,10 +1738,12 @@ function operationalMapLayers(rows, geometryRows, outageKind) {
     const geometryId = geometry?.id || null;
     const key = `${outageKind}:${geometryId || row.id || row.event_key}`;
     const isOutage = outageKind === "outage" || outageKind === "previous_outage";
-    const startTime = isOutage ? row.outage_start_time || row.start_time : row.scheduled_start;
-    const endTime = isOutage ? row.estimated_restore_time || row.end_time : row.scheduled_end;
+    const startTime =
+      (isOutage ? row.outage_start_time || row.start_time : row.scheduled_start) || null;
+    const endTime =
+      (isOutage ? row.estimated_restore_time || row.end_time : row.scheduled_end) || null;
     const customersAffected = isOutage
-      ? row.customers_affected ?? row.customers_max ?? row.customers_min
+      ? (row.customers_affected ?? row.customers_max ?? row.customers_min)
       : row.customers_affected;
     const event = {
       start_time: startTime,
@@ -1759,8 +1761,7 @@ function operationalMapLayers(rows, geometryRows, outageKind) {
         record_id: row.id || row.event_key,
         geometry_id: geometryId,
         geometry_geojson: geometry?.geometry_geojson || null,
-        match_type:
-          outageKind === "previous_outage" ? "previous_context_map" : "current_feed_map",
+        match_type: outageKind === "previous_outage" ? "previous_context_map" : "current_feed_map",
         distance_m: null,
         confidence: 0.5,
         municipality_code: row.municipality_code,
@@ -1771,7 +1772,7 @@ function operationalMapLayers(rows, geometryRows, outageKind) {
         end_time: endTime,
         centroid_lat: row.centroid_lat,
         centroid_lon: row.centroid_lon,
-        sort_time: startTime || row.last_seen_at || row.updated_at,
+        sort_time: startTime || row.last_seen_at || row.updated_at || null,
         event_count: row.record_count || 1,
         recent_events: [event],
       });
@@ -1784,7 +1785,7 @@ function operationalMapLayers(rows, geometryRows, outageKind) {
         group.start_time = startTime;
         group.end_time = endTime;
         group.status = row.status;
-        group.sort_time = startTime || row.last_seen_at || row.updated_at;
+        group.sort_time = startTime || row.last_seen_at || row.updated_at || null;
       }
     }
   }
