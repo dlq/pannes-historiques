@@ -5,10 +5,18 @@ const query = "5220 Rue Jeanne-Mance";
 async function runSearch(page: Page) {
   await page.goto("/?lang=en");
   await page.locator("#address-input").fill(query);
+  const searchResponse = page.waitForResponse(
+    (response) =>
+      response.url().includes("/search") &&
+      response.request().method() === "POST" &&
+      response.status() < 400,
+  );
   await page.getByRole("button", { name: "Search" }).click();
+  await searchResponse;
   await expect(
     page.getByRole("heading", { name: "Current or new outages" }),
   ).toBeVisible();
+  await expect(page.locator("#search-loading")).toBeHidden();
 }
 
 test("page loads in English and French", async ({ page }) => {

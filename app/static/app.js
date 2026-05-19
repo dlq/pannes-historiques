@@ -124,7 +124,7 @@ function attachAddressAutocomplete() {
 function showSearchLoading(show) {
   const loading = document.querySelector("#search-loading");
   if (!loading) return;
-  loading.style.display = show ? "block" : "";
+  loading.style.display = show ? "block" : "none";
 }
 
 function attachMobilePanelDrawer() {
@@ -369,7 +369,19 @@ function attachSearchRouting() {
 
   searchForm.addEventListener("htmx:beforeRequest", () => {
     window.pendingMapFocus = null;
+    showSearchLoading(true);
   });
+
+  for (const eventName of [
+    "htmx:afterRequest",
+    "htmx:responseError",
+    "htmx:sendError",
+    "htmx:timeout",
+  ]) {
+    searchForm.addEventListener(eventName, () => {
+      showSearchLoading(false);
+    });
+  }
 
   input.addEventListener("input", () => {
     if (!isCurrentLocationValue()) {
@@ -1267,6 +1279,7 @@ document.addEventListener("DOMContentLoaded", () => {
   attachSearchRouting();
   attachMapFocusCards();
   updateShellState();
+  showSearchLoading(false);
   document.body.addEventListener("input", syncLanguageForm);
   document.body.addEventListener("change", syncLanguageForm);
 });
