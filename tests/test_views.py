@@ -61,10 +61,12 @@ def test_result_context_uses_previous_map_layers_for_search_context():
         item for item in context["map_payload"]["matches"] if item["kind"] == "previous_outage"
     ]
 
-    assert len(previous_items) == 1
+    assert len(previous_items) == 2
     assert previous_items[0]["matchType"] == "previous_context_map"
     assert previous_items[0]["customersAffected"] == 9
     assert previous_items[0]["distanceM"] is not None
+    assert previous_items[1]["matchType"] == "previous_query_match"
+    assert previous_items[1]["customersAffected"] == 99
 
 
 def test_default_map_payload_starts_without_address_marker():

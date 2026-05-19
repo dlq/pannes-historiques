@@ -246,3 +246,88 @@ def test_find_archived_outage_matches_falls_back_to_local_when_durable_unavailab
 
     assert len(matches) == 1
     assert matches[0]["municipality_code"] == "Montreal"
+
+
+def test_archived_outage_matches_populate_previous_groups_when_runtime_has_none(
+    service_factory, monkeypatch
+):
+    service = service_factory(auto_refresh_on_search=False)
+    monkeypatch.setattr(service, "collector_status", lambda: {"snapshot_count": 0})
+    monkeypatch.setattr(service, "coverage_stats", lambda: {"outage_count": 0})
+    monkeypatch.setattr(service, "_upsert_address", lambda normalized, geocode: (7, True))
+    monkeypatch.setattr(service, "_find_current_matches", lambda *args, **kwargs: [])
+    monkeypatch.setattr(
+        service,
+        "_find_archived_outage_matches",
+        lambda *args, **kwargs: [
+            {
+                "outage_kind": "outage",
+                "record_id": "event-1",
+                "geometry_id": None,
+                "geometry_geojson": None,
+                "match_type": "nearby_match",
+                "distance_m": 125.0,
+                "confidence": 0.8,
+                "municipality_code": "Montreal",
+                "customers_affected": 10,
+                "status": "N",
+                "interruption_type": "P",
+                "start_time": "2026-05-18 10:00:00",
+                "end_time": None,
+                "centroid_lat": 45.5,
+                "centroid_lon": -73.56,
+                "sort_time": "2026-05-18 10:00:00",
+            }
+        ],
+    )
+    monkeypatch.setattr(service, "_previous_outage_groups", lambda **kwargs: [])
+    monkeypatch.setattr(service, "_query_count", lambda address_id: 0)
+    monkeypatch.setattr(
+        service.geocoder,
+        "geocode",
+        lambda normalized: {
+            "provider": "fake",
+            "confidence": 0.9,
+            "quality": "address",
+            "latitude": 45.5,
+            "longitude": -73.56,
+            "city": "Montreal",
+            "province": "Quebec",
+            "postal_code": "H2V4G7",
+            "raw_json": {},
+        },
+    )
+
+    result = service.search(
+        query="5220 Rue Jeanne-Mance",
+        language="en",
+        radius_m=5000,
+        days=1825,
+        include_planned=True,
+        record_history=False,
+    )
+
+    assert len(result.previous_outage_groups) == 1
+    assert result.previous_outage_groups[0]["event_count"] == 1
+    assert result.previous_outage_groups[0]["events"][0]["start_time"] == "2026-05-18 10:00:00"
+
+
+def test_current_operational_map_layers_prefers_durable_feed(service_factory, monkeypatch):
+    service = service_factory(durable_nearby_url="https://example.invalid/api/durable/nearby")
+    monkeypatch.setattr(
+        service,
+        "_durable_current_operational_map_layers",
+        lambda: [
+            {"outage_kind": "outage", "start_time": "2026-05-19 08:22:00"},
+            {"outage_kind": "planned", "start_time": "2026-05-20 09:30:00"},
+        ],
+    )
+    monkeypatch.setattr(
+        service,
+        "_map_layers_for_rows",
+        lambda **kwargs: (_ for _ in ()).throw(AssertionError("local fallback should not run")),
+    )
+
+    layers = service._build_current_operational_map_layers(include_planned=False)
+
+    assert layers == [{"outage_kind": "outage", "start_time": "2026-05-19 08:22:00"}]

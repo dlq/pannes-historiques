@@ -213,6 +213,11 @@ def build_map_payload(lang: str, result: Any, display_address: str) -> dict[str,
         for item in result.previous_map_layers
         if item["centroid_lat"] is not None and item["centroid_lon"] is not None
     ]
+    previous_group_items = [
+        _previous_group_map_item(lang, group)
+        for group in result.previous_outage_groups
+        if group["centroid_lat"] is not None and group["centroid_lon"] is not None
+    ]
     disclosure_items = [
         _disclosure_map_item(lang, item, reference)
         for item in result.disclosure_layers
@@ -227,6 +232,7 @@ def build_map_payload(lang: str, result: Any, display_address: str) -> dict[str,
         "labels": _map_labels(lang),
         "matches": _sort_by_distance(current_items)
         + _sort_by_distance(previous_items)
+        + _sort_by_distance(previous_group_items)
         + [
             _regional_metric_map_item(lang, item)
             for item in result.regional_metric_layers

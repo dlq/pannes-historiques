@@ -524,6 +524,11 @@ class AppService:
                 address_id=address_id,
                 exclude_event_keys={self._outage_display_key(item) for item in outage_matches},
             )
+            if archived_outage_matches:
+                previous_outage_groups = self._group_outage_matches(
+                    archived_outage_matches,
+                    exclude_event_keys={self._outage_display_key(item) for item in outage_matches},
+                )
         with timer.step("search.record_query"):
             if record_history:
                 query_count = self._record_query(
@@ -1332,6 +1337,13 @@ class AppService:
         return layers[:limit]
 
     def _build_current_operational_map_layers(self, include_planned: bool) -> list[dict[str, Any]]:
+        if self.settings.durable_nearby_url:
+            layers = self._durable_current_operational_map_layers()
+            if layers:
+                return [
+                    item for item in layers if include_planned or item["outage_kind"] != "planned"
+                ]
+
         with open_db(self.settings.db_path) as connection:
             geometry_rows = connection.execute(
                 """
@@ -1399,6 +1411,66 @@ class AppService:
                 )
             )
         return layers
+
+    def _durable_current_operational_map_layers(self) -> list[dict[str, Any]]:
+        url = self.settings.durable_nearby_url.replace("/nearby", "/hydro")
+        request = urllib.request.Request(
+            url,
+            headers={"User-Agent": "pannes-historiques/0.1 (+https://pannes.ca)"},
+        )
+        try:
+            with current_timer().step("current_layers.durable_hydro_fetch"):
+                with urllib.request.urlopen(request, timeout=8) as response:
+                    payload = json.loads(response.read().decode("utf-8"))
+        except Exception as exc:
+            current_timer().set("current_layers.durable_hydro_error", str(exc))
+            return []
+
+        layers = [
+            self._durable_feed_item_to_layer(item, "outage") for item in payload.get("outages", [])
+        ]
+        layers.extend(
+            self._durable_feed_item_to_layer(item, "planned") for item in payload.get("planned", [])
+        )
+        return [item for item in layers if item is not None]
+
+    @staticmethod
+    def _durable_feed_item_to_layer(
+        item: dict[str, Any], outage_kind: str
+    ) -> dict[str, Any] | None:
+        if item.get("centroid_lat") is None or item.get("centroid_lon") is None:
+            return None
+        start_time = (
+            item.get("outage_start_time")
+            if outage_kind == "outage"
+            else item.get("scheduled_start")
+        )
+        end_time = (
+            item.get("estimated_restore_time")
+            if outage_kind == "outage"
+            else item.get("scheduled_end")
+        )
+        return {
+            "address_id": None,
+            "outage_kind": outage_kind,
+            "record_id": item.get("id"),
+            "geometry_id": None,
+            "geometry_geojson": None,
+            "match_type": "current_feed_map",
+            "distance_m": None,
+            "confidence": 1.0,
+            "municipality_code": item.get("municipality_code"),
+            "customers_affected": item.get("customers_affected"),
+            "status": item.get("status"),
+            "interruption_type": item.get("interruption_type")
+            if outage_kind == "outage"
+            else "AIP",
+            "start_time": start_time,
+            "end_time": end_time,
+            "centroid_lat": item.get("centroid_lat"),
+            "centroid_lon": item.get("centroid_lon"),
+            "sort_time": start_time,
+        }
 
     def _map_layers_for_rows(
         self,
@@ -1798,13 +1870,62 @@ class AppService:
         grouped = list(groups.values())
         for group in grouped:
             group["events"].sort(key=lambda item: item["sort_time"] or "", reverse=True)
+            group["events"] = group["events"][:3]
             group["event_count"] = len(group["events"])
             group["latest_start_time"] = (
                 group["events"][0]["start_time"] if group["events"] else None
             )
             group.pop("event_keys", None)
         grouped.sort(key=lambda item: item["latest_start_time"] or "", reverse=True)
-        return grouped
+        return grouped[:12]
+
+    def _group_outage_matches(
+        self, matches: list[dict[str, Any]], exclude_event_keys: set[tuple[Any, ...]]
+    ) -> list[dict[str, Any]]:
+        groups: dict[str, dict[str, Any]] = {}
+        for item in matches:
+            if item["outage_kind"] != "outage":
+                continue
+            if self._outage_display_key(item) in exclude_event_keys:
+                continue
+            event_key = self._outage_event_key(item)
+            group_key = (
+                f"geometry:{item['geometry_id']}"
+                if item.get("geometry_id") is not None
+                else f"centroid:{round(item['centroid_lat'] or 0.0, 3)}:{round(item['centroid_lon'] or 0.0, 3)}"
+            )
+            group = groups.setdefault(
+                group_key,
+                {
+                    "geometry_id": item.get("geometry_id"),
+                    "label": item.get("municipality_code")
+                    or f"{item.get('centroid_lat')}, {item.get('centroid_lon')}",
+                    "municipality_code": item.get("municipality_code"),
+                    "centroid_lat": item.get("centroid_lat"),
+                    "centroid_lon": item.get("centroid_lon"),
+                    "geometry_geojson": item.get("geometry_geojson"),
+                    "events": [],
+                    "event_keys": set(),
+                },
+            )
+            if event_key in group["event_keys"]:
+                continue
+            group["event_keys"].add(event_key)
+            group["events"].append(
+                {**item, "sort_time": item.get("sort_time") or item.get("start_time")}
+            )
+
+        grouped = list(groups.values())
+        for group in grouped:
+            group["events"].sort(key=lambda item: item["sort_time"] or "", reverse=True)
+            group["events"] = group["events"][:3]
+            group["event_count"] = len(group["events"])
+            group["latest_start_time"] = (
+                group["events"][0]["start_time"] if group["events"] else None
+            )
+            group.pop("event_keys", None)
+        grouped.sort(key=lambda item: item["latest_start_time"] or "", reverse=True)
+        return grouped[:12]
 
     @staticmethod
     def _outage_display_key(item: dict[str, Any]) -> tuple[Any, ...]:
