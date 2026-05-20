@@ -61,14 +61,29 @@ Implementation checkpoint, 2026-05-19:
 - the production container still renders the Flask/Jinja shell; D1/R2 are the durable data plane for current feed rows, previous rows, raw archives, and now runtime map-context layers
 - rollout can briefly expose an inactive-container 500 while a new container starts; deployment checks should include a `/healthz` prime plus a full page/map-payload verification after the container reports running
 
-Next 0.2.x work:
+Next 0.2.x work should be grouped into manageable release slices:
 
-- add browser regression coverage for production-shaped map context: current outage, planned interruption, previous outage, disclosure, regional layer, desktop panel, and mobile bottom sheet
-- reduce initial and lazy map payload size by moving more geometry behind explicit on-demand endpoints or simplified/R2-backed assets
-- improve selected-state behavior so tapping a list row or map feature keeps sheet/panel state, map focus, and detail context stable across deferred map/context loads
-- refine narrow-view expanded sheet behavior so all four context sections remain discoverable even when all row lists cannot fit at once
-- define a clearer current/previous/disclosure layer control or legend pattern that does not clutter the primary map surface
-- continue moving startup and runtime map reads off the container hot path where Worker + D1 can answer directly
+- `v0.2.1`: make search results feel like a focused local answer
+  - add a searched-place summary and relevance layer above the feed, including searched address, radius/local context, source freshness, and compact current/planned/previous/disclosure counts
+  - improve row hierarchy so recency, status, customer count, and local relevance are easier to scan
+  - strengthen selected/hover/focus states linking panel rows to map features and map features back to rows
+  - include basic French/status polish where touched, especially accented labels and less prominent handling for unknown raw source statuses such as `N`
+  - add focused browser regression coverage for row-to-map selected-state behavior on desktop and mobile
+- `v0.2.2`: improve mobile sheet and search ergonomics
+  - refine narrow-view expanded sheet behavior so all four context sections remain discoverable without covering almost the whole map
+  - preserve a meaningful map band in expanded states, or add a sticky section switcher / compact section-summary state before full list browsing
+  - reserve safe areas for Leaflet controls and attribution across collapsed, mid, and expanded drawer states
+  - compact the mobile header while keeping address search, current-location, and language switching obvious
+  - expand browser coverage for mobile sheet behavior, search entry, current-location, history/back-forward, and language-switch flows
+- `v0.2.3`: improve map/context hierarchy and explanatory affordances
+  - tune map-layer visual hierarchy so searched address and relevant nearby current/planned outages dominate, while broad disclosure/regional context is quieter by default
+  - define a clearer current/previous/disclosure layer control or legend pattern that does not clutter the primary map surface
+  - give the desktop side panel either more room, stronger compaction, or a clear collapse/minimize affordance
+  - add browser regression coverage for production-shaped map context: current outage, planned interruption, previous outage, disclosure, regional layer, desktop panel, and mobile bottom sheet
+- `0.3.x` candidates from the same audit:
+  - reduce initial and lazy map payload size by moving more geometry behind explicit on-demand endpoints or simplified/R2-backed assets
+  - continue moving startup and runtime map reads off the container hot path where Worker + D1 can answer directly
+  - replace the Tailwind CDN path with a production build pipeline as part of broader frontend/tooling cleanup
 
 Live design review findings, 2026-05-20:
 
