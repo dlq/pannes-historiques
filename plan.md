@@ -1238,6 +1238,7 @@ Follow-up work:
 ## Accessibility review backlog
 
 The address lookup UI should get a dedicated accessibility pass before it is treated as public-facing.
+Use W3C/WAI guidance as the review baseline: target WCAG 2.2 AA where practical, and use the WAI-ARIA Authoring Practices Guide for custom widgets such as autocomplete, result cards, panels/sheets, and map/list alternatives.
 
 Specific things to check:
 
