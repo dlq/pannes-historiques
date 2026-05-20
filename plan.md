@@ -1,7 +1,7 @@
 # Plan: Hydro-Québec Outage History App
 
 Date: 2026-04-25
-Last updated: 2026-05-19
+Last updated: 2026-05-20
 
 ## Release roadmap
 
@@ -69,6 +69,18 @@ Next 0.2.x work:
 - refine narrow-view expanded sheet behavior so all four context sections remain discoverable even when all row lists cannot fit at once
 - define a clearer current/previous/disclosure layer control or legend pattern that does not clutter the primary map surface
 - continue moving startup and runtime map reads off the container hot path where Worker + D1 can answer directly
+
+Live design review findings, 2026-05-20:
+
+- Highest priority: add a searched-place summary and relevance layer above the feed. After an address search, the panel should clearly state the searched address, radius/local context, source freshness, and a compact answer such as current/planned/previous/disclosure counts near this place before listing rows.
+- Rework mobile expanded-sheet behavior. The current expanded state makes all four sections discoverable, but it covers most of the map. Preserve a meaningful map band and consider a sticky section switcher or four compact summary rows, with full list browsing after the user chooses a section.
+- Tune map-layer hierarchy. The searched address and most relevant nearby outage geometries should dominate; broad disclosure/regional context should be lower contrast, de-emphasized by default, or moved behind a layer control.
+- Polish French production copy. Restore accents in user-facing labels such as `Début`, `Interruptions planifiées actuelles`, `Pannes déjà vues`, and `Hydro-Québec`; avoid showing unexplained raw `N` statuses as primary row content.
+- Improve row hierarchy and interaction states. Rows are dense but visually even; make recency/status/count easier to scan, reduce overemphasis on low-impact badges, and strengthen hover/focus/selected states that link list rows to map features.
+- Give the desktop side panel either more room or stronger compaction. The current 336 px panel works, but four stacked sections feel cramped and there is no clear collapse/minimize affordance.
+- Reserve safe areas for Leaflet controls and attribution across drawer states. On mobile, zoom and attribution can crowd the bottom sheet; their placement should adapt to collapsed, mid, and expanded states.
+- Compact the mobile header. The title/language/search stack takes about 100 px before the map begins; reduce chrome where possible while keeping search and language switching obvious.
+- Replace the Tailwind CDN path in production. The live console warns that `cdn.tailwindcss.com` should not be used in production; this is production hygiene and performance debt rather than immediate visual breakage.
 
 The next substantial product/design direction should revisit the page structure around a map-first interaction model, closer to `maps.google.com` or `maps.apple.com` than the current document-flow dashboard.
 
