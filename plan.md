@@ -1191,6 +1191,23 @@ Useful first measurements:
 - compare searches with few overlays versus searches with many outage, planned, previous, disclosure, and regional layers
 - set a rough budget for initial search response time and map-ready time before optimizing
 
+## Deployment reliability backlog
+
+The 2026-05-20 stale-current-feed incident showed that `wrangler deploy` can update the Worker while failing to complete the container image update. D1 was current, but the container application remained pinned to the old `pannes-historiques-pannescontainer:9f607e6a` image and continued serving stale embedded/current context.
+
+Near-term deployment rules:
+
+- after every Cloudflare deploy, verify `npx wrangler containers info a031797e-cef7-421e-9ee0-45cce92e278b` and confirm the configured image changed
+- verify `https://pannes.ca/api/durable/status` versions and the rendered homepage/search payload agree on current feed recency
+- use an explicit pushed Cloudflare registry image tag when the Dockerfile build/push path hangs
+- do not consider a deploy complete just because Wrangler reports a new Worker version
+
+Follow-up work:
+
+- make the deployment script build, push, deploy, and verify the container image as separate observable phases
+- decide whether `wrangler.jsonc` should stay pinned to explicit registry image tags or return to Dockerfile-based image builds once the push/update issue is understood
+- add a health/debug endpoint exposing app code version, container image tag, durable feed versions, and whether current map layers were loaded from durable D1 data
+
 ## Accessibility review backlog
 
 The address lookup UI should get a dedicated accessibility pass before it is treated as public-facing.
