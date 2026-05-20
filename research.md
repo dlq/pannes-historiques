@@ -1097,6 +1097,13 @@ Sources checked:
 
 ## Sources
 
+- 2026-05-19 production data correctness check:
+  - Hydro `bisversion` advanced from `20260519193013` to `20260519200020` during the check window.
+  - D1 contained the reported Saint-Léonard outage as current in `current_outage_records` at `bis:20260519193013:11`: 32 customers, start `2026-05-19 17:15:50`, centroid `45.58103774498223,-73.58801191553057`.
+  - The next Hydro/D1 version removed that record from current outages, and D1 retained it in `resolved_events` with first seen `2026-05-19T21:37:58.083Z`, last seen `2026-05-19T23:37:57.043Z`, and source versions `20260519173004,20260519180011,20260519183018,20260519190006,20260519193013`.
+  - Root cause for the stale pannes.ca home/sidebar current feed: the Flask container cached `_current_operational_map_layers` for the container lifetime. Production D1 was current, but the long-lived container could keep serving old context until restart/sleep. Fix: bypass this cache when production durable URLs are configured.
+  - Operational caveat: changing the Cloudflare Container Durable Object name from `web` to force a fresh instance caused the new container to fail readiness checks and return HTTP 500. The route was rolled back to the known-good `web` instance. Future deploy work should include a safer container restart/rollout procedure before relying on forced instance-name changes.
+
 - [Hydro-Québec open data overview](https://www.hydroquebec.com/documents-donnees/donnees-ouvertes/)
 - [Ongoing outages and planned service interruptions dataset](https://donnees.hydroquebec.com/explore/dataset/pannes-interruptions/?flg=en-us)
 - [French API description for outages dataset](https://donnees.hydroquebec.com/explore/dataset/pannes-interruptions/information/?flg=fr-fr)

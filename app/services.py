@@ -1246,6 +1246,8 @@ class AppService:
         }
 
     def _current_operational_map_layers(self, include_planned: bool) -> list[dict[str, Any]]:
+        if self.settings.durable_runtime_url or self.settings.durable_nearby_url:
+            return self._build_current_operational_map_layers(include_planned)
         return self._cached_context(
             f"current_operational_map_layers:{int(include_planned)}",
             lambda: self._build_current_operational_map_layers(include_planned),

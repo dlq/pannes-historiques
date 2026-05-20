@@ -8,6 +8,7 @@ const DISCLOSURE_RUN_BUDGET_MS = 90_000;
 const DISCLOSURE_FETCH_TIMEOUT_MS = 45_000;
 const DISCLOSURE_PARSE_TIMEOUT_MS = 60_000;
 const DISCLOSURE_SOURCE_DEFER_MS = 24 * 60 * 60 * 1000;
+const CONTAINER_INSTANCE_NAME = "web";
 
 export class PannesContainer extends Container {
   defaultPort = 8080;
@@ -80,7 +81,7 @@ export default {
 async function fetchContainer(request, env) {
   const started = Date.now();
   const url = new URL(request.url);
-  const container = env.PANNES_CONTAINER.getByName("web");
+  const container = env.PANNES_CONTAINER.getByName(CONTAINER_INSTANCE_NAME);
   const response = await container.fetch(request);
   const elapsedMs = Date.now() - started;
   console.log(
@@ -133,7 +134,7 @@ async function currentFeedVersionMap(db) {
 }
 
 async function callContainerCron(env, path) {
-  const container = env.PANNES_CONTAINER.getByName("web");
+  const container = env.PANNES_CONTAINER.getByName(CONTAINER_INSTANCE_NAME);
   const response = await container.fetch(
     new Request(`https://pannes.ca${path}`, {
       method: "POST",
@@ -225,7 +226,7 @@ async function syncHydroSourceFromContainer(env, sourceInfo, snapshots) {
 }
 
 async function fetchContainerRawSnapshot(env, snapshot) {
-  const container = env.PANNES_CONTAINER.getByName("web");
+  const container = env.PANNES_CONTAINER.getByName(CONTAINER_INSTANCE_NAME);
   const url = new URL("https://pannes.ca/internal/raw-snapshot");
   url.searchParams.set("payload_path", snapshot.payload_path);
   const response = await container.fetch(
@@ -253,7 +254,7 @@ function snapshotExtension(sourceType) {
 }
 
 async function callContainerJson(env, path) {
-  const container = env.PANNES_CONTAINER.getByName("web");
+  const container = env.PANNES_CONTAINER.getByName(CONTAINER_INSTANCE_NAME);
   const response = await container.fetch(
     new Request(`https://pannes.ca${path}`, {
       headers: {
@@ -270,7 +271,7 @@ async function callContainerJson(env, path) {
 }
 
 async function callContainerJsonPost(env, path, payload, { timeoutMs } = {}) {
-  const container = env.PANNES_CONTAINER.getByName("web");
+  const container = env.PANNES_CONTAINER.getByName(CONTAINER_INSTANCE_NAME);
   const controller = timeoutMs ? new AbortController() : null;
   const timeoutId = timeoutMs
     ? setTimeout(() => controller.abort(`timed out after ${timeoutMs}ms`), timeoutMs)
@@ -304,7 +305,7 @@ async function callContainerBytesPost(
   payload,
   { sourceKey, contentType, timeoutMs } = {},
 ) {
-  const container = env.PANNES_CONTAINER.getByName("web");
+  const container = env.PANNES_CONTAINER.getByName(CONTAINER_INSTANCE_NAME);
   const controller = timeoutMs ? new AbortController() : null;
   const timeoutId = timeoutMs
     ? setTimeout(() => controller.abort(`timed out after ${timeoutMs}ms`), timeoutMs)
@@ -882,7 +883,7 @@ async function syncDisclosureSourceFiles(env, sources, syncedAt) {
 }
 
 async function fetchContainerDisclosureSource(env, sourceKey) {
-  const container = env.PANNES_CONTAINER.getByName("web");
+  const container = env.PANNES_CONTAINER.getByName(CONTAINER_INSTANCE_NAME);
   const url = new URL("https://pannes.ca/internal/disclosures/source-file");
   url.searchParams.set("source_key", sourceKey);
   const response = await container.fetch(

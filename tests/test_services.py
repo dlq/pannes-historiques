@@ -376,3 +376,29 @@ def test_current_operational_map_layers_prefers_durable_feed(service_factory, mo
     layers = service._build_current_operational_map_layers(include_planned=False)
 
     assert layers == [{"outage_kind": "outage", "start_time": "2026-05-19 08:22:00"}]
+
+
+def test_current_operational_map_layers_refreshes_durable_feed(service_factory, monkeypatch):
+    service = service_factory(durable_nearby_url="https://example.invalid/api/durable/nearby")
+    calls = iter(
+        [
+            [{"outage_kind": "outage", "record_id": "old", "start_time": "2026-05-19 08:22:00"}],
+            [{"outage_kind": "outage", "record_id": "new", "start_time": "2026-05-19 17:15:50"}],
+        ]
+    )
+    monkeypatch.setattr(service, "_durable_current_operational_map_layers", lambda: next(calls))
+    monkeypatch.setattr(
+        service,
+        "_map_layers_for_rows",
+        lambda **kwargs: (_ for _ in ()).throw(AssertionError("local fallback should not run")),
+    )
+
+    first_layers = service._current_operational_map_layers(include_planned=False)
+    second_layers = service._current_operational_map_layers(include_planned=False)
+
+    assert first_layers == [
+        {"outage_kind": "outage", "record_id": "old", "start_time": "2026-05-19 08:22:00"}
+    ]
+    assert second_layers == [
+        {"outage_kind": "outage", "record_id": "new", "start_time": "2026-05-19 17:15:50"}
+    ]
