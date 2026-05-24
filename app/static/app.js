@@ -13,9 +13,35 @@ function label(labels, key, fallback) {
 }
 
 function formatDistanceKm(value, labels = {}) {
+  if (value === null || value === undefined || value === "")
+    return label(labels, "unknown", "unknown");
   const numberValue = Number(value);
   if (!Number.isFinite(numberValue)) return label(labels, "unknown", "unknown");
   return `${(numberValue / 1000).toFixed(2)} km`;
+}
+
+function hasDistanceValue(value) {
+  if (value === null || value === undefined || value === "") return false;
+  return Number.isFinite(Number(value));
+}
+
+function detailFactList(facts) {
+  const visibleFacts = facts.filter(
+    ([, value]) => value !== null && value !== undefined && value !== "",
+  );
+  if (!visibleFacts.length) return "";
+  return `<dl class="mt-4 grid gap-x-5 gap-y-3 border-y border-[#d7dde6] py-3 text-sm sm:grid-cols-2">
+    ${visibleFacts
+      .map(
+        ([factLabel, value]) => `
+          <div>
+            <dt class="text-xs font-semibold uppercase tracking-[0.08em] text-[#6b778a]">${escapeHtml(factLabel)}</dt>
+            <dd class="mt-0.5 font-medium text-[#223654]">${escapeHtml(value)}</dd>
+          </div>
+        `,
+      )
+      .join("")}
+  </dl>`;
 }
 
 function attachAddressAutocomplete() {
@@ -495,17 +521,14 @@ function disclosurePopup(item, labels = {}) {
     )
     .join("");
   return `
-      <div class="flex h-full min-h-0 flex-col gap-3 text-sm">
-      <div class="grid gap-2 text-[#223654]">
-        <div>${escapeHtml(item.startMin || label(labels, "unknown", "unknown"))} → ${escapeHtml(item.startMax || label(labels, "unknown", "unknown"))}</div>
-        <div>${escapeHtml(label(labels, "cumulative_disclosed_duration", "Cumulative disclosed outage duration"))}: ${escapeHtml(formatDuration(item.durationSecondsTotal, labels))}</div>
-      </div>
-      ${causes ? `<div><div class="font-medium text-[#223654]">${escapeHtml(label(labels, "top_causes", "Top causes"))}</div><ul class="ml-4 mt-1 list-disc leading-snug">${causes}</ul></div>` : ""}
+      <div class="flex h-full min-h-0 flex-col gap-4 text-sm">
+      ${causes ? `<section><div class="text-xs font-semibold uppercase tracking-[0.08em] text-[#6b778a]">${escapeHtml(label(labels, "top_causes", "Top causes"))}</div><ul class="ml-4 mt-2 list-disc leading-snug text-[#223654]">${causes}</ul></section>` : ""}
       ${
         events
           ? `<div class="flex min-h-0 flex-1 flex-col">
-              <div class="font-medium">${escapeHtml(label(labels, "extracted_rows", "Extracted rows"))}</div>
-              <div class="mt-2 min-h-0 flex-1 overflow-auto bg-white ring-1 ring-blue-100">
+              <div class="overflow-hidden rounded-md border border-[#d7dde6] bg-white">
+              <div class="border-b border-[#d7dde6] px-4 py-2 text-xs font-semibold uppercase tracking-[0.08em] text-[#6b778a]">${escapeHtml(label(labels, "extracted_rows", "Extracted rows"))}</div>
+              <div class="min-h-0 flex-1 overflow-auto">
                 <table class="w-full min-w-[40rem] table-fixed text-left text-xs">
                   <colgroup>
                     <col class="w-[18%]">
@@ -515,7 +538,7 @@ function disclosurePopup(item, labels = {}) {
                     <col class="w-[10%]">
                     <col class="w-[10%]">
                   </colgroup>
-                  <thead class="sticky top-0 bg-blue-50 uppercase tracking-[0.12em] text-blue-700">
+                  <thead class="sticky top-0 bg-[#f1f1f2] uppercase tracking-[0.08em] text-[#6b778a]">
                     <tr>
                       <th class="px-1 py-1.5">${escapeHtml(label(labels, "start", "Start"))}</th>
                       <th class="px-1 py-1.5">${escapeHtml(label(labels, "end", "End"))}</th>
@@ -527,6 +550,7 @@ function disclosurePopup(item, labels = {}) {
                   </thead>
                   <tbody class="text-slate-700">${events}</tbody>
                 </table>
+              </div>
               </div>
             </div>`
           : ""
@@ -697,20 +721,31 @@ class DaiDetailPanel extends HTMLElement {
   renderDisclosure(item) {
     const labels = this.uiLabels();
     const title = this.getAttribute("title-label") || "DAI details";
+    const sourceLabel = (item.sourceDais || []).join(", ") || item.sourceDai || "";
+    const factList = detailFactList([
+      [label(labels, "rows", "rows"), `${item.recordCount || 0} ${label(labels, "rows", "rows")}`],
+      [
+        label(labels, "period", "Period"),
+        `${item.startMin || label(labels, "unknown", "unknown")} - ${item.startMax || label(labels, "unknown", "unknown")}`,
+      ],
+      [
+        label(labels, "cumulative_disclosed_duration", "Cumulative disclosed outage duration"),
+        formatDuration(item.durationSecondsTotal, labels),
+      ],
+      ["DAI", sourceLabel],
+    ]);
     this.hidden = false;
     this.innerHTML = `
       <div class="flex h-full min-h-0 flex-col rounded-lg border border-[#c5cad2] bg-white/95 p-4 shadow-lg">
-        <div class="mb-3 flex flex-none flex-wrap items-start justify-between gap-3">
-          <div class="min-w-0">
+        <div class="mb-3 flex flex-none items-start justify-between gap-3">
+          <div class="min-w-0 flex-1">
             <p class="text-xs font-semibold uppercase tracking-[0.14em] text-[#095797]">${escapeHtml(title)}</p>
             <h4 class="mt-1 text-base font-semibold text-[#223654]">${escapeHtml(item.label || "")}</h4>
-            <p class="mt-1 text-sm text-[#4e5662]">${escapeHtml((item.sourceDais || []).join(", ") || item.sourceDai || "")}</p>
+            ${sourceLabel ? `<p class="mt-1 text-sm text-[#4e5662]">${escapeHtml(sourceLabel)}</p>` : ""}
           </div>
-          <div class="flex items-start gap-2">
-            <div class="rounded-md border border-[#dae6f0] bg-white px-3 py-2 text-sm font-semibold text-[#095797]">${escapeHtml(item.recordCount || 0)} ${escapeHtml(label(labels, "rows", "rows"))}</div>
-            <button type="button" class="rounded-md border border-[#c5cad2] bg-white px-2 py-1 text-sm font-semibold text-[#4e5662] hover:bg-[#f1f1f2]" data-dai-detail-close aria-label="${escapeHtml(label(labels, "close", "Close"))}">×</button>
-          </div>
+          <button type="button" class="shrink-0 rounded-md border border-[#c5cad2] bg-white px-2 py-1 text-sm font-semibold text-[#4e5662] hover:bg-[#f1f1f2]" data-dai-detail-close aria-label="${escapeHtml(label(labels, "close", "Close"))}">×</button>
         </div>
+        ${factList}
         <div class="min-h-0 flex-1 overflow-hidden pr-2">
           ${disclosurePopup(item, labels)}
         </div>
@@ -742,24 +777,43 @@ class DaiDetailPanel extends HTMLElement {
       sourceCount === 1 ? "dai_source" : "dai_sources",
       sourceCount === 1 ? "DAI source" : "DAI sources",
     );
+    const factList = detailFactList([
+      [
+        label(labels, "period", "Period"),
+        item.periodLabel || item.year || label(labels, "unknown", "unknown"),
+      ],
+      [
+        label(labels, "outages", "Outages"),
+        item.outageCount ?? label(labels, "unknown", "unknown"),
+      ],
+      [
+        label(labels, "average_duration", "Average duration"),
+        `${item.averageDurationMinutes ?? label(labels, "unknown", "unknown")} min`,
+      ],
+      [burdenLabel, item.continuityIndexMinutes ?? label(labels, "unknown", "unknown")],
+      [
+        label(labels, "outages_over_8h", "Outages > 8h"),
+        item.longOutageCount ?? label(labels, "unknown", "unknown"),
+      ],
+    ]);
     this.hidden = false;
     this.innerHTML = `
       <div class="rounded-lg border border-[#c5cad2] bg-[#f1f1f2] p-4">
-        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-[#095797]">${escapeHtml(title)}</p>
-        <h4 class="mt-1 text-base font-semibold text-[#223654]">${escapeHtml(item.label || "")}</h4>
-        <p class="mt-1 text-sm text-[#4e5662]">${escapeHtml(sourceCount)} ${escapeHtml(sourceLabel)} · ${escapeHtml(label(labels, "latest_map_source", "latest shown on map"))}: ${escapeHtml(item.sourceDai)}</p>
-        <dl class="mt-4 grid gap-3 text-sm sm:grid-cols-2">
-          <div class="rounded-md border border-[#dae6f0] bg-white px-3 py-2"><dt class="text-[#6b778a]">${escapeHtml(label(labels, "period", "Period"))}</dt><dd class="font-semibold text-[#223654]">${escapeHtml(item.periodLabel || item.year || label(labels, "unknown", "unknown"))}</dd></div>
-          <div class="rounded-md border border-[#dae6f0] bg-white px-3 py-2"><dt class="text-[#6b778a]">${escapeHtml(label(labels, "outages", "Outages"))}</dt><dd class="font-semibold text-[#223654]">${escapeHtml(item.outageCount ?? label(labels, "unknown", "unknown"))}</dd></div>
-          <div class="rounded-md border border-[#dae6f0] bg-white px-3 py-2"><dt class="text-[#6b778a]">${escapeHtml(label(labels, "average_duration", "Average duration"))}</dt><dd class="font-semibold text-[#223654]">${escapeHtml(item.averageDurationMinutes ?? label(labels, "unknown", "unknown"))} min</dd></div>
-          <div class="rounded-md border border-[#dae6f0] bg-white px-3 py-2"><dt class="text-[#6b778a]">${escapeHtml(burdenLabel)}</dt><dd class="font-semibold text-[#223654]">${escapeHtml(item.continuityIndexMinutes ?? label(labels, "unknown", "unknown"))}</dd></div>
-          <div class="rounded-md border border-[#dae6f0] bg-white px-3 py-2"><dt class="text-[#6b778a]">${escapeHtml(label(labels, "outages_over_8h", "Outages > 8h"))}</dt><dd class="font-semibold text-[#223654]">${escapeHtml(item.longOutageCount ?? label(labels, "unknown", "unknown"))}</dd></div>
-        </dl>
+        <div class="mb-3 flex items-start justify-between gap-3">
+          <div class="min-w-0 flex-1">
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-[#095797]">${escapeHtml(title)}</p>
+            <h4 class="mt-1 text-base font-semibold text-[#223654]">${escapeHtml(item.label || "")}</h4>
+            <p class="mt-1 text-sm text-[#4e5662]">${escapeHtml(sourceCount)} ${escapeHtml(sourceLabel)} · ${escapeHtml(label(labels, "latest_map_source", "latest shown on map"))}: ${escapeHtml(item.sourceDai)}</p>
+          </div>
+          <button type="button" class="shrink-0 rounded-md border border-[#c5cad2] bg-white px-2 py-1 text-sm font-semibold text-[#4e5662] hover:bg-[#f1f1f2]" data-dai-detail-close aria-label="${escapeHtml(label(labels, "close", "Close"))}">×</button>
+        </div>
+        ${factList}
         ${
           rows
-            ? `<div class="mt-4 max-h-[28rem] overflow-auto rounded-xl bg-white ring-1 ring-rose-100">
+            ? `<div class="mt-4 max-h-[28rem] overflow-auto rounded-md border border-[#d7dde6] bg-white">
+                <div class="border-b border-[#d7dde6] px-4 py-2 text-xs font-semibold uppercase tracking-[0.08em] text-[#6b778a]">${escapeHtml(label(labels, "rows", "rows"))}</div>
                 <table class="w-full min-w-[42rem] text-left text-sm">
-                  <thead class="sticky top-0 bg-rose-50 text-xs uppercase tracking-[0.12em] text-rose-700">
+                  <thead class="sticky top-0 bg-[#f1f1f2] text-xs uppercase tracking-[0.08em] text-[#6b778a]">
                     <tr>
                       <th class="px-3 py-2">${escapeHtml(label(labels, "period", "Period"))}</th>
                       <th class="px-3 py-2">DAI</th>
@@ -781,63 +835,72 @@ class DaiDetailPanel extends HTMLElement {
   renderOperational(item) {
     const labels = this.uiLabels();
     const isPreviousOutage = item.kind === "previous_outage";
+    const isPlanned = item.kind === "planned";
     const title = isPreviousOutage
       ? label(labels, "previous_outages_legend", "Previously seen outages")
-      : item.kind === "planned"
+      : isPlanned
         ? label(labels, "planned_panel", "Current planned interruptions")
         : label(labels, "current_outages", "Current or new outages");
-    const kindLabel =
-      item.kind === "planned"
-        ? item.kindLabel || label(labels, "planned", "Planned interruption")
-        : isPreviousOutage
-          ? item.kindLabel || "Previously seen outage"
-          : item.kindLabel || label(labels, "outage", "Outage");
+    const kindLabel = isPlanned
+      ? item.kindLabel || label(labels, "planned", "Planned interruption")
+      : isPreviousOutage
+        ? item.kindLabel || "Previously seen outage"
+        : item.kindLabel || label(labels, "outage", "Outage");
     const recentEvents = item.recentEvents || [];
     const showEventRows = isPreviousOutage || item.matchType === "current_feed_map";
+    const primaryDate =
+      item.startTime || item.latestStartTime || item.label || label(labels, "unknown", "unknown");
+    const customerValue =
+      item.customersAffected == null
+        ? ""
+        : `${item.customersAffected} ${label(labels, "clients", "clients")}`;
+    const statusValue = item.statusLabel || item.status || "";
+    const distanceValue = hasDistanceValue(item.distanceM)
+      ? formatDistanceKm(item.distanceM, labels)
+      : "";
+    const metaKind = isPlanned || isPreviousOutage ? kindLabel : "";
+    const primaryMeta = metaKind;
+    const summary = detailFactList([
+      [label(labels, "customers", "Customers"), customerValue],
+      [label(labels, "status", "Status"), statusValue],
+      [label(labels, "end", "End"), item.endTime],
+      [label(labels, "distance", "Distance"), distanceValue],
+    ]);
     const events = (showEventRows ? recentEvents : [])
-      .map(
-        (event) => `
-          <article class="rounded-md border border-[#c5cad2] bg-white p-4">
-            <div class="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p class="flex flex-wrap items-center gap-2 text-sm font-semibold text-[#223654]">
-                  <span class="rounded-md bg-[#f8e69a] px-2 py-0.5 text-[#223654]">${escapeHtml(label(labels, "outage", "Outage"))}</span>
-                  <span class="text-[#4e5662]">·</span>
-                  <span class="text-[#095797]">${escapeHtml(isPreviousOutage ? label(labels, "nearby_match", "Nearby match") : item.matchLabel || item.matchType || "")}</span>
-                </p>
-                <p class="mt-1 text-sm text-[#4e5662]">${escapeHtml(event.start_time || label(labels, "unknown", "unknown"))}</p>
-              </div>
-              <div class="flex flex-col items-end gap-1 text-right text-sm text-[#4e5662]">
-                <p class="rounded-md bg-[#f1f1f2] px-2 py-0.5 text-[#223654]">${escapeHtml(event.customers_affected ?? 0)} ${escapeHtml(label(labels, "clients", "clients"))}</p>
-                <p class="rounded-md bg-[#dae6f0] px-2 py-0.5 text-[#223654]">${escapeHtml(formatDistanceKm(event.distance_m, labels))}</p>
-              </div>
+      .map((event) => {
+        const eventDistance = hasDistanceValue(event.distance_m)
+          ? formatDistanceKm(event.distance_m, labels)
+          : "";
+        const eventSource = isPreviousOutage
+          ? label(labels, "nearby_match", "Nearby match")
+          : item.matchLabel || item.matchType || "";
+        return `
+          <article class="flex flex-wrap items-start justify-between gap-3 px-4 py-3">
+            <div class="min-w-0">
+              <p class="text-sm font-semibold text-[#223654]">${escapeHtml(event.start_time || label(labels, "unknown", "unknown"))}</p>
+              ${eventSource ? `<p class="mt-0.5 text-xs font-medium text-[#6b778a]">${escapeHtml(eventSource)}</p>` : ""}
+            </div>
+            <div class="flex flex-wrap justify-end gap-2 text-right text-xs font-semibold text-[#223654]">
+              <span class="rounded-sm bg-[#f8e69a] px-2 py-1">${escapeHtml(event.customers_affected ?? 0)} ${escapeHtml(label(labels, "clients", "clients"))}</span>
+              ${eventDistance ? `<span class="rounded-sm bg-[#e7edf3] px-2 py-1">${escapeHtml(eventDistance)}</span>` : ""}
             </div>
           </article>
-        `,
-      )
+        `;
+      })
       .join("");
-    const summary = isPreviousOutage
-      ? ""
-      : `<dl class="mt-4 grid gap-3 text-sm sm:grid-cols-2">
-          <div class="rounded-md border border-[#dae6f0] bg-white px-3 py-2"><dt class="text-[#6b778a]">${escapeHtml(label(labels, "customers", "Customers"))}</dt><dd class="font-semibold text-[#223654]">${escapeHtml(item.customersAffected ?? label(labels, "unknown", "unknown"))}</dd></div>
-          <div class="rounded-md border border-[#dae6f0] bg-white px-3 py-2"><dt class="text-[#6b778a]">${escapeHtml(label(labels, "distance", "Distance"))}</dt><dd class="font-semibold text-[#223654]">${escapeHtml(formatDistanceKm(item.distanceM, labels))}</dd></div>
-          <div class="rounded-md border border-[#dae6f0] bg-white px-3 py-2"><dt class="text-[#6b778a]">${escapeHtml(label(labels, "start", "Start"))}</dt><dd class="font-semibold text-[#223654]">${escapeHtml(item.startTime || item.latestStartTime || label(labels, "unknown", "unknown"))}</dd></div>
-          <div class="rounded-md border border-[#dae6f0] bg-white px-3 py-2"><dt class="text-[#6b778a]">${escapeHtml(label(labels, "status", "Status"))}</dt><dd class="font-semibold text-[#223654]">${escapeHtml(item.statusLabel || item.status || label(labels, "unknown", "unknown"))}</dd></div>
-          ${item.eventCount ? `<div class="rounded-md border border-[#dae6f0] bg-white px-3 py-2"><dt class="text-[#6b778a]">${escapeHtml(label(labels, "rows", "rows"))}</dt><dd class="font-semibold text-[#223654]">${escapeHtml(item.eventCount)}</dd></div>` : ""}
-        </dl>`;
     this.hidden = false;
     this.innerHTML = `
       <div class="rounded-lg border border-[#c5cad2] bg-[#f1f1f2] p-4">
-        <div class="mb-3 flex flex-wrap items-start justify-between gap-3">
-          <div class="min-w-0">
+        <div class="mb-3 flex items-start justify-between gap-3">
+          <div class="min-w-0 flex-1">
             <p class="text-xs font-semibold uppercase tracking-[0.14em] text-[#095797]">${escapeHtml(title)}</p>
-            <h4 class="mt-1 text-base font-semibold text-[#223654]">${escapeHtml(kindLabel)}</h4>
-            ${isPreviousOutage ? "" : `<p class="mt-1 text-sm text-[#4e5662]">${escapeHtml(item.label || item.startTime || item.latestStartTime || label(labels, "unknown", "unknown"))}</p>`}
+            <h4 class="mt-1 text-base font-semibold text-[#223654]">${escapeHtml(label(labels, "start", "Start"))} ${escapeHtml(primaryDate)}</h4>
+            ${primaryMeta ? `<p class="mt-1 text-sm text-[#4e5662]">${escapeHtml(primaryMeta)}</p>` : ""}
           </div>
-          <button type="button" class="rounded-md border border-[#c5cad2] bg-white px-2 py-1 text-sm font-semibold text-[#4e5662] hover:bg-[#f1f1f2]" data-dai-detail-close aria-label="${escapeHtml(label(labels, "close", "Close"))}">×</button>
+          <button type="button" class="shrink-0 rounded-md border border-[#c5cad2] bg-white px-2 py-1 text-sm font-semibold text-[#4e5662] hover:bg-[#f1f1f2]" data-dai-detail-close aria-label="${escapeHtml(label(labels, "close", "Close"))}">×</button>
         </div>
         ${summary}
-        ${events ? `<div class="mt-4 grid gap-2 text-sm">${events}</div>` : ""}
+        ${events ? `<div class="mt-4 overflow-hidden rounded-md border border-[#d7dde6] bg-white text-sm"><div class="border-b border-[#d7dde6] px-4 py-2 text-xs font-semibold uppercase tracking-[0.08em] text-[#6b778a]">${escapeHtml(label(labels, "rows", "rows"))}</div><div class="divide-y divide-[#e2e6ec]">${events}</div></div>` : ""}
       </div>
     `;
   }
