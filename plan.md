@@ -1,7 +1,7 @@
 # Plan: Hydro-Québec Outage History App
 
 Date: 2026-04-25
-Last updated: 2026-05-20
+Last updated: 2026-05-24
 
 ## Release roadmap
 
@@ -74,6 +74,7 @@ Next 0.2.x work should be grouped into manageable release slices:
   - preserve a meaningful map band in expanded states, or add a sticky section switcher / compact section-summary state before full list browsing
   - reserve safe areas for Leaflet controls and attribution across collapsed, mid, and expanded drawer states
   - compact the mobile header while keeping address search, current-location, and language switching obvious
+  - revisit URL patterns and query-state design for every supported entry point: no-query homepage, address searches, current-location searches, language switching, selected map features, shared links, browser back/forward, durable API/debug endpoints, and future region-focused views
   - expand browser coverage for mobile sheet behavior, search entry, current-location, history/back-forward, and language-switch flows
 - `v0.2.3`: improve map/context hierarchy and explanatory affordances
   - tune map-layer visual hierarchy so searched address and relevant nearby current/planned outages dominate, while broad disclosure/regional context is quieter by default
@@ -179,6 +180,7 @@ Technical planning:
   - language switch
   - browser back/forward
   - shared URL with query parameters
+- audit and rationalize the app's URL/query patterns so user-facing routes, HTMX/fragment routes, map JSON routes, durable Worker endpoints, debug endpoints, and future region/map links have clear ownership, stable parameters, canonical share URLs, and predictable cache behavior
 - keep accessibility in scope:
   - bottom sheet must be keyboard reachable and screen-reader understandable
   - focus should move predictably after search and after selecting a card/map feature
@@ -326,6 +328,11 @@ Deployment checkpoint:
   - next likely performance work:
     - render result cards first and lazy-load map overlays after the initial search response
     - stop embedding map JSON directly in HTML; move map data behind small JSON endpoints
+    - make the different meanings of "lazy map loading" explicit and optimize them separately:
+      - lazy map initialization: do not construct Leaflet until the map pane is visible or needed
+      - deferred data fetches: keep broad disclosure/regional geometry and older history payloads behind JSON/R2 endpoints instead of embedding them in HTML
+      - progressive layer rendering: paint current and planned outage layers first, then previous-outage and broad-context layers after first paint or user opt-in
+      - chunked client rendering: add large Leaflet layer groups in batches so 100+ historical features do not block the main thread
     - keep `/search-map` and `/map-context-geometries` payloads small enough for mobile and slower networks
     - continue moving remaining container SQLite reads out of the hot search path; current-feed, previous-outage nearby matching, runtime app state, status/coverage summaries, and disclosure/regional map context now have D1-backed production paths
     - store static administrative-region and DAI/disclosure geometries outside the default SQLite search response as precomputed simplified GeoJSON assets
@@ -339,6 +346,8 @@ Deployment checkpoint:
   - latest production timings after the D1 previous-outage migration are roughly 0.44 seconds for `/`, 0.77 seconds for result-card `POST /search`, 1.12 seconds for lazy `/search-map`, and 0.30 seconds for `/map-context-geometries`
   - next performance focus should be the lazy map payload/rendering and context assembly, not current or previous-outage nearby matching, because those now use D1
   - lazy map payload follow-up now trims disclosure detail to recent samples and renders previous outages as centroid markers instead of embedding older outage polygons; local `/search-map` HTML dropped from roughly 912 KB to roughly 358 KB, and production `/search-map` dropped from roughly 735 KB to roughly 155 KB after deploy
+  - as of 2026-05-24, the map pane itself is not fully lazy-loaded: `outage-map` initializes Leaflet immediately and eagerly renders current, planned, and previous-outage operational layers from embedded map data; only disclosure/regional context geometry is deferred through `contextGeometryUrl`
+  - follow-up performance goal: keep the richer 120-row previous-outage history available, but load and render it progressively so the historical layer supports province-wide stability decisions without slowing the initial address-search experience
   - add a rigorous browser regression suite before further map/search UI work:
     - cover lazy result rendering with Playwright or equivalent browser automation, not only unit tests
     - regression case: submit a known address, click a result card before the lazy map finishes loading, wait for `/search-map` and `/map-context-geometries`, and assert the map remains focused on the clicked outage/detail instead of recentering on the searched address
