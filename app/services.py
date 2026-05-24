@@ -1253,7 +1253,9 @@ class AppService:
             lambda: self._build_current_operational_map_layers(include_planned),
         )
 
-    def _previous_operational_map_layers(self, limit: int = 36) -> list[dict[str, Any]]:
+    def _previous_operational_map_layers(self, limit: int = 120) -> list[dict[str, Any]]:
+        if self.settings.durable_runtime_url:
+            return self._build_previous_operational_map_layers(limit)
         return self._cached_context(
             f"previous_operational_map_layers:{limit}",
             lambda: self._build_previous_operational_map_layers(limit),

@@ -1661,7 +1661,7 @@ async function runtimeOperationalMapLayersResponse(env, url) {
 }
 
 async function runtimePreviousMapLayersResponse(env, url) {
-  const limit = Math.trunc(clamp(numberParam(url, "limit") ?? 36, 1, 250));
+  const limit = Math.trunc(clamp(numberParam(url, "limit") ?? 120, 1, 250));
   const currentRows = await latestRows(env.DB, "bis", "current_outage_records");
   const currentKeys = new Set(
     currentRows.map((row) =>
@@ -1686,7 +1686,7 @@ async function runtimePreviousMapLayersResponse(env, url) {
     LIMIT ?
     `,
   )
-    .bind(limit * 4)
+    .bind(limit * 12)
     .all();
   const rows = (result.results || []).filter((row) => !currentKeys.has(row.event_key));
   const versions = [
@@ -1707,19 +1707,24 @@ async function runtimePreviousMapLayersResponse(env, url) {
 async function hydroGeometryRows(db, sourceType, versions) {
   const uniqueVersions = [...new Set((versions || []).filter(Boolean))];
   if (!uniqueVersions.length) return [];
-  const placeholders = uniqueVersions.map(() => "?").join(", ");
-  const result = await db
-    .prepare(
-      `
-      SELECT *
-      FROM hydro_polygon_geometries
-      WHERE source_type = ?
-        AND source_version IN (${placeholders})
-      `,
-    )
-    .bind(sourceType, ...uniqueVersions)
-    .all();
-  return result.results || [];
+  const rows = [];
+  for (let index = 0; index < uniqueVersions.length; index += 80) {
+    const versionChunk = uniqueVersions.slice(index, index + 80);
+    const placeholders = versionChunk.map(() => "?").join(", ");
+    const result = await db
+      .prepare(
+        `
+        SELECT *
+        FROM hydro_polygon_geometries
+        WHERE source_type = ?
+          AND source_version IN (${placeholders})
+        `,
+      )
+      .bind(sourceType, ...versionChunk)
+      .all();
+    rows.push(...(result.results || []));
+  }
+  return rows;
 }
 
 function operationalMapLayers(rows, geometryRows, outageKind) {
@@ -1737,7 +1742,19 @@ function operationalMapLayers(rows, geometryRows, outageKind) {
     if (!Number.isFinite(row.centroid_lat) || !Number.isFinite(row.centroid_lon)) continue;
     const geometry = assignedHydroGeometry(row, geometriesByVersion);
     const geometryId = geometry?.id || null;
-    const key = `${outageKind}:${geometryId || row.id || row.event_key}`;
+    const stableGeometryKey = geometry
+      ? [
+          row.municipality_code || "",
+          geometry.polygon_id || geometry.name || "",
+          Number.isFinite(geometry.centroid_lat) ? geometry.centroid_lat.toFixed(2) : "",
+          Number.isFinite(geometry.centroid_lon) ? geometry.centroid_lon.toFixed(2) : "",
+        ].join(":")
+      : null;
+    const key = `${outageKind}:${
+      outageKind === "previous_outage"
+        ? stableGeometryKey || row.event_key || row.id
+        : geometryId || row.id || row.event_key
+    }`;
     const isOutage = outageKind === "outage" || outageKind === "previous_outage";
     const startTime =
       (isOutage ? row.outage_start_time || row.start_time : row.scheduled_start) || null;
@@ -1755,6 +1772,7 @@ function operationalMapLayers(rows, geometryRows, outageKind) {
       centroid_lat: row.centroid_lat,
       centroid_lon: row.centroid_lon,
       distance_m: null,
+      sighting_count: row.record_count || 1,
     };
     if (!groups.has(key)) {
       groups.set(key, {
@@ -1774,12 +1792,12 @@ function operationalMapLayers(rows, geometryRows, outageKind) {
         centroid_lat: row.centroid_lat,
         centroid_lon: row.centroid_lon,
         sort_time: startTime || row.last_seen_at || row.updated_at || null,
-        event_count: row.record_count || 1,
+        event_count: outageKind === "previous_outage" ? 1 : row.record_count || 1,
         recent_events: [event],
       });
     } else {
       const group = groups.get(key);
-      group.event_count += row.record_count || 1;
+      group.event_count += outageKind === "previous_outage" ? 1 : row.record_count || 1;
       group.recent_events.push(event);
       group.customers_affected = (group.customers_affected || 0) + (customersAffected || 0);
       if (String(startTime || "") > String(group.start_time || "")) {

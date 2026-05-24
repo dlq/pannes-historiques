@@ -780,8 +780,12 @@ class DaiDetailPanel extends HTMLElement {
 
   renderOperational(item) {
     const labels = this.uiLabels();
-    const title = this.getAttribute("title-label") || "Published outage context";
     const isPreviousOutage = item.kind === "previous_outage";
+    const title = isPreviousOutage
+      ? label(labels, "previous_outages_legend", "Previously seen outages")
+      : item.kind === "planned"
+        ? label(labels, "planned_panel", "Current planned interruptions")
+        : label(labels, "current_outages", "Current or new outages");
     const kindLabel =
       item.kind === "planned"
         ? item.kindLabel || label(labels, "planned", "Planned interruption")
@@ -824,9 +828,14 @@ class DaiDetailPanel extends HTMLElement {
     this.hidden = false;
     this.innerHTML = `
       <div class="rounded-lg border border-[#c5cad2] bg-[#f1f1f2] p-4">
-        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-[#095797]">${escapeHtml(title)}</p>
-        <h4 class="mt-1 text-base font-semibold text-[#223654]">${escapeHtml(kindLabel)}</h4>
-        ${isPreviousOutage ? "" : `<p class="mt-1 text-sm text-[#4e5662]">${escapeHtml(item.label || item.startTime || item.latestStartTime || label(labels, "unknown", "unknown"))}</p>`}
+        <div class="mb-3 flex flex-wrap items-start justify-between gap-3">
+          <div class="min-w-0">
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-[#095797]">${escapeHtml(title)}</p>
+            <h4 class="mt-1 text-base font-semibold text-[#223654]">${escapeHtml(kindLabel)}</h4>
+            ${isPreviousOutage ? "" : `<p class="mt-1 text-sm text-[#4e5662]">${escapeHtml(item.label || item.startTime || item.latestStartTime || label(labels, "unknown", "unknown"))}</p>`}
+          </div>
+          <button type="button" class="rounded-md border border-[#c5cad2] bg-white px-2 py-1 text-sm font-semibold text-[#4e5662] hover:bg-[#f1f1f2]" data-dai-detail-close aria-label="${escapeHtml(label(labels, "close", "Close"))}">×</button>
+        </div>
         ${summary}
         ${events ? `<div class="mt-4 grid gap-2 text-sm">${events}</div>` : ""}
       </div>
@@ -959,6 +968,13 @@ class OutageMap extends HTMLElement {
         restackDisclosureLayers();
       }
       if (matchedItem?.kind === "regional_metric" && remember) showRegionalMetric(matchedItem);
+      if (
+        matchedItem &&
+        ["outage", "planned", "previous_outage"].includes(matchedItem.kind) &&
+        remember
+      ) {
+        showOperational(matchedItem);
+      }
       const detail = enrichFocusDetail(raw);
       if (remember) activeMapFocus = detail;
       this.dataset.activeFocusKind = detail.kind || "";
