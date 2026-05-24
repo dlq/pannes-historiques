@@ -387,6 +387,11 @@ textarea {
   padding: 0.5rem;
 }
 
+.ph-result-sections.ph-map-context-list {
+  display: flex;
+  flex-direction: column;
+}
+
 .ph-result-card {
   border: 1px solid var(--ph-gray);
   background: #fff;
@@ -394,6 +399,16 @@ textarea {
 
 .ph-match-row {
   min-height: 3.75rem;
+}
+
+.ph-match-row.is-map-selected {
+  border-color: #095797;
+  background: #eef6ff;
+  box-shadow: inset 0.25rem 0 0 #095797, 0 0 0 1px rgba(9, 87, 151, 0.2);
+}
+
+.ph-match-row.is-map-selected:hover {
+  background: #e5f1fb;
 }
 
 .ph-map-context-list .ph-match-row {

@@ -64,9 +64,9 @@ Implementation checkpoint, 2026-05-19:
 Next 0.2.x work should be grouped into manageable release slices:
 
 - `v0.2.1`: make search results feel like a focused local answer
-  - add a searched-place summary and relevance layer above the feed, including searched address, radius/local context, source freshness, and compact current/planned/previous/disclosure counts
   - improve row hierarchy so recency, status, customer count, and local relevance are easier to scan
   - strengthen selected/hover/focus states linking panel rows to map features and map features back to rows
+  - avoid redundant aggregate summary cards until the local-vs-context count model is clearer; keep counts on the relevant sections instead
   - include basic French/status polish where touched, especially accented labels and less prominent handling for unknown raw source statuses such as `N`
   - add focused browser regression coverage for row-to-map selected-state behavior on desktop and mobile
 - `v0.2.2`: improve mobile sheet and search ergonomics
@@ -88,7 +88,7 @@ Next 0.2.x work should be grouped into manageable release slices:
 
 Live design review findings, 2026-05-20:
 
-- Highest priority: add a searched-place summary and relevance layer above the feed. After an address search, the panel should clearly state the searched address, radius/local context, source freshness, and a compact answer such as current/planned/previous/disclosure counts near this place before listing rows.
+- Highest priority: improve the searched-place relevance layer without duplicating the section counts. After an address search, the panel should make local relevance obvious through row ordering, selected/focus states, and clearer labels; aggregate count summaries should wait until local-vs-context semantics are unambiguous.
 - Rework mobile expanded-sheet behavior. The current expanded state makes all four sections discoverable, but it covers most of the map. Preserve a meaningful map band and consider a sticky section switcher or four compact summary rows, with full list browsing after the user chooses a section.
 - Tune map-layer hierarchy. The searched address and most relevant nearby outage geometries should dominate; broad disclosure/regional context should be lower contrast, de-emphasized by default, or moved behind a layer control.
 - Polish French production copy. Restore accents in user-facing labels such as `Début`, `Interruptions planifiées actuelles`, `Pannes déjà vues`, and `Hydro-Québec`; avoid showing unexplained raw `N` statuses as primary row content.
@@ -97,6 +97,13 @@ Live design review findings, 2026-05-20:
 - Reserve safe areas for Leaflet controls and attribution across drawer states. On mobile, zoom and attribution can crowd the bottom sheet; their placement should adapt to collapsed, mid, and expanded states.
 - Compact the mobile header. The title/language/search stack takes about 100 px before the map begins; reduce chrome where possible while keeping search and language switching obvious.
 - Replace the Tailwind CDN path in production. The live console warns that `cdn.tailwindcss.com` should not be used in production; this is production hygiene and performance debt rather than immediate visual breakage.
+
+Basic `v0.2.1` usability pass, 2026-05-24:
+
+- removed the compact searched-place summary after review because it duplicated section counts and implied broader map-context rows were all within the search radius
+- made selected result rows visibly persistent after row clicks, keyboard activation, or map-feature selection
+- fixed the map-context result stack so open sections do not overlap in the side panel
+- added browser regression coverage for selected-row state in desktop and mobile Chromium
 
 The next substantial product/design direction should revisit the page structure around a map-first interaction model, closer to `maps.google.com` or `maps.apple.com` than the current document-flow dashboard.
 

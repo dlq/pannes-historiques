@@ -435,9 +435,47 @@ function attachMapFocusCards() {
   if (document.body.dataset.mapFocusDelegated === "1") return;
   document.body.dataset.mapFocusDelegated = "1";
 
+  const focusDetailsMatch = (detail, payload) => {
+    if (!detail || !payload) return false;
+    if (detail.kind && payload.kind && detail.kind !== payload.kind) return false;
+    if (detail.geometryKey && payload.geometryKey)
+      return detail.geometryKey === payload.geometryKey;
+    if (detail.startTime && payload.startTime && detail.startTime !== payload.startTime) {
+      return false;
+    }
+    if (detail.label && payload.label && detail.kind && detail.label !== payload.label)
+      return false;
+    if (
+      detail.customersAffected != null &&
+      payload.customersAffected != null &&
+      Number(detail.customersAffected) !== Number(payload.customersAffected)
+    ) {
+      return false;
+    }
+    if (detail.distanceM != null && payload.distanceM != null) {
+      return Math.abs(Number(detail.distanceM) - Number(payload.distanceM)) < 1;
+    }
+    return true;
+  };
+
+  const markActiveFocusCard = (detail) => {
+    for (const candidate of document.querySelectorAll("[data-map-focus]")) {
+      let selected = false;
+      try {
+        const payload = JSON.parse(candidate.getAttribute("data-map-focus") || "{}");
+        selected = focusDetailsMatch(detail, payload);
+      } catch (_error) {
+        selected = false;
+      }
+      candidate.classList.toggle("is-map-selected", selected);
+      candidate.setAttribute("aria-pressed", selected ? "true" : "false");
+    }
+  };
+
   const focusCard = (card) => {
     try {
       const detail = JSON.parse(card.getAttribute("data-map-focus") || "{}");
+      markActiveFocusCard(detail);
       window.pendingMapFocus = detail;
       document.dispatchEvent(new CustomEvent("map-focus", { detail }));
     } catch (_error) {
@@ -458,6 +496,16 @@ function attachMapFocusCards() {
     event.preventDefault();
     focusCard(card);
   });
+
+  for (const eventName of [
+    "operational-layer-selected",
+    "dai-selected",
+    "regional-metric-selected",
+  ]) {
+    document.body.addEventListener(eventName, (event) => {
+      markActiveFocusCard(event.detail || {});
+    });
+  }
 }
 
 function escapeHtml(value) {

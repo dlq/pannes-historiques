@@ -52,9 +52,21 @@ test("page loads in English and French", async ({ page }) => {
 
 test("search renders result cards and lazy-loads the map", async ({ page }) => {
   await runSearch(page);
+  await expect(page.getByRole("heading", { name: "Current or new outages" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Current planned interruptions" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Previously seen outages" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Disclosure" })).toBeVisible();
   await expect(page.locator("[data-map-focus]").first()).toBeVisible();
   await expect(page.locator("outage-map")).toBeVisible();
   await expect(page.locator("outage-map")).toHaveAttribute("data-map");
+});
+
+test("selected result rows stay visibly linked to the map", async ({ page }) => {
+  await runSearch(page);
+  const firstCard = page.locator("[data-map-focus]").first();
+  await firstCard.click();
+  await expect(firstCard).toHaveClass(/is-map-selected/);
+  await expect(firstCard).toHaveAttribute("aria-pressed", "true");
 });
 
 test("autocomplete menu appears above existing result cards", async ({ page }) => {
