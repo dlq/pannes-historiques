@@ -24,23 +24,17 @@ The near-term release lines should be split this way:
 
 Current focus:
 
-- `v0.2.0` map-first responsive shell is deployed on `pannes.ca`; the remaining `0.2.x` work is refinement, regression coverage, and payload/performance hardening rather than first implementation
-- `v0.1.3` is complete: the repo now has a real automated baseline with `pytest`, route smoke coverage, helper coverage, and service-layer decision-path coverage
-- `v0.1.4` is now the remaining `0.1.x` hardening sprint, replacing the earlier split between `v0.1.4`, `v0.1.5`, and `v0.1.6`
-- the current `v0.1.4` scope is:
-  - repo-owned Playwright coverage for the current lazy map/result flow
-  - Nominatim hardening: caching, normalization, and clearer ambiguous/failure UX
-  - operational/docs cleanup, verified status-code decoding, and small UI consistency fixes
-- Playwright baseline is now implemented in the repo with a deterministic fixture server, Chromium + mobile-Chromium projects, and regression coverage for:
+- `v0.2.1` is the current released baseline on `main`: the map-first shell is live, result/detail selected states are persistent across row, keyboard, and map interactions, and the production container image is pinned to the selection-state build
+- remaining `0.2.x` work is mobile/search ergonomics, map/context hierarchy, accessibility/usability hardening, regression coverage, and payload/performance hardening rather than first implementation
+- `v0.1.3` and `v0.1.4` are complete stabilization releases; they established the automated Python/browser baseline, Nominatim hardening, operational/docs cleanup, verified status-code decoding, and small UI consistency fixes
+- Playwright baseline is implemented in the repo with a deterministic fixture server, Chromium + mobile-Chromium projects, and regression coverage for:
   - initial English/French render
   - search result rendering plus lazy map load
   - clicking a result before the lazy map finishes loading
   - current-location search
   - language-switch state preservation
 - Nominatim hardening is now implemented with Quebec-specific shorthand expansion, stronger civic-address ranking, clearer underspecified-address failure copy, and focused tests
-- remaining `v0.1.4` release work is limited to docs/release cleanup plus a status-code decoding decision; do not decode Hydro-Quebec one-letter status codes unless meanings can be verified from source evidence
-- the first planned `0.2.x` step after that hardening sprint is the map-first responsive redesign
-- defer the full UI audit to `v0.2.0`; it should review CSS/Tailwind class usage, client-side JS behaviour, and Jinja template structure together before or during the map-first redesign
+- keep avoiding speculative Hydro-Quebec one-letter status-code decoding unless meanings can be verified from source evidence
 
 Testing follow-up by release line:
 
@@ -61,15 +55,15 @@ Implementation checkpoint, 2026-05-19:
 - the production container still renders the Flask/Jinja shell; D1/R2 are the durable data plane for current feed rows, previous rows, raw archives, and now runtime map-context layers
 - rollout can briefly expose an inactive-container 500 while a new container starts; deployment checks should include a `/healthz` prime plus a full page/map-payload verification after the container reports running
 
-Next 0.2.x work should be grouped into manageable release slices:
+0.2.x work is grouped into manageable release slices:
 
-- `v0.2.1`: make search results feel like a focused local answer
+- `v0.2.1` complete: make search results feel like a focused local answer
   - improve row hierarchy so recency, status, customer count, and local relevance are easier to scan
   - strengthen selected/hover/focus states linking panel rows to map features and map features back to rows
   - avoid redundant aggregate summary cards until the local-vs-context count model is clearer; keep counts on the relevant sections instead
   - include basic French/status polish where touched, especially accented labels and less prominent handling for unknown raw source statuses such as `N`
   - add focused browser regression coverage for row-to-map selected-state behavior on desktop and mobile
-- `v0.2.2`: improve mobile sheet and search ergonomics
+- `v0.2.2` next: improve mobile sheet and search ergonomics
   - refine narrow-view expanded sheet behavior so all four context sections remain discoverable without covering almost the whole map
   - preserve a meaningful map band in expanded states, or add a sticky section switcher / compact section-summary state before full list browsing
   - reserve safe areas for Leaflet controls and attribution across collapsed, mid, and expanded drawer states
