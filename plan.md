@@ -290,6 +290,7 @@ Deployment checkpoint:
 - medium-term deployment can move to Cloudflare Workers Builds connected to GitHub, using the same `npx wrangler deploy` command on push
 - keep using `uv` for Python dependency management and checks; use `npm` for Wrangler, Biome, and Cloudflare deployment tooling
 - follow up on TLS/certificate status for `pannes.ca` and `www.pannes.ca`; confirm Cloudflare has issued/activated the certificate and browsers no longer show certificate/security warnings
+- enable Cloudflare Web Analytics/RUM for `pannes.ca` so visitor reporting can use privacy-preserving browser metrics instead of only coarse zone analytics such as daily unique IPs, pageviews, and request counts
 - the current production container still bundles a baked-in SQLite snapshot for local-compatible Flask code paths, but production is being migrated so user-facing runtime reads/writes go through Worker D1/R2 endpoints when durable URLs are configured
 - production writes inside the container are ephemeral, so durable feed ingestion now uses D1 for normalized rows and R2 for raw payloads
 - D1/R2 are now part of the production architecture, and production search uses narrow Worker/D1 endpoints for current nearby matches and accumulated previous-outage nearby matches
