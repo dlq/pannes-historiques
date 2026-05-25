@@ -1095,6 +1095,54 @@ Sources checked:
 - Google Maps JavaScript API usage and billing: https://developers.google.com/maps/documentation/javascript/usage-and-billing
 - Google Maps Platform pricing: https://developers.google.com/maps/billing-and-pricing/pricing
 
+## 2026-05-25: Leaflet versus deck.gl for pannes.ca maps
+
+Question:
+
+- Is deck.gl likely to be faster than Leaflet for pannes.ca's outage, planned-interruption, regional, and disclosure maps?
+
+Findings:
+
+- Leaflet is still the better default map shell for the current app shape. The official Leaflet site describes it as a small open-source library for mobile-friendly interactive maps, about 42 KB gzipped, with built-in tile layers, markers, popups, vector layers, GeoJSON, controls, and simple event handling. That matches pannes.ca's current HTMX/server-rendered model.
+- deck.gl is not exactly a Leaflet replacement. Its docs describe it as a high-performance WebGPU/WebGL2 visualization framework for large datasets, mapping arrays or binary columns into layers such as icons, polygons, and text. It can run standalone or integrate with basemap providers including MapLibre, Google Maps, Mapbox, and ArcGIS.
+- deck.gl is likely faster when the bottleneck is client-side rendering of many features: tens or hundreds of thousands of points, dense paths, animated trips/timelines, heatmaps, H3/quadbin aggregations, 3D extrusions, GPU filtering, or interactive picking/highlighting across large layers.
+- deck.gl is not likely to fix the current pannes.ca bottlenecks by itself if the main cost is still:
+  - generating/querying map payloads
+  - transferring large GeoJSON/HTML payloads
+  - parsing too much disclosure/context JSON
+  - geocoding or D1/API round trips
+  - rendering a modest number of polygons/markers
+- For the current production map scale recorded earlier, a trimmed `/search-map` response had roughly 56 map items and about 155 KB of HTML. Leaflet should be fine at that scale; switching to deck.gl would add integration complexity without a clear speed win.
+- deck.gl becomes more interesting for the planned regional dashboard if we move from a handful of address/search overlays to province-wide analytical layers:
+  - choropleths by region/MRC/municipality
+  - dense current + historical outage point clouds
+  - timeline playback across many snapshots
+  - heatmaps or H3/quadbin outage density
+  - smooth hover/pick interactions over many geometries
+  - visual comparisons between current, planned, previous, and disclosure layers
+- The cleanest open-source stack for that future is probably MapLibre + deck.gl, not Leaflet + deck.gl. deck.gl can be used with Leaflet through `@deck.gl-community/leaflet`, but that module is community maintained and explicitly warns that it may not have timely maintainers. For a core production renderer, MapLibre + deck.gl is a better-supported path.
+- A middle path is possible:
+  - keep Leaflet for the address-first search map
+  - build a separate experimental analytical/regional map route with MapLibre + deck.gl
+  - feed that route precomputed D1/R2-backed region/MRC aggregates or vector/PMTiles-style payloads
+  - compare browser render time, payload size, mobile behavior, and interaction quality before replacing the existing Leaflet map
+
+Recommendation:
+
+- Do not replace Leaflet with deck.gl now.
+- First build the regional/MRC aggregate data model and compact endpoints.
+- If the regional dashboard needs dense analytical visualization, prototype a separate MapLibre + deck.gl route.
+- Treat deck.gl as a high-scale visualization layer for future analytical maps, not as a general cure for current page/search performance.
+
+Sources checked:
+
+- Leaflet: https://leafletjs.com/
+- deck.gl introduction: https://deck.gl/docs
+- deck.gl home: https://deck.gl/
+- deck.gl standalone usage: https://deck.gl/docs/get-started/using-standalone
+- deck.gl with MapLibre: https://deck.gl/docs/developer-guide/base-maps/using-with-maplibre
+- deck.gl community Leaflet module: https://visgl.github.io/deck.gl-community/docs/modules/leaflet
+
 ## Sources
 
 - 2026-05-19 production data correctness check:
