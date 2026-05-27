@@ -1,7 +1,7 @@
 # Plan: Hydro-Québec Outage History App
 
 Date: 2026-04-25
-Last updated: 2026-05-24
+Last updated: 2026-05-27
 
 ## Release roadmap
 
@@ -13,7 +13,7 @@ The near-term release lines should be split this way:
 - `0.2.x`: map-first UI and interaction redesign
   - `v0.2.0`: map-first responsive shell for desktop and mobile
   - `v0.2.1`: result/detail interaction refinement and selected-state behavior
-  - `v0.2.2`: search entry, current-location, history/back-forward, and lightweight region-entry improvements
+  - `v0.2.2`: mobile installability, search entry, current-location, history/back-forward, and lightweight region-entry improvements
   - `v0.2.3`: accessibility and usability hardening for the new UI
 - `0.3.x`: architecture and product expansion
   - move more production reads off container SQLite/static assets toward D1-backed paths
@@ -64,6 +64,9 @@ Implementation checkpoint, 2026-05-19:
   - include basic French/status polish where touched, especially accented labels and less prominent handling for unknown raw source statuses such as `N`
   - add focused browser regression coverage for row-to-map selected-state behavior on desktop and mobile
 - `v0.2.2` next: improve mobile sheet and search ergonomics
+  - make pannes.ca behave like an installable/pinnable web app on iOS and Android, so users can add it to their home screen and run it as a standalone map app
+  - add and verify web-app manifest metadata, app icons, theme/background colors, viewport-fit/safe-area handling, Apple touch icon metadata, and appropriate display mode
+  - test installed/pinned behavior on iOS Safari and Android Chrome, including launch URL, language/query state, current-location permissions, standalone header/safe-area layout, and offline/error fallback
   - refine narrow-view expanded sheet behavior so all four context sections remain discoverable without covering almost the whole map
   - preserve a meaningful map band in expanded states, or add a sticky section switcher / compact section-summary state before full list browsing
   - reserve safe areas for Leaflet controls and attribution across collapsed, mid, and expanded drawer states
@@ -106,6 +109,7 @@ The primary reason for this UI change is that pannes.ca does not currently feel 
 Primary design goal:
 
 - make the map fill the browser viewport and remain visually present throughout the interaction
+- make the app installable/pinnable from iOS Safari and Android Chrome, with standalone-mode layout behaving like an intentional mobile map app rather than a browser page
 - keep address/current-location search prominent without forcing the user through a long document page
 - show outage information in an overlay that can collapse, expand, and move out of the way
 - make desktop and mobile feel like intentional variants of the same map-first app, not separate layouts patched with breakpoints
@@ -181,6 +185,11 @@ Technical planning:
   - language switch
   - browser back/forward
   - shared URL with query parameters
+- design the installed/pinned app shell as a first-class state:
+  - provide a manifest, app icons, theme color, background color, Apple touch icon, and standalone-capable mobile metadata
+  - respect notches, rounded corners, browser chrome differences, and `display-mode: standalone` safe-area constraints
+  - preserve useful launch state without surprising users: last query/current location may be restored locally, but shared URLs and explicit query parameters must win
+  - provide a graceful offline or network-error surface instead of a blank map when launched without connectivity
 - audit and rationalize the app's URL/query patterns so user-facing routes, HTMX/fragment routes, map JSON routes, durable Worker endpoints, debug endpoints, and future region/map links have clear ownership, stable parameters, canonical share URLs, and predictable cache behavior
 - keep accessibility in scope:
   - bottom sheet must be keyboard reachable and screen-reader understandable
@@ -217,6 +226,7 @@ Risks and constraints:
 - bottom-sheet gestures can fight with page scrolling if implemented casually
 - map-first UI may make long historical/disclosure context harder to read; detailed historical tables may need separate pages
 - mobile browser viewport units are tricky because iOS Safari chrome expands/collapses; use modern viewport units and test carefully
+- installed/pinned iOS and Android display modes have different viewport, safe-area, status-bar, and reload behaviors; test them separately from normal mobile browser tabs
 - the current Tailwind-CDN/server-rendered structure can support an overlay redesign, but the CSS and template organization may need cleanup before large UI work
 - stale-first startup can confuse users if source freshness is not visible; every cached/current layer needs clear age and refresh language
 - local browser cache needs a schema version and conservative invalidation so stale payloads do not break the shell after template/JS changes
@@ -224,6 +234,7 @@ Risks and constraints:
 Acceptance target for 0.2.0:
 
 - on mobile, a user can search by address or current location, see the map immediately, tap/swipe through result cards in a bottom sheet, and recenter the map without losing context
+- when pinned to the iOS or Android home screen, the app launches cleanly in standalone mode with correct icon/title/theme styling, no clipped controls, and usable search/map/panel behavior
 - on desktop, a user can search, compare result categories, and inspect map context without the page feeling like a long scroll report
 - perceived first result time remains fast: cards/search feedback should render before heavy map/context geometry
 - returning users see their last useful location/results immediately while current outage overlays refresh in the background
