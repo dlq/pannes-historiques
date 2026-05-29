@@ -74,6 +74,15 @@ Implementation checkpoint, 2026-05-19:
   - compact the mobile header while keeping address search, current-location, and language switching obvious
   - revisit URL patterns and query-state design for every supported entry point: no-query homepage, address searches, current-location searches, language switching, selected map features, shared links, browser back/forward, durable API/debug endpoints, and future region-focused views
   - expand browser coverage for mobile sheet behavior, search entry, current-location, history/back-forward, and language-switch flows
+
+Basic `v0.2.2` PWA/installability pass, 2026-05-29:
+
+- added web-app manifest metadata, theme/app/mobile-web-app meta tags, SVG app icons, and root-scoped service-worker registration
+- added a conservative service worker that caches static app assets and serves a small offline fallback for failed navigation requests
+- added Python and Playwright coverage for manifest metadata, service-worker scope, and mobile Chromium regressions
+- tightened mobile standalone/safe-area behaviour by preserving a visible map band above the expanded drawer and moving Leaflet bottom controls above the drawer
+- deliberately did not add push notifications or notification permission prompts; those remain a later saved-watch-area product design item
+
 - `v0.2.3`: improve map/context hierarchy and explanatory affordances
   - tune map-layer visual hierarchy so searched address and relevant nearby current/planned outages dominate, while broad disclosure/regional context is quieter by default
   - define a clearer current/previous/disclosure layer control or legend pattern that does not clutter the primary map surface

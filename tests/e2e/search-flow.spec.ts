@@ -50,6 +50,45 @@ test("page loads in English and French", async ({ page }) => {
   await expect(page.locator("#address-input")).toBeVisible();
 });
 
+test("app exposes installable web app metadata", async ({ page, request }) => {
+  await page.goto("/?lang=en");
+
+  await expect(page.locator('link[rel="manifest"]')).toHaveAttribute(
+    "href",
+    "/static/manifest.webmanifest",
+  );
+  await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute("content", "#223654");
+  await expect(page.locator('meta[name="apple-mobile-web-app-capable"]')).toHaveAttribute(
+    "content",
+    "yes",
+  );
+
+  const manifestResponse = await request.get("/static/manifest.webmanifest");
+  expect(manifestResponse.ok()).toBe(true);
+  const manifest = await manifestResponse.json();
+  expect(manifest.display).toBe("standalone");
+  expect(manifest.scope).toBe("/");
+  expect(manifest.icons.map((icon: { purpose: string }) => icon.purpose).sort()).toEqual([
+    "any",
+    "any",
+    "any",
+    "maskable",
+  ]);
+  expect(manifest.icons.map((icon: { sizes: string }) => icon.sizes)).toEqual(
+    expect.arrayContaining(["192x192", "512x512"]),
+  );
+
+  await expect
+    .poll(() =>
+      page.evaluate(async () => {
+        if (!("serviceWorker" in navigator)) return [];
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        return registrations.some((registration) => registration.scope === `${location.origin}/`);
+      }),
+    )
+    .toBe(true);
+});
+
 test("search renders result cards and lazy-loads the map", async ({ page }) => {
   await runSearch(page);
   await expect(page.getByRole("heading", { name: "Current or new outages" })).toBeVisible();

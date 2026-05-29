@@ -1,0 +1,41 @@
+{
+  "name": "Pannes Historiques",
+  "short_name": "Pannes",
+  "description": "Map-first Hydro-Quebec outage history prototype.",
+  "id": "/",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "browser"],
+  "background_color": "#f7f7f4",
+  "theme_color": "#223654",
+  "orientation": "any",
+  "lang": "fr-CA",
+  "categories": ["utilities", "navigation"],
+  "icons": [
+    {
+      "src": "/static/app-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/app-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/app-icon-maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

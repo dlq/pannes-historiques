@@ -54,6 +54,16 @@ test("mobile default context panel is visible and resizable", async ({ page }) =
   await expect
     .poll(() =>
       panel.evaluate((node) => {
+        const panelTop = node.getBoundingClientRect().top;
+        const topbarBottom =
+          document.querySelector(".ph-topbar")?.getBoundingClientRect().bottom || 0;
+        return panelTop - topbarBottom;
+      }),
+    )
+    .toBeGreaterThan(120);
+  await expect
+    .poll(() =>
+      panel.evaluate((node) => {
         const panelRect = node.getBoundingClientRect();
         return Array.from(node.querySelectorAll(".ph-context-section-summary")).every(
           (summary) => {

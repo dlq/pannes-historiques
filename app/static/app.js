@@ -1,5 +1,14 @@
 let autocompleteTimer = null;
 
+function registerServiceWorker() {
+  if (!("serviceWorker" in navigator)) return;
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/service-worker.js").catch(() => {
+      // Installability should never block the core search/map experience.
+    });
+  });
+}
+
 function syncLanguageForm() {
   const searchForm = document.querySelector("#search-form");
   const languageForm = document.querySelector("#language-form");
@@ -194,7 +203,9 @@ function attachMobilePanelDrawer() {
 
   const clampHeight = (value) => {
     const min = mobilePanelMinHeight();
-    const max = Math.max(min, window.innerHeight - 112);
+    const topbar = document.querySelector(".ph-topbar")?.getBoundingClientRect().height || 100;
+    const visibleMapBand = Math.max(144, window.innerHeight * 0.22);
+    const max = Math.max(min, window.innerHeight - topbar - visibleMapBand);
     return Math.min(Math.max(value, min), max);
   };
 
@@ -1400,6 +1411,7 @@ customElements.define("dai-detail-panel", DaiDetailPanel);
 customElements.define("outage-map", OutageMap);
 
 document.addEventListener("DOMContentLoaded", () => {
+  registerServiceWorker();
   syncLanguageForm();
   attachAddressAutocomplete();
   attachLocationSearch();

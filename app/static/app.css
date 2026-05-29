@@ -37,7 +37,9 @@ textarea {
 .ph-app {
   min-height: 100dvh;
   --ph-map-left-overlay: 0rem;
-  --ph-topbar-height: 6.25rem;
+  --ph-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --ph-safe-top: env(safe-area-inset-top, 0px);
+  --ph-topbar-height: calc(6.25rem + var(--ph-safe-top));
   overflow: hidden;
   background: #dfe7ee;
   color: var(--ph-blue-dark);
@@ -61,6 +63,7 @@ textarea {
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 0.5rem;
   align-items: center;
+  padding-top: calc(0.5rem + var(--ph-safe-top)) !important;
 }
 
 .ph-map-stage {
@@ -453,7 +456,7 @@ textarea {
   }
 
   .ph-results-panel:has(.ph-map-context-list) {
-    bottom: 0.75rem;
+    bottom: calc(0.75rem + var(--ph-safe-bottom));
     display: flex;
     max-height: none;
     height: var(--ph-mobile-panel-height, min(42dvh, 22rem));
@@ -469,8 +472,12 @@ textarea {
   }
 
   .ph-app.ph-has-results .ph-results-panel:not(:has(.ph-map-context-list)) {
-    bottom: 0.75rem;
+    bottom: calc(0.75rem + var(--ph-safe-bottom));
     max-height: min(44dvh, 22rem);
+  }
+
+  .leaflet-bottom {
+    bottom: calc(var(--ph-mobile-panel-height, min(42dvh, 22rem)) + 1rem + var(--ph-safe-bottom));
   }
 
   .ph-panel-drawer-handle {
@@ -547,7 +554,7 @@ textarea {
     position: fixed;
     top: 5.25rem;
     right: 0.5rem;
-    bottom: 0.75rem;
+    bottom: calc(0.75rem + var(--ph-safe-bottom));
     left: 0.5rem;
     z-index: 60;
     display: block;
@@ -569,7 +576,7 @@ textarea {
     --ph-map-left-overlay: 23rem;
     --ph-side-rail-left: 1rem;
     --ph-side-rail-width: 21rem;
-    --ph-topbar-height: 4.25rem;
+    --ph-topbar-height: calc(4.25rem + var(--ph-safe-top));
   }
 
   .ph-results-panel {

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Pannes Historiques">
+  <rect width="512" height="512" rx="96" fill="#223654"/>
+  <path d="M112 112h288v288H112z" fill="#f7f7f4" opacity="0.08"/>
+  <path d="M272 48 128 288h112l-32 176 176-256H272z" fill="#e0ad03"/>
+  <text x="256" y="420"
+        fill="#f7f7f4"
+        font-family="Arial, Helvetica, sans-serif"
+        font-size="78"
+        font-weight="700"
+        text-anchor="middle">PH</text>
+</svg>

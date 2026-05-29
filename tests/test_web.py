@@ -1,8 +1,47 @@
+import json
+
+
 def test_index_renders(app_client):
     response = app_client.get("/")
 
     assert response.status_code == 200
     assert "Pannes Historiques" in response.get_data(as_text=True)
+
+
+def test_index_includes_pwa_metadata(app_client):
+    response = app_client.get("/")
+    html = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert "viewport-fit=cover" in html
+    assert '<meta name="theme-color" content="#223654">' in html
+    assert '<meta name="apple-mobile-web-app-capable" content="yes">' in html
+    assert 'href="/static/manifest.webmanifest"' in html
+    assert 'href="/static/app-icon-180.png"' in html
+
+
+def test_manifest_route_exposes_installability_metadata(app_client):
+    response = app_client.get("/static/manifest.webmanifest")
+
+    assert response.status_code == 200
+    manifest = json.loads(response.get_data(as_text=True))
+    assert manifest["name"] == "Pannes Historiques"
+    assert manifest["display"] == "standalone"
+    assert manifest["scope"] == "/"
+    assert manifest["start_url"] == "/?source=pwa"
+    assert {icon["purpose"] for icon in manifest["icons"]} == {"any", "maskable"}
+    assert {icon["sizes"] for icon in manifest["icons"]} >= {"192x192", "512x512"}
+
+
+def test_service_worker_route_has_root_scope(app_client):
+    response = app_client.get("/service-worker.js")
+
+    assert response.status_code == 200
+    assert response.headers["Service-Worker-Allowed"] == "/"
+    assert response.headers["Cache-Control"] == "no-cache"
+    assert b"pannes-historiques-v0.2.2-pwa-1" in response.data
+    assert b"/static/app-icon-180.png" in response.data
+    assert b"/static/offline.html" in response.data
 
 
 def test_search_route_uses_fixed_defaults(app_client):

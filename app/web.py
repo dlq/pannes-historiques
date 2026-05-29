@@ -129,6 +129,17 @@ def create_app(settings: Settings | None = None) -> Flask:
     def healthz():
         return jsonify({"ok": True})
 
+    @app.get("/service-worker.js")
+    def service_worker():
+        response = send_file(
+            static_root / "service-worker.js",
+            mimetype="text/javascript; charset=utf-8",
+            max_age=0,
+        )
+        response.headers["Service-Worker-Allowed"] = "/"
+        response.headers["Cache-Control"] = "no-cache"
+        return response
+
     @app.post("/search")
     def search():
         lang = choose_language(request.form.get("lang"))
