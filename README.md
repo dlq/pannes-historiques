@@ -32,6 +32,18 @@ You can also run the Flask app directly:
 uv run flask --app app run --debug --host 127.0.0.1 --port 8000
 ```
 
+## URL interface
+
+User-facing URLs are intentionally small:
+
+- `/` opens the default map context.
+- `/?lang=en` or `/?lang=fr` sets the interface language.
+- `/?lang=en&q=5220+Rue+Jeanne-Mance` opens an address search.
+- `/?lang=en&lat=45.5186&lon=-73.6027&accuracy_m=20` opens a coordinate/current-location search.
+
+Search scope is currently fixed server-side. Radius, time-window, and planned-interruption flags are
+not public URL parameters unless a future UI makes them user-controlled.
+
 ## Deploy
 
 Production is currently served at `pannes.ca` with Cloudflare Workers + Containers, D1, and R2.
@@ -113,7 +125,7 @@ The map uses separate colors and draw order for each evidence type:
 - blue dashed areas: DAI / access-to-information local historical area context
 
 Regional DAI summaries and local DAI areas are always shown on the map as broad background context,
-while the map opens centered on the searched address at a zoom based on the selected radius. Click a
+while the map opens centered on the searched address or coordinates. Click a
 colored region or blue DAI area to populate the scrollable details panel with the published source
 and metrics. Live/API-derived outage and planned interruption geometries are drawn after DAI areas so
 their smaller, more granular shapes remain visible on top.

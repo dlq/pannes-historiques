@@ -17,10 +17,29 @@ test("current location search renders deterministic results", async ({ page }) =
   ).toBeVisible();
   await expect(page).toHaveURL(/lat=45\.5186/);
   await expect(page).toHaveURL(/lon=-73\.6027/);
+  await expect(page).not.toHaveURL(/[?&]q=/);
   await expect(page.locator("#address-input")).toHaveValue(/Current location/);
   await expect(page.locator("outage-map")).toBeVisible();
-  await expect(locationButton.locator("svg")).toHaveCount(1);
-  await expect(locationButton.locator(".ph-button-spinner")).toHaveCount(0);
+
+  await page.reload();
+  await expect(
+    page.getByRole("heading", { name: "Current or new outages" }),
+  ).toBeVisible();
+  await expect(page.locator("#address-input")).toHaveValue(/Current location/);
+
+  await page.getByRole("button", { name: "fr" }).click();
+  await expect(page).toHaveURL(/lang=fr/);
+  await expect(page).toHaveURL(/lat=45\.5186/);
+  await expect(page).toHaveURL(/lon=-73\.6027/);
+  await expect(page).not.toHaveURL(/[?&]q=/);
+  await expect(
+    page.getByRole("heading", { name: "Pannes actuelles ou nouvelles" }),
+  ).toBeVisible();
+  const frenchLocationButton = page.getByRole("button", {
+    name: "Utiliser ma position actuelle",
+  });
+  await expect(frenchLocationButton.locator("svg")).toHaveCount(1);
+  await expect(frenchLocationButton.locator(".ph-button-spinner")).toHaveCount(0);
 });
 
 test("mobile default context panel is visible and resizable", async ({ page }) => {

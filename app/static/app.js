@@ -9,12 +9,31 @@ function registerServiceWorker() {
   });
 }
 
+function reloadOnHistoryNavigation() {
+  window.addEventListener("popstate", () => {
+    window.location.reload();
+  });
+}
+
 function syncLanguageForm() {
   const searchForm = document.querySelector("#search-form");
   const languageForm = document.querySelector("#language-form");
   if (!searchForm || !languageForm) return;
+  const setSyncedValue = (name, value) => {
+    const field = languageForm.querySelector(`[data-sync="${name}"]`);
+    if (!field) return;
+    field.value = value;
+    field.disabled = value === "";
+  };
   const q = searchForm.querySelector('[name="q"]')?.value || "";
-  languageForm.querySelector('[data-sync="q"]').value = q;
+  const latitude = searchForm.querySelector('[name="latitude"]')?.value || "";
+  const longitude = searchForm.querySelector('[name="longitude"]')?.value || "";
+  const accuracy = searchForm.querySelector('[name="accuracy_m"]')?.value || "";
+  const preserveLocation = isCurrentLocationText(q) && latitude && longitude;
+  setSyncedValue("q", preserveLocation ? "" : q);
+  setSyncedValue("latitude", preserveLocation ? latitude : "");
+  setSyncedValue("longitude", preserveLocation ? longitude : "");
+  setSyncedValue("accuracy_m", preserveLocation ? accuracy : "");
 }
 
 function updateSearchUrl(params = {}) {
@@ -34,6 +53,11 @@ function updateSearchUrl(params = {}) {
   }
   if (params.accuracy) url.searchParams.set("accuracy_m", params.accuracy);
   window.history.pushState({ pannesSearch: true }, "", url);
+}
+
+function isCurrentLocationText(value = "") {
+  const normalized = value.toLowerCase();
+  return normalized.startsWith("current location") || normalized.startsWith("position actuelle");
 }
 
 function label(labels, key, fallback) {
@@ -380,7 +404,6 @@ function attachLocationSearch() {
             lang: formData.get("lang"),
             latitude: String(position.coords.latitude),
             longitude: String(position.coords.longitude),
-            q: currentLocationPrefix,
           });
           if (window.htmx) window.htmx.process(results);
           attachMapFocusCards();
@@ -427,10 +450,7 @@ function attachSearchRouting() {
   if (!searchForm || !input || !locationButton || searchForm.dataset.routingBound === "1") return;
   searchForm.dataset.routingBound = "1";
 
-  const isCurrentLocationValue = () => {
-    const value = input.value.toLowerCase();
-    return value.startsWith("current location") || value.startsWith("position actuelle");
-  };
+  const isCurrentLocationValue = () => isCurrentLocationText(input.value);
 
   searchForm.addEventListener("htmx:beforeRequest", () => {
     window.pendingMapFocus = null;
@@ -1444,6 +1464,7 @@ customElements.define("outage-map", OutageMap);
 
 document.addEventListener("DOMContentLoaded", () => {
   registerServiceWorker();
+  reloadOnHistoryNavigation();
   syncLanguageForm();
   attachAddressAutocomplete();
   attachLocationSearch();

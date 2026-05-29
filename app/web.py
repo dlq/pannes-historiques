@@ -85,10 +85,18 @@ def create_app(settings: Settings | None = None) -> Flask:
     def index():
         lang = choose_language(request.args.get("lang"))
         query = request.args.get("q", "")
+        latitude = parse_optional_float(request.args.get("lat"))
+        longitude = parse_optional_float(request.args.get("lon"))
+        accuracy_m = parse_optional_float(request.args.get("accuracy_m"))
         radius_m = FIXED_RADIUS_M
         days = FIXED_DAYS
         include_planned = FIXED_INCLUDE_PLANNED
+        default_map = None
         search_context = None
+        initial_query = query
+        initial_latitude = ""
+        initial_longitude = ""
+        initial_accuracy_m = ""
 
         if query:
             with current_timer().step("index.search"):
@@ -102,6 +110,24 @@ def create_app(settings: Settings | None = None) -> Flask:
                 )
             with current_timer().step("index.result_context"):
                 search_context = result_context(lang, result)
+        elif latitude is not None and longitude is not None:
+            with current_timer().step("index.search_location"):
+                result = service.search_location(
+                    latitude=latitude,
+                    longitude=longitude,
+                    accuracy_m=accuracy_m,
+                    language=lang,
+                    radius_m=radius_m,
+                    days=days,
+                    include_planned=include_planned,
+                    include_map_layers=True,
+                )
+            with current_timer().step("index.result_context"):
+                search_context = result_context(lang, result)
+            initial_query = f"{t(lang, 'current_location')} ({latitude:.5f}, {longitude:.5f})"
+            initial_latitude = str(latitude)
+            initial_longitude = str(longitude)
+            initial_accuracy_m = "" if accuracy_m is None else str(accuracy_m)
         else:
             with current_timer().step("index.default_map_layers"):
                 default_map = default_map_payload(
@@ -115,12 +141,12 @@ def create_app(settings: Settings | None = None) -> Flask:
         with current_timer().step("index.render_template"):
             return render_template(
                 "index.html",
-                days=days,
-                include_planned=include_planned,
-                initial_query=query,
+                initial_accuracy_m=initial_accuracy_m,
+                initial_latitude=initial_latitude,
+                initial_longitude=initial_longitude,
+                initial_query=initial_query,
                 lang=lang,
-                default_map_payload=default_map if not query else None,
-                radius_m=radius_m,
+                default_map_payload=default_map,
                 result_context=search_context,
                 settings=settings,
             )
@@ -382,6 +408,15 @@ def create_app(settings: Settings | None = None) -> Flask:
         return send_file(path, mimetype=content_type, as_attachment=False)
 
     return app
+
+
+def parse_optional_float(value: str | None) -> float | None:
+    if value in (None, ""):
+        return None
+    try:
+        return float(value)
+    except ValueError:
+        return None
 
 
 def serialize_payload(payload):

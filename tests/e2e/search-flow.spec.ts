@@ -102,6 +102,21 @@ test("search renders result cards and lazy-loads the map", async ({ page }) => {
   await expect(page.locator("outage-map")).toHaveAttribute("data-map");
 });
 
+test("browser history reloads canonical search URL state", async ({ page }) => {
+  await runSearch(page);
+  await expect(page).toHaveURL(/q=5220\+Rue\+Jeanne-Mance|q=5220%20Rue%20Jeanne-Mance/);
+
+  await page.goBack();
+  await expect(page).toHaveURL(/\/\?lang=en$/);
+  await expect(page.locator("#address-input")).toHaveValue("");
+  await expect(page.getByRole("heading", { name: "Current or new outages" })).toBeVisible();
+
+  await page.goForward();
+  await expect(page).toHaveURL(/q=5220\+Rue\+Jeanne-Mance|q=5220%20Rue%20Jeanne-Mance/);
+  await expect(page.locator("#address-input")).toHaveValue(query);
+  await expect(page.getByRole("heading", { name: "Current planned interruptions" })).toBeVisible();
+});
+
 test("selected result rows stay visibly linked to the map", async ({ page }) => {
   await runSearch(page);
   const firstCard = page.locator("[data-map-focus]").first();
@@ -153,6 +168,7 @@ test("language switch preserves the current query and result state", async ({ pa
 
   await page.getByRole("button", { name: "fr" }).click();
   await expect(page).toHaveURL(/lang=fr/);
+  await expect(page).not.toHaveURL(/radius_m|days|include_planned/);
   await expect(page.locator("#address-input")).toHaveValue(query);
   await expect(
     page.getByRole("heading", { name: "Pannes actuelles ou nouvelles" }),

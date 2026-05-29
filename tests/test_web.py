@@ -56,6 +56,22 @@ def test_search_route_uses_fixed_defaults(app_client):
     assert call["record_history"] is False
 
 
+def test_index_location_url_uses_coordinates(app_client):
+    response = app_client.get("/?lang=en&lat=45.5&lon=-73.56&accuracy_m=20")
+
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert "Current location (45.50000, -73.56000)" in html
+    call = app_client.application.testing_stub_service.search_location_calls[-1]
+    assert call["latitude"] == 45.5
+    assert call["longitude"] == -73.56
+    assert call["accuracy_m"] == 20
+    assert call["radius_m"] == 5000
+    assert call["days"] == 1825
+    assert call["include_planned"] is True
+    assert call["include_map_layers"] is True
+
+
 def test_search_map_route_uses_fixed_defaults(app_client):
     response = app_client.get("/search-map?q=5220%20Rue%20Jeanne-Mance&lang=en")
 

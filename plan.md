@@ -87,8 +87,12 @@ Search-state `v0.2.2` pass, 2026-05-29:
 
 - successful address searches now update the visible URL with the current language and query without requiring a full page reload
 - current-location searches now preserve deterministic latitude/longitude/accuracy state in the browser URL after permission succeeds
-- Playwright mobile coverage checks both address-search query URLs and current-location coordinate URLs
-- follow-up remains: make browser back/forward and reloadable shared current-location URLs fully canonical instead of only reflecting the latest in-page search state
+- removed obsolete user-facing `radius_m`, `days`, and `include_planned` form/query parameters while keeping fixed search scope constants server-side
+- current-location URLs use coordinate parameters directly, not a fake `q=Current location` query
+- `/` now treats `q` address searches and `lat`/`lon` coordinate searches as reloadable user-facing URL states
+- browser back/forward now reloads the canonical URL state instead of leaving stale in-page results attached to an older URL
+- Playwright mobile coverage checks address-search query URLs, current-location coordinate URLs, reloads, language switching, and browser history navigation
+- README now documents the public URL contract and keeps internal fragment/API routes separate from user-facing URLs
 
 - `v0.2.3`: improve map/context hierarchy and explanatory affordances
   - tune map-layer visual hierarchy so searched address and relevant nearby current/planned outages dominate, while broad disclosure/regional context is quieter by default

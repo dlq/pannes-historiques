@@ -40,12 +40,9 @@
               hx-swap="innerHTML"
               hx-indicator="#search-loading">
           <input type="hidden" name="lang" value="{{ lang }}">
-          <input type="hidden" name="radius_m" value="{{ radius_m }}">
-          <input type="hidden" name="days" value="{{ days }}">
-          <input type="hidden" name="include_planned" value="1">
-          <input type="hidden" name="latitude" value="">
-          <input type="hidden" name="longitude" value="">
-          <input type="hidden" name="accuracy_m" value="">
+          <input type="hidden" name="latitude" value="{{ initial_latitude }}">
+          <input type="hidden" name="longitude" value="{{ initial_longitude }}">
+          <input type="hidden" name="accuracy_m" value="{{ initial_accuracy_m }}">
           <label class="block min-w-0">
             <span class="sr-only">{{ t(lang, "search_label") }}</span>
             <div class="relative">
@@ -114,9 +111,18 @@
             </button>
           </div>
           <input type="hidden" name="q" value="{{ initial_query }}" data-sync="q">
-          <input type="hidden" name="radius_m" value="{{ radius_m }}">
-          <input type="hidden" name="days" value="{{ days }}">
-          <input type="hidden" name="include_planned" value="1">
+          <input type="hidden"
+                 name="lat"
+                 value="{{ initial_latitude }}"
+                 data-sync="latitude">
+          <input type="hidden"
+                 name="lon"
+                 value="{{ initial_longitude }}"
+                 data-sync="longitude">
+          <input type="hidden"
+                 name="accuracy_m"
+                 value="{{ initial_accuracy_m }}"
+                 data-sync="accuracy_m">
         </form>
       </div>
     </div>
