@@ -17,6 +17,25 @@ function syncLanguageForm() {
   languageForm.querySelector('[data-sync="q"]').value = q;
 }
 
+function updateSearchUrl(params = {}) {
+  if (!window.history?.pushState) return;
+  const lang =
+    params.lang ||
+    document.querySelector('#search-form [name="lang"]')?.value ||
+    document.documentElement.lang ||
+    "fr";
+  const url = new URL(window.location.href);
+  url.search = "";
+  url.searchParams.set("lang", lang);
+  if (params.q) url.searchParams.set("q", params.q);
+  if (params.latitude && params.longitude) {
+    url.searchParams.set("lat", params.latitude);
+    url.searchParams.set("lon", params.longitude);
+  }
+  if (params.accuracy) url.searchParams.set("accuracy_m", params.accuracy);
+  window.history.pushState({ pannesSearch: true }, "", url);
+}
+
 function label(labels, key, fallback) {
   return labels?.[key] || fallback;
 }
@@ -354,6 +373,15 @@ function attachLocationSearch() {
           if (!response.ok) throw new Error(`HTTP ${response.status}`);
           const html = await response.text();
           applyResultsHtml(html, results);
+          updateSearchUrl({
+            accuracy: Number.isFinite(position.coords.accuracy)
+              ? String(position.coords.accuracy)
+              : "",
+            lang: formData.get("lang"),
+            latitude: String(position.coords.latitude),
+            longitude: String(position.coords.longitude),
+            q: currentLocationPrefix,
+          });
           if (window.htmx) window.htmx.process(results);
           attachMapFocusCards();
           if (input) {
@@ -409,12 +437,16 @@ function attachSearchRouting() {
     showSearchLoading(true);
   });
 
-  for (const eventName of [
-    "htmx:afterRequest",
-    "htmx:responseError",
-    "htmx:sendError",
-    "htmx:timeout",
-  ]) {
+  searchForm.addEventListener("htmx:afterRequest", (event) => {
+    showSearchLoading(false);
+    if (!event.detail.successful || isCurrentLocationValue()) return;
+    updateSearchUrl({
+      lang: searchForm.querySelector('[name="lang"]')?.value || document.documentElement.lang,
+      q: input.value.trim(),
+    });
+  });
+
+  for (const eventName of ["htmx:responseError", "htmx:sendError", "htmx:timeout"]) {
     searchForm.addEventListener(eventName, () => {
       showSearchLoading(false);
     });

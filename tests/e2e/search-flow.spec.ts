@@ -92,6 +92,8 @@ test("app exposes installable web app metadata", async ({ page, request }) => {
 test("search renders result cards and lazy-loads the map", async ({ page }) => {
   await runSearch(page);
   await expect(page.getByRole("heading", { name: "Current or new outages" })).toBeVisible();
+  await expect(page).toHaveURL(/lang=en/);
+  await expect(page).toHaveURL(/q=5220\+Rue\+Jeanne-Mance|q=5220%20Rue%20Jeanne-Mance/);
   await expect(page.getByRole("heading", { name: "Current planned interruptions" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Previously seen outages" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Disclosure" })).toBeVisible();

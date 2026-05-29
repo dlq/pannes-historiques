@@ -83,6 +83,13 @@ Basic `v0.2.2` PWA/installability pass, 2026-05-29:
 - tightened mobile standalone/safe-area behaviour by preserving a visible map band above the expanded drawer and moving Leaflet bottom controls above the drawer
 - deliberately did not add push notifications or notification permission prompts; those remain a later saved-watch-area product design item
 
+Search-state `v0.2.2` pass, 2026-05-29:
+
+- successful address searches now update the visible URL with the current language and query without requiring a full page reload
+- current-location searches now preserve deterministic latitude/longitude/accuracy state in the browser URL after permission succeeds
+- Playwright mobile coverage checks both address-search query URLs and current-location coordinate URLs
+- follow-up remains: make browser back/forward and reloadable shared current-location URLs fully canonical instead of only reflecting the latest in-page search state
+
 - `v0.2.3`: improve map/context hierarchy and explanatory affordances
   - tune map-layer visual hierarchy so searched address and relevant nearby current/planned outages dominate, while broad disclosure/regional context is quieter by default
   - define a clearer current/previous/disclosure layer control or legend pattern that does not clutter the primary map surface

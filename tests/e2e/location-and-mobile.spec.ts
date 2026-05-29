@@ -15,6 +15,8 @@ test("current location search renders deterministic results", async ({ page }) =
   await expect(
     page.getByRole("heading", { name: "Current or new outages" }),
   ).toBeVisible();
+  await expect(page).toHaveURL(/lat=45\.5186/);
+  await expect(page).toHaveURL(/lon=-73\.6027/);
   await expect(page.locator("#address-input")).toHaveValue(/Current location/);
   await expect(page.locator("outage-map")).toBeVisible();
   await expect(locationButton.locator("svg")).toHaveCount(1);
