@@ -3,1343 +3,160 @@
 Date: 2026-04-25
 Last updated: 2026-05-29
 
-## Release roadmap
-
-The near-term release lines should be split this way:
-
-- `0.1.x`: stabilize the current product shape
-  - `v0.1.3`: formal test suite baseline with `pytest`, deterministic service/geocoding tests, and route smoke coverage
-  - `v0.1.4`: combined hardening sprint covering browser-regression setup for the current UI, geocoder hardening, operational cleanup, docs/env cleanup, verified status-code decoding, and small UI consistency fixes
-- `0.2.x`: map-first UI and interaction redesign
-  - `v0.2.0`: map-first responsive shell for desktop and mobile
-  - `v0.2.1`: result/detail interaction refinement and selected-state behavior
-  - `v0.2.2`: mobile installability, search entry, current-location, history/back-forward, and lightweight region-entry improvements
-  - `v0.2.3`: accessibility and usability hardening for the new UI
-- `0.3.x`: architecture and product expansion
-  - move more production reads off container SQLite/static assets toward D1-backed paths
-  - broaden province/region analytics and `Bilan par région`-style views
-  - expand disclosure ingestion, geometry enrichment, and geocoder-provider options
-  - explore opt-in web notifications after PWA installability, based on saved watch areas rather than requiring a literal home address
-  - revisit UI information density, map-layer colours, panel layout, and section/list hierarchy after the 0.2.x map-first interface has had real use
-  - design an About/colophon surface and a more intentional legend/help pattern for map layer meaning, source caveats, freshness, and attribution
-
-Current focus:
-
-- `v0.2.2` is complete on `main`: the map-first shell is now installable/pinnable as a basic PWA, user-facing search URLs are clean and reloadable, mobile result/detail sheets are more usable, and the frontend map code has been split enough to support the next map-hierarchy pass
-- `v0.2.3` is next: focus on map/context hierarchy, explanatory affordances, accessibility/usability hardening, regression coverage, and payload/performance hardening rather than first implementation
-- `v0.1.3` and `v0.1.4` are complete stabilization releases; they established the automated Python/browser baseline, Nominatim hardening, operational/docs cleanup, verified status-code decoding, and small UI consistency fixes
-- Playwright baseline is implemented in the repo with a deterministic fixture server, Chromium + mobile-Chromium projects, and regression coverage for:
-  - initial English/French render
-  - search result rendering plus lazy map load
-  - clicking a result before the lazy map finishes loading
-  - current-location search
-  - language-switch state preservation
-- Nominatim hardening is now implemented with Quebec-specific shorthand expansion, stronger civic-address ranking, clearer underspecified-address failure copy, and focused tests
-- keep avoiding speculative Hydro-Quebec one-letter status-code decoding unless meanings can be verified from source evidence
-
-Testing follow-up by release line:
-
-- `0.1.x`: establish the baseline with deterministic unit tests and route smoke coverage
-- `0.2.x`: expand Playwright coverage for mobile sheet behavior, keyboard/focus behavior, back-forward state, language-switch flows, and current-location flows as the map-first UI is implemented
-- `0.3.x`: expand into architecture and data-pipeline coverage for D1/R2-backed reads, ingestion/export/mirroring paths, broader disclosure parser fixtures, and performance-sensitive integration cases
-
-## 0.2.0 planning: map-first responsive interface
-
-Implementation checkpoint, 2026-05-19:
-
-- the map-first UI is now live in production, with desktop side-panel and narrow-view bottom-sheet layouts
-- production current outages, planned interruptions, and previous-outage context now use D1-backed Worker runtime map-layer endpoints when `DURABLE_RUNTIME_URL` is configured:
-  - `/api/durable/runtime/operational-map-layers?include_planned=1`
-  - `/api/durable/runtime/previous-map-layers?limit=36`
-- those runtime map-layer endpoints attach Hydro polygon geometry from D1 `hydro_polygon_geometries`; the Flask/container path now uses them before falling back to the older durable hydro endpoint or local SQLite
-- deployed verification on `pannes.ca` showed the default French page returning map data with current/planned and previous-outage layer geometry present, not only centroid markers
-- the production container still renders the Flask/Jinja shell; D1/R2 are the durable data plane for current feed rows, previous rows, raw archives, and now runtime map-context layers
-- rollout can briefly expose an inactive-container 500 while a new container starts; deployment checks should include a `/healthz` prime plus a full page/map-payload verification after the container reports running
-
-0.2.x work is grouped into manageable release slices:
-
-- `v0.2.1` complete: make search results feel like a focused local answer
-  - improve row hierarchy so recency, status, customer count, and local relevance are easier to scan
-  - strengthen selected/hover/focus states linking panel rows to map features and map features back to rows
-  - avoid redundant aggregate summary cards until the local-vs-context count model is clearer; keep counts on the relevant sections instead
-  - include basic French/status polish where touched, especially accented labels and less prominent handling for unknown raw source statuses such as `N`
-  - add focused browser regression coverage for row-to-map selected-state behavior on desktop and mobile
-- `v0.2.2` complete: improve mobile sheet and search ergonomics
-  - make pannes.ca behave like an installable/pinnable web app on iOS and Android, so users can add it to their home screen and run it as a standalone map app
-  - add and verify web-app manifest metadata, app icons, theme/background colors, viewport-fit/safe-area handling, Apple touch icon metadata, and appropriate display mode
-  - test installed/pinned behavior on iOS Safari and Android Chrome, including launch URL, language/query state, current-location permissions, standalone header/safe-area layout, and offline/error fallback
-  - refine narrow-view expanded sheet behavior so all four context sections remain discoverable without covering almost the whole map
-  - preserve a meaningful map band in expanded states, or add a sticky section switcher / compact section-summary state before full list browsing
-  - reserve safe areas for Leaflet controls and attribution across collapsed, mid, and expanded drawer states
-  - compact the mobile header while keeping address search, current-location, and language switching obvious
-  - revisit URL patterns and query-state design for every supported entry point: no-query homepage, address searches, current-location searches, language switching, selected map features, shared links, browser back/forward, durable API/debug endpoints, and future region-focused views
-  - expand browser coverage for mobile sheet behavior, search entry, current-location, history/back-forward, and language-switch flows
-
-Basic `v0.2.2` PWA/installability pass, 2026-05-29:
-
-- added web-app manifest metadata, theme/app/mobile-web-app meta tags, SVG app icons, and root-scoped service-worker registration
-- added a conservative service worker that caches static app assets and serves a small offline fallback for failed navigation requests
-- added Python and Playwright coverage for manifest metadata, service-worker scope, and mobile Chromium regressions
-- tightened mobile standalone/safe-area behaviour by preserving a visible map band above the expanded drawer and moving Leaflet bottom controls above the drawer
-- deliberately did not add push notifications or notification permission prompts; those remain a later saved-watch-area product design item
-
-Search-state `v0.2.2` pass, 2026-05-29:
-
-- successful address searches now update the visible URL with the current language and query without requiring a full page reload
-- current-location searches now preserve deterministic latitude/longitude/accuracy state in the browser URL after permission succeeds
-- removed obsolete user-facing `radius_m`, `days`, and `include_planned` form/query parameters while keeping fixed search scope constants server-side
-- current-location URLs use coordinate parameters directly, not a fake `q=Current location` query
-- `/` now treats `q` address searches and `lat`/`lon` coordinate searches as reloadable user-facing URL states
-- browser back/forward now reloads the canonical URL state instead of leaving stale in-page results attached to an older URL
-- Playwright mobile coverage checks address-search query URLs, current-location coordinate URLs, reloads, language switching, and browser history navigation
-- README now documents the public URL contract and keeps internal fragment/API routes separate from user-facing URLs
-
-Mobile sheet `v0.2.2` pass, 2026-05-29:
-
-- removed the compact mobile section switcher after review because it duplicated the visible vertical sections and made horizontal scroll discoverability worse
-- changed expanded mobile result panels from four equal-height cramped panes to a scrollable vertical section layout with sticky section summaries
-- changed clicked item details on mobile into a bottom overlay sheet layered above the existing results sheet
-- kept the drag/tap drawer height clamp so expanded states still preserve a visible map band
-- added mobile Playwright coverage for drawer resizing and the detail-sheet overlay placement
-
-Frontend structure `v0.2.2` pass, 2026-05-29:
-
-- split shared UI formatting helpers out of `app/static/app.js` into `app/static/ui-format.js`
-- split map pane, color, opacity, and geometry/marker style helpers into `app/static/map-layers.js`
-- deduplicated Leaflet Polygon/MultiPolygon rendering so the next map hierarchy pass can tune styles in one place
-- updated service-worker and static-version handling so new ES modules are part of the app shell/cache story
-
-- `v0.2.3`: improve map/context hierarchy and explanatory affordances
-  - tune map-layer visual hierarchy so searched address and relevant nearby current/planned outages dominate, while broad disclosure/regional context is quieter by default
-  - define a clearer current/previous/disclosure layer control or legend pattern that does not clutter the primary map surface
-  - give the desktop side panel either more room, stronger compaction, or a clear collapse/minimize affordance
-  - revisit real-user Core Web Vitals, especially Cloudflare Observatory LCP findings, before tagging; separate image optimization, container/TTFB, initial HTML size, lazy map payload, and client rendering causes
-  - add browser regression coverage for production-shaped map context: current outage, planned interruption, previous outage, disclosure, regional layer, desktop panel, and mobile bottom sheet
-- `0.3.x` candidates from the same audit:
-  - reduce initial and lazy map payload size by moving more geometry behind explicit on-demand endpoints or simplified/R2-backed assets
-  - continue moving startup and runtime map reads off the container hot path where Worker + D1 can answer directly
-  - replace the Tailwind CDN path with a production build pipeline as part of broader frontend/tooling cleanup
-  - design opt-in web push notifications after the app is installable:
-    - let users save one or more watch areas with a geocoded point, display label, radius, and notification preferences
-    - frame the UX as "saved places" or "watch this area" rather than requiring a home address
-    - compare new/current D1 outage and planned-interruption rows against saved areas from a Worker-side scheduled job
-    - require clear unsubscribe/delete flows and privacy language before requesting notification permission
-    - do not request notification permission in `0.2.x`; use PWA installability and local query/location state as groundwork only
-
-Live design review findings, 2026-05-20:
-
-- Highest priority: improve the searched-place relevance layer without duplicating the section counts. After an address search, the panel should make local relevance obvious through row ordering, selected/focus states, and clearer labels; aggregate count summaries should wait until local-vs-context semantics are unambiguous.
-- Rework mobile expanded-sheet behavior. The current expanded state makes all four sections discoverable, but it covers most of the map. Preserve a meaningful map band and consider a sticky section switcher or four compact summary rows, with full list browsing after the user chooses a section.
-- Tune map-layer hierarchy. The searched address and most relevant nearby outage geometries should dominate; broad disclosure/regional context should be lower contrast, de-emphasized by default, or moved behind a layer control.
-- Polish French production copy. Restore accents in user-facing labels such as `Début`, `Interruptions planifiées actuelles`, `Pannes déjà vues`, and `Hydro-Québec`; avoid showing unexplained raw `N` statuses as primary row content.
-- Improve row hierarchy and interaction states. Rows are dense but visually even; make recency/status/count easier to scan, reduce overemphasis on low-impact badges, and strengthen hover/focus/selected states that link list rows to map features.
-- Give the desktop side panel either more room or stronger compaction. The current 336 px panel works, but four stacked sections feel cramped and there is no clear collapse/minimize affordance.
-- Reserve safe areas for Leaflet controls and attribution across drawer states. On mobile, zoom and attribution can crowd the bottom sheet; their placement should adapt to collapsed, mid, and expanded states.
-- Compact the mobile header. The title/language/search stack takes about 100 px before the map begins; reduce chrome where possible while keeping search and language switching obvious.
-- Replace the Tailwind CDN path in production. The live console warns that `cdn.tailwindcss.com` should not be used in production; this is production hygiene and performance debt rather than immediate visual breakage.
-
-Basic `v0.2.1` usability pass, 2026-05-24:
-
-- removed the compact searched-place summary after review because it duplicated section counts and implied broader map-context rows were all within the search radius
-- made selected result rows visibly persistent after row clicks, keyboard activation, or map-feature selection
-- fixed the map-context result stack so open sections do not overlap in the side panel
-- added browser regression coverage for selected-row state in desktop and mobile Chromium
-
-The next substantial product/design direction should revisit the page structure around a map-first interaction model, closer to `maps.google.com` or `maps.apple.com` than the current document-flow dashboard.
-
-The primary reason for this UI change is that pannes.ca does not currently feel good enough on mobile. The current mobile layout works, but it is not pleasant enough on a phone. The page still feels like a desktop report compressed into a narrow viewport, and the user has to scroll through cards while the map is only one section among many. For 0.2.0, treat the map as the persistent spatial surface and put search/results/context into overlays.
-
-Primary design goal:
-
-- make the map fill the browser viewport and remain visually present throughout the interaction
-- make the app installable/pinnable from iOS Safari and Android Chrome, with standalone-mode layout behaving like an intentional mobile map app rather than a browser page
-- keep address/current-location search prominent without forcing the user through a long document page
-- show outage information in an overlay that can collapse, expand, and move out of the way
-- make desktop and mobile feel like intentional variants of the same map-first app, not separate layouts patched with breakpoints
-- perform a full UI audit across CSS/Tailwind classes, JavaScript interaction code, and Jinja templates so the redesign is based on a coherent interface model rather than incremental page tweaks
-
-Reference-product direction:
-
-- bias toward Transit app plus Apple Maps rather than a sprawling Google Maps clone:
-  - Transit-like: immediate local context, map always present, nearby/currently relevant information without forcing the user through filters first
-  - Apple Maps-like: calm visual hierarchy, restrained panels, search as an overlay, and native-feeling focused detail views
-  - Google Maps-like: persistent spatial canvas, strong selected-state behavior, and search/results/details layered over the map
-  - Citymapper-like: dense but readable cards, clear status/recency information, and a "what should I do now?" bias
-- use Waze as a reference only for incident semantics such as recency, reported-nearby language, and confidence/status treatment; avoid its playful visual language
-- use Zillow/Redfin/Airbnb map-search patterns for map/list synchronization, selected marker/card behavior, and mobile bottom-sheet browsing
-- use weather/radar apps as references for layer toggles, legends, feed freshness, and current-vs-historical overlay clarity
-- treat PowerOutage.us and traditional utility outage maps as domain comparables for useful density, regional status summaries, legends, and outage-count conventions; do not copy their weaker mobile-first posture or drift into a GIS-dashboard feel
-
-Desktop layout direction:
-
-- full-viewport Leaflet map as the base layer
-- search overlay near the top, likely centred or top-left depending on final visual balance
-- result/detail panel as a left-side overlay with a controlled width
-- map context/detail panel can either live in the same left overlay as a selected-state view or appear as a secondary panel only when needed
-- keep the overlay visually congruent with the Hydro-Québec/Québec.ca-inspired style: restrained, clear, squared, and not glassy or decorative
-- provide clear panel states:
-  - no search yet
-  - searching/loading
-  - current/new outages
-  - planned interruptions
-  - previous outages
-  - selected map feature context
-  - error/outside-Quebec/geocode failure
-
-Mobile layout direction:
-
-- full-viewport map underneath everything
-- search overlay at the bottom by default, because it is easier to reach one-handed
-- results overlay as a bottom sheet that can be dragged or snapped between states
-- likely bottom-sheet states:
-  - collapsed: compact search bar and current query summary
-  - mid: first few result cards plus tabs or section controls
-  - expanded: full result list/detail context
-- when a result card is tapped, recenter/zoom the map and keep the sheet at a useful mid-height rather than covering the selected map area completely
-- when a map feature is tapped, show concise context in the sheet and allow the user to expand for details
-- use touch-friendly controls and enough vertical spacing without letting cards become huge
-- avoid horizontal scrolling in the sheet unless the user is viewing an explicitly tabular/detail page
-
-Information architecture questions for 0.2.0:
-
-- decide whether current outages, planned interruptions, previous outages, and disclosure/context are sections in one sheet or tabs/segmented controls inside the overlay
-- decide whether the DAI/disclosure detailed row list stays out of the map-first page and opens as a separate detail page
-- decide whether the region/current-status dashboard belongs in the same map-first shell or remains a separate page
-- decide how much current-query state should be visible while the sheet is collapsed
-- decide whether desktop uses one combined side panel or separate search and results panels
-
-Technical planning:
-
-- preserve the lazy-loading architecture because it materially improves perceived speed
-- avoid embedding large map payloads in the first HTML response
-- keep result cards usable before the lazy map payload has fully loaded; queued map focus behaviour must remain covered by regression tests
-- keep Flask, Jinja, HTMX, Leaflet, and small vanilla JS/Web Components for the first redesign pass; do not introduce React or another large client framework unless the shell state becomes unmanageable
-- restructure the current page into a map app shell:
-  - `index.html` owns the viewport shell, search placement, and panel/sheet containers
-  - Jinja partials continue to own result/detail content where server rendering is simpler
-  - JavaScript owns map state, panel/sheet state, selected item state, and cached boot state
-  - named CSS classes should own repeated shell, panel, sheet, and state styling; Tailwind utility strings can remain for local/simple styling
-- define explicit client states such as idle, searching, results, selected current outage, selected planned interruption, selected previous outage, selected disclosure/region, and error
-- consider introducing a small client-side shell component for overlay state, but keep server-rendered result fragments and HTMX where they remain simpler
-- design the map shell so it can work with:
-  - initial no-query page
-  - address search
-  - current-location search
-  - language switch
-  - browser back/forward
-  - shared URL with query parameters
-- design the installed/pinned app shell as a first-class state:
-  - provide a manifest, app icons, theme color, background color, Apple touch icon, and standalone-capable mobile metadata
-  - respect notches, rounded corners, browser chrome differences, and `display-mode: standalone` safe-area constraints
-  - preserve useful launch state without surprising users: last query/current location may be restored locally, but shared URLs and explicit query parameters must win
-  - provide a graceful offline or network-error surface instead of a blank map when launched without connectivity
-- audit and rationalize the app's URL/query patterns so user-facing routes, HTMX/fragment routes, map JSON routes, durable Worker endpoints, debug endpoints, and future region/map links have clear ownership, stable parameters, canonical share URLs, and predictable cache behavior
-- keep accessibility in scope:
-  - bottom sheet must be keyboard reachable and screen-reader understandable
-  - focus should move predictably after search and after selecting a card/map feature
-  - drag-only behaviour must have button/keyboard equivalents
-  - map-only interactions need list equivalents
-- test on real iPhone Safari as part of 0.2.0 acceptance, not only desktop responsive emulation
-
-Startup and performance strategy:
-
-- design startup around a stale-first, refresh-in-background model so the app feels fast even when the cheap container/VM path is slow
-- on first paint, load a minimal shell and immediately render the previous useful local state from browser storage when available:
-  - last query or current-location coordinates
-  - last geocode/display address
-  - last map center/zoom
-  - last selected item
-  - last result summary/cards
-  - last map payload without large deferred geometry
-  - payload schema version, feed/source version, and timestamp
-- clearly label cached state with age and refresh status, for example "shown from last visit", "updated N minutes ago", and "refreshing current outages"
-- refresh volatile data asynchronously after shell paint; current outages and planned interruptions should update before slower historical/context layers
-- split data by volatility:
-  - static/slow: DAI areas, regional metrics, historical disclosure context
-  - medium: previous outage history near an address
-  - fast/current: current outages and planned interruptions
-  - user-local: last query, viewport, selected item, and panel state
-- prefer long-lived cache headers/ETags for static context geometry and short TTL caching for current nearby/status endpoints
-- avoid waking the container for startup paths that Cloudflare Worker, D1, R2, or static assets can serve directly
-- consider lightweight JSON endpoints for boot/status/current overlays if the existing fragment endpoints are too heavy for startup
-
-Risks and constraints:
-
-- Leaflet controls, attribution, popups, and custom overlays can collide on small screens if we do not reserve space deliberately
-- bottom-sheet gestures can fight with page scrolling if implemented casually
-- map-first UI may make long historical/disclosure context harder to read; detailed historical tables may need separate pages
-- mobile browser viewport units are tricky because iOS Safari chrome expands/collapses; use modern viewport units and test carefully
-- installed/pinned iOS and Android display modes have different viewport, safe-area, status-bar, and reload behaviors; test them separately from normal mobile browser tabs
-- the current Tailwind-CDN/server-rendered structure can support an overlay redesign, but the CSS and template organization may need cleanup before large UI work
-- stale-first startup can confuse users if source freshness is not visible; every cached/current layer needs clear age and refresh language
-- local browser cache needs a schema version and conservative invalidation so stale payloads do not break the shell after template/JS changes
-
-Acceptance target for 0.2.0:
-
-- on mobile, a user can search by address or current location, see the map immediately, tap/swipe through result cards in a bottom sheet, and recenter the map without losing context
-- when pinned to the iOS or Android home screen, the app launches cleanly in standalone mode with correct icon/title/theme styling, no clipped controls, and usable search/map/panel behavior
-- on desktop, a user can search, compare result categories, and inspect map context without the page feeling like a long scroll report
-- perceived first result time remains fast: cards/search feedback should render before heavy map/context geometry
-- returning users see their last useful location/results immediately while current outage overlays refresh in the background
-- the interface remains clearly a pannes.ca prototype, while still feeling congruent with Hydro-Québec and Québec.ca visual language
-
-## Implementation status as of 2026-05-07
-
-Several early phases are now implemented in the prototype:
-
-- live Hydro-Québec snapshot collection and local raw archival
-- normalized parsing of live outage, planned interruption, and KML/KMZ geometry feeds
-- direct search with geocoding, radius matching, confidence labels, and current-location support
-- bilingual server-rendered UI with HTMX and Leaflet
-- result cards are rendered separately from lazy-loaded map overlays
-- disclosure source tables and a manifest of known DAI outage extracts
-- XLSX ingestion for `DAI-2022-0386`
-- PDF table extraction for supported row-level DAI files:
-  - `DAI-2025-0275` Outremont
-  - `DAI-2026-0042` Sheenboro, Chichester, L'Isle-aux-Allumettes-Partie-Est, and Waltham
-  - `DAI-2025-0333` Saint-Felix-de-Kingsey
-- DAI area geometry loading from OSM/Nominatim/Overpass, with conservative fallback areas where needed
-- static simplified geometry assets for regional metrics and DAI/disclosure map context
-- map layering where broad DAI context areas render behind smaller live/API outage and planned-interruption layers
-- centroid markers for previous-outage matches that do not have polygon geometry
-- the main search interface has been simplified around fixed defaults: 5 km radius, 5-year window, and planned interruptions included
-- Cloudflare Workers + Containers deployment at `pannes.ca`
-- D1/R2-backed durable production ingestion for current feed rows, previous-outage rows, disclosure metadata, and raw payload archives
-
-Deferred to a later About page:
-
-- source-scope explanation
-- quality and limit caveats
-- cache freshness and archive coverage details
-- methodology notes and explanatory summary material
-- map-layer legend/help content that explains current outages, planned interruptions, previous outages, disclosure/DAI context, and regional burden without relying on a persistent floating legend
-
-Map follow-up:
-
-- continue refining the lazy map payload and browser rendering cost
-- keep polygon-backed live/API layers visually distinct from centroid-only previous-outage markers
-- decide whether map context should move further from container SQLite/static assets to D1/R2-backed endpoints
-- add a pannes.ca equivalent of Hydro-Québec's `Bilan par région`: a province-wide current-status view with total affected addresses/customers, active interruption count, region-level rows, sorting/search, and links into region-focused map/search views
-- improve on Hydro's regional view by adding pannes.ca-specific context where available: latest source version/freshness, nearby historical observations, disclosure coverage, and clear caveats about current-vs-historical completeness
-
-Source-code follow-up:
-
-- decode Hydro-Quebec one-letter outage and planned-interruption status codes such as `N`, `R`, `L`, and `A`
-- until meanings are verified from source documentation or source payload context, avoid guessing in the UI
-- decide whether to show decoded labels inline or keep raw source codes behind a small tooltip/popover
-
-Deployment checkpoint:
-
-- `pannes.ca` is registered in Cloudflare and served by a Cloudflare Workers + Containers deployment
-- keep the container definition in the GitHub repository: `Dockerfile`, `.dockerignore`, `wrangler.jsonc`, `src/worker.js`, `scripts/start.sh`, app code, and lockfiles
-- do not commit built container images; images should be built and pushed by Wrangler or future CI/CD
-- add a separate local-only Docker image for the SQLite-backed Flask app, likely `Dockerfile.local`, before publishing containers to GitHub Container Registry
-  - use a public Python base image rather than a Cloudflare registry base
-  - default to local behavior such as `AUTO_REFRESH_ON_SEARCH=1`
-  - mount `./data` as a persistent volume so local SQLite and raw archives survive container restarts
-  - document whether the image starts with an empty database, a small sample database, or a dated public snapshot
-  - keep this separate from the Cloudflare Containers production image and release it intentionally when it is a reproducible local distribution artifact
-- current deploy command is `npx wrangler deploy`
-- short-term deployment should remain manual from the local workspace until the container deploy path has had a few clean releases
-- medium-term deployment can move to Cloudflare Workers Builds connected to GitHub, using the same `npx wrangler deploy` command on push
-- keep using `uv` for Python dependency management and checks; use `npm` for Wrangler, Biome, and Cloudflare deployment tooling
-- follow up on TLS/certificate status for `pannes.ca` and `www.pannes.ca`; confirm Cloudflare has issued/activated the certificate and browsers no longer show certificate/security warnings
-- enable Cloudflare Web Analytics/RUM for `pannes.ca` so visitor reporting can use privacy-preserving browser metrics instead of only coarse zone analytics such as daily unique IPs, pageviews, and request counts
-- the current production container still bundles a baked-in SQLite snapshot for local-compatible Flask code paths, but production is being migrated so user-facing runtime reads/writes go through Worker D1/R2 endpoints when durable URLs are configured
-- production writes inside the container are ephemeral, so durable feed ingestion now uses D1 for normalized rows and R2 for raw payloads
-- D1/R2 are now part of the production architecture, and production search uses narrow Worker/D1 endpoints for current nearby matches and accumulated previous-outage nearby matches
-- D1 research checkpoint as of 2026-05-04:
-  - D1 looks cost-effective for normalized relational app data on the current Workers Paid plan
-  - the current database is dominated by large geometry rows, so a full SQLite-to-D1 copy is probably not the right first migration
-  - prefer a future hybrid prototype: D1 for indexed metadata/events/cache, R2 for raw snapshots and bulky GeoJSON/KML-derived payloads
-  - the current Python container cannot use D1 like a local SQLite file; a Worker binding/API boundary should be proven before moving the main search path
-  - keep baked SQLite short term while measuring production latency and deploy reliability
-- durable ingestion checkpoint as of 2026-05-05:
-  - Cloudflare D1 database `pannes-historiques` is provisioned for normalized production feed state
-  - Cloudflare R2 bucket `pannes-historiques-raw` is provisioned for raw Hydro-Québec version, marker, and polygon payloads
-  - Worker cron runs every 30 minutes, offset to minutes `:07` and `:37`, for Hydro-Québec `bis` and `aip` version checks; it downloads marker and polygon payloads only when the upstream version changes
-  - first verified scheduled run at `2026-05-06T00:30Z` wrote `bis` version `20260505202016` with 91 outage records and `aip` version `20260505202016` with 212 planned-interruption records
-  - Worker cron also calls the container refresh endpoint so the current Flask/SQLite search path can see the latest feed data without doing user-request-time Hydro API refreshes in production
-  - container refresh summary serialization is fixed; verified offset cron runs at `2026-05-06T02:37Z` and `2026-05-06T03:07Z` returned `errors: []`
-  - R2 raw snapshot storage is verified by downloading a remote `bismarkers` object recorded in D1
-  - first D1-backed user-facing lookup endpoint is live at `/api/durable/nearby`; it returns current outage/planned-interruption rows near a lat/lon without entering the Flask/container SQLite search path
-  - second D1-backed user-facing lookup endpoint is live at `/api/durable/history-nearby`; it returns accumulated previous outage events from `resolved_events` near a lat/lon
-  - production Flask/container searches now opt into `/api/durable/nearby` through `DURABLE_NEARBY_URL`, while local development leaves that setting empty and continues using local SQLite plus API refresh
-  - production Flask/container searches derive and use `/api/durable/history-nearby` through `DURABLE_HISTORY_URL`; local development leaves that setting empty and continues using local SQLite plus API refresh
-  - DAI/disclosure refresh now has separate durable phases: the Worker archives raw DAI files to R2 first, then sends the archived bytes to the container for parsing, then mirrors parsed source/event/metric/geometry metadata into D1
-  - DAI/disclosure refresh is owned by the two-week disclosure cron; do not piggyback the heavy disclosure bootstrap on the 30-minute Hydro cron because it can hold the scheduled Worker open while the container downloads/parses many source files
-  - earlier direct Worker-origin Hydro feed fetches returned HTTP 406, but later scheduled runs succeeded; if 406s return, keep errors step-scoped and prefer resumable durable checkpoints over single all-or-nothing cron work
-  - production container image now installs `curl` because the disclosure downloader falls back to the `curl` binary when Python `urllib` cannot fetch Hydro disclosure attachments
-  - local development keeps `AUTO_REFRESH_ON_SEARCH` enabled by default, so local queries can still hit the Hydro API while production user searches use durable Worker/D1 endpoints where configured
-  - next migration step is to verify and deploy the production runtime-state cutover: geocode cache, addresses, query history, saved match groups, collector/coverage status, and disclosure/regional map context now have D1-backed Worker endpoints via `DURABLE_RUNTIME_URL`
-  - DAI chunking is implemented in archive/parse phases: the Worker selects due D1 sources one at a time, archives raw source files to R2, parses archived bytes through the container, and mirrors each completed source into D1/R2 within a bounded scheduled-run budget
-  - DAI batch proof completed on 2026-05-06: a temporary protected manual trigger processed `DAI-2021-0328`, archived a real PDF to R2, updated its D1 `r2_key`, and reduced due disclosure sources from 32 to 31; the temporary trigger was removed after verification
-  - per-source archival and parse attempt/defer tracking is deployed in D1: failed or slow sources are recorded, deferred for later, and no longer block other due DAI sources from making durable progress
-  - DAI R2/D1 base catch-up completed on 2026-05-07: D1 reports `archive_due_now = 0`, `parse_due_now = 0`, and `32/32` disclosure sources archived and parsed; the previously deferred `DAI-2022-0386`, `DAI-2025-0275`, and `DAI-2025-0333` are now archived in R2 and parsed into D1
-  - Hydro parser handoff now uses D1 as the production version ledger: the Worker reads `feed_versions`, asks the container only to fetch changed Hydro version/marker/polygon payload bytes, then keeps D1/R2 responsible for normalized rows, polygon geometries, and raw payload archives
-  - remaining non-base migration work stays here for later: remove container SQLite from the DAI parser handoff itself, finish search-path performance work, and reduce the container toward rendering/orchestration only
-- review deployment and query performance after the initial Cloudflare Containers launch:
-  - initial profiling on 2026-05-04 showed simple routes are fast, but address search was dominated by Python geospatial matching and oversized inline map payloads
-  - a first mitigation reduced the search response from roughly 14.4 MB to roughly 562 KB and brought a measured production HTML search down to about 6 seconds, but more optimization is still needed
-  - Cloudflare Observatory reported an LCP opportunity on 2026-05-29: resource load duration exceeded 10% of P75 LCP for much of the traffic and Cloudflare suggested Polish/image compression. Treat this as a measurement input, not an automatic fix: audit actual LCP elements, image byte sizes, cache headers, and whether Cloudflare Polish/WebP/AVIF would materially help compared with app-side payload/rendering work.
-  - next likely performance work:
-    - measure LCP from production with Cloudflare Observatory/RUM plus Lighthouse/WebPageTest-style lab runs on mobile and desktop, recording the LCP element, TTFB, resource load delay, resource load duration, and render delay
-    - inventory app-hosted images/icons/tiles involved in LCP; decide whether to enable Cloudflare Polish lossless/lossy or serve optimized local assets directly
-    - render result cards first and lazy-load map overlays after the initial search response
-    - stop embedding map JSON directly in HTML; move map data behind small JSON endpoints
-    - make the different meanings of "lazy map loading" explicit and optimize them separately:
-      - lazy map initialization: do not construct Leaflet until the map pane is visible or needed
-      - deferred data fetches: keep broad disclosure/regional geometry and older history payloads behind JSON/R2 endpoints instead of embedding them in HTML
-      - progressive layer rendering: paint current and planned outage layers first, then previous-outage and broad-context layers after first paint or user opt-in
-      - chunked client rendering: add large Leaflet layer groups in batches so 100+ historical features do not block the main thread
-    - keep `/search-map` and `/map-context-geometries` payloads small enough for mobile and slower networks
-    - continue moving remaining container SQLite reads out of the hot search path; current-feed, previous-outage nearby matching, runtime app state, status/coverage summaries, and disclosure/regional map context now have D1-backed production paths
-    - store static administrative-region and DAI/disclosure geometries outside the default SQLite search response as precomputed simplified GeoJSON assets
-    - keep using the offline GeoPandas/Shapely simplification asset build for broad regional/disclosure map context
-    - simplify broad administrative regions aggressively and topologically; simplify DAI/disclosure geometries only conservatively, because the current DAI/disclosure shapes are not one valid shared-boundary coverage and do not get the same coverage guarantee
-    - show only a compact DAI/disclosure summary in the default map context card, with a link to a separate detail page for large DAI row lists
-    - precompute and/or index geometry matches so address searches do not scan large geometry sets in Python
-    - move raw and large geometry payloads out of the hot search path, probably R2 for payloads plus D1 metadata/index tables
-    - consider a larger container instance only after reducing app-side work
-  - keep the detailed timing evidence in `research.md`
-  - latest production timings after the D1 previous-outage migration are roughly 0.44 seconds for `/`, 0.77 seconds for result-card `POST /search`, 1.12 seconds for lazy `/search-map`, and 0.30 seconds for `/map-context-geometries`
-  - next performance focus should be the lazy map payload/rendering and context assembly, not current or previous-outage nearby matching, because those now use D1
-  - lazy map payload follow-up now trims disclosure detail to recent samples and renders previous outages as centroid markers instead of embedding older outage polygons; local `/search-map` HTML dropped from roughly 912 KB to roughly 358 KB, and production `/search-map` dropped from roughly 735 KB to roughly 155 KB after deploy
-  - as of 2026-05-24, the map pane itself is not fully lazy-loaded: `outage-map` initializes Leaflet immediately and eagerly renders current, planned, and previous-outage operational layers from embedded map data; only disclosure/regional context geometry is deferred through `contextGeometryUrl`
-  - follow-up performance goal: keep the richer 120-row previous-outage history available, but load and render it progressively so the historical layer supports province-wide stability decisions without slowing the initial address-search experience
-  - add a rigorous browser regression suite before further map/search UI work:
-    - cover lazy result rendering with Playwright or equivalent browser automation, not only unit tests
-    - regression case: submit a known address, click a result card before the lazy map finishes loading, wait for `/search-map` and `/map-context-geometries`, and assert the map remains focused on the clicked outage/detail instead of recentering on the searched address
-    - regression case: click an operational outage, a planned interruption, a previous-outage row, a DAI/disclosure layer, and a regional metric layer, then assert the detail panel and map focus remain stable after deferred geometry loads and resize refreshes
-    - include both `fr` and `en` search flows, desktop and mobile viewport sizes, and a repeated-search/cache-hit path
-    - run the suite locally before release deploys that touch `app/static/app.js`, `_map_panel.html`, `_result_cards.html`, or lazy map/search endpoints
-  - regional-current-status follow-up from Hydro comparison on 2026-05-06:
-    - Hydro's `Bilan par région` is a useful product pattern for a fast "how bad is it right now?" view before address search
-    - pannes.ca should implement this from durable current-feed data rather than the hot Flask/container search path
-    - likely data work: derive or load a reliable municipality-code-to-region mapping, aggregate latest `bis` and `aip` marker rows by region, expose compact D1-backed JSON/HTML endpoints, and cache the province totals with source version/freshness metadata
-    - UI should keep direct search primary, but add a compact province/region dashboard entry point near the top of the app or as a dedicated page
-  - continue measuring cold start, first search, repeated search, and image push/deploy times
-  - compare baked-in SQLite, D1, R2-backed snapshots, and external database options before changing storage architecture
-  - research Cloudflare Containers image-layer behavior and whether local Docker Desktop push instability can be avoided with CI/Workers Builds, remote builders, or a different local container runtime
-  - previous Cloudflare deploy blocker `durable object bindings require durable object bind permission` was resolved by refreshing Wrangler authorization; keep this in mind if the error returns after account feature changes
-  - keep Docker Desktop subscription requirements in mind, but avoid a paid Docker subscription unless licensing or workflow needs clearly require it
-  - capture findings and tradeoffs in `research.md` before making a larger storage or deployment architecture change
-
-## Goal
-
-Build a web app that starts with a **specific Quebec address** and shows:
-
-- outage history for that address
-- outage history for nearby addresses / nearby outage polygons
-- a progressively improving local cache so the system gets more useful over time
-- eventually, hotspot views derived from accumulated address-area lookups and archived outage snapshots
-- a bilingual user experience where **French and English are both first-class**, with French especially important given the Quebec audience and Hydro-Québec source material
-
-This plan assumes:
-
-- we do **not** currently have a clean province-wide historical outage dataset
-- Hydro-Québec’s public outage API is real and usable for **current** outages and planned interruptions
-- Hydro-Québec may have deeper historical data internally, but we should not block on getting it
-
-## Current implementation checkpoint
-
-The project has moved beyond only researching access-to-information disclosures. It now has a working foundation for combining live API data with selected disclosed historical records.
-
-What is already in place:
-
-- live Hydro-Québec snapshot archival and normalization
-- direct search with bilingual server-rendered UI
-- archive span, freshness, and confidence framing in the results experience
-- row-level XLSX disclosure ingestion for Côte Saint-Luc
-- row-level PDF extraction for Outremont, Saint-Félix-de-Kingsey, Sheenboro, Chichester, Waltham, and L'Isle-aux-Allumettes-Partie-Est
-- disclosed-area geometry loading with conservative fallback areas when a boundary lookup is incomplete
-- a map model that can show disclosure areas as broader context while keeping smaller live/API outage and planned-interruption layers distinct
-
-Planning consequence:
-
-- the next phase is no longer "prove we can ingest disclosure files"
-- the next phase is to broaden coverage, harden extraction quality, improve event reconstruction, and explain mixed evidence clearly in the UI
-
-## Product direction
-
-The direct-search approach is a good pivot.
-
-Why it is attractive:
-
-- it narrows the scope to a query users already understand
-- it avoids pretending we already have province-wide historical completeness
-- it lets us build value immediately from partial data
-- every query can enrich our local corpus
-- it creates a credible path toward eventual hotspot maps without requiring full historical backfill on day one
-
-The core idea is:
-
-1. user searches an address
-2. app checks our local cache first
-3. app shows whatever we already know for that address and nearby area
-4. if allowed by our ingestion rules and data source constraints, the system refreshes from current Hydro-Québec data and stores the result
-5. repeated address queries plus scheduled snapshot collection gradually build a durable local historical dataset
-
-Near-term product addition:
-
-- add a regional current-status dashboard inspired by Hydro-Québec's `Bilan par région`
-- keep it complementary to address search: province and region totals answer "what is happening right now?", while address search answers "what is known near this place?"
-- use pannes.ca's differentiators in the regional view by showing feed freshness, historical observations, and disclosure/context coverage where those are reliable
-
-## Language requirement
-
-This app should be designed as **bilingual from the beginning**, not translated as an afterthought.
-
-That means:
-
-- every primary user-facing screen should exist in French and English
-- French and English copy should both be treated as product-quality, not one primary language plus a rough fallback
-- address search should tolerate French naming and Quebec civic address conventions well
-- source-derived terms from Hydro-Québec should preserve the original meaning in both languages
-
-Recommended product stance:
-
-- default language selection should be explicit and easy to switch
-- French should be treated as especially important because:
-  - the primary geography is Quebec
-  - Hydro-Québec’s source terminology is often naturally expressed in French
-  - many addresses, municipalities, and administrative labels are French-first
-
-Important implementation planning consequence:
-
-- all UI copy, labels, explanations, caveats, and methodology text must be structured for localization from day one
-- internal data models should store language-neutral codes where possible and apply language-specific labels at render time
-- geographic names may need both stored canonical names and display translations where appropriate
-
-## Recommended stack
-
-Preferred frontend stack:
-
-- `HTMX`
-- bare Web Components
-- `Tailwind CSS`
-
-This is a strong fit for the product.
-
-### Why HTMX
-
-HTMX fits well because this app is mostly:
-
-- search forms
-- filters
-- server-rendered result panels
-- partial updates for timelines, maps, nearby addresses, and cache status
-
-Benefits:
-
-- fast to build
-- minimal frontend state management
-- easy progressive enhancement
-- clear server ownership of data-fetching and rendering logic
-
-### Why Web Components
-
-Use bare Web Components only where they add clear value:
-
-- address search box with debounced suggestions
-- mini outage timeline chart
-- map shell / legend / hover details
-- reusable “cache freshness” badge
-
-Benefits:
-
-- keeps interactivity modular without committing to a SPA
-- good long-term interoperability
-- no framework lock-in
-
-### Why Tailwind CSS
-
-Tailwind is a good fit because:
-
-- the UI is mostly application chrome and data display
-- it helps keep styling consistent without a large custom CSS architecture
-- it is easy to make compact, readable dashboard-like screens
-
-### Alternatives and when they would be justified
-
-Alternatives are allowed, but should be justified.
-
-- `Alpine.js`
-  - justified if HTMX alone becomes awkward for small client-side behaviors
-  - keep it limited to UI glue, not full app state
-- `Leaflet`
-  - justified for map rendering because the app genuinely needs geospatial interaction
-  - this is a practical utility dependency, not a frontend framework change
-- `Lit`
-  - justified only if plain Web Components become too verbose
-  - not needed initially
-- `React` / `Vue` / `Svelte`
-  - not recommended initially
-  - only justified if the app evolves into a highly stateful client-heavy geospatial product with rich offline behavior or advanced collaborative annotations
-
-### Why Leaflet over Kepler.gl for this project
-
-Kepler.gl is strong, but for this app Leaflet is the better default.
-
-Why Leaflet fits better:
-
-- this product should start from a concrete place or query, not dataset-exploration-first
-- the interaction model is relatively focused:
-  - show an address
-  - show nearby outage polygons or centroids
-  - show simple overlays and hover/click details
-  - synchronize the map with server-rendered result panels
-- Leaflet is easy to integrate into an HTMX + server-rendered app without introducing a heavy client-side visualization stack
-- Leaflet gives us fine-grained control over modest, custom interactions without requiring a large client-side state model
-- it is easier to progressively enhance
-- it is easier to wrap inside a small custom Web Component
-- the ecosystem for lightweight tile layers, bilingual labels, popups, legends, and geospatial utilities is mature and well understood
-
-Why Kepler.gl is less ideal as the initial default:
-
-- Kepler.gl shines when the primary experience is exploratory visual analytics over large tabular geospatial datasets
-- it tends to pull the app toward a more client-heavy “data studio” model
-- it is heavier than we need for a first release centered on one searched address plus nearby history
-- it is less natural for server-rendered fragment updates driven by HTMX
-- it would likely encourage moving more logic into the browser earlier than we need
-
-When Kepler.gl could become justified later:
-
-- if the product evolves into a large-scale exploratory hotspot analysis tool
-- if users need advanced layer styling, brushing, animation, and dense province-wide visual analytics
-- if a future analyst-facing mode is added that is distinct from the public address-lookup experience
-
-So the recommendation is:
-
-- use Leaflet for the main product map
-- consider Kepler.gl later only for a separate analyst or exploratory mode if the data volume and interaction model genuinely justify it
-
-## Product scope
-
-### Phase 1 scope
-
-Build for one primary question:
-
-`What do we know about outage history at this address and immediately around it?`
-
-Initial outputs:
-
-- address summary card
-- nearby outage history summary
-- timeline of known outages affecting the area
-- planned interruption history if available from cached records
-- confidence / completeness note explaining what the app knows and what it does not know
-- full French and English support for all core flows
-
-### Phase 2 scope
-
-Once enough data is accumulated:
-
-- local hotspot overlays
-- municipality summaries
-- neighborhood comparisons
-- cause breakdowns
-- “worst outage days” ranking
-
-### Explicitly out of scope at first
-
-- pretending we have complete 5-year coverage
-- brownout analytics unless a data source is found
-- full province-wide map-first UX
-- overly precise claims at parcel/building level when source geometry is approximate
-
-## Data strategy
-
-There are three data acquisition tracks.
-
-### Track A: scheduled archive of current Hydro-Québec outage feeds
-
-Run a collector on a schedule and store:
-
-- `bisversion`
-- `bismarkers`
-- `bispoly`
-- `aipversion`
-- `aipmarkers`
-- `aippoly`
-
-Current production implementation:
-
-- Worker cron checks `bisversion` and `aipversion` every 30 minutes
-- the production schedule is offset to minutes `:07` and `:37` rather than exact half-hours to avoid polling while upstream files may still be rolling out
-- unchanged versions update `feed_versions.checked_at` without redownloading the larger payloads
-- changed versions are written to D1 as normalized current outage/planned-interruption rows and accumulated `resolved_events`
-- raw version, marker, and polygon payloads are written to R2 for durable provenance
-- polygon KMZ payloads are parsed by the Worker and written to D1 `hydro_polygon_geometries` with bbox/centroid metadata and GeoJSON text, while raw KMZ files remain archived in R2
-- `/api/durable/nearby?lat=...&lon=...&radius_m=...` reads current D1 marker rows by bounding box and returns nearby records sorted by distance
-- `/api/durable/history-nearby?lat=...&lon=...&radius_m=...&days=...` reads accumulated D1 `resolved_events` rows by bounding box and returns previous outage events sorted by time/distance
-- production search uses `DURABLE_NEARBY_URL` to fetch current outage/planned-interruption matches from D1; local development does not set this variable and remains on the local SQLite path
-- production search uses `DURABLE_HISTORY_URL` for previous-outage matching; local development does not set this variable and remains on the local SQLite path
-- disclosure mirror tables in D1 now store parsed source, outage event, annual metric, and geometry metadata; raw DAI files are archived in R2
-
-This gives us:
-
-- raw snapshots every 15 minutes
-- a durable, improving historical corpus
-- the foundation for future hotspot calculations
-
-### Track B: address-centric cache and enrichment
-
-Whenever a user searches an address:
-
-1. normalize the address
-2. geocode it to coordinates
-3. find any locally cached outage polygons or centroids that intersect or fall within a configurable radius
-4. store the address query and derived nearby outage relationships
-5. return cached results immediately
-
-This lets us accumulate:
-
-- repeated interest around particular areas
-- address-to-polygon associations
-- a query-driven historical dataset that is useful even before province-wide aggregation is mature
-
-### Track C: published access-to-information disclosures
-
-Hydro-Québec publishes responses to access-to-information requests, and several of those responses contain historical outage data.
-
-This should become a separate ingestion track for:
-
-- PDF tables with row-level historical outage events
-- XLSX extracts with richer row-level fields
-- regional or municipal annual aggregate metrics
-- response letters that explain scope, constraints, and legal reasoning
-
-Important examples:
-
-- `DAI-2025-0275`: Outremont outage records for roughly 24 months, with start/end/duration/cause
-- `DAI-2026-0042`: Sheenboro, Chichester, Allumettes, and Waltham row-level records
-- `DAI-2025-0333`: Saint-Félix-de-Kingsey row-level records for 2022-2024
-- `DAI-2022-0386`: Côte Saint-Luc XLSX with customer counts, type, cause, equipment, cause group, and category
-- `DAI-2024-0012`, `DAI-2024-0237`, `DAI-2025-0479`, `DAI-2026-0077`: regional annual metrics
-
-This track should not be treated as equivalent to the live Info-pannes API:
-
-- the geography is usually much larger
-- exact polygons are usually absent
-- the disclosure scope varies by request
-- the extracted records have different provenance and confidence
-
-Product framing:
-
-`These records provide historical area context, not authoritative building-level outage history.`
-
-## Key architectural decision
-
-The app should treat **raw Hydro-Québec snapshots** as the source of truth, and treat **address histories** as a derived view.
-
-That means:
-
-- do not store only “final” address answers
-- always preserve raw source payloads
-- derive address results from snapshot records plus geometry relations
-
-This will make it much easier later to:
-
-- improve matching rules
-- fix data interpretation bugs
-- rebuild hotspot aggregates
-- change radius logic
-
-## Data model direction
-
-This is a planning-level schema, not an implementation spec.
-
-### Core entities
-
-- `addresses`
-  - normalized civic address
-  - postal code
-  - coordinates
-  - geocoder confidence
-- `query_history`
-  - searched address
-  - search time
-  - normalized address id
-  - cache hit or miss
-- `raw_snapshots`
-  - source type
-  - source version
-  - fetch time
-  - raw payload location
-- `outage_records`
-  - parsed rows from outage snapshots
-  - timestamps
-  - status
-  - cause codes
-  - municipality code
-  - centroid
-- `outage_geometries`
-  - parsed polygon geometry
-  - linked snapshot/version
-- `address_outage_matches`
-  - address id
-  - outage record id
-  - match type
-  - distance or polygon containment
-  - confidence score
-- `resolved_events`
-  - deduplicated outage events spanning multiple snapshots
-
-### Disclosure entities
-
-Published access-to-information records should have their own tables.
-
-- `disclosure_sources`
-  - DAI number
-  - title
-  - source URL
-  - attachment URL
-  - format: PDF, XLSX, ZIP, or other
-  - published date if known
-  - transmitted date if known
-  - geography label
-  - geography type: address, line area, borough, municipality, region, province, storm event
-  - extraction method
-  - notes / limitations
-- `disclosure_outage_events`
-  - source id
-  - start time
-  - end time
-  - duration seconds
-  - duration hours
-  - customers affected if available
-  - interruption type if available
-  - cause
-  - equipment if available
-  - cause group if available
-  - category if available
-  - geography label
-  - geography type
-  - centroid if inferred or available
-  - geometry if a known administrative boundary is attached later
-  - precision label
-  - raw row JSON
-- `disclosure_annual_metrics`
-  - source id
-  - year
-  - period label if not a full year
-  - geography label
-  - geography type
-  - outage count
-  - average duration minutes
-  - continuity index minutes
-  - long outage count if applicable
-  - metric definitions / notes
-- `disclosure_geometries`
-  - source id
-  - geography label
-  - geography type
-  - geometry source
-  - GeoJSON outline
-  - centroid and bounding box
-  - raw boundary lookup JSON
-
-The disclosure tables should preserve source provenance clearly. A row extracted from an access-to-information PDF should remain distinguishable from a row captured from the live API.
-
-### Why we need both `outage_records` and `resolved_events`
-
-Because the Hydro-Québec feed is snapshot-based, not event-based.
-
-We should:
-
-- ingest all snapshots faithfully
-- later reconcile repeated appearances into inferred outage events
-
-That avoids locking ourselves into bad early assumptions.
-
-## Address matching strategy
-
-This is the most important planning decision after archival.
-
-The app should not claim that a polygon means a precise building-level outage boundary. Hydro-Québec says those shapes are approximate.
-
-Recommended matching logic:
-
-1. direct polygon containment
-2. if no polygon containment, use centroid-distance radius
-3. store the method used
-4. expose the confidence level in the UI
-
-Suggested proximity tiers:
-
-- `direct_match`
-  - address falls inside outage polygon
-- `nearby_match`
-  - address is outside polygon but within a small radius of centroid or polygon edge
-- `area_match`
-  - address belongs to the same municipality / local cluster but precise geometry match is weak
-
-The UI should show which kind of match produced each historical item.
-
-### Disclosure matching strategy
-
-Access-to-information disclosures should use a more cautious matching model.
-
-Recommended match classes:
-
-- `direct_api_match`
-  - address intersects a live API outage polygon or is close to a live API centroid
-- `nearby_api_match`
-  - address is near a live API record but not inside an available polygon
-- `disclosure_area_context`
-  - address falls inside the broader disclosed area, such as Outremont, Côte Saint-Luc, a municipality, or an administrative region
-- `disclosure_regional_context`
-  - address belongs to a region for which only aggregate annual metrics are known
-
-Rules:
-
-- do not present borough or regional disclosure records as if they directly affected the searched building
-- prefer wording such as "historical records for this area" over "outages at this address"
-- expose the geography type and source DAI number in result details
-- keep disclosed area context visually and textually distinct from live API matches
-
-## Geocoding and address normalization
-
-This needs careful planning because it affects cache usefulness.
-
-Requirements:
-
-- French-language Quebec civic addresses must normalize well
-- abbreviations and accent variations should resolve consistently
-- apartment/unit information should be optional and normalized separately
-
-Recommended principle:
-
-- normalize once, preserve the original string, and store both
-
-Possible geocoding sources:
-
-- Quebec government or municipal geocoders if available and suitable
-- OpenStreetMap / Nominatim-style sources for prototyping
-- a paid provider only if necessary
-
-A different geocoder would be justified only if:
-
-- Quebec address resolution quality is materially better
-- rate limits or licensing make the free option impractical
-
-## User experience plan
-
-### Primary flow
-
-1. user lands on a simple page with one prominent address search field
-2. user searches an address
-3. server returns:
-   - normalized address details
-   - known outage history for the address
-   - nearby outage history
-   - map panel
-   - confidence/completeness note
-4. user can refine:
-   - radius
-   - time range
-   - outage type
-   - planned interruptions on/off
-5. user can switch language at any point without losing the current query context
-
-### Page structure
-
-- hero search section
-- results summary
-- address timeline
-- nearby-area timeline
-- map panel
-- data quality panel
-- “what we know about this area” panel
-- persistent language switcher
-
-### Map layer model
-
-The map should support multiple layer types with clear precision labels.
-
-Recommended layers:
-
-- current outages
-  - live API polygons where available
-  - live API centroids where polygons are unavailable
-- planned interruptions
-  - live API planned interruption polygons or centroids
-- historical disclosed events
-  - borough, municipality, or sector-level rows from access-to-information disclosures
-  - rendered as lightly tinted administrative boundaries or area markers
-- regional annual metrics
-  - administrative-region choropleth
-  - used for aggregate trends, not individual outage events
-
-The legend should distinguish:
-
-- exact or approximate polygon
-- point or centroid
-- borough/municipality-level historical record
-- region-level annual aggregate
-
-Coexistence rule:
-
-- precise live API geometry can answer "was this address inside this published outage area?"
-- disclosure data can answer "what has Hydro-Québec disclosed about historical outages in this larger area?"
-
-Those are related but different claims.
-
-### Important UX principle
-
-The app should be honest about incompleteness.
-
-Each result set should communicate:
-
-- how much is from our local cache
-- whether the area has dense or sparse historical coverage
-- whether the result is direct or nearby
-- whether the app is showing outages, planned interruptions, or both
-
-## Hotspot strategy
-
-The direct-search app can still become a hotspot app later.
-
-The progression should be:
-
-1. cache address-area matches
-2. accumulate scheduled snapshots
-3. resolve repeated snapshots into events
-4. aggregate by cell / municipality / radius clusters
-5. surface hotspot views
-
-This avoids needing to requery Hydro-Québec for every hotspot computation.
-
-### Metrics to compute later
-
-- outage count
-- outage-hours
-- customer-hours interrupted
-- median restoration time
-- cause mix
-- rolling 30-day / 1-year / all-time hotspot scores
-
-## Backend shape
-
-A server-rendered app is the best initial fit.
-
-Recommended qualities:
-
-- simple HTTP server
-- server-rendered HTML fragments for HTMX swaps
-- background scheduled jobs for feed collection
-- geospatial database support
-- localization-aware rendering for French and English fragments
-
-### Database direction
-
-Prefer a relational database with geospatial capability.
-
-Best default:
-
-- PostgreSQL + PostGIS
-
-Why:
-
-- geometry intersection and distance queries matter here
-- address-to-polygon matching is much easier and safer with PostGIS
-- future hotspot aggregation becomes straightforward
-
-Alternative:
-
-- SQLite + SpatiaLite
-
-This is justified only if:
-
-- you want very low operational complexity at first
-- data volume remains modest
-- deployment is intentionally small and single-node
-
-Postgres/PostGIS is still the better long-term choice.
-
-## Caching and archival rules
-
-### Cache rules
-
-- address query results should be cached by normalized address id plus radius and time-window parameters
-- geocoding results should be cached aggressively
-- derived address history should be invalidated only when newer source snapshots materially change the relevant area
-
-### Archive rules
-
-- never discard raw source snapshots
-- version every normalized transformation
-- keep a clear provenance chain from UI output back to raw source payloads
-
-### Why this matters
-
-Because if we later discover:
-
-- Hydro-Québec changed a field interpretation
-- our matching radius was wrong
-- an outage status code was misunderstood
-
-we can rebuild derived histories without losing the original evidence
-
-## Legal and product caution
-
-The app should avoid overstating what Hydro-Québec’s data means.
-
-Important caveats to preserve in the product:
-
-- outage polygons are approximate
-- estimated restoration times are approximate
-- not every outage necessarily appears on the public map
-- building-level attribution is inferred, not authoritative
-- brownouts are not currently supported by the known public feed
-
-This language should appear in:
-
-- footer / methodology page
-- result confidence panel
-- map legend / tooltip explanations
-
-## Phased implementation plan
-
-### Phase 0: planning and validation
-
-- confirm legal/licensing assumptions for reuse
-- decide geocoder strategy
-- decide database choice
-- define the first-pass address matching rules
-- define what “nearby” means
-- define the localization strategy and bilingual content model
-
-### Phase 1: ingestion foundation
-
-- scheduled archival of Hydro-Québec outage and interruption feeds
-- raw snapshot storage
-- normalized parsing pipeline
-- geometry extraction
-- formal automated test coverage for ingestion, matching, geocoding, and rendered search flows
-
-### Phase 1B: disclosure ingestion foundation
-
-- create disclosure source tables — implemented
-- build a small manifest of known DAI outage documents — implemented
-- ingest XLSX disclosure files first — implemented for Côte Saint-Luc
-- extract row-level PDF tables where the structure is regular — implemented for Outremont, Saint-Felix-de-Kingsey, Sheenboro, Chichester, Waltham, and L'Isle-aux-Allumettes-Partie-Est
-- extract regional aggregate PDF tables separately
-- store raw source URLs, extraction method, and confidence notes — implemented
-- join disclosure records to known administrative boundaries or conservative fallback areas, and keep them visually distinct from live API polygons — implemented
-
-### Phase 2: address intelligence
-
-- address normalization
-- geocoding
-- address-to-outage matching
-- derived address history generation
-- cache completeness scoring
-
-### Phase 3: first web app
-
-- search page
-- address summary
-- known history timeline
-- nearby outages panel
-- map view
-- methodology / confidence explanations
-- bilingual French/English UI and content
-- optional "area context" panel from access-to-information disclosures
-
-### Phase 4: quality hardening
-
-- event reconciliation across snapshots
-- better nearby clustering
-- data quality checks
-- better uncertainty labels
-- bilingual content review for terminology consistency
-
-### Phase 5: hotspot layer
-
-- aggregate from cached address relations and archived snapshots
-- municipality and grid-cell hotspot rankings
-- filters by year, cause, duration, and severity
-- regional annual metric choropleths from disclosure aggregates
-- separate visual treatment for disclosure-derived hotspot context vs API-derived hotspot calculations
-
-## Open questions to resolve before implementation
-
-- What exact definition of “nearby” should the product use first:
-  - polygon containment only
-  - 250 m radius
-  - 500 m radius
-  - configurable radius
-- Do we want to show only outages, or outages plus planned interruptions, in the main history?
-- Which geocoder gives the best Quebec civic address quality for acceptable cost and licensing?
-- Do we want to start with Postgres/PostGIS immediately, or accept a smaller temporary local setup?
-- Should the first release expose hotspot summaries at all, or only address and nearby history?
-- How should the UI phrase "area context" so users do not read it as direct address-level attribution?
-- Which terminology should be standardized for the bilingual UX:
-  - outage / panne
-  - planned interruption / interruption planifiée
-  - nearby / à proximité / secteur voisin
-  - confidence / fiabilité / niveau de confiance
-  - area context / contexte du secteur
-  - disclosed records / documents divulgués / réponses aux demandes d'accès
-
-## Recommended first-release stance
-
-For the first release, I would aim for:
-
-- a clean direct-search experience
-- transparent confidence labels
-- nearby outage history with adjustable radius
-- scheduled archival running in the background
-- no claim of complete 5-year provincial coverage
-- first-class French and English support
-
-That gives the product a truthful core:
-
-`Here is what we know about outage history at and around this address from our growing archive and derived matches.`
-
-## Most likely product evolution
-
-The most realistic evolution path now looks like this:
-
-### Stage 1: trustworthy archive and address lookup
-
-This is the current direction.
-
-The key promise is:
-
-- preserve the evidence
-- show what we know
-- show the limits clearly
-
-### Stage 2: partial historical enrichment
-
-This is the next meaningful leap.
-
-At this stage, the product combines:
-
-- the live archived feed
-- better resolved outage episodes
-- disclosed municipal or borough historical records
-- regional aggregate comparisons
-
-This can support:
-
-- deeper pages for areas where disclosure records exist
-- clearer "known history depth" indicators by area
-- comparisons between a searched address area and its broader municipality or region
-- cause summaries where row-level records exist
-
-### Stage 3: broader reliability analysis
-
-If broader historical backfill succeeds, the product can move toward:
-
-- outage frequency by area
-- total outage-hours by area
-- restoration-time distributions
-- seasonal and storm-period patterns
-- hotspot surfaces built from repeated outage exposure
-- stronger municipality and neighborhood reliability comparisons
-
-This is the stage where the product becomes a real outage reliability lens, not just an archive and lookup tool.
-
-## Recommended near-term priorities
-
-Given the current state of the code and the data strategy, I would prioritize the next work in this order:
-
-1. keep the live collector reliable and automated
-2. improve event reconstruction so repeated snapshots become better outage episodes
-3. broaden the disclosure ingestion path to additional DAI files, especially regional aggregate PDFs and more municipality/borough row-level tables
-4. extend the UI's coverage and provenance language so users can see whether a result comes from live-feed archive data, disclosed historical records, or both
-5. continue pursuing Hydro-Québec for broader historical backfill
-
-Why this order:
-
-- the collector remains the backbone
-- event logic remains the hardest technical dependency for later analytics
-- published disclosures are now the best short-term acceleration path
-- provenance needs to stay visible so the product remains trustworthy as evidence sources multiply
-
-## Performance review backlog
-
-Performance is not the primary constraint while the interface and data model are still settling, but the current architecture should be reviewed before the cached dataset grows too much.
-
-Specific things to check:
-
-- size of the embedded `data-map` JSON payload returned with each search
-- whether the initial server-rendered search response can exclude map overlays and let the map hydrate from a later JSON request
-- number and complexity of GeoJSON polygons sent per query
-- Leaflet layer creation cost after each HTMX result swap
-- server-side query time for previous outage grouping and disclosure overlays
-- repeated i18n label payloads in every map response
-- whether regional/disclosure geometry can be simplified or cached per response shape
-- whether broad regional choropleth geometry can be simplified without producing visible gaps between adjacent administrative regions
-- whether the map payload should be split from the server-rendered result cards if payload size becomes noticeable
-- whether D1 metadata tables plus R2 geometry payloads can remove large geometry blobs from the hot SQLite/container path
-- whether a larger Cloudflare container instance is needed after the app no longer does avoidable full-scan/full-payload work
-
-Useful first measurements:
-
-- log response size and server render time for representative searches
-- capture browser main-thread time for map initialization and layer rendering
-- compare searches with few overlays versus searches with many outage, planned, previous, disclosure, and regional layers
-- set a rough budget for initial search response time and map-ready time before optimizing
-
-## Deployment reliability backlog
-
-The 2026-05-20 stale-current-feed incident showed that `wrangler deploy` can update the Worker while failing to complete the container image update. D1 was current, but the container application remained pinned to the old `pannes-historiques-pannescontainer:9f607e6a` image and continued serving stale embedded/current context.
-
-Near-term deployment rules:
-
-- after every Cloudflare deploy, verify `npx wrangler containers info a031797e-cef7-421e-9ee0-45cce92e278b` and confirm the configured image changed
-- verify `https://pannes.ca/api/durable/status` versions and the rendered homepage/search payload agree on current feed recency
-- use an explicit pushed Cloudflare registry image tag when the Dockerfile build/push path hangs
-- do not consider a deploy complete just because Wrangler reports a new Worker version
-
-Follow-up work:
-
-- make the deployment script build, push, deploy, and verify the container image as separate observable phases
-- decide whether `wrangler.jsonc` should stay pinned to explicit registry image tags or return to Dockerfile-based image builds once the push/update issue is understood
-- add a health/debug endpoint exposing app code version, container image tag, durable feed versions, and whether current map layers were loaded from durable D1 data
-
-## Accessibility review backlog
-
-The address lookup UI should get a dedicated accessibility pass before it is treated as public-facing.
-Use W3C/WAI guidance as the review baseline: target WCAG 2.2 AA where practical, and use the WAI-ARIA Authoring Practices Guide for custom widgets such as autocomplete, result cards, panels/sheets, and map/list alternatives.
-
-Specific things to check:
-
-- keyboard navigation through the language toggle, address search, autocomplete suggestions, location search, result cards, map, and detail panels
-- focus visibility and focus order after HTMX result swaps
-- screen-reader labels for icon-free controls, loading states, errors, result cards, and map-related actions
-- whether clickable result cards should be buttons, links, or articles with clearer ARIA semantics
-- contrast of yellow, blue, grey, and map-overlay colours against the current public-service-inspired palette
-- non-colour cues for outage, planned interruption, previous outage, disclosure, and regional burden layers
-- Leaflet map keyboard behaviour and whether map content needs a non-map textual fallback for important information
-- language attributes and localized strings in client-rendered HTML
-- reduced-motion behaviour for loading indicators and map interaction, if needed
-
-Useful first checks:
-
-- run an automated accessibility scan on the main query flow
-- tab through the full interface in both English and French
-- test the result cards and map detail updates with VoiceOver or another screen reader
-- verify error and loading announcements for search and current-location flows
-
-## Summary recommendation
-
-This plan is viable and probably more realistic than starting with a full Quebec hotspot map.
-
-The recommended path is:
-
-1. use HTMX, bare Web Components, and Tailwind CSS as the default UI stack
-2. treat bilingual French/English support as a foundational requirement, not a future enhancement
-3. use Leaflet as the default mapping library because it fits the focused, server-rendered, address-centric interaction model better than Kepler.gl
-4. build a server-rendered direct-search app
-5. archive Hydro-Québec’s live outage feeds on a schedule
-6. ingest published access-to-information disclosures as a separate historical-context source
-7. derive address histories from raw snapshots and geometry matches
-8. show disclosure records as area context with conservative precision labels
-9. let repeated searches and scheduled ingestion build the long-term historical dataset
-10. add hotspot visualizations only after the archive is mature enough to support them honestly
+This file is the active execution plan. Keep durable evidence, source notes, and long historical reasoning in `research.md`; keep completed release and implementation history in `roadmap-history.md`; keep completed detail here only when it affects current decisions.
+
+## Current State
+
+- Current release: `v0.2.2` on `main`.
+- Current product shape: map-first address/current-location lookup with server-rendered Flask/Jinja fragments, HTMX, Leaflet, vanilla JavaScript modules, and a Cloudflare Workers + Containers production deployment.
+- Production data plane: D1/R2-backed durable ingestion for current feed rows, previous-outage rows, raw Hydro-Québec payloads, disclosure metadata, and runtime map-context layers.
+- Container role: still renders the Flask/Jinja shell and keeps a baked-in SQLite snapshot for local-compatible/container fallback paths.
+- Important architecture caveat: runtime writes inside the container are ephemeral; durable production state belongs in D1/R2 or another durable store.
+- User-facing URL contract: clean root URL with `lang`, `q`, or current-location coordinate parameters; obsolete public `radius_m`, `days`, and `include_planned` parameters were removed from the main interface.
+- Current test baseline: Python tests, deterministic service/geocoding tests, route smoke coverage, Playwright desktop/mobile Chromium coverage, and production-shaped UI regression fixtures.
+
+## Release Roadmap
+
+### `0.1.x`: Stabilization Baseline
+
+Complete.
+
+- `v0.1.3`: formal `pytest` baseline, deterministic service/geocoding tests, route smoke coverage.
+- `v0.1.4`: browser-regression setup, Nominatim hardening, operational/docs cleanup, verified status-code decoding, and small UI consistency fixes.
+
+### `0.2.x`: Map-First UI And Interaction Redesign
+
+In progress.
+
+- `v0.2.0`: map-first responsive shell for desktop and mobile. Complete.
+- `v0.2.1`: result/detail interaction refinement and selected-state behavior. Complete.
+- `v0.2.2`: mobile installability, search entry, current-location, history/back-forward, lightweight region-entry improvements, and frontend module split. Complete.
+- `v0.2.3`: map hierarchy, layer explanation, and production-shaped map regression coverage. Next.
+- `v0.2.4`: panel/layout polish, copy cleanup, and accessibility/usability hardening.
+- `v0.2.5`: performance measurement, deployment hygiene, and production hardening.
+
+### `0.3.x`: Architecture And Product Expansion
+
+Candidate work after the map-first UI is stable:
+
+- move more production reads off container SQLite/static assets toward D1-backed or R2-backed paths
+- reduce initial/lazy map payload size with on-demand geometry endpoints, simplified assets, or R2-backed context payloads
+- broaden province/region analytics and `Bilan par région`-style views
+- expand disclosure ingestion, geometry enrichment, and geocoder-provider options
+- explore opt-in web notifications after PWA installability, based on saved watch areas rather than requiring a literal home address
+- replace the Tailwind CDN path with a production build pipeline if it is not handled in `0.2.5`
+
+## Current Focus: `v0.2.3`
+
+Goal: make the map answer "what matters near this searched place right now?" more quickly and clearly.
+
+Scope:
+
+- tune map-layer visual hierarchy so the searched address and relevant nearby current/planned outages dominate
+- make broad disclosure/regional context quieter by default
+- define a clearer current/previous/disclosure/regional legend or layer-control pattern without cluttering the primary map surface
+- keep selected map/list states easy to follow when clicking rows, clicking geometries, and opening detail context
+- add browser regression coverage for production-shaped map context:
+  - current outage
+  - planned interruption
+  - previous outage
+  - disclosure area
+  - regional layer
+  - desktop panel
+  - mobile bottom sheet
+
+Acceptance criteria:
+
+- after an address search, the user can visually identify the searched address and the most relevant nearby current/planned outage context without decoding the whole map
+- current, planned, previous, disclosure, and regional layers have distinguishable visual treatment and explanatory text
+- broad context layers do not visually compete with direct local outage information
+- row-to-map and map-to-row selection remains obvious on desktop and mobile
+- Playwright coverage protects the representative layer/selection states
+
+## Next Release Slices
+
+### `v0.2.4`: Panel, Copy, And Accessibility Polish
+
+- give the desktop side panel more room, stronger compaction, or a clear collapse/minimize affordance
+- polish mobile header and sheet details that still feel awkward after the `v0.2.2` sheet changes
+- improve keyboard/focus behaviour for sheet controls, map-result selection, and detail overlays
+- review the UI against W3C/WCAG basics for contrast, focus visibility, labels, and non-pointer access
+- clean up French labels/status text and avoid exposing unclear raw source codes such as `N` as primary UI
+
+### `v0.2.5`: Performance And Production Hygiene
+
+- revisit real-user Core Web Vitals, especially Cloudflare Observatory LCP findings
+- separate likely causes: container/TTFB, initial HTML size, lazy map payload, tile loading, image/static assets, and client rendering
+- decide whether replacing the Tailwind CDN path belongs in `v0.2.5` or moves to broader `0.3.x` frontend/tooling cleanup
+- gate or remove public debug endpoints that are not needed for normal operation
+- document or automate the deployment/health-check sequence enough to avoid repeating stale-container/image deployment issues
+
+## Completed `0.2.x` Summary
+
+`v0.2.0` delivered the map-first shell:
+
+- full-viewport map surface with desktop side panel and mobile bottom sheet
+- lazy map-context loading retained so result cards/search feedback can appear before heavy geometry
+- runtime map layers can use D1-backed Worker endpoints when `DURABLE_RUNTIME_URL` is configured
+
+`v0.2.1` improved result/detail interaction:
+
+- stronger selected row state after row clicks, keyboard activation, and map-feature selection
+- reduced duplicate searched-place summary information
+- fixed stacked map-context result sections in the side panel
+- added browser coverage for selected-row behaviour
+
+`v0.2.2` improved mobile/search/installability:
+
+- added manifest, icons, mobile app metadata, root-scoped service worker, and offline fallback
+- made address and current-location URLs reloadable/shareable with clean query state
+- removed obsolete public radius/days/include-planned query controls from the primary URL contract
+- improved mobile sheet layout and detail overlay behaviour
+- split shared frontend helpers into `app/static/ui-format.js` and map styling/rendering helpers into `app/static/map-layers.js`
+- updated service-worker/static-version handling for the new ES modules
+
+## Testing Strategy
+
+- `0.1.x`: baseline unit/service/route coverage is established.
+- `0.2.x`: expand Playwright coverage around mobile sheet behaviour, keyboard/focus behaviour, back-forward state, language switching, current-location flows, and map-layer selection states.
+- `0.3.x`: add more architecture/data-pipeline coverage for D1/R2-backed reads, ingestion/export/mirroring paths, disclosure parser fixtures, and performance-sensitive integration cases.
+
+Before handing off code changes:
+
+- Python: `uv run ruff check . --fix` and `uv run ruff format .`
+- Templates: `uv run djlint app/templates --reformat` and `uv run djlint app/templates --lint`
+- Static JS/CSS: `npm run format` and `npm run check`
+- Broad changes: prefer `uv run pre-commit run --all-files`
+- UI changes: run the local app and inspect desktop and mobile browser states
+
+## Operational Notes
+
+- Local app command: `uv run python server.py serve`.
+- Production deploy command: `npx wrangler deploy`.
+- Do not deploy unless explicitly asked.
+- Prefer `npx wrangler deploy --dry-run` for deployment-related changes before a real deploy.
+- After every production deploy, verify the container image/version changed, not just the Worker version.
+- Production health checks should include:
+  - `/healthz`
+  - homepage in English/French
+  - representative address search
+  - `/api/durable/status`
+  - static app assets and service worker
+  - container status/image if the deploy touched container code
+
+## Current Risks And Open Questions
+
+- The public debug/timing endpoint should be reviewed in `v0.2.5`; it is useful operationally but may not belong in normal public production.
+- The desktop side panel can still feel cramped with multiple context sections; handle in `v0.2.4`.
+- Map layer hierarchy still needs a deliberate visual pass; handle in `v0.2.3`.
+- Accessibility needs a dedicated pass against W3C/WCAG basics; handle in `v0.2.4`.
+- Performance should be measured before broad architecture work; handle in `v0.2.5`, then decide what belongs in `0.3.x`.
+- Do not speculate about Hydro-Québec one-letter status-code meanings unless source documentation or payload context verifies them.
+
+## Plan Maintenance
+
+- Keep this file focused on current goals, release boundaries, risks, and next steps.
+- Do not append long implementation narratives for completed releases.
+- Move durable findings, source URLs, command evidence, and longer reasoning to `research.md`.
+- Move completed release summaries and implementation checkpoints to `roadmap-history.md`.
+- If this file grows past roughly 300-400 lines again, compact completed sections before adding more plan detail.
