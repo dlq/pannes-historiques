@@ -47,7 +47,6 @@ test("mobile default context panel is visible and resizable", async ({ page }) =
   const viewport = page.viewportSize();
   const panel = page.locator("#results");
   const handle = page.locator(".ph-panel-drawer-handle");
-  const sectionSwitcher = page.getByRole("navigation", { name: "Result sections" });
 
   await expect(page.getByRole("heading", { name: "Current or new outages" })).toBeVisible();
 
@@ -57,10 +56,8 @@ test("mobile default context panel is visible and resizable", async ({ page }) =
   }
 
   await expect(handle).toBeVisible();
-  await expect(sectionSwitcher).toBeVisible();
-  await expect(sectionSwitcher.getByRole("button", { name: /Current or new outages/ })).toBeVisible();
-  await expect(sectionSwitcher.getByRole("button", { name: /Current planned interruptions/ })).toBeVisible();
   await expect(page.locator(".ph-default-context-list")).toBeVisible();
+  await expect(page.locator(".ph-context-switcher")).toHaveCount(0);
   const initialHeight = await panel.evaluate((node) => node.getBoundingClientRect().height);
   const box = await handle.boundingBox();
   expect(box).not.toBeNull();
@@ -87,20 +84,57 @@ test("mobile default context panel is visible and resizable", async ({ page }) =
     )
     .toBeGreaterThan(120);
 
-  await sectionSwitcher.getByRole("button", { name: /Disclosure/ }).click();
-  await expect(page.locator("#ph-context-disclosure summary")).toBeInViewport();
   await expect
     .poll(() =>
       panel.evaluate((node) => {
         const panelRect = node.getBoundingClientRect();
-        const disclosureSummary = node
-          .querySelector("#ph-context-disclosure summary")
-          ?.getBoundingClientRect();
-        if (!disclosureSummary) return false;
-        return disclosureSummary.top >= panelRect.top && disclosureSummary.bottom <= panelRect.bottom;
+        const currentSummary = node.querySelector("#ph-context-current summary")?.getBoundingClientRect();
+        if (!currentSummary) return false;
+        return currentSummary.top >= panelRect.top && currentSummary.bottom <= panelRect.bottom;
       }),
     )
     .toBe(true);
+});
+
+test("mobile map item details appear as a bottom overlay sheet", async ({ page }) => {
+  await page.goto("/?lang=en");
+  const viewport = page.viewportSize();
+  if ((viewport?.width || 0) >= 768) return;
+
+  const firstContextRow = page.locator("[data-map-focus]").first();
+  await expect(firstContextRow).toBeVisible();
+  await firstContextRow.click();
+
+  const detailPanel = page.locator("dai-detail-panel");
+  await expect(detailPanel).toBeVisible();
+  await expect
+    .poll(() =>
+      detailPanel.evaluate((node) => {
+        const rect = node.getBoundingClientRect();
+        return {
+          bottomGap: Math.round(window.innerHeight - rect.bottom),
+          top: Math.round(rect.top),
+          height: Math.round(rect.height),
+        };
+      }),
+    )
+    .toMatchObject({
+      bottomGap: expect.any(Number),
+      height: expect.any(Number),
+      top: expect.any(Number),
+    });
+
+  const geometry = await detailPanel.evaluate((node) => {
+    const rect = node.getBoundingClientRect();
+    return {
+      bottomGap: window.innerHeight - rect.bottom,
+      height: rect.height,
+      top: rect.top,
+    };
+  });
+  expect(geometry.bottomGap).toBeLessThan(40);
+  expect(geometry.height).toBeLessThan((viewport?.height || 0) * 0.62);
+  expect(geometry.top).toBeGreaterThan((viewport?.height || 0) * 0.3);
 });
 
 test("mobile search centers the address without left-rail compensation", async ({ page }) => {

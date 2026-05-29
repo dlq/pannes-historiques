@@ -1,7 +1,9 @@
-const CACHE_NAME = "pannes-historiques-v0.2.2-pwa-1";
+const CACHE_NAME = "pannes-historiques-v0.2.2-js-modules-1";
 const APP_SHELL_URLS = [
   "/static/app.css",
   "/static/app.js",
+  "/static/map-layers.js",
+  "/static/ui-format.js",
   "/static/app-icon-180.png",
   "/static/app-icon-192.png",
   "/static/app-icon-512.png",

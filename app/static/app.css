@@ -270,39 +270,6 @@ textarea {
   padding: 0.5rem;
 }
 
-.ph-context-switcher {
-  display: none;
-}
-
-.ph-context-switcher-button {
-  display: inline-flex;
-  min-width: max-content;
-  align-items: center;
-  gap: 0.375rem;
-  border: 1px solid rgba(197, 202, 210, 0.95);
-  border-radius: 0.375rem;
-  background: rgba(255, 255, 255, 0.88);
-  padding: 0.375rem 0.5rem;
-  color: #223654;
-  font-size: 0.75rem;
-  line-height: 1;
-}
-
-.ph-context-switcher-button:hover,
-.ph-context-switcher-button:focus-visible {
-  border-color: #095797;
-  background: #eef6ff;
-  outline: none;
-}
-
-.ph-context-switcher-button strong {
-  border-radius: 0.25rem;
-  background: #dae6f0;
-  padding: 0.125rem 0.25rem;
-  color: #095797;
-  font-weight: 700;
-}
-
 .ph-context-section-summary {
   display: flex;
   cursor: pointer;
@@ -500,19 +467,6 @@ textarea {
     backdrop-filter: blur(3px);
   }
 
-  .ph-results-panel:has(.ph-map-context-list) .ph-context-switcher {
-    display: flex;
-    flex: 0 0 auto;
-    gap: 0.375rem;
-    overflow-x: auto;
-    padding: 0 0.5rem 0.5rem;
-    scrollbar-width: none;
-  }
-
-  .ph-results-panel:has(.ph-map-context-list) .ph-context-switcher::-webkit-scrollbar {
-    display: none;
-  }
-
   .ph-results-panel:has(.ph-search-context-list) {
     height: var(--ph-mobile-panel-height, min(52dvh, 28rem));
   }
@@ -599,13 +553,15 @@ textarea {
 
   .ph-dai-detail-panel {
     position: fixed;
-    top: 5.25rem;
-    right: 0.5rem;
+    top: auto;
+    right: 0.75rem;
     bottom: calc(0.75rem + var(--ph-safe-bottom));
-    left: 0.5rem;
+    left: 0.75rem;
     z-index: 60;
     display: block;
     min-height: 0;
+    max-height: min(56dvh, 32rem);
+    animation: ph-detail-sheet-in 0.18s ease-out;
   }
 
   .ph-dai-detail-panel[hidden] {
@@ -614,7 +570,22 @@ textarea {
 
   .ph-dai-detail-panel > div {
     height: 100%;
+    max-height: min(56dvh, 32rem);
     overflow: hidden;
+    border-radius: 0.75rem;
+    box-shadow: 0 18px 55px rgba(34, 54, 84, 0.26);
+  }
+}
+
+@keyframes ph-detail-sheet-in {
+  from {
+    opacity: 0;
+    transform: translateY(1rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 

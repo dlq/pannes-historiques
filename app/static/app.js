@@ -1,3 +1,16 @@
+import { geometryStyle, geometryWeight, mapPane, markerStyle, metricValue } from "./map-layers.js";
+import {
+  detailFactList,
+  escapeHtml,
+  fetchJson,
+  formatDateTimeCell,
+  formatDistanceKm,
+  formatDuration,
+  hasDistanceValue,
+  label,
+  localizeCause,
+} from "./ui-format.js";
+
 let autocompleteTimer = null;
 
 function registerServiceWorker() {
@@ -58,42 +71,6 @@ function updateSearchUrl(params = {}) {
 function isCurrentLocationText(value = "") {
   const normalized = value.toLowerCase();
   return normalized.startsWith("current location") || normalized.startsWith("position actuelle");
-}
-
-function label(labels, key, fallback) {
-  return labels?.[key] || fallback;
-}
-
-function formatDistanceKm(value, labels = {}) {
-  if (value === null || value === undefined || value === "")
-    return label(labels, "unknown", "unknown");
-  const numberValue = Number(value);
-  if (!Number.isFinite(numberValue)) return label(labels, "unknown", "unknown");
-  return `${(numberValue / 1000).toFixed(2)} km`;
-}
-
-function hasDistanceValue(value) {
-  if (value === null || value === undefined || value === "") return false;
-  return Number.isFinite(Number(value));
-}
-
-function detailFactList(facts) {
-  const visibleFacts = facts.filter(
-    ([, value]) => value !== null && value !== undefined && value !== "",
-  );
-  if (!visibleFacts.length) return "";
-  return `<dl class="mt-4 grid gap-x-5 gap-y-3 border-y border-[#d7dde6] py-3 text-sm sm:grid-cols-2">
-    ${visibleFacts
-      .map(
-        ([factLabel, value]) => `
-          <div>
-            <dt class="text-xs font-semibold uppercase tracking-[0.08em] text-[#6b778a]">${escapeHtml(factLabel)}</dt>
-            <dd class="mt-0.5 font-medium text-[#223654]">${escapeHtml(value)}</dd>
-          </div>
-        `,
-      )
-      .join("")}
-  </dl>`;
 }
 
 function attachAddressAutocomplete() {
@@ -205,21 +182,6 @@ function showSearchLoading(show) {
   loading.style.display = show ? "block" : "none";
 }
 
-function attachContextSwitcher() {
-  for (const switcher of document.querySelectorAll(".ph-context-switcher")) {
-    if (switcher.dataset.switcherBound === "1") continue;
-    switcher.dataset.switcherBound = "1";
-    switcher.addEventListener("click", (event) => {
-      const button = event.target.closest("[data-context-target]");
-      if (!button) return;
-      const section = document.getElementById(button.dataset.contextTarget || "");
-      if (!section) return;
-      section.open = true;
-      section.scrollIntoView({ block: "start", behavior: "smooth" });
-    });
-  }
-}
-
 function attachMobilePanelDrawer() {
   const panel = document.querySelector("#results");
   if (!panel) return;
@@ -326,7 +288,6 @@ function updateShellState() {
     (item) => !item.closest(".ph-default-context-list"),
   );
   document.body.classList.toggle("ph-has-results", hasSearchResults);
-  attachContextSwitcher();
   attachMobilePanelDrawer();
 }
 
@@ -587,47 +548,6 @@ function attachMapFocusCards() {
   }
 }
 
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-
-function formatDuration(seconds, labels = {}) {
-  if (!Number.isFinite(seconds) || seconds <= 0) return label(labels, "unknown", "unknown");
-  const hours = seconds / 3600;
-  if (hours < 24) return `${hours.toFixed(1)} h`;
-  return `${(hours / 24).toFixed(1)} d`;
-}
-
-function formatDateTimeCell(value, labels = {}) {
-  if (!value) return label(labels, "unknown", "unknown");
-  const [date, rawTime = ""] = String(value).replace("T", " ").split(" ");
-  const time = rawTime ? rawTime.slice(0, 5) : "";
-  return `<span class="block font-semibold text-[#223654]">${escapeHtml(date)}</span>${time ? `<span class="block text-[#4e5662]">${escapeHtml(time)}</span>` : ""}`;
-}
-
-function localizeCause(cause) {
-  if (document.documentElement.lang !== "en") return cause;
-  const causes = {
-    Accident: "Accident",
-    Animal: "Animal",
-    "Bris equipement": "Equipment failure",
-    "Bris équipement": "Equipment failure",
-    Défaillance: "Equipment failure",
-    Entretien: "Maintenance",
-    "Incendie / Fuite de gaz": "Fire / gas leak",
-    Indéterminé: "Undetermined",
-    Pannes: "Outages",
-    Protection: "Protection",
-    Végétation: "Vegetation",
-  };
-  return causes[cause] || cause;
-}
-
 function disclosurePopup(item, labels = {}) {
   const causes = (item.topCauses || [])
     .map(
@@ -717,53 +637,6 @@ function operationalTooltip(item, labels = {}) {
   return parts.map((part) => escapeHtml(part)).join(" · ");
 }
 
-function metricValue(item) {
-  if (Number.isFinite(item.continuityIndexMinutes)) return item.continuityIndexMinutes;
-  if (Number.isFinite(item.outageCount)) return item.outageCount;
-  if (Number.isFinite(item.longOutageCount)) return item.longOutageCount;
-  return null;
-}
-
-function metricColor(value, maxValue) {
-  if (value == null) return null;
-  const ratio = Math.max(0, Math.min(1, value / Math.max(maxValue, 1)));
-  if (ratio > 0.8) return "#8b1e3f";
-  if (ratio > 0.6) return "#c2410c";
-  if (ratio > 0.4) return "#ea580c";
-  if (ratio > 0.2) return "#ca8a04";
-  return "#0f766e";
-}
-
-function contextRegionColor(item) {
-  const palette = ["#2563eb", "#0f766e", "#7c3aed", "#be123c", "#0369a1", "#a16207"];
-  const key = item.geometryKey || item.label || "";
-  let hash = 0;
-  for (let index = 0; index < key.length; index += 1) {
-    hash = (hash * 31 + key.charCodeAt(index)) % palette.length;
-  }
-  return palette[hash];
-}
-
-function regionalColor(item, maxValue) {
-  return metricColor(metricValue(item), maxValue) || contextRegionColor(item);
-}
-
-function regionalFillOpacity(item) {
-  return metricValue(item) == null ? 0.04 : 0.16;
-}
-
-function regionalWeight(item) {
-  return metricValue(item) == null ? 0.8 : 1.2;
-}
-
-function mapPane(item) {
-  if (item.kind === "regional_metric") return "regionalContextPane";
-  if (item.kind === "disclosure") return "disclosurePane";
-  if (item.kind === "previous_outage") return "previousOutagePane";
-  if (item.kind === "planned") return "plannedPane";
-  return "outagePane";
-}
-
 function regionalBurdenText(item, labels = {}) {
   return (
     item.regionalBurdenLabel || label(labels, "regional_colour_legend", "Regional outage burden")
@@ -776,52 +649,6 @@ function regionalMetricTooltip(item, labels = {}) {
     return `${escapeHtml(item.label || "Region")} · ${escapeHtml(regionalBurdenText(item, labels))}: unavailable`;
   }
   return `${escapeHtml(item.label || "Region")} · ${escapeHtml(regionalBurdenText(item, labels))}: ${escapeHtml(value)}`;
-}
-
-function geometryWeight(item) {
-  const points = geometryPoints(item.geometry);
-  if (!points.length) return 0;
-  const lons = points.map((point) => point[0]);
-  const lats = points.map((point) => point[1]);
-  return (Math.max(...lons) - Math.min(...lons)) * (Math.max(...lats) - Math.min(...lats));
-}
-
-function geometryPoints(geometry) {
-  if (!geometry?.coordinates) return [];
-  if (geometry.type === "Polygon") {
-    return geometry.coordinates.flat();
-  }
-  if (geometry.type === "MultiPolygon") {
-    return geometry.coordinates.flat(2);
-  }
-  return [];
-}
-
-function fetchJson(url, options = {}) {
-  if (typeof fetch === "function") {
-    return fetch(url, options).then((response) => {
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      return response.json();
-    });
-  }
-  return new Promise((resolve, reject) => {
-    const request = new XMLHttpRequest();
-    request.open("GET", url);
-    request.setRequestHeader("Accept", options.headers?.Accept || "application/json");
-    request.onload = () => {
-      if (request.status < 200 || request.status >= 300) {
-        reject(new Error(`HTTP ${request.status}`));
-        return;
-      }
-      try {
-        resolve(JSON.parse(request.responseText));
-      } catch (error) {
-        reject(error);
-      }
-    };
-    request.onerror = () => reject(new Error("Network request failed"));
-    request.send();
-  });
 }
 
 class DaiDetailPanel extends HTMLElement {
@@ -1246,164 +1073,51 @@ class OutageMap extends HTMLElement {
     });
     focusItems = orderedMatches;
     const renderedGeometryKeys = new Set();
+    const isContextLayer = (item) => item.kind === "disclosure" || item.kind === "regional_metric";
+    const bindLayerInteractions = (layer, item) => {
+      if (item.kind === "disclosure") {
+        disclosureLayers.push({ layer, weight: geometryWeight(item) });
+        layer.on("click", () => {
+          showDisclosure(item);
+          restackDisclosureLayers();
+        });
+        layer.bindPopup(disclosureSummaryPopup(item, labels), { maxWidth: 280 });
+        layer.bindTooltip(disclosureTooltip(item, labels), { sticky: true });
+        return;
+      }
+      if (item.kind === "regional_metric") {
+        layer.on("click", () => showRegionalMetric(item));
+        layer.bindTooltip(regionalMetricTooltip(item, labels), { sticky: true });
+        return;
+      }
+      layer.on("click", () => showOperational(item));
+      layer.bindTooltip(operationalTooltip(item, labels), { sticky: true });
+    };
     const renderMatch = (item) => {
       if (item.deferGeometry && !item.geometry) return;
       if (item.geometryKey && renderedGeometryKeys.has(item.geometryKey)) return;
-      const color =
-        item.kind === "planned"
-          ? "#0891b2"
-          : item.kind === "disclosure"
-            ? "#2563eb"
-            : item.kind === "regional_metric"
-              ? regionalColor(item, metricMax)
-              : item.kind === "previous_outage"
-                ? "#64748b"
-                : "#f59e0b";
       let rendered = false;
-      if (item.geometry && item.geometry.type === "Polygon") {
-        const isDisclosure = item.kind === "disclosure";
-        const isRegionalMetric = item.kind === "regional_metric";
-        const isPreviousOutage = item.kind === "previous_outage";
+      if (item.geometry && ["Polygon", "MultiPolygon"].includes(item.geometry.type)) {
         const layer = L.geoJSON(item.geometry, {
           pane: mapPane(item),
-          style: {
-            color,
-            weight: isRegionalMetric
-              ? regionalWeight(item)
-              : isDisclosure
-                ? 2
-                : isPreviousOutage
-                  ? 2
-                  : item.matchType === "direct_match"
-                    ? 4
-                    : 3,
-            opacity: isRegionalMetric ? 0.36 : isDisclosure ? 0.72 : 1,
-            dashArray: isPreviousOutage ? "4 6" : null,
-            fillColor: color,
-            fillOpacity: isRegionalMetric
-              ? regionalFillOpacity(item)
-              : isDisclosure
-                ? 0.16
-                : isPreviousOutage
-                  ? 0.1
-                  : item.kind === "planned"
-                    ? 0.34
-                    : 0.38,
-          },
+          style: geometryStyle(item, metricMax),
         }).addTo(map);
-        if (isDisclosure) {
-          disclosureLayers.push({ layer, weight: geometryWeight(item) });
-          layer.on("click", () => {
-            showDisclosure(item);
-            restackDisclosureLayers();
-          });
-          layer.bindPopup(disclosureSummaryPopup(item, labels), { maxWidth: 280 });
-          layer.bindTooltip(disclosureTooltip(item, labels), { sticky: true });
-        } else if (isRegionalMetric) {
-          layer.on("click", () => showRegionalMetric(item));
-          layer.bindTooltip(regionalMetricTooltip(item, labels), { sticky: true });
-        } else {
-          layer.on("click", () => showOperational(item));
-          layer.bindTooltip(operationalTooltip(item, labels), { sticky: true });
-        }
+        bindLayerInteractions(layer, item);
         const layerBounds = layer.getBounds();
-        if (!isDisclosure && !isRegionalMetric && layerBounds.isValid()) {
+        if (!isContextLayer(item) && layerBounds.isValid()) {
           bounds.push(layerBounds.getSouthWest());
           bounds.push(layerBounds.getNorthEast());
         }
-        if (!isDisclosure && !isRegionalMetric) layer.bringToFront();
-        rendered = true;
-      }
-      if (item.geometry && item.geometry.type === "MultiPolygon") {
-        const isDisclosure = item.kind === "disclosure";
-        const isRegionalMetric = item.kind === "regional_metric";
-        const isPreviousOutage = item.kind === "previous_outage";
-        const layer = L.geoJSON(item.geometry, {
-          pane: mapPane(item),
-          style: {
-            color,
-            weight: isRegionalMetric
-              ? regionalWeight(item)
-              : isDisclosure
-                ? 2
-                : isPreviousOutage
-                  ? 2
-                  : 3,
-            opacity: isRegionalMetric ? 0.36 : isDisclosure ? 0.72 : 1,
-            dashArray: isPreviousOutage ? "4 6" : null,
-            fillColor: color,
-            fillOpacity: isRegionalMetric
-              ? regionalFillOpacity(item)
-              : isDisclosure
-                ? 0.16
-                : isPreviousOutage
-                  ? 0.1
-                  : item.kind === "planned"
-                    ? 0.34
-                    : 0.38,
-          },
-        }).addTo(map);
-        if (isDisclosure) {
-          disclosureLayers.push({ layer, weight: geometryWeight(item) });
-          layer.on("click", () => {
-            showDisclosure(item);
-            restackDisclosureLayers();
-          });
-          layer.bindPopup(disclosureSummaryPopup(item, labels), { maxWidth: 280 });
-          layer.bindTooltip(disclosureTooltip(item, labels), { sticky: true });
-        } else if (isRegionalMetric) {
-          layer.on("click", () => showRegionalMetric(item));
-          layer.bindTooltip(regionalMetricTooltip(item, labels), { sticky: true });
-        } else {
-          layer.on("click", () => showOperational(item));
-          layer.bindTooltip(operationalTooltip(item, labels), { sticky: true });
-        }
-        const layerBounds = layer.getBounds();
-        if (!isDisclosure && !isRegionalMetric && layerBounds.isValid()) {
-          bounds.push(layerBounds.getSouthWest());
-          bounds.push(layerBounds.getNorthEast());
-        }
-        if (!isDisclosure && !isRegionalMetric) layer.bringToFront();
+        if (!isContextLayer(item)) layer.bringToFront();
         rendered = true;
       }
       if (!rendered && item.lat != null && item.lon != null) {
-        const isDisclosure = item.kind === "disclosure";
-        const isRegionalMetric = item.kind === "regional_metric";
-        const isPreviousOutage = item.kind === "previous_outage";
-        const marker = L.circleMarker([item.lat, item.lon], {
-          pane: mapPane(item),
-          radius: isRegionalMetric
-            ? 14
-            : isDisclosure
-              ? 12
-              : isPreviousOutage
-                ? 7
-                : item.matchType === "direct_match"
-                  ? 8
-                  : 6,
-          color,
-          weight: isRegionalMetric ? 2 : isDisclosure ? 3.5 : isPreviousOutage ? 1.5 : 2,
-          fillColor: color,
-          fillOpacity: isRegionalMetric
-            ? 0.48
-            : isDisclosure
-              ? 0.82
-              : isPreviousOutage
-                ? 0.38
-                : 0.65,
-        }).addTo(map);
-        if (isDisclosure) {
-          marker.on("click", () => showDisclosure(item));
-          marker.bindTooltip(disclosureTooltip(item, labels), { sticky: true });
-        } else if (isRegionalMetric) {
-          marker.on("click", () => showRegionalMetric(item));
-          marker.bindTooltip(regionalMetricTooltip(item, labels), { sticky: true });
-        } else {
-          marker.on("click", () => showOperational(item));
-          marker.bindTooltip(operationalTooltip(item, labels), { sticky: true });
-        }
-        if (!isDisclosure && !isRegionalMetric) marker.bringToFront();
-        if (!isDisclosure && !isRegionalMetric) bounds.push([item.lat, item.lon]);
+        const marker = L.circleMarker([item.lat, item.lon], markerStyle(item, metricMax)).addTo(
+          map,
+        );
+        bindLayerInteractions(marker, item);
+        if (!isContextLayer(item)) marker.bringToFront();
+        if (!isContextLayer(item)) bounds.push([item.lat, item.lon]);
       }
       if (item.geometryKey && item.geometry) renderedGeometryKeys.add(item.geometryKey);
     };

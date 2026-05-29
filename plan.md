@@ -96,10 +96,18 @@ Search-state `v0.2.2` pass, 2026-05-29:
 
 Mobile sheet `v0.2.2` pass, 2026-05-29:
 
-- added a compact mobile section switcher for current outages, planned interruptions, previous outages, and disclosure context
-- changed expanded mobile result panels from four equal-height cramped panes to a scrollable section layout with sticky section summaries
+- removed the compact mobile section switcher after review because it duplicated the visible vertical sections and made horizontal scroll discoverability worse
+- changed expanded mobile result panels from four equal-height cramped panes to a scrollable vertical section layout with sticky section summaries
+- changed clicked item details on mobile into a bottom overlay sheet layered above the existing results sheet
 - kept the drag/tap drawer height clamp so expanded states still preserve a visible map band
-- added mobile Playwright coverage for the switcher and disclosure-section jump behavior
+- added mobile Playwright coverage for drawer resizing and the detail-sheet overlay placement
+
+Frontend structure `v0.2.2` pass, 2026-05-29:
+
+- split shared UI formatting helpers out of `app/static/app.js` into `app/static/ui-format.js`
+- split map pane, color, opacity, and geometry/marker style helpers into `app/static/map-layers.js`
+- deduplicated Leaflet Polygon/MultiPolygon rendering so the next map hierarchy pass can tune styles in one place
+- updated service-worker and static-version handling so new ES modules are part of the app shell/cache story
 
 - `v0.2.3`: improve map/context hierarchy and explanatory affordances
   - tune map-layer visual hierarchy so searched address and relevant nearby current/planned outages dominate, while broad disclosure/regional context is quieter by default

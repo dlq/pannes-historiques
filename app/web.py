@@ -35,11 +35,9 @@ def create_app(settings: Settings | None = None) -> Flask:
     app.config["APP_SERVICE"] = service
     app.jinja_env.globals["t"] = t
     static_root = Path(app.static_folder or "")
+    versioned_static_files = [static_root / "app.css", *static_root.glob("*.js")]
     app.jinja_env.globals["static_version"] = int(
-        max(
-            (static_root / "app.css").stat().st_mtime,
-            (static_root / "app.js").stat().st_mtime,
-        )
+        max(path.stat().st_mtime for path in versioned_static_files if path.exists())
     )
 
     @app.before_request
