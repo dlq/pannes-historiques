@@ -1,7 +1,7 @@
 # Plan: Hydro-Québec Outage History App
 
 Date: 2026-04-25
-Last updated: 2026-05-27
+Last updated: 2026-05-29
 
 ## Release roadmap
 
@@ -19,6 +19,7 @@ The near-term release lines should be split this way:
   - move more production reads off container SQLite/static assets toward D1-backed paths
   - broaden province/region analytics and `Bilan par région`-style views
   - expand disclosure ingestion, geometry enrichment, and geocoder-provider options
+  - explore opt-in web notifications after PWA installability, based on saved watch areas rather than requiring a literal home address
   - revisit UI information density, map-layer colours, panel layout, and section/list hierarchy after the 0.2.x map-first interface has had real use
   - design an About/colophon surface and a more intentional legend/help pattern for map layer meaning, source caveats, freshness, and attribution
 
@@ -82,6 +83,12 @@ Implementation checkpoint, 2026-05-19:
   - reduce initial and lazy map payload size by moving more geometry behind explicit on-demand endpoints or simplified/R2-backed assets
   - continue moving startup and runtime map reads off the container hot path where Worker + D1 can answer directly
   - replace the Tailwind CDN path with a production build pipeline as part of broader frontend/tooling cleanup
+  - design opt-in web push notifications after the app is installable:
+    - let users save one or more watch areas with a geocoded point, display label, radius, and notification preferences
+    - frame the UX as "saved places" or "watch this area" rather than requiring a home address
+    - compare new/current D1 outage and planned-interruption rows against saved areas from a Worker-side scheduled job
+    - require clear unsubscribe/delete flows and privacy language before requesting notification permission
+    - do not request notification permission in `0.2.x`; use PWA installability and local query/location state as groundwork only
 
 Live design review findings, 2026-05-20:
 
