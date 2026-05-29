@@ -113,6 +113,7 @@ Frontend structure `v0.2.2` pass, 2026-05-29:
   - tune map-layer visual hierarchy so searched address and relevant nearby current/planned outages dominate, while broad disclosure/regional context is quieter by default
   - define a clearer current/previous/disclosure layer control or legend pattern that does not clutter the primary map surface
   - give the desktop side panel either more room, stronger compaction, or a clear collapse/minimize affordance
+  - revisit real-user Core Web Vitals, especially Cloudflare Observatory LCP findings, before tagging; separate image optimization, container/TTFB, initial HTML size, lazy map payload, and client rendering causes
   - add browser regression coverage for production-shaped map context: current outage, planned interruption, previous outage, disclosure, regional layer, desktop panel, and mobile bottom sheet
 - `0.3.x` candidates from the same audit:
   - reduce initial and lazy map payload size by moving more geometry behind explicit on-demand endpoints or simplified/R2-backed assets
@@ -380,7 +381,10 @@ Deployment checkpoint:
 - review deployment and query performance after the initial Cloudflare Containers launch:
   - initial profiling on 2026-05-04 showed simple routes are fast, but address search was dominated by Python geospatial matching and oversized inline map payloads
   - a first mitigation reduced the search response from roughly 14.4 MB to roughly 562 KB and brought a measured production HTML search down to about 6 seconds, but more optimization is still needed
+  - Cloudflare Observatory reported an LCP opportunity on 2026-05-29: resource load duration exceeded 10% of P75 LCP for much of the traffic and Cloudflare suggested Polish/image compression. Treat this as a measurement input, not an automatic fix: audit actual LCP elements, image byte sizes, cache headers, and whether Cloudflare Polish/WebP/AVIF would materially help compared with app-side payload/rendering work.
   - next likely performance work:
+    - measure LCP from production with Cloudflare Observatory/RUM plus Lighthouse/WebPageTest-style lab runs on mobile and desktop, recording the LCP element, TTFB, resource load delay, resource load duration, and render delay
+    - inventory app-hosted images/icons/tiles involved in LCP; decide whether to enable Cloudflare Polish lossless/lossy or serve optimized local assets directly
     - render result cards first and lazy-load map overlays after the initial search response
     - stop embedding map JSON directly in HTML; move map data behind small JSON endpoints
     - make the different meanings of "lazy map loading" explicit and optimize them separately:
