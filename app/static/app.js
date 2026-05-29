@@ -205,6 +205,21 @@ function showSearchLoading(show) {
   loading.style.display = show ? "block" : "none";
 }
 
+function attachContextSwitcher() {
+  for (const switcher of document.querySelectorAll(".ph-context-switcher")) {
+    if (switcher.dataset.switcherBound === "1") continue;
+    switcher.dataset.switcherBound = "1";
+    switcher.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-context-target]");
+      if (!button) return;
+      const section = document.getElementById(button.dataset.contextTarget || "");
+      if (!section) return;
+      section.open = true;
+      section.scrollIntoView({ block: "start", behavior: "smooth" });
+    });
+  }
+}
+
 function attachMobilePanelDrawer() {
   const panel = document.querySelector("#results");
   if (!panel) return;
@@ -311,6 +326,7 @@ function updateShellState() {
     (item) => !item.closest(".ph-default-context-list"),
   );
   document.body.classList.toggle("ph-has-results", hasSearchResults);
+  attachContextSwitcher();
   attachMobilePanelDrawer();
 }
 

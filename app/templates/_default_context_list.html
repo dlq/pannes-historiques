@@ -4,8 +4,37 @@
 {% set planned_outages = context_payload.matches | selectattr("kind", "equalto", "planned") | list %}
 {% set previous_outages = context_payload.matches | selectattr("kind", "equalto", "previous_outage") | list %}
 {% set disclosures = context_payload.matches | selectattr("kind", "equalto", "disclosure") | list %}
+<nav class="ph-context-switcher"
+     aria-label="{{ t(lang, 'result_sections') }}">
+  <button class="ph-context-switcher-button"
+          type="button"
+          data-context-target="ph-context-current">
+    <span>{{ t(lang, "current_outages") }}</span>
+    <strong>{{ current_outages | length }}</strong>
+  </button>
+  <button class="ph-context-switcher-button"
+          type="button"
+          data-context-target="ph-context-planned">
+    <span>{{ t(lang, "planned_panel") }}</span>
+    <strong>{{ planned_outages | length }}</strong>
+  </button>
+  <button class="ph-context-switcher-button"
+          type="button"
+          data-context-target="ph-context-previous">
+    <span>{{ t(lang, "previous_outages_legend") }}</span>
+    <strong>{{ previous_outages | length }}</strong>
+  </button>
+  <button class="ph-context-switcher-button"
+          type="button"
+          data-context-target="ph-context-disclosure">
+    <span>{{ t(lang, "disclosure") }}</span>
+    <strong>{{ disclosures | length }}</strong>
+  </button>
+</nav>
 <div class="ph-result-sections ph-map-context-list {{ 'ph-default-context-list' if context_variant == 'default' else 'ph-search-context-list' }}">
-  <details class="ph-context-section ph-result-card rounded-lg shadow-sm" open>
+  <details id="ph-context-current"
+           class="ph-context-section ph-result-card rounded-lg shadow-sm"
+           open>
     <summary class="ph-context-section-summary">
       <h3 class="border-l-4 border-[#f59e0b] pl-2 text-sm font-semibold leading-tight text-[#223654]">
         {{ t(lang, "current_outages") }}
@@ -31,7 +60,9 @@
       {% if not current_outages %}<p class="ph-context-empty">{{ t(lang, "outage_archive_empty") }}</p>{% endif %}
     </div>
   </details>
-  <details class="ph-context-section ph-result-card rounded-lg shadow-sm" open>
+  <details id="ph-context-planned"
+           class="ph-context-section ph-result-card rounded-lg shadow-sm"
+           open>
     <summary class="ph-context-section-summary">
       <h3 class="border-l-4 border-[#06b6d4] pl-2 text-sm font-semibold leading-tight text-[#223654]">
         {{ t(lang, "planned_panel") }}
@@ -60,7 +91,9 @@
       {% if not planned_outages %}<p class="ph-context-empty">{{ t(lang, "planned_empty") }}</p>{% endif %}
     </div>
   </details>
-  <details class="ph-context-section ph-result-card rounded-lg shadow-sm" open>
+  <details id="ph-context-previous"
+           class="ph-context-section ph-result-card rounded-lg shadow-sm"
+           open>
     <summary class="ph-context-section-summary">
       <h3 class="border-l-4 border-[#64748b] pl-2 text-sm font-semibold leading-tight text-[#223654]">
         {{ t(lang, "previous_outages_legend") }}
@@ -85,7 +118,9 @@
       {% if not previous_outages %}<p class="ph-context-empty">{{ t(lang, "previous_outages_empty") }}</p>{% endif %}
     </div>
   </details>
-  <details class="ph-context-section ph-result-card rounded-lg shadow-sm" open>
+  <details id="ph-context-disclosure"
+           class="ph-context-section ph-result-card rounded-lg shadow-sm"
+           open>
     <summary class="ph-context-section-summary">
       <h3 class="border-l-4 border-[#1d4ed8] pl-2 text-sm font-semibold leading-tight text-[#223654]">
         {{ t(lang, "disclosure") }}

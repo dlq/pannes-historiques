@@ -94,6 +94,13 @@ Search-state `v0.2.2` pass, 2026-05-29:
 - Playwright mobile coverage checks address-search query URLs, current-location coordinate URLs, reloads, language switching, and browser history navigation
 - README now documents the public URL contract and keeps internal fragment/API routes separate from user-facing URLs
 
+Mobile sheet `v0.2.2` pass, 2026-05-29:
+
+- added a compact mobile section switcher for current outages, planned interruptions, previous outages, and disclosure context
+- changed expanded mobile result panels from four equal-height cramped panes to a scrollable section layout with sticky section summaries
+- kept the drag/tap drawer height clamp so expanded states still preserve a visible map band
+- added mobile Playwright coverage for the switcher and disclosure-section jump behavior
+
 - `v0.2.3`: improve map/context hierarchy and explanatory affordances
   - tune map-layer visual hierarchy so searched address and relevant nearby current/planned outages dominate, while broad disclosure/regional context is quieter by default
   - define a clearer current/previous/disclosure layer control or legend pattern that does not clutter the primary map surface

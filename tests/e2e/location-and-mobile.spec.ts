@@ -47,6 +47,7 @@ test("mobile default context panel is visible and resizable", async ({ page }) =
   const viewport = page.viewportSize();
   const panel = page.locator("#results");
   const handle = page.locator(".ph-panel-drawer-handle");
+  const sectionSwitcher = page.getByRole("navigation", { name: "Result sections" });
 
   await expect(page.getByRole("heading", { name: "Current or new outages" })).toBeVisible();
 
@@ -56,6 +57,9 @@ test("mobile default context panel is visible and resizable", async ({ page }) =
   }
 
   await expect(handle).toBeVisible();
+  await expect(sectionSwitcher).toBeVisible();
+  await expect(sectionSwitcher.getByRole("button", { name: /Current or new outages/ })).toBeVisible();
+  await expect(sectionSwitcher.getByRole("button", { name: /Current planned interruptions/ })).toBeVisible();
   await expect(page.locator(".ph-default-context-list")).toBeVisible();
   const initialHeight = await panel.evaluate((node) => node.getBoundingClientRect().height);
   const box = await handle.boundingBox();
@@ -82,16 +86,18 @@ test("mobile default context panel is visible and resizable", async ({ page }) =
       }),
     )
     .toBeGreaterThan(120);
+
+  await sectionSwitcher.getByRole("button", { name: /Disclosure/ }).click();
+  await expect(page.locator("#ph-context-disclosure summary")).toBeInViewport();
   await expect
     .poll(() =>
       panel.evaluate((node) => {
         const panelRect = node.getBoundingClientRect();
-        return Array.from(node.querySelectorAll(".ph-context-section-summary")).every(
-          (summary) => {
-            const rect = summary.getBoundingClientRect();
-            return rect.top >= panelRect.top && rect.bottom <= panelRect.bottom;
-          },
-        );
+        const disclosureSummary = node
+          .querySelector("#ph-context-disclosure summary")
+          ?.getBoundingClientRect();
+        if (!disclosureSummary) return false;
+        return disclosureSummary.top >= panelRect.top && disclosureSummary.bottom <= panelRect.bottom;
       }),
     )
     .toBe(true);

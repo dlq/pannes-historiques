@@ -270,6 +270,39 @@ textarea {
   padding: 0.5rem;
 }
 
+.ph-context-switcher {
+  display: none;
+}
+
+.ph-context-switcher-button {
+  display: inline-flex;
+  min-width: max-content;
+  align-items: center;
+  gap: 0.375rem;
+  border: 1px solid rgba(197, 202, 210, 0.95);
+  border-radius: 0.375rem;
+  background: rgba(255, 255, 255, 0.88);
+  padding: 0.375rem 0.5rem;
+  color: #223654;
+  font-size: 0.75rem;
+  line-height: 1;
+}
+
+.ph-context-switcher-button:hover,
+.ph-context-switcher-button:focus-visible {
+  border-color: #095797;
+  background: #eef6ff;
+  outline: none;
+}
+
+.ph-context-switcher-button strong {
+  border-radius: 0.25rem;
+  background: #dae6f0;
+  padding: 0.125rem 0.25rem;
+  color: #095797;
+  font-weight: 700;
+}
+
 .ph-context-section-summary {
   display: flex;
   cursor: pointer;
@@ -467,6 +500,19 @@ textarea {
     backdrop-filter: blur(3px);
   }
 
+  .ph-results-panel:has(.ph-map-context-list) .ph-context-switcher {
+    display: flex;
+    flex: 0 0 auto;
+    gap: 0.375rem;
+    overflow-x: auto;
+    padding: 0 0.5rem 0.5rem;
+    scrollbar-width: none;
+  }
+
+  .ph-results-panel:has(.ph-map-context-list) .ph-context-switcher::-webkit-scrollbar {
+    display: none;
+  }
+
   .ph-results-panel:has(.ph-search-context-list) {
     height: var(--ph-mobile-panel-height, min(52dvh, 28rem));
   }
@@ -505,6 +551,7 @@ textarea {
     height: 100%;
     min-height: 0;
     overflow-y: auto;
+    scroll-padding-top: 0.5rem;
   }
 
   .ph-results-panel:has(.ph-map-context-list) .ph-context-section {
@@ -518,24 +565,24 @@ textarea {
   }
 
   .ph-results-panel.is-expanded:has(.ph-map-context-list) .ph-result-sections {
-    overflow: hidden;
+    overflow-y: auto;
   }
 
   .ph-results-panel.is-expanded:has(.ph-map-context-list) .ph-context-section {
-    display: flex;
-    flex: 1 1 0;
-    min-height: 0;
-    flex-direction: column;
+    flex: 0 0 auto;
+    min-height: auto;
   }
 
   .ph-results-panel.is-expanded:has(.ph-map-context-list) .ph-context-section-summary {
-    flex: 0 0 auto;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    border-radius: 0.375rem;
+    background: rgba(255, 255, 255, 0.94);
   }
 
   .ph-results-panel.is-expanded:has(.ph-map-context-list) .ph-context-rows {
-    flex: 1 1 auto;
-    min-height: 0;
-    max-height: none;
+    max-height: max(10rem, calc(var(--ph-mobile-panel-height, 42dvh) - 9rem));
   }
 
   .ph-result-card h3 {
