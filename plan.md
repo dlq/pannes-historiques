@@ -25,8 +25,8 @@ The near-term release lines should be split this way:
 
 Current focus:
 
-- `v0.2.1` is the current released baseline on `main`: the map-first shell is live, result/detail selected states are persistent across row, keyboard, and map interactions, and the production container image is pinned to the selection-state build
-- remaining `0.2.x` work is mobile/search ergonomics, map/context hierarchy, accessibility/usability hardening, regression coverage, and payload/performance hardening rather than first implementation
+- `v0.2.2` is complete on `main`: the map-first shell is now installable/pinnable as a basic PWA, user-facing search URLs are clean and reloadable, mobile result/detail sheets are more usable, and the frontend map code has been split enough to support the next map-hierarchy pass
+- `v0.2.3` is next: focus on map/context hierarchy, explanatory affordances, accessibility/usability hardening, regression coverage, and payload/performance hardening rather than first implementation
 - `v0.1.3` and `v0.1.4` are complete stabilization releases; they established the automated Python/browser baseline, Nominatim hardening, operational/docs cleanup, verified status-code decoding, and small UI consistency fixes
 - Playwright baseline is implemented in the repo with a deterministic fixture server, Chromium + mobile-Chromium projects, and regression coverage for:
   - initial English/French render
@@ -64,7 +64,7 @@ Implementation checkpoint, 2026-05-19:
   - avoid redundant aggregate summary cards until the local-vs-context count model is clearer; keep counts on the relevant sections instead
   - include basic French/status polish where touched, especially accented labels and less prominent handling for unknown raw source statuses such as `N`
   - add focused browser regression coverage for row-to-map selected-state behavior on desktop and mobile
-- `v0.2.2` next: improve mobile sheet and search ergonomics
+- `v0.2.2` complete: improve mobile sheet and search ergonomics
   - make pannes.ca behave like an installable/pinnable web app on iOS and Android, so users can add it to their home screen and run it as a standalone map app
   - add and verify web-app manifest metadata, app icons, theme/background colors, viewport-fit/safe-area handling, Apple touch icon metadata, and appropriate display mode
   - test installed/pinned behavior on iOS Safari and Android Chrome, including launch URL, language/query state, current-location permissions, standalone header/safe-area layout, and offline/error fallback
