@@ -14,7 +14,7 @@ This file is the active execution plan. Keep durable evidence, source notes, and
 - Important architecture caveat: runtime writes inside the container are ephemeral; durable production state belongs in D1/R2 or another durable store.
 - User-facing URL contract: clean root URL with `lang`, `q`, or current-location coordinate parameters; obsolete public `radius_m`, `days`, and `include_planned` parameters were removed from the main interface.
 - Debug timing route: available only when `ENABLE_DEBUG_ROUTES=1`; production returns `404` by default.
-- Current deployed cleanup: `main` is deployed at commit `940061a`; Worker version `5e735b68-648f-471e-8b70-4a7aae88464c`.
+- Current deployed release: `v0.2.3` at commit `fea6a8d`; Worker version `03727124-ff45-4d9c-905c-97f59d94ca68`; container image `03727124`.
 - Current test baseline: Python tests, deterministic service/geocoding tests, route smoke coverage, Playwright desktop/mobile Chromium coverage, and production-shaped UI regression fixtures.
 
 ## Release Roadmap
@@ -33,7 +33,7 @@ In progress.
 - `v0.2.0`: map-first responsive shell for desktop and mobile. Complete.
 - `v0.2.1`: result/detail interaction refinement and selected-state behavior. Complete.
 - `v0.2.2`: mobile installability, search entry, current-location, history/back-forward, lightweight region-entry improvements, and frontend module split. Complete.
-- `v0.2.3`: map hierarchy, side-rail layer explanation, local Leaflet assets, and production-shaped map regression coverage. Releasing.
+- `v0.2.3`: map hierarchy, side-rail layer explanation, local Leaflet assets, and production-shaped map regression coverage. Complete.
 - `v0.2.4`: panel/layout polish, copy cleanup, and accessibility/usability hardening.
 - `v0.2.5`: performance measurement, deployment hygiene, and production hardening.
 
@@ -52,7 +52,7 @@ Candidate work after the map-first UI is stable:
 
 Goal: make the map answer "what matters near this searched place right now?" more quickly and clearly.
 
-Status: implementation complete, with desktop/mobile browser verification and Playwright regression coverage. Release commit/tag/deploy in progress.
+Status: released and deployed to production.
 
 Current implementation notes:
 
