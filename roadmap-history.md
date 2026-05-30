@@ -1,6 +1,6 @@
 # Roadmap History: Hydro-Québec Outage History App
 
-Date: 2026-05-29
+Date: 2026-05-30
 
 This file records completed release and implementation history. Keep active execution state in `plan.md` and source/evidence research in `research.md`.
 
@@ -102,10 +102,18 @@ This file records completed release and implementation history. Keep active exec
 - Moving current and previous nearby matching to D1 reduced app-side query cost.
 - Trimming disclosure popup data and using centroid markers for previous outages reduced `/search-map` payload size substantially.
 
+### Post-`v0.2.2` Structural Cleanup
+
+- Removed stale Worker direct-Hydro ingestion helpers after verifying their branch was superseded by the container-fetch/D1-R2 handoff.
+- Removed obsolete address-level disclosure match/metric result fields after disclosure context became map-layer based.
+- Gated `/debug/timing/search` behind `ENABLE_DEBUG_ROUTES=1`; production now returns `404` for that route by default.
+- Fixed `OutageMap` `ResizeObserver` cleanup for HTMX/custom-element reconnects.
+- Updated disclosure source metadata so parsed PDF sources no longer claim row extraction is pending.
+- Removed merged remote Codex branches after confirming their tips were contained in `main`.
+
 ## Deployment Lessons
 
 - Do not consider a deploy complete just because Wrangler reports a new Worker version.
 - Verify that the Cloudflare container image/version actually changed after deploys touching container code.
 - A stale container image can continue serving old app code even when D1/R2 data is current.
 - Production checks should include `/healthz`, a representative search, `/api/durable/status`, static app assets, service worker, and container status/image when relevant.
-

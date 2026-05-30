@@ -1,7 +1,7 @@
 # Plan: Hydro-Québec Outage History App
 
 Date: 2026-04-25
-Last updated: 2026-05-29
+Last updated: 2026-05-30
 
 This file is the active execution plan. Keep durable evidence, source notes, and long historical reasoning in `research.md`; keep completed release and implementation history in `roadmap-history.md`; keep completed detail here only when it affects current decisions.
 
@@ -13,6 +13,8 @@ This file is the active execution plan. Keep durable evidence, source notes, and
 - Container role: still renders the Flask/Jinja shell and keeps a baked-in SQLite snapshot for local-compatible/container fallback paths.
 - Important architecture caveat: runtime writes inside the container are ephemeral; durable production state belongs in D1/R2 or another durable store.
 - User-facing URL contract: clean root URL with `lang`, `q`, or current-location coordinate parameters; obsolete public `radius_m`, `days`, and `include_planned` parameters were removed from the main interface.
+- Debug timing route: available only when `ENABLE_DEBUG_ROUTES=1`; production returns `404` by default.
+- Current deployed cleanup: `main` is deployed at commit `940061a`; Worker version `5e735b68-648f-471e-8b70-4a7aae88464c`.
 - Current test baseline: Python tests, deterministic service/geocoding tests, route smoke coverage, Playwright desktop/mobile Chromium coverage, and production-shaped UI regression fixtures.
 
 ## Release Roadmap
@@ -88,7 +90,7 @@ Acceptance criteria:
 - revisit real-user Core Web Vitals, especially Cloudflare Observatory LCP findings
 - separate likely causes: container/TTFB, initial HTML size, lazy map payload, tile loading, image/static assets, and client rendering
 - decide whether replacing the Tailwind CDN path belongs in `v0.2.5` or moves to broader `0.3.x` frontend/tooling cleanup
-- gate or remove public debug endpoints that are not needed for normal operation
+- keep debug/operational endpoints private by default and decide whether any debug route should remain available through explicit configuration
 - document or automate the deployment/health-check sequence enough to avoid repeating stale-container/image deployment issues
 
 ## Completed `0.2.x` Summary
@@ -118,8 +120,10 @@ Acceptance criteria:
 ## Testing Strategy
 
 - `0.1.x`: baseline unit/service/route coverage is established.
-- `0.2.x`: expand Playwright coverage around mobile sheet behaviour, keyboard/focus behaviour, back-forward state, language switching, current-location flows, and map-layer selection states.
-- `0.3.x`: add more architecture/data-pipeline coverage for D1/R2-backed reads, ingestion/export/mirroring paths, disclosure parser fixtures, and performance-sensitive integration cases.
+- `0.2.3`: revisit browser coverage while changing the map hierarchy; protect current, planned, previous, disclosure, regional, desktop panel, and mobile bottom-sheet states.
+- `0.2.4`: revisit accessibility-oriented tests while polishing keyboard/focus behaviour, non-pointer flows, labels, and language switching.
+- `0.2.5`: revisit production/integration coverage around private debug routes, deployment checks, and performance-sensitive response-size/latency paths.
+- `0.3.x`: add more architecture/data-pipeline coverage for D1/R2-backed reads, ingestion/export/mirroring paths, disclosure parser fixtures, and Worker runtime routes.
 
 Before handing off code changes:
 
@@ -146,7 +150,7 @@ Before handing off code changes:
 
 ## Current Risks And Open Questions
 
-- The public debug/timing endpoint should be reviewed in `v0.2.5`; it is useful operationally but may not belong in normal public production.
+- The debug/timing endpoint is private by default; decide in `v0.2.5` whether to keep it as an explicitly enabled operational tool or remove it.
 - The desktop side panel can still feel cramped with multiple context sections; handle in `v0.2.4`.
 - Map layer hierarchy still needs a deliberate visual pass; handle in `v0.2.3`.
 - Accessibility needs a dedicated pass against W3C/WCAG basics; handle in `v0.2.4`.
