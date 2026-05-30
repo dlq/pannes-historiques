@@ -14,7 +14,7 @@ This file is the active execution plan. Keep durable evidence, source notes, and
 - Important architecture caveat: runtime writes inside the container are ephemeral; durable production state belongs in D1/R2 or another durable store.
 - User-facing URL contract: clean root URL with `lang`, `q`, or current-location coordinate parameters; obsolete public `radius_m`, `days`, and `include_planned` parameters were removed from the main interface.
 - Debug timing route: available only when `ENABLE_DEBUG_ROUTES=1`; production returns `404` by default.
-- Current deployed release: `v0.2.3` at commit `fea6a8d`; Worker version `03727124-ff45-4d9c-905c-97f59d94ca68`; container image `03727124`.
+- Current deployed release: `v0.2.3` plus post-release disclosure-panel fix at commit `75557b4`; Worker version `c8a38c73-2486-4235-9f59-cf5c8a93ffb8`; container image `c8a38c73`.
 - Current test baseline: Python tests, deterministic service/geocoding tests, route smoke coverage, Playwright desktop/mobile Chromium coverage, and production-shaped UI regression fixtures.
 
 ## Release Roadmap
@@ -58,6 +58,7 @@ Current implementation notes:
 
 - Leaflet is now served from local static assets instead of `unpkg`, because Safari/PWA/offline sessions can otherwise render the server-side rows and legend while failing to initialize the map library.
 - The disclosure/detail panel starts hidden and opens only after selecting a map/list item, avoiding an empty overlay over the map.
+- The side-rail `Divulgation`/`Disclosure` section is expanded by default so all context categories are visible without an extra click.
 
 Scope:
 
