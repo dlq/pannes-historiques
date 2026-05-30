@@ -132,8 +132,14 @@ def test_map_context_geometries_route_returns_json(app_client):
     assert payload["geometries"][0]["kind"] == "regional_metric"
 
 
-def test_debug_timing_search_route_returns_expected_shape(app_client):
+def test_debug_timing_search_route_is_not_public_by_default(app_client):
     response = app_client.get("/debug/timing/search?q=5220%20Rue%20Jeanne-Mance&lang=en")
+
+    assert response.status_code == 404
+
+
+def test_debug_timing_search_route_returns_expected_shape_when_enabled(debug_app_client):
+    response = debug_app_client.get("/debug/timing/search?q=5220%20Rue%20Jeanne-Mance&lang=en")
 
     assert response.status_code == 200
     payload = response.get_json()

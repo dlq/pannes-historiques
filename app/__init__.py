@@ -1,4 +1,4 @@
-"""Address-first Hydro-Quebec outage history app."""
+"""Map-first Hydro-Quebec outage history app."""
 
 __all__ = ["create_app"]
 

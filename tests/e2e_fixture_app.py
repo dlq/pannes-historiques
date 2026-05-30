@@ -236,9 +236,7 @@ def _build_result(*, location_query: bool = False) -> SearchResult:
                 "recent_events": [],
             }
         ],
-        disclosure_matches=[],
         disclosure_layers=_disclosure_layers(),
-        disclosure_metrics=[],
         regional_metric_layers=_regional_metric_layers(),
         radius_m=5000,
         error=None,

@@ -202,6 +202,8 @@ def create_app(settings: Settings | None = None) -> Flask:
 
     @app.get("/debug/timing/search")
     def debug_timing_search():
+        if not settings.enable_debug_routes:
+            return jsonify({"error": "not found"}), 404
         lang = choose_language(request.args.get("lang"))
         with current_timer().step("debug_search.service"):
             result = service.search(
@@ -227,7 +229,6 @@ def create_app(settings: Settings | None = None) -> Flask:
                 "planned_matches": len(result.planned_matches),
                 "previous_outage_groups": len(result.previous_outage_groups),
                 "current_map_layers": len(result.current_map_layers),
-                "disclosure_matches": len(result.disclosure_matches),
                 "disclosure_layers": len(result.disclosure_layers),
                 "regional_metric_layers": len(result.regional_metric_layers),
                 "timing": current_timer().snapshot(),

@@ -44,9 +44,7 @@ def make_search_result() -> SearchResult:
         previous_outage_groups=[],
         current_map_layers=[],
         previous_map_layers=[],
-        disclosure_matches=[],
         disclosure_layers=[],
-        disclosure_metrics=[],
         regional_metric_layers=[],
         radius_m=5000,
         error=None,
@@ -215,6 +213,20 @@ class StubService:
 
 @pytest.fixture
 def app_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    return _build_app_client(tmp_path, monkeypatch)
+
+
+@pytest.fixture
+def debug_app_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    return _build_app_client(tmp_path, monkeypatch, enable_debug_routes=True)
+
+
+def _build_app_client(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    enable_debug_routes: bool = False,
+):
     from app import web
 
     monkeypatch.setattr(web, "AppService", StubService)
@@ -223,6 +235,7 @@ def app_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
         data_dir=tmp_path / "data",
         raw_dir=tmp_path / "data" / "raw",
         db_path=tmp_path / "data" / "app.db",
+        enable_debug_routes=enable_debug_routes,
     )
     app = web.create_app(settings)
     app.config["TESTING"] = True

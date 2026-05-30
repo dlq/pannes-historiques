@@ -1173,19 +1173,20 @@ class OutageMap extends HTMLElement {
         });
     }
     if ("ResizeObserver" in window) {
-      const observer = new ResizeObserver(() => {
+      this.resizeObserver = new ResizeObserver(() => {
         if (activeMapFocus) {
           focusMap(activeMapFocus, { remember: false });
         } else {
           refresh();
         }
       });
-      observer.observe(this);
+      this.resizeObserver.observe(this);
     }
   }
 
   disconnectedCallback() {
     if (this.handleMapFocus) document.removeEventListener("map-focus", this.handleMapFocus);
+    if (this.resizeObserver) this.resizeObserver.disconnect();
   }
 }
 

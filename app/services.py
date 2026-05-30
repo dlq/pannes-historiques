@@ -67,9 +67,7 @@ class SearchResult:
     previous_outage_groups: list[dict[str, Any]]
     current_map_layers: list[dict[str, Any]]
     previous_map_layers: list[dict[str, Any]]
-    disclosure_matches: list[dict[str, Any]]
     disclosure_layers: list[dict[str, Any]]
-    disclosure_metrics: list[dict[str, Any]]
     regional_metric_layers: list[dict[str, Any]]
     radius_m: int
     error: str | None = None
@@ -409,9 +407,7 @@ class AppService:
                 previous_outage_groups=[],
                 current_map_layers=[],
                 previous_map_layers=[],
-                disclosure_matches=[],
                 disclosure_layers=[],
-                disclosure_metrics=[],
                 regional_metric_layers=[],
                 radius_m=radius_m,
                 error="outside_quebec",
@@ -441,9 +437,7 @@ class AppService:
                 previous_outage_groups=[],
                 current_map_layers=[],
                 previous_map_layers=[],
-                disclosure_matches=[],
                 disclosure_layers=[],
-                disclosure_metrics=[],
                 regional_metric_layers=[],
                 radius_m=radius_m,
                 error="geocode_failed",
@@ -467,9 +461,7 @@ class AppService:
                 previous_outage_groups=[],
                 current_map_layers=[],
                 previous_map_layers=[],
-                disclosure_matches=[],
                 disclosure_layers=[],
-                disclosure_metrics=[],
                 regional_metric_layers=[],
                 radius_m=radius_m,
                 error="outside_quebec",
@@ -493,8 +485,6 @@ class AppService:
                 days,
                 exclude_event_keys={self._outage_display_key(item) for item in outage_matches},
             )
-        with timer.step("search.find_disclosure_matches"):
-            disclosure_matches: list[dict[str, Any]] = []
         with timer.step("search.current_map_layers"):
             if include_map_layers:
                 current_map_layers = self._current_operational_map_layers(
@@ -508,8 +498,6 @@ class AppService:
             )
         with timer.step("search.disclosure_layers"):
             disclosure_layers = self._disclosure_map_layers() if include_map_layers else []
-        with timer.step("search.find_disclosure_metrics"):
-            disclosure_metrics: list[dict[str, Any]] = []
         with timer.step("search.regional_metric_layers"):
             regional_metric_layers = (
                 self._regional_metric_map_layers() if include_map_layers else []
@@ -545,7 +533,6 @@ class AppService:
             coverage = self.coverage_stats()
         timer.set("search.match_count", len(matches))
         timer.set("search.archived_outage_match_count", len(archived_outage_matches))
-        timer.set("search.disclosure_match_count", len(disclosure_matches))
         timer.set("search.current_map_layer_count", len(current_map_layers))
         timer.set("search.disclosure_layer_count", len(disclosure_layers))
         timer.set("search.regional_metric_layer_count", len(regional_metric_layers))
@@ -563,9 +550,7 @@ class AppService:
             previous_outage_groups=previous_outage_groups,
             current_map_layers=current_map_layers,
             previous_map_layers=previous_map_layers,
-            disclosure_matches=disclosure_matches,
             disclosure_layers=disclosure_layers,
-            disclosure_metrics=disclosure_metrics,
             regional_metric_layers=regional_metric_layers,
             radius_m=radius_m,
         )
@@ -620,9 +605,7 @@ class AppService:
                 previous_outage_groups=[],
                 current_map_layers=[],
                 previous_map_layers=[],
-                disclosure_matches=[],
                 disclosure_layers=[],
-                disclosure_metrics=[],
                 regional_metric_layers=[],
                 radius_m=radius_m,
                 error="outside_quebec",
@@ -683,9 +666,7 @@ class AppService:
             previous_outage_groups=previous_outage_groups,
             current_map_layers=current_map_layers,
             previous_map_layers=previous_map_layers,
-            disclosure_matches=[],
             disclosure_layers=disclosure_layers,
-            disclosure_metrics=[],
             regional_metric_layers=regional_metric_layers,
             radius_m=radius_m,
         )

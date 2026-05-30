@@ -37,6 +37,7 @@ class Settings:
         "pannes-historiques/0.1 (+https://github.com/dlq/pannes-historiques)",
     )
     auto_refresh_on_search: bool = os.environ.get("AUTO_REFRESH_ON_SEARCH", "1") == "1"
+    enable_debug_routes: bool = os.environ.get("ENABLE_DEBUG_ROUTES", "0") == "1"
     durable_nearby_url: str = DURABLE_NEARBY_URL
     durable_history_url: str = DURABLE_HISTORY_URL
     durable_runtime_url: str = DURABLE_RUNTIME_URL
