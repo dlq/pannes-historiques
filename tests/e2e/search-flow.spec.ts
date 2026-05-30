@@ -115,6 +115,13 @@ test("map explains and visually prioritizes production-shaped layers", async ({ 
 
   await expect(page.locator("dai-detail-panel")).toBeHidden();
   await expect(page.locator(".ph-map-legend")).toHaveCount(0);
+  await expect
+    .poll(() =>
+      page
+        .locator("#ph-context-disclosure")
+        .evaluate((section) => (section as HTMLDetailsElement).open),
+    )
+    .toBe(true);
 
   await expect
     .poll(() =>
