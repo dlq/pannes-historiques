@@ -1,7 +1,6 @@
 import { Container } from "@cloudflare/containers";
 import { unzipSync } from "fflate";
 
-const HYDRO_ROOT = "https://pannes.hydroquebec.com/pannes/donnees/v3_0";
 const DISCLOSURE_CRONS = new Set(["0 10 */14 * *", "13 10 */14 * *"]);
 const DISCLOSURE_BATCH_SIZE = 1;
 const DISCLOSURE_RUN_BUDGET_MS = 90_000;
@@ -131,24 +130,6 @@ async function runHydroSchedule(env) {
 async function currentFeedVersionMap(db) {
   const rows = await db.prepare("SELECT source, version FROM feed_versions").all();
   return Object.fromEntries((rows.results || []).map((row) => [row.source, row.version]));
-}
-
-async function callContainerCron(env, path) {
-  const container = env.PANNES_CONTAINER.getByName(CONTAINER_INSTANCE_NAME);
-  const response = await container.fetch(
-    new Request(`https://pannes.ca${path}`, {
-      method: "POST",
-      headers: { "X-Cloudflare-Scheduled": "1" },
-    }),
-  );
-  const text = await response.text();
-  let body = text;
-  try {
-    body = JSON.parse(text);
-  } catch (_error) {
-    // Keep non-JSON responses as text.
-  }
-  return { status: response.status, body };
 }
 
 async function syncHydroFromContainerResult(env, containerResult) {
@@ -649,47 +630,6 @@ async function callContainerDisclosureExport(env, sourceKeys) {
   return callContainerJson(env, `${path.pathname}${path.search}`);
 }
 
-async function ingestChangedHydro(env) {
-  const results = [];
-  for (const source of ["bis", "aip"]) {
-    results.push(await ingestSourceIfChanged(env, source));
-  }
-  return results;
-}
-
-async function ingestSourceIfChanged(env, source) {
-  const checkedAt = new Date().toISOString();
-  const versionPayload = await fetchArrayBuffer(`${HYDRO_ROOT}/${source}version.json`);
-  const version = parseVersion(decodeUtf8(versionPayload.bytes));
-  const existing = await env.DB.prepare("SELECT version FROM feed_versions WHERE source = ?")
-    .bind(source)
-    .first();
-  if (existing?.version === version) {
-    await env.DB.prepare("UPDATE feed_versions SET checked_at = ? WHERE source = ?")
-      .bind(checkedAt, source)
-      .run();
-    return { source, version, changed: false };
-  }
-
-  const markerType = `${source}markers`;
-  const polyType = `${source}poly`;
-  const markers = await fetchArrayBuffer(`${HYDRO_ROOT}/${markerType}${version}.json`);
-  const poly = await fetchArrayBuffer(`${HYDRO_ROOT}/${polyType}${version}.kmz`);
-  await storeSnapshot(env, `${source}version`, version, versionPayload, "json");
-  await storeSnapshot(env, markerType, version, markers, "json");
-  await storeSnapshot(env, polyType, version, poly, "kmz");
-  const polygonCount = await ingestHydroPolygons(env.DB, polyType, version, poly.bytes, checkedAt);
-
-  if (source === "bis") {
-    const count = await ingestBisMarkers(env.DB, version, decodeUtf8(markers.bytes), checkedAt);
-    await upsertFeedVersion(env.DB, source, version, checkedAt);
-    return { source, version, changed: true, records: count, polygons: polygonCount };
-  }
-  const count = await ingestAipMarkers(env.DB, version, decodeUtf8(markers.bytes), checkedAt);
-  await upsertFeedVersion(env.DB, source, version, checkedAt);
-  return { source, version, changed: true, records: count, polygons: polygonCount };
-}
-
 async function fetchArrayBuffer(
   url,
   { accept = "application/json,text/plain,*/*", timeoutMs = null } = {},
@@ -722,14 +662,6 @@ async function fetchArrayBuffer(
 
 function decodeUtf8(buffer) {
   return new TextDecoder().decode(buffer);
-}
-
-function parseVersion(text) {
-  const payload = JSON.parse(text);
-  if (typeof payload === "string") return payload;
-  if (payload && typeof payload === "object")
-    return String(payload.version || Object.values(payload)[0]);
-  throw new Error("Unexpected Hydro-Quebec version payload");
 }
 
 async function storeSnapshot(env, sourceType, version, payload, extension) {

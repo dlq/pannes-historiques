@@ -6,6 +6,50 @@ from app.services import (
 )
 
 
+def fake_montreal_geocode() -> dict[str, object]:
+    return {
+        "provider": "fake",
+        "confidence": 0.9,
+        "quality": "address",
+        "latitude": 45.5,
+        "longitude": -73.56,
+        "city": "Montreal",
+        "province": "Quebec",
+        "postal_code": "H2V4G7",
+        "raw_json": {},
+    }
+
+
+def fake_outage_match(
+    *,
+    record_id: object = 1,
+    start_time: str = "2026-05-18 10:00:00",
+    distance_m: float = 125.0,
+    customers_affected: int = 10,
+    status: str = "N",
+    centroid_lat: float = 45.5,
+    centroid_lon: float = -73.56,
+) -> dict[str, object]:
+    return {
+        "outage_kind": "outage",
+        "record_id": record_id,
+        "geometry_id": None,
+        "geometry_geojson": None,
+        "match_type": "nearby_match",
+        "distance_m": distance_m,
+        "confidence": 0.8,
+        "municipality_code": "Montreal",
+        "customers_affected": customers_affected,
+        "status": status,
+        "interruption_type": "P",
+        "start_time": start_time,
+        "end_time": None,
+        "centroid_lat": centroid_lat,
+        "centroid_lon": centroid_lon,
+        "sort_time": start_time,
+    }
+
+
 def test_point_in_polygon_detects_inside_and_outside_points():
     polygon = [[-73.61, 45.51], [-73.59, 45.51], [-73.59, 45.53], [-73.61, 45.53]]
 
@@ -355,6 +399,145 @@ def test_archived_outage_matches_populate_previous_groups_when_runtime_has_none(
     assert len(result.previous_outage_groups) == 1
     assert result.previous_outage_groups[0]["event_count"] == 1
     assert result.previous_outage_groups[0]["events"][0]["start_time"] == "2026-05-18 10:00:00"
+
+
+def test_address_search_without_history_or_map_layers_stays_read_only(service_factory, monkeypatch):
+    service = service_factory(auto_refresh_on_search=False)
+    monkeypatch.setattr(service, "collector_status", lambda: {"snapshot_count": 0})
+    monkeypatch.setattr(service, "coverage_stats", lambda: {"outage_count": 0})
+    monkeypatch.setattr(
+        service.geocoder,
+        "geocode",
+        lambda normalized: fake_montreal_geocode(),
+    )
+    monkeypatch.setattr(service, "_upsert_address", lambda normalized, geocode: (7, True))
+    monkeypatch.setattr(
+        service,
+        "_find_current_matches",
+        lambda latitude, longitude, radius_m, days, include_planned: [fake_outage_match()],
+    )
+    monkeypatch.setattr(service, "_find_archived_outage_matches", lambda *args, **kwargs: [])
+    monkeypatch.setattr(service, "_previous_outage_groups", lambda **kwargs: [])
+    monkeypatch.setattr(service, "_query_count", lambda address_id: 3)
+    monkeypatch.setattr(
+        service,
+        "_current_operational_map_layers",
+        lambda include_planned: (_ for _ in ()).throw(
+            AssertionError("current map layers should not be built")
+        ),
+    )
+    monkeypatch.setattr(
+        service,
+        "_previous_operational_map_layers",
+        lambda: (_ for _ in ()).throw(AssertionError("previous map layers should not be built")),
+    )
+    monkeypatch.setattr(
+        service,
+        "_disclosure_map_layers",
+        lambda: (_ for _ in ()).throw(AssertionError("disclosure layers should not be built")),
+    )
+    monkeypatch.setattr(
+        service,
+        "_regional_metric_map_layers",
+        lambda: (_ for _ in ()).throw(AssertionError("regional metric layers should not be built")),
+    )
+    monkeypatch.setattr(
+        service,
+        "_save_matches",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("read-only search should not save matches")
+        ),
+    )
+    monkeypatch.setattr(
+        service,
+        "_record_query",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("read-only search should not record query history")
+        ),
+    )
+
+    result = service.search(
+        query="5220 Rue Jeanne-Mance",
+        language="en",
+        radius_m=5000,
+        days=1825,
+        include_planned=True,
+        include_map_layers=False,
+        record_history=False,
+    )
+
+    assert result.error is None
+    assert result.query_count == 3
+    assert len(result.outage_matches) == 1
+    assert result.current_map_layers == []
+    assert result.previous_map_layers == []
+    assert result.disclosure_layers == []
+    assert result.regional_metric_layers == []
+
+
+def test_location_search_records_current_and_archived_matches(service_factory, monkeypatch):
+    service = service_factory(auto_refresh_on_search=False)
+    monkeypatch.setattr(service, "collector_status", lambda: {"snapshot_count": 0})
+    monkeypatch.setattr(service, "coverage_stats", lambda: {"outage_count": 0})
+    monkeypatch.setattr(service, "_upsert_address", lambda normalized, geocode: (7, True))
+    current_match = fake_outage_match(record_id="current-1")
+    archived_match = fake_outage_match(
+        record_id="archived-1",
+        start_time="2026-05-17 09:00:00",
+        distance_m=200.0,
+        customers_affected=15,
+        status="R",
+        centroid_lat=45.51,
+        centroid_lon=-73.57,
+    )
+    monkeypatch.setattr(
+        service,
+        "_find_current_matches",
+        lambda latitude, longitude, radius_m, days, include_planned: [current_match],
+    )
+
+    archived_calls = []
+
+    def fake_archived_matches(*args, **kwargs):
+        archived_calls.append(kwargs)
+        return [archived_match]
+
+    monkeypatch.setattr(service, "_find_archived_outage_matches", fake_archived_matches)
+    monkeypatch.setattr(service, "_current_operational_map_layers", lambda include_planned: [])
+    monkeypatch.setattr(service, "_previous_operational_map_layers", lambda: [])
+    monkeypatch.setattr(service, "_disclosure_map_layers", lambda: [])
+    monkeypatch.setattr(service, "_regional_metric_map_layers", lambda: [])
+    monkeypatch.setattr(service, "_previous_outage_groups", lambda **kwargs: [])
+    saved_matches = []
+    recorded_queries = []
+    monkeypatch.setattr(
+        service,
+        "_save_matches",
+        lambda address_id, matches: saved_matches.append((address_id, matches)),
+    )
+    monkeypatch.setattr(
+        service,
+        "_record_query",
+        lambda **kwargs: recorded_queries.append(kwargs) or 4,
+    )
+
+    result = service.search_location(
+        latitude=45.5,
+        longitude=-73.56,
+        accuracy_m=20,
+        language="en",
+        radius_m=5000,
+        days=1825,
+        include_planned=True,
+        record_history=True,
+    )
+
+    assert result.error is None
+    assert result.query_count == 4
+    assert archived_calls[0]["exclude_event_keys"] == {service._outage_display_key(current_match)}
+    assert saved_matches == [(7, [current_match, archived_match])]
+    assert recorded_queries[0]["original_query"] == "Current location (45.50000, -73.56000)"
+    assert recorded_queries[0]["normalized_query"] == "current location 45.50000,-73.56000"
 
 
 def test_current_operational_map_layers_prefers_durable_feed(service_factory, monkeypatch):
