@@ -102,6 +102,85 @@ test("search renders result cards and lazy-loads the map", async ({ page }) => {
   await expect(page.locator("outage-map")).toHaveAttribute("data-map");
 });
 
+test("map explains and visually prioritizes production-shaped layers", async ({ page }) => {
+  await runSearch(page);
+
+  const expectedKinds = [
+    "outage",
+    "planned",
+    "previous_outage",
+    "disclosure",
+    "regional_metric",
+  ];
+
+  await expect(page.locator("dai-detail-panel")).toBeHidden();
+  await expect(page.locator(".ph-map-legend")).toHaveCount(0);
+
+  await expect
+    .poll(() =>
+      page.locator("outage-map").evaluate((map) => {
+        const payload = JSON.parse(map.getAttribute("data-map") || "{}");
+        return [
+          ...new Set((payload.matches || []).map((item: { kind: string }) => item.kind)),
+        ].sort();
+      }),
+    )
+    .toEqual([...expectedKinds].sort());
+
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const visibleLayerKinds = ["outage", "planned", "previous_outage", "regional_metric"];
+        return visibleLayerKinds.filter((kind) => {
+          const layer = document.querySelector(`.ph-map-layer-${kind}`);
+          if (!layer) return false;
+          const box = layer.getBoundingClientRect();
+          return box.width > 0 && box.height > 0;
+        });
+      }),
+    )
+    .toEqual(["outage", "planned", "previous_outage", "regional_metric"]);
+
+  await expect(page.locator(".ph-map-layer-disclosure")).toHaveCount(1);
+
+  const styles = await page.evaluate(() => {
+    const readStyle = (kind: string) => {
+      const layer = document.querySelector(`.ph-map-layer-${kind}`);
+      if (!layer) return null;
+      const computed = window.getComputedStyle(layer);
+      return {
+        dash: layer.getAttribute("stroke-dasharray") || computed.strokeDasharray,
+        fillOpacity: Number.parseFloat(
+          layer.getAttribute("fill-opacity") || computed.fillOpacity || "0",
+        ),
+        strokeOpacity: Number.parseFloat(
+          layer.getAttribute("stroke-opacity") || computed.strokeOpacity || "0",
+        ),
+        weight: Number.parseFloat(
+          layer.getAttribute("stroke-width") || computed.strokeWidth || "0",
+        ),
+      };
+    };
+
+    return {
+      outage: readStyle("outage"),
+      planned: readStyle("planned"),
+      previous: readStyle("previous_outage"),
+      disclosure: readStyle("disclosure"),
+      regional: readStyle("regional_metric"),
+    };
+  });
+
+  expect(styles.outage?.fillOpacity).toBeGreaterThan(styles.planned?.fillOpacity || 0);
+  expect(styles.planned?.fillOpacity).toBeGreaterThan(styles.previous?.fillOpacity || 0);
+  expect(styles.previous?.fillOpacity).toBeGreaterThan(styles.disclosure?.fillOpacity || 0);
+  expect(styles.disclosure?.fillOpacity).toBeGreaterThan(styles.regional?.fillOpacity || 0);
+  expect(styles.outage?.weight).toBeGreaterThan(styles.disclosure?.weight || 0);
+  expect(styles.previous?.dash).not.toBe("none");
+  expect(styles.disclosure?.dash).not.toBe("none");
+  expect(styles.regional?.strokeOpacity).toBeLessThan(styles.previous?.strokeOpacity || 1);
+});
+
 test("browser history reloads canonical search URL state", async ({ page }) => {
   await runSearch(page);
   await expect(page).toHaveURL(/q=5220\+Rue\+Jeanne-Mance|q=5220%20Rue%20Jeanne-Mance/);

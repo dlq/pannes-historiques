@@ -1,6 +1,6 @@
 {
   "name": "pannes-historiques",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "private": true,
   "type": "module",
   "scripts": {
@@ -21,6 +21,7 @@
     "wrangler": "^4.87.0"
   },
   "dependencies": {
-    "fflate": "^0.8.2"
+    "fflate": "^0.8.2",
+    "leaflet": "^1.9.4"
   }
 }

@@ -3,7 +3,8 @@
   "files": {
     "ignore": [
       "app/static/disclosure_geometries.json",
-      "app/static/regional_metric_geometries.json"
+      "app/static/regional_metric_geometries.json",
+      "app/static/vendor/**"
     ]
   },
   "formatter": {

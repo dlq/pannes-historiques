@@ -7,7 +7,7 @@ This file is the active execution plan. Keep durable evidence, source notes, and
 
 ## Current State
 
-- Current release: `v0.2.2` on `main`.
+- Current release: `v0.2.3` on `main`.
 - Current product shape: map-first address/current-location lookup with server-rendered Flask/Jinja fragments, HTMX, Leaflet, vanilla JavaScript modules, and a Cloudflare Workers + Containers production deployment.
 - Production data plane: D1/R2-backed durable ingestion for current feed rows, previous-outage rows, raw Hydro-Québec payloads, disclosure metadata, and runtime map-context layers.
 - Container role: still renders the Flask/Jinja shell and keeps a baked-in SQLite snapshot for local-compatible/container fallback paths.
@@ -33,7 +33,7 @@ In progress.
 - `v0.2.0`: map-first responsive shell for desktop and mobile. Complete.
 - `v0.2.1`: result/detail interaction refinement and selected-state behavior. Complete.
 - `v0.2.2`: mobile installability, search entry, current-location, history/back-forward, lightweight region-entry improvements, and frontend module split. Complete.
-- `v0.2.3`: map hierarchy, layer explanation, and production-shaped map regression coverage. Next.
+- `v0.2.3`: map hierarchy, side-rail layer explanation, local Leaflet assets, and production-shaped map regression coverage. Releasing.
 - `v0.2.4`: panel/layout polish, copy cleanup, and accessibility/usability hardening.
 - `v0.2.5`: performance measurement, deployment hygiene, and production hardening.
 
@@ -52,11 +52,18 @@ Candidate work after the map-first UI is stable:
 
 Goal: make the map answer "what matters near this searched place right now?" more quickly and clearly.
 
+Status: implementation complete, with desktop/mobile browser verification and Playwright regression coverage. Release commit/tag/deploy in progress.
+
+Current implementation notes:
+
+- Leaflet is now served from local static assets instead of `unpkg`, because Safari/PWA/offline sessions can otherwise render the server-side rows and legend while failing to initialize the map library.
+- The disclosure/detail panel starts hidden and opens only after selecting a map/list item, avoiding an empty overlay over the map.
+
 Scope:
 
 - tune map-layer visual hierarchy so the searched address and relevant nearby current/planned outages dominate
 - make broad disclosure/regional context quieter by default
-- define a clearer current/previous/disclosure/regional legend or layer-control pattern without cluttering the primary map surface
+- rely on side-rail section headings/counts for layer explanation instead of a persistent floating map legend
 - keep selected map/list states easy to follow when clicking rows, clicking geometries, and opening detail context
 - add browser regression coverage for production-shaped map context:
   - current outage
@@ -70,7 +77,7 @@ Scope:
 Acceptance criteria:
 
 - after an address search, the user can visually identify the searched address and the most relevant nearby current/planned outage context without decoding the whole map
-- current, planned, previous, disclosure, and regional layers have distinguishable visual treatment and explanatory text
+- current, planned, previous, disclosure, and regional layers have distinguishable visual treatment backed by side-rail headings/counts
 - broad context layers do not visually compete with direct local outage information
 - row-to-map and map-to-row selection remains obvious on desktop and mobile
 - Playwright coverage protects the representative layer/selection states
@@ -152,7 +159,7 @@ Before handing off code changes:
 
 - The debug/timing endpoint is private by default; decide in `v0.2.5` whether to keep it as an explicitly enabled operational tool or remove it.
 - The desktop side panel can still feel cramped with multiple context sections; handle in `v0.2.4`.
-- Map layer hierarchy still needs a deliberate visual pass; handle in `v0.2.3`.
+- Map layer hierarchy is implemented locally; review visually before tagging `v0.2.3`.
 - Accessibility needs a dedicated pass against W3C/WCAG basics; handle in `v0.2.4`.
 - Performance should be measured before broad architecture work; handle in `v0.2.5`, then decide what belongs in `0.3.x`.
 - Do not speculate about Hydro-Québec one-letter status-code meanings unless source documentation or payload context verifies them.

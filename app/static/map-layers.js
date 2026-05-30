@@ -30,11 +30,11 @@ export function regionalColor(item, maxValue) {
 }
 
 export function regionalFillOpacity(item) {
-  return metricValue(item) == null ? 0.04 : 0.16;
+  return metricValue(item) == null ? 0.02 : 0.045;
 }
 
 export function regionalWeight(item) {
-  return metricValue(item) == null ? 0.8 : 1.2;
+  return metricValue(item) == null ? 0.6 : 0.9;
 }
 
 export function mapPane(item) {
@@ -67,10 +67,14 @@ export function geometryWeight(itemOrGeometry) {
 
 export function layerColor(item, metricMax) {
   if (item.kind === "planned") return "#0891b2";
-  if (item.kind === "disclosure") return "#2563eb";
+  if (item.kind === "disclosure") return "#3b82f6";
   if (item.kind === "regional_metric") return regionalColor(item, metricMax);
   if (item.kind === "previous_outage") return "#64748b";
   return "#f59e0b";
+}
+
+export function mapLayerClass(item) {
+  return `ph-map-layer ph-map-layer-${item.kind || "unknown"}`;
 }
 
 export function geometryStyle(item, metricMax) {
@@ -83,24 +87,25 @@ export function geometryStyle(item, metricMax) {
     weight: isRegionalMetric
       ? regionalWeight(item)
       : isDisclosure
-        ? 2
+        ? 1.5
         : isPreviousOutage
-          ? 2
+          ? 1.75
           : item.matchType === "direct_match"
-            ? 4
-            : 3,
-    opacity: isRegionalMetric ? 0.36 : isDisclosure ? 0.72 : 1,
-    dashArray: isPreviousOutage ? "4 6" : null,
+            ? 5
+            : 4,
+    opacity: isRegionalMetric ? 0.22 : isDisclosure ? 0.46 : isPreviousOutage ? 0.62 : 1,
+    dashArray: isPreviousOutage ? "4 7" : isDisclosure ? "2 5" : null,
     fillColor: color,
     fillOpacity: isRegionalMetric
       ? regionalFillOpacity(item)
       : isDisclosure
-        ? 0.16
+        ? 0.07
         : isPreviousOutage
-          ? 0.1
+          ? 0.08
           : item.kind === "planned"
-            ? 0.34
-            : 0.38,
+            ? 0.28
+            : 0.46,
+    className: mapLayerClass(item),
   };
 }
 
@@ -112,17 +117,18 @@ export function markerStyle(item, metricMax) {
   return {
     pane: mapPane(item),
     radius: isRegionalMetric
-      ? 14
+      ? 10
       : isDisclosure
-        ? 12
+        ? 9
         : isPreviousOutage
           ? 7
           : item.matchType === "direct_match"
-            ? 8
-            : 6,
+            ? 9
+            : 7,
     color,
-    weight: isRegionalMetric ? 2 : isDisclosure ? 3.5 : isPreviousOutage ? 1.5 : 2,
+    weight: isRegionalMetric ? 1.5 : isDisclosure ? 2 : isPreviousOutage ? 1.5 : 2.5,
     fillColor: color,
-    fillOpacity: isRegionalMetric ? 0.48 : isDisclosure ? 0.82 : isPreviousOutage ? 0.38 : 0.65,
+    fillOpacity: isRegionalMetric ? 0.22 : isDisclosure ? 0.38 : isPreviousOutage ? 0.3 : 0.78,
+    className: mapLayerClass(item),
   };
 }

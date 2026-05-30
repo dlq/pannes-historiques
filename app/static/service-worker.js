@@ -1,9 +1,16 @@
-const CACHE_NAME = "pannes-historiques-v0.2.2-js-modules-1";
+const CACHE_NAME = "pannes-historiques-v0.2.3-local-leaflet-1";
 const APP_SHELL_URLS = [
   "/static/app.css",
   "/static/app.js",
   "/static/map-layers.js",
   "/static/ui-format.js",
+  "/static/vendor/leaflet/leaflet.css",
+  "/static/vendor/leaflet/leaflet.js",
+  "/static/vendor/leaflet/images/layers-2x.png",
+  "/static/vendor/leaflet/images/layers.png",
+  "/static/vendor/leaflet/images/marker-icon-2x.png",
+  "/static/vendor/leaflet/images/marker-icon.png",
+  "/static/vendor/leaflet/images/marker-shadow.png",
   "/static/app-icon-180.png",
   "/static/app-icon-192.png",
   "/static/app-icon-512.png",

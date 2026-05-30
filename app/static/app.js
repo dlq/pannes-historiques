@@ -1,4 +1,11 @@
-import { geometryStyle, geometryWeight, mapPane, markerStyle, metricValue } from "./map-layers.js";
+import {
+  geometryStyle,
+  geometryWeight,
+  mapLayerClass,
+  mapPane,
+  markerStyle,
+  metricValue,
+} from "./map-layers.js";
 import {
   detailFactList,
   escapeHtml,
@@ -622,6 +629,17 @@ function disclosureSummaryPopup(item, labels = {}) {
   `;
 }
 
+function applyMapLayerClass(layer, item) {
+  const classes = mapLayerClass(item).split(/\s+/).filter(Boolean);
+  const applyToElement = (element) => {
+    if (element) element.classList.add(...classes);
+  };
+  if (typeof layer.eachLayer === "function") {
+    layer.eachLayer((childLayer) => applyToElement(childLayer.getElement?.()));
+  }
+  applyToElement(layer.getElement?.());
+}
+
 function operationalTooltip(item, labels = {}) {
   if (item.kind === "previous_outage") {
     return `${escapeHtml(item.kindLabel || "Previously seen outage")} · ${escapeHtml(item.eventCount || 0)} ${escapeHtml(item.eventCountLabel || "retained outages")}`;
@@ -869,6 +887,10 @@ class OutageMap extends HTMLElement {
     const detailPanel = document.querySelector("dai-detail-panel");
     const labels = data.labels || {};
     if (detailPanel) detailPanel.labels = labels;
+    if (!window.L) {
+      root.innerHTML = `<div class="ph-map-visual-center">${escapeHtml(label(labels, "map_unavailable", "The map could not load. Reload the page to try again."))}</div>`;
+      return;
+    }
     const map = L.map(root, { zoomControl: false }).setView(data.center || [46.8, -71.2], 11);
     L.control.zoom({ position: "topright" }).addTo(map);
     L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
@@ -1102,6 +1124,7 @@ class OutageMap extends HTMLElement {
           pane: mapPane(item),
           style: geometryStyle(item, metricMax),
         }).addTo(map);
+        applyMapLayerClass(layer, item);
         bindLayerInteractions(layer, item);
         const layerBounds = layer.getBounds();
         if (!isContextLayer(item) && layerBounds.isValid()) {
@@ -1115,6 +1138,7 @@ class OutageMap extends HTMLElement {
         const marker = L.circleMarker([item.lat, item.lon], markerStyle(item, metricMax)).addTo(
           map,
         );
+        applyMapLayerClass(marker, item);
         bindLayerInteractions(marker, item);
         if (!isContextLayer(item)) marker.bringToFront();
         if (!isContextLayer(item)) bounds.push([item.lat, item.lon]);

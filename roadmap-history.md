@@ -45,6 +45,14 @@ This file records completed release and implementation history. Keep active exec
 - Updated service-worker/static-version handling for the new ES modules.
 - Fixed the Cloudflare container deploy configuration so the deployed container image is built from the repo `Dockerfile` instead of staying pinned to an old registry image.
 
+### `v0.2.3`
+
+- Tuned current, planned, previous, disclosure, and regional map-layer hierarchy.
+- Removed the floating map legend and kept layer explanation in the side rail headings/counts.
+- Made the detail panel hidden by default so it cannot render as an empty overlay over the map.
+- Served Leaflet from local static assets and cached it in the service worker to avoid CDN/offline/PWA map initialization failures.
+- Added production-shaped browser regression coverage for the representative map layers.
+
 ## Implementation Checkpoints
 
 ### Status-Code Decoding

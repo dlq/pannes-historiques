@@ -185,6 +185,7 @@ def _map_labels(lang: str) -> dict[str, str]:
             "extracted_rows",
             "latest_map_source",
             "nearby_match",
+            "map_unavailable",
             "outage",
             "outages",
             "outages_over_8h",

@@ -21,11 +21,10 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/htmx.org@1.9.12"></script>
     <link rel="stylesheet"
-          href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-          crossorigin="">
+          href="{{ url_for('static', filename='vendor/leaflet/leaflet.css', v=static_version) }}">
     <link rel="stylesheet"
           href="{{ url_for('static', filename='app.css', v=static_version) }}">
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+    <script src="{{ url_for('static', filename='vendor/leaflet/leaflet.js', v=static_version) }}"></script>
     <script type="module"
             src="{{ url_for('static', filename='app.js', v=static_version) }}"></script>
   </head>
@@ -176,7 +175,7 @@
           {% endif %}
         </section>
       </div>
-      <dai-detail-panel class="ph-dai-detail-panel rounded-lg shadow-lg" title-label="{{ t(lang, 'disclosure') }}" empty-label="{{ t(lang, 'disclosure_empty') }}"></dai-detail-panel>
+      <dai-detail-panel class="ph-dai-detail-panel rounded-lg shadow-lg" title-label="{{ t(lang, 'disclosure') }}" empty-label="{{ t(lang, 'disclosure_empty') }}" hidden></dai-detail-panel>
       <footer class="ph-footer mt-8 border-t border-[#c5cad2] px-2 py-5 text-sm text-[#4e5662]">
         <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <span>{{ t(lang, "footer_note") }}</span>
