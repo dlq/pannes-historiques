@@ -1,4 +1,4 @@
-const CACHE_NAME = "pannes-historiques-v0.2.3-local-leaflet-1";
+const CACHE_NAME = "pannes-historiques-v0.2.4-copy-a11y-1";
 const APP_SHELL_URLS = [
   "/static/app.css",
   "/static/app.js",

@@ -7,7 +7,7 @@ This file is the active execution plan. Keep durable evidence, source notes, and
 
 ## Current State
 
-- Current release: `v0.2.3` on `main`.
+- Current release in progress: `v0.2.4` on `main`.
 - Current product shape: map-first address/current-location lookup with server-rendered Flask/Jinja fragments, HTMX, Leaflet, vanilla JavaScript modules, and a Cloudflare Workers + Containers production deployment.
 - Production data plane: D1/R2-backed durable ingestion for current feed rows, previous-outage rows, raw Hydro-Québec payloads, disclosure metadata, and runtime map-context layers.
 - Container role: still renders the Flask/Jinja shell and keeps a baked-in SQLite snapshot for local-compatible/container fallback paths.
@@ -34,7 +34,7 @@ In progress.
 - `v0.2.1`: result/detail interaction refinement and selected-state behavior. Complete.
 - `v0.2.2`: mobile installability, search entry, current-location, history/back-forward, lightweight region-entry improvements, and frontend module split. Complete.
 - `v0.2.3`: map hierarchy, side-rail layer explanation, local Leaflet assets, and production-shaped map regression coverage. Complete.
-- `v0.2.4`: panel/layout polish, copy cleanup, and accessibility/usability hardening.
+- `v0.2.4`: scoped copy/data-truth cleanup, safer status labels, side-panel width/focus polish, and accessibility-oriented regression checks. In progress.
 - `v0.2.5`: performance measurement, deployment hygiene, and production hardening.
 
 ### `0.3.x`: Architecture And Product Expansion
@@ -48,50 +48,39 @@ Candidate work after the map-first UI is stable:
 - explore opt-in web notifications after PWA installability, based on saved watch areas rather than requiring a literal home address
 - replace the Tailwind CDN path with a production build pipeline if it is not handled in `0.2.5`
 
-## Current Focus: `v0.2.3`
+## Current Focus: `v0.2.4`
 
-Goal: make the map answer "what matters near this searched place right now?" more quickly and clearly.
+Goal: make the map sidebar copy accurately describe the source data and reduce small accessibility/layout friction.
 
-Status: released and deployed to production.
+Status: implementation and verification in progress.
 
 Current implementation notes:
 
-- Leaflet is now served from local static assets instead of `unpkg`, because Safari/PWA/offline sessions can otherwise render the server-side rows and legend while failing to initialize the map library.
-- The disclosure/detail panel starts hidden and opens only after selecting a map/list item, avoiding an empty overlay over the map.
-- The side-rail `Divulgation`/`Disclosure` section is expanded by default so all context categories are visible without an extra click.
+- "Current" outage copy should mean "present in Hydro-Québec's latest current feed," not "new today."
+- Unknown one-letter Hydro-Québec status codes should be labelled as undocumented instead of exposed as bare primary UI text.
+- Side-panel disclosure/current-feed sections should remain keyboard reachable with visible focus states.
 
 Scope:
 
-- tune map-layer visual hierarchy so the searched address and relevant nearby current/planned outages dominate
-- make broad disclosure/regional context quieter by default
-- rely on side-rail section headings/counts for layer explanation instead of a persistent floating map legend
-- keep selected map/list states easy to follow when clicking rows, clicking geometries, and opening detail context
-- add browser regression coverage for production-shaped map context:
-  - current outage
-  - planned interruption
-  - previous outage
-  - disclosure area
-  - regional layer
-  - desktop panel
-  - mobile bottom sheet
+- rename current outage headings to reflect the current Hydro-Québec feed
+- label undocumented status codes such as `N` without guessing their meanings
+- give the desktop side rail a little more width and add visible focus treatment for collapsible section summaries
+- add/update tests for headings, service-worker version, status labels, and focus/ARIA behaviour
+- update version metadata, tag `v0.2.4`, push, and deploy
 
 Acceptance criteria:
 
-- after an address search, the user can visually identify the searched address and the most relevant nearby current/planned outage context without decoding the whole map
-- current, planned, previous, disclosure, and regional layers have distinguishable visual treatment backed by side-rail headings/counts
-- broad context layers do not visually compete with direct local outage information
-- row-to-map and map-to-row selection remains obvious on desktop and mobile
-- Playwright coverage protects the representative layer/selection states
+- side rail no longer says or implies that every current-feed row is newly started
+- raw unknown status codes are not shown alone as primary status labels
+- desktop side rail has slightly more room without covering the key map controls
+- Playwright covers representative copy/focus behaviour
 
 ## Next Release Slices
 
 ### `v0.2.4`: Panel, Copy, And Accessibility Polish
 
-- give the desktop side panel more room, stronger compaction, or a clear collapse/minimize affordance
-- polish mobile header and sheet details that still feel awkward after the `v0.2.2` sheet changes
-- improve keyboard/focus behaviour for sheet controls, map-result selection, and detail overlays
-- review the UI against W3C/WCAG basics for contrast, focus visibility, labels, and non-pointer access
-- clean up French labels/status text and avoid exposing unclear raw source codes such as `N` as primary UI
+- scoped for this release: current-feed copy, undocumented status labels, slightly wider desktop side rail, visible summary focus states, and regression coverage
+- defer broader mobile sheet redesign, collapse/minimize affordance, and full WCAG audit to later `0.2.x`
 
 ### `v0.2.5`: Performance And Production Hygiene
 
@@ -159,8 +148,7 @@ Before handing off code changes:
 ## Current Risks And Open Questions
 
 - The debug/timing endpoint is private by default; decide in `v0.2.5` whether to keep it as an explicitly enabled operational tool or remove it.
-- The desktop side panel can still feel cramped with multiple context sections; handle in `v0.2.4`.
-- Map layer hierarchy is implemented locally; review visually before tagging `v0.2.3`.
+- The desktop side panel can still feel cramped with multiple context sections; `v0.2.4` gives it more width, but broader collapse/minimize design can still wait.
 - Accessibility needs a dedicated pass against W3C/WCAG basics; handle in `v0.2.4`.
 - Performance should be measured before broad architecture work; handle in `v0.2.5`, then decide what belongs in `0.3.x`.
 - Do not speculate about Hydro-Québec one-letter status-code meanings unless source documentation or payload context verifies them.

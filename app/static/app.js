@@ -812,7 +812,7 @@ class DaiDetailPanel extends HTMLElement {
       ? label(labels, "previous_outages_legend", "Previously seen outages")
       : isPlanned
         ? label(labels, "planned_panel", "Current planned interruptions")
-        : label(labels, "current_outages", "Current or new outages");
+        : label(labels, "current_outages", "Current Hydro-Quebec feed outages");
     const kindLabel = isPlanned
       ? item.kindLabel || label(labels, "planned", "Planned interruption")
       : isPreviousOutage

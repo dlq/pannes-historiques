@@ -7,12 +7,13 @@
 <div class="ph-result-sections ph-map-context-list {{ 'ph-default-context-list' if context_variant == 'default' else 'ph-search-context-list' }}">
   <details id="ph-context-current"
            class="ph-context-section ph-result-card rounded-lg shadow-sm"
+           aria-label="{{ t(lang, 'current_outages') }}"
            open>
     <summary class="ph-context-section-summary">
       <h3 class="border-l-4 border-[#f59e0b] pl-2 text-sm font-semibold leading-tight text-[#223654]">
         {{ t(lang, "current_outages") }}
       </h3>
-      <span class="text-xs text-[#6b778a]">{{ current_outages | length }} {{ t(lang, "rows") }}</span>
+      <span class="text-xs text-[#6b778a]">{{ current_outages | length }} {{ t(lang, "feed_areas") }}</span>
     </summary>
     <div class="ph-context-rows">
       {% for item in current_outages %}
@@ -35,6 +36,7 @@
   </details>
   <details id="ph-context-planned"
            class="ph-context-section ph-result-card rounded-lg shadow-sm"
+           aria-label="{{ t(lang, 'planned_panel') }}"
            open>
     <summary class="ph-context-section-summary">
       <h3 class="border-l-4 border-[#06b6d4] pl-2 text-sm font-semibold leading-tight text-[#223654]">
@@ -66,6 +68,7 @@
   </details>
   <details id="ph-context-previous"
            class="ph-context-section ph-result-card rounded-lg shadow-sm"
+           aria-label="{{ t(lang, 'previous_outages_legend') }}"
            open>
     <summary class="ph-context-section-summary">
       <h3 class="border-l-4 border-[#64748b] pl-2 text-sm font-semibold leading-tight text-[#223654]">
@@ -93,6 +96,7 @@
   </details>
   <details id="ph-context-disclosure"
            class="ph-context-section ph-result-card rounded-lg shadow-sm"
+           aria-label="{{ t(lang, 'disclosure') }}"
            open>
     <summary class="ph-context-section-summary">
       <h3 class="border-l-4 border-[#1d4ed8] pl-2 text-sm font-semibold leading-tight text-[#223654]">

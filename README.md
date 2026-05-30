@@ -197,5 +197,6 @@ calls or using production credentials.
 ## Notes
 
 - The app preserves raw evidence and derives address views from it.
+- "Current feed" outage rows mean records present in Hydro-Quebec's latest public outage feed; they are not necessarily newly started outages.
 - The live collector depends on outbound network access.
 - Geocoding first tries Nominatim. If that fails, the app falls back to municipality centroids for a small set of Quebec cities so the UX can still function during early development.

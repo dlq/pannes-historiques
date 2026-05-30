@@ -289,6 +289,15 @@ textarea {
   display: none;
 }
 
+.ph-context-section-summary:focus,
+.ph-context-section-summary:focus-visible,
+.ph-context-disclosure-row > summary:focus,
+.ph-context-disclosure-row > summary:focus-visible {
+  border-radius: 0.25rem;
+  outline: 2px solid #1472bf;
+  outline-offset: 2px;
+}
+
 .ph-context-disclosure-row > summary::before {
   flex-shrink: 0;
   color: #6b778a;
@@ -591,9 +600,9 @@ textarea {
 
 @media (min-width: 768px) {
   .ph-app {
-    --ph-map-left-overlay: 23rem;
+    --ph-map-left-overlay: 25rem;
     --ph-side-rail-left: 1rem;
-    --ph-side-rail-width: 21rem;
+    --ph-side-rail-width: 23rem;
     --ph-topbar-height: calc(4.25rem + var(--ph-safe-top));
   }
 
@@ -710,7 +719,7 @@ textarea {
 
 @media (min-width: 1180px) {
   .ph-app {
-    --ph-map-left-overlay: 23.5rem;
+    --ph-map-left-overlay: 25.5rem;
     --ph-side-rail-left: 1.5rem;
   }
 

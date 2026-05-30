@@ -14,7 +14,7 @@ async function runSearch(page: Page) {
   await page.getByRole("button", { name: "Search" }).click();
   await searchResponse;
   await expect(
-    page.getByRole("heading", { name: "Current or new outages" }),
+    page.getByRole("heading", { name: "Current Hydro-Quebec feed outages" }),
   ).toBeVisible();
   await expect(page.locator("#search-loading")).toBeHidden();
 }
@@ -91,7 +91,9 @@ test("app exposes installable web app metadata", async ({ page, request }) => {
 
 test("search renders result cards and lazy-loads the map", async ({ page }) => {
   await runSearch(page);
-  await expect(page.getByRole("heading", { name: "Current or new outages" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Current Hydro-Quebec feed outages" }),
+  ).toBeVisible();
   await expect(page).toHaveURL(/lang=en/);
   await expect(page).toHaveURL(/q=5220\+Rue\+Jeanne-Mance|q=5220%20Rue%20Jeanne-Mance/);
   await expect(page.getByRole("heading", { name: "Current planned interruptions" })).toBeVisible();
@@ -115,6 +117,20 @@ test("map explains and visually prioritizes production-shaped layers", async ({ 
 
   await expect(page.locator("dai-detail-panel")).toBeHidden();
   await expect(page.locator(".ph-map-legend")).toHaveCount(0);
+  await expect(page.locator("#ph-context-current")).toHaveAttribute(
+    "aria-label",
+    "Current Hydro-Quebec feed outages",
+  );
+  await expect(page.locator("#ph-context-current summary")).toContainText("feed areas");
+  await page.locator("#ph-context-current summary").focus();
+  await expect
+    .poll(() =>
+      page.locator("#ph-context-current summary").evaluate((summary) => {
+        const style = window.getComputedStyle(summary);
+        return style.outlineStyle;
+      }),
+    )
+    .not.toBe("none");
   await expect
     .poll(() =>
       page
@@ -195,7 +211,9 @@ test("browser history reloads canonical search URL state", async ({ page }) => {
   await page.goBack();
   await expect(page).toHaveURL(/\/\?lang=en$/);
   await expect(page.locator("#address-input")).toHaveValue("");
-  await expect(page.getByRole("heading", { name: "Current or new outages" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Current Hydro-Quebec feed outages" }),
+  ).toBeVisible();
 
   await page.goForward();
   await expect(page).toHaveURL(/q=5220\+Rue\+Jeanne-Mance|q=5220%20Rue%20Jeanne-Mance/);
@@ -257,6 +275,6 @@ test("language switch preserves the current query and result state", async ({ pa
   await expect(page).not.toHaveURL(/radius_m|days|include_planned/);
   await expect(page.locator("#address-input")).toHaveValue(query);
   await expect(
-    page.getByRole("heading", { name: "Pannes actuelles ou nouvelles" }),
+    page.getByRole("heading", { name: "Pannes du flux Hydro-Quebec actuel" }),
   ).toBeVisible();
 });

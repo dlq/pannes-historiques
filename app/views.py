@@ -52,7 +52,7 @@ def hydro_status_label(lang: str, status: str | None) -> str:
     if not code:
         return t(lang, "unknown")
     label_key = HYDRO_STATUS_LABEL_KEYS.get(code)
-    return t(lang, label_key) if label_key else code
+    return t(lang, label_key) if label_key else f"{t(lang, 'hydro_status_undocumented')}: {code}"
 
 
 def context_geometry_payload(result: Any) -> dict[str, Any]:

@@ -53,13 +53,20 @@ This file records completed release and implementation history. Keep active exec
 - Served Leaflet from local static assets and cached it in the service worker to avoid CDN/offline/PWA map initialization failures.
 - Added production-shaped browser regression coverage for the representative map layers.
 
+### `v0.2.4`
+
+- Renamed the current outage section to describe rows as current Hydro-Quebec feed data rather than newly started outages.
+- Labelled undocumented Hydro-Quebec status codes explicitly instead of showing bare raw codes such as `N`.
+- Gave the desktop side rail slightly more room and added visible focus treatment for collapsible section summaries.
+- Added regression coverage for the current-feed copy, summary ARIA labels, and keyboard focus state.
+
 ## Implementation Checkpoints
 
 ### Status-Code Decoding
 
 - Hydro-Québec open-data documentation verifies status codes `A`, `L`, and `R`.
 - The app decodes those codes in `app/views.py` and `app/i18n.py`.
-- Unknown codes such as `N` are intentionally preserved as raw source codes until source evidence verifies their meaning.
+- Unknown codes such as `N` are intentionally labelled as undocumented source codes until source evidence verifies their meaning.
 
 ### Disclosure Ingestion
 

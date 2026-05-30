@@ -210,10 +210,11 @@ def test_context_geometry_payload_prefers_static_or_inline_geometry():
     assert any(item["kind"] == "disclosure" for item in payload["geometries"])
 
 
-def test_hydro_status_label_decodes_verified_codes_and_preserves_unknown_codes():
+def test_hydro_status_label_decodes_verified_codes_and_labels_unknown_codes():
     assert hydro_status_label("en", "A") == "Work assigned"
     assert hydro_status_label("en", "L") == "Crew at work"
     assert hydro_status_label("en", "R") == "Crew en route"
     assert hydro_status_label("fr", "A") == "Travaux assignes"
-    assert hydro_status_label("en", "N") == "N"
+    assert hydro_status_label("en", "N") == "Undocumented Hydro-Quebec status: N"
+    assert hydro_status_label("fr", "N") == "Etat Hydro-Quebec non documente: N"
     assert hydro_status_label("en", "") == "Unknown"
