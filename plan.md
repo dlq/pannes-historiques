@@ -7,14 +7,14 @@ This file is the active execution plan. Keep durable evidence, source notes, and
 
 ## Current State
 
-- Current release in progress: `v0.2.4` on `main`.
+- Current release in progress: `v0.2.5` on `main`.
 - Current product shape: map-first address/current-location lookup with server-rendered Flask/Jinja fragments, HTMX, Leaflet, vanilla JavaScript modules, and a Cloudflare Workers + Containers production deployment.
 - Production data plane: D1/R2-backed durable ingestion for current feed rows, previous-outage rows, raw Hydro-Québec payloads, disclosure metadata, and runtime map-context layers.
 - Container role: still renders the Flask/Jinja shell and keeps a baked-in SQLite snapshot for local-compatible/container fallback paths.
 - Important architecture caveat: runtime writes inside the container are ephemeral; durable production state belongs in D1/R2 or another durable store.
 - User-facing URL contract: clean root URL with `lang`, `q`, or current-location coordinate parameters; obsolete public `radius_m`, `days`, and `include_planned` parameters were removed from the main interface.
 - Debug timing route: available only when `ENABLE_DEBUG_ROUTES=1`; production returns `404` by default.
-- Current deployed release: `v0.2.3` plus post-release disclosure-panel fix at commit `75557b4`; Worker version `c8a38c73-2486-4235-9f59-cf5c8a93ffb8`; container image `c8a38c73`.
+- Current deployed release: `v0.2.4` at commit `932f78c`; Worker version `acf1eb43-1ca2-4afb-afc1-161c276541b5`; container image `acf1eb43`.
 - Current test baseline: Python tests, deterministic service/geocoding tests, route smoke coverage, Playwright desktop/mobile Chromium coverage, and production-shaped UI regression fixtures.
 
 ## Release Roadmap
@@ -34,8 +34,8 @@ In progress.
 - `v0.2.1`: result/detail interaction refinement and selected-state behavior. Complete.
 - `v0.2.2`: mobile installability, search entry, current-location, history/back-forward, lightweight region-entry improvements, and frontend module split. Complete.
 - `v0.2.3`: map hierarchy, side-rail layer explanation, local Leaflet assets, and production-shaped map regression coverage. Complete.
-- `v0.2.4`: scoped copy/data-truth cleanup, safer status labels, side-panel width/focus polish, and accessibility-oriented regression checks. In progress.
-- `v0.2.5`: performance measurement, deployment hygiene, and production hardening.
+- `v0.2.4`: scoped copy/data-truth cleanup, safer status labels, side-panel width/focus polish, and accessibility-oriented regression checks. Complete.
+- `v0.2.5`: performance measurement, deployment hygiene, and production hardening. Next.
 
 ### `0.3.x`: Architecture And Product Expansion
 
@@ -48,32 +48,31 @@ Candidate work after the map-first UI is stable:
 - explore opt-in web notifications after PWA installability, based on saved watch areas rather than requiring a literal home address
 - replace the Tailwind CDN path with a production build pipeline if it is not handled in `0.2.5`
 
-## Current Focus: `v0.2.4`
+## Current Focus: `v0.2.5`
 
-Goal: make the map sidebar copy accurately describe the source data and reduce small accessibility/layout friction.
+Goal: measure and improve production performance and deployment hygiene before larger product work resumes.
 
-Status: implementation and verification in progress.
+Status: planning.
 
 Current implementation notes:
 
-- "Current" outage copy should mean "present in Hydro-Québec's latest current feed," not "new today."
-- Unknown one-letter Hydro-Québec status codes should be labelled as undocumented instead of exposed as bare primary UI text.
-- Side-panel disclosure/current-feed sections should remain keyboard reachable with visible focus states.
+- `v0.2.4` deployed successfully after local unit/e2e checks, Playwright desktop/mobile visual verification, Wrangler dry-run, and production smoke checks.
+- Production smoke check after `v0.2.4`: `/healthz`, `/`, `/search-map`, `/static/service-worker.js`, and `/api/durable/status` returned `200`.
+- Warm post-deploy homepage/search responses were still several seconds because rendered pages and embedded payloads are large; treat this as a `v0.2.5` measurement target.
+- D1 durable status after deploy showed fresh `bis` and `aip` versions checked at `2026-05-30T21:07-21:08Z`.
 
 Scope:
 
-- rename current outage headings to reflect the current Hydro-Québec feed
-- label undocumented status codes such as `N` without guessing their meanings
-- give the desktop side rail a little more width and add visible focus treatment for collapsible section summaries
-- add/update tests for headings, service-worker version, status labels, and focus/ARIA behaviour
-- update version metadata, tag `v0.2.4`, push, and deploy
+- establish repeatable production timing checks
+- identify whether TTFB, payload size, lazy geometry, tile loading, or client rendering dominates the current delay
+- decide whether to reduce initial HTML/data payloads before deeper frontend/tooling work
+- keep deployment health checks explicit enough to avoid stale Worker/container state
 
 Acceptance criteria:
 
-- side rail no longer says or implies that every current-feed row is newly started
-- raw unknown status codes are not shown alone as primary status labels
-- desktop side rail has slightly more room without covering the key map controls
-- Playwright covers representative copy/focus behaviour
+- production timing data is captured with clear cold/warm measurements
+- at least one high-confidence performance bottleneck has an implementation plan or fix
+- deployment notes remain current after any release or hotfix
 
 ## Next Release Slices
 
