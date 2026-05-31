@@ -24,6 +24,18 @@ DURABLE_RUNTIME_CACHEABLE_PATHS = {
     "status",
 }
 DEFAULT_PREVIOUS_MAP_LAYER_LIMIT = 48
+CURRENT_MAP_LAYER_SCOPE = "current"
+PLANNED_MAP_LAYER_SCOPE = "planned"
+PREVIOUS_MAP_LAYER_SCOPE = "previous"
+PUBLISHED_MAP_LAYER_SCOPE = "published"
+ALL_MAP_LAYER_SCOPES = frozenset(
+    {
+        CURRENT_MAP_LAYER_SCOPE,
+        PLANNED_MAP_LAYER_SCOPE,
+        PREVIOUS_MAP_LAYER_SCOPE,
+        PUBLISHED_MAP_LAYER_SCOPE,
+    }
+)
 
 
 def point_in_polygon(point_lon: float, point_lat: float, polygon: list[list[float]]) -> bool:
@@ -427,7 +439,14 @@ class AppService:
         include_planned: bool,
         include_map_layers: bool = True,
         record_history: bool = True,
+        map_layer_scopes: set[str] | frozenset[str] | None = None,
     ) -> SearchResult:
+        map_layer_scopes = self._normalize_map_layer_scopes(map_layer_scopes)
+        needs_previous_layers = PREVIOUS_MAP_LAYER_SCOPE in map_layer_scopes
+        needs_current_layers = bool(
+            {CURRENT_MAP_LAYER_SCOPE, PLANNED_MAP_LAYER_SCOPE} & map_layer_scopes
+        )
+        needs_published_layers = PUBLISHED_MAP_LAYER_SCOPE in map_layer_scopes
         timer = current_timer()
         timer.set("search.query_length", len(query or ""))
         timer.set("search.radius_m", radius_m)
@@ -524,43 +543,64 @@ class AppService:
             outage_matches = [item for item in matches if item["outage_kind"] == "outage"]
             planned_matches = [item for item in matches if item["outage_kind"] == "planned"]
         with timer.step("search.find_archived_outage_matches"):
-            archived_outage_matches = self._find_archived_outage_matches(
-                geocode["latitude"],
-                geocode["longitude"],
-                radius_m,
-                days,
-                exclude_event_keys={self._outage_display_key(item) for item in outage_matches},
+            archived_outage_matches = (
+                self._find_archived_outage_matches(
+                    geocode["latitude"],
+                    geocode["longitude"],
+                    radius_m,
+                    days,
+                    exclude_event_keys={self._outage_display_key(item) for item in outage_matches},
+                )
+                if needs_previous_layers or record_history
+                else []
             )
         with timer.step("search.current_map_layers"):
-            if include_map_layers:
+            if include_map_layers and needs_current_layers:
                 current_map_layers = self._current_operational_map_layers(
-                    include_planned=include_planned
+                    include_planned=include_planned and PLANNED_MAP_LAYER_SCOPE in map_layer_scopes
+                )
+                current_map_layers = self._filter_current_map_layers(
+                    current_map_layers,
+                    map_layer_scopes,
                 )
             else:
                 current_map_layers = []
         with timer.step("search.previous_map_layers"):
             previous_map_layers = (
-                self._previous_operational_map_layers() if include_map_layers else []
+                self._previous_operational_map_layers()
+                if include_map_layers and needs_previous_layers
+                else []
             )
         with timer.step("search.disclosure_layers"):
-            disclosure_layers = self._disclosure_map_layers() if include_map_layers else []
+            disclosure_layers = (
+                self._disclosure_map_layers()
+                if include_map_layers and needs_published_layers
+                else []
+            )
         with timer.step("search.regional_metric_layers"):
             regional_metric_layers = (
-                self._regional_metric_map_layers() if include_map_layers else []
+                self._regional_metric_map_layers()
+                if include_map_layers and needs_published_layers
+                else []
             )
         with timer.step("search.save_matches"):
             if record_history:
                 self._save_matches(address_id, outage_matches + archived_outage_matches)
         with timer.step("search.previous_outage_groups"):
-            previous_outage_groups = self._previous_outage_groups(
-                address_id=address_id,
-                exclude_event_keys={self._outage_display_key(item) for item in outage_matches},
-            )
-            if archived_outage_matches:
-                previous_outage_groups = self._group_outage_matches(
-                    archived_outage_matches,
+            if needs_previous_layers:
+                previous_outage_groups = self._previous_outage_groups(
+                    address_id=address_id,
                     exclude_event_keys={self._outage_display_key(item) for item in outage_matches},
                 )
+                if archived_outage_matches:
+                    previous_outage_groups = self._group_outage_matches(
+                        archived_outage_matches,
+                        exclude_event_keys={
+                            self._outage_display_key(item) for item in outage_matches
+                        },
+                    )
+            else:
+                previous_outage_groups = []
         with timer.step("search.record_query"):
             if record_history:
                 query_count = self._record_query(
@@ -613,7 +653,14 @@ class AppService:
         include_planned: bool,
         include_map_layers: bool = True,
         record_history: bool = True,
+        map_layer_scopes: set[str] | frozenset[str] | None = None,
     ) -> SearchResult:
+        map_layer_scopes = self._normalize_map_layer_scopes(map_layer_scopes)
+        needs_previous_layers = PREVIOUS_MAP_LAYER_SCOPE in map_layer_scopes
+        needs_current_layers = bool(
+            {CURRENT_MAP_LAYER_SCOPE, PLANNED_MAP_LAYER_SCOPE} & map_layer_scopes
+        )
+        needs_published_layers = PUBLISHED_MAP_LAYER_SCOPE in map_layer_scopes
         label = f"Current location ({latitude:.5f}, {longitude:.5f})"
         normalized = NormalizedAddress(
             original=label,
@@ -663,27 +710,49 @@ class AppService:
         matches = self._find_current_matches(latitude, longitude, radius_m, days, include_planned)
         outage_matches = [item for item in matches if item["outage_kind"] == "outage"]
         planned_matches = [item for item in matches if item["outage_kind"] == "planned"]
-        archived_outage_matches = self._find_archived_outage_matches(
-            latitude,
-            longitude,
-            radius_m,
-            days,
-            exclude_event_keys={self._outage_display_key(item) for item in outage_matches},
+        archived_outage_matches = (
+            self._find_archived_outage_matches(
+                latitude,
+                longitude,
+                radius_m,
+                days,
+                exclude_event_keys={self._outage_display_key(item) for item in outage_matches},
+            )
+            if needs_previous_layers or record_history
+            else []
         )
-        if include_map_layers:
+        if include_map_layers and needs_current_layers:
             current_map_layers = self._current_operational_map_layers(
-                include_planned=include_planned
+                include_planned=include_planned and PLANNED_MAP_LAYER_SCOPE in map_layer_scopes
+            )
+            current_map_layers = self._filter_current_map_layers(
+                current_map_layers,
+                map_layer_scopes,
             )
         else:
             current_map_layers = []
-        previous_map_layers = self._previous_operational_map_layers() if include_map_layers else []
-        disclosure_layers = self._disclosure_map_layers() if include_map_layers else []
-        regional_metric_layers = self._regional_metric_map_layers() if include_map_layers else []
+        previous_map_layers = (
+            self._previous_operational_map_layers()
+            if include_map_layers and needs_previous_layers
+            else []
+        )
+        disclosure_layers = (
+            self._disclosure_map_layers() if include_map_layers and needs_published_layers else []
+        )
+        regional_metric_layers = (
+            self._regional_metric_map_layers()
+            if include_map_layers and needs_published_layers
+            else []
+        )
         if record_history:
             self._save_matches(address_id, outage_matches + archived_outage_matches)
-        previous_outage_groups = self._previous_outage_groups(
-            address_id=address_id,
-            exclude_event_keys={self._outage_display_key(item) for item in outage_matches},
+        previous_outage_groups = (
+            self._previous_outage_groups(
+                address_id=address_id,
+                exclude_event_keys={self._outage_display_key(item) for item in outage_matches},
+            )
+            if needs_previous_layers
+            else []
         )
         if record_history:
             query_count = self._record_query(
@@ -716,6 +785,26 @@ class AppService:
             regional_metric_layers=regional_metric_layers,
             radius_m=radius_m,
         )
+
+    @staticmethod
+    def _normalize_map_layer_scopes(
+        scopes: set[str] | frozenset[str] | None,
+    ) -> frozenset[str]:
+        if scopes is None:
+            return ALL_MAP_LAYER_SCOPES
+        return frozenset(scope for scope in scopes if scope in ALL_MAP_LAYER_SCOPES)
+
+    @staticmethod
+    def _filter_current_map_layers(
+        layers: list[dict[str, Any]],
+        scopes: frozenset[str],
+    ) -> list[dict[str, Any]]:
+        return [
+            item
+            for item in layers
+            if (item.get("outage_kind") == "outage" and CURRENT_MAP_LAYER_SCOPE in scopes)
+            or (item.get("outage_kind") == "planned" and PLANNED_MAP_LAYER_SCOPE in scopes)
+        ]
 
     def collector_status(self) -> dict[str, Any]:
         return self._cached_context("collector_status", self._collector_status)

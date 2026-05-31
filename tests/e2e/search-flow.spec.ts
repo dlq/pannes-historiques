@@ -29,7 +29,7 @@ test("page loads in English and French", async ({ page }) => {
     .poll(() =>
       page.locator("outage-map").evaluate((map) => {
         const payload = JSON.parse(map.getAttribute("data-map") || "{}");
-        return payload.matches?.filter((item) => item.kind === "disclosure").length || 0;
+        return payload.matches?.filter((item) => item.kind === "outage").length || 0;
       }),
     )
     .toBeGreaterThan(0);
@@ -107,12 +107,10 @@ test("search renders result cards and lazy-loads the map", async ({ page }) => {
 test("map explains and visually prioritizes production-shaped layers", async ({ page }) => {
   await runSearch(page);
 
-  const expectedKinds = [
-    "outage",
-    "planned",
-    "previous_outage",
-    "disclosure",
-    "regional_metric",
+  const secondaryToggles = [
+    page.locator('[data-layer-toggle="planned"]').first(),
+    page.locator('[data-layer-toggle="previous"]').first(),
+    page.locator('[data-layer-toggle="published"]').first(),
   ];
 
   await expect(page.locator("dai-detail-panel")).toBeHidden();
@@ -131,13 +129,10 @@ test("map explains and visually prioritizes production-shaped layers", async ({ 
       }),
     )
     .not.toBe("none");
-  await expect
-    .poll(() =>
-      page
-        .locator("#ph-context-disclosure")
-        .evaluate((section) => (section as HTMLDetailsElement).open),
-    )
-    .toBe(true);
+  await expect(page.locator('[data-layer-toggle="planned"]').first()).toHaveAttribute(
+    "aria-pressed",
+    "false",
+  );
 
   await expect
     .poll(() =>
@@ -148,7 +143,22 @@ test("map explains and visually prioritizes production-shaped layers", async ({ 
         ].sort();
       }),
     )
-    .toEqual([...expectedKinds].sort());
+    .toEqual(["outage"]);
+
+  for (const toggle of secondaryToggles) {
+    await toggle.click();
+  }
+
+  await expect
+    .poll(() =>
+      page.locator("outage-map").evaluate((map) => {
+        const payload = JSON.parse(map.getAttribute("data-map") || "{}");
+        return [
+          ...new Set((payload.matches || []).map((item: { kind: string }) => item.kind)),
+        ].sort();
+      }),
+    )
+    .toEqual(["outage"]);
 
   await expect
     .poll(() =>

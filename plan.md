@@ -64,7 +64,7 @@ Current implementation notes:
 - Direct durable runtime endpoints were much faster: operational map layers were sub-second, map context was sub-second, and previous map layers were the main cold endpoint at roughly 2-8s depending on sample.
 - Production-shaped local testing showed short-lived durable runtime caching reduces repeated search service time from roughly 10-12s to roughly 1.2-1.4s.
 - Previous map context is now capped at 48 recent layers for default/search map context to reduce cold endpoint cost and initial payload weight.
-- Next performance hypothesis: the sidebar should become the layer-control surface, with secondary layers disabled and unfetched until the user opts in.
+- Sidebar layer toggles are implemented locally: current outages render first; planned, previous, and published disclosure/regional context are opt-in `/map-layer` fetches and can be hidden again without reloading.
 
 Scope:
 
@@ -84,6 +84,13 @@ Acceptance criteria:
 - representative local and production-shaped timings improve without changing the visible map interaction model
 - initial address render does not fetch/render planned, previous, disclosure, or regional context until the user enables those layers
 - sidebar layer state is clear enough that users can tell what evidence is currently visible on the map
+
+Verification so far:
+
+- `uv run pytest -q`: `77 passed`
+- `npm run test:e2e`: `26 passed`
+- `uv run pre-commit run --all-files`: passed
+- Local browser check confirmed initial search payload contains only `outage`, secondary toggles start off, and planned/previous/published layers load on demand.
 
 ## Next Release Slices
 

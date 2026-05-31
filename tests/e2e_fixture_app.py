@@ -191,7 +191,12 @@ def _disclosure_layers() -> list[dict[str, object]]:
     ]
 
 
-def _build_result(*, location_query: bool = False) -> SearchResult:
+def _build_result(
+    *,
+    location_query: bool = False,
+    map_layer_scopes: set[str] | frozenset[str] | None = None,
+) -> SearchResult:
+    map_layer_scopes = map_layer_scopes or {"current", "planned", "previous", "published"}
     normalized = _base_normalized()
     geocode = _base_geocode()
     if location_query:
@@ -206,7 +211,12 @@ def _build_result(*, location_query: bool = False) -> SearchResult:
         )
     outage_matches = _outage_matches()
     planned_matches = _planned_matches()
-    previous_groups = _previous_outage_groups()
+    previous_groups = _previous_outage_groups() if "previous" in map_layer_scopes else []
+    current_map_layers = []
+    if "current" in map_layer_scopes:
+        current_map_layers.extend(outage_matches)
+    if "planned" in map_layer_scopes:
+        current_map_layers.extend(planned_matches)
     return SearchResult(
         normalized=normalized,
         address_id=1,
@@ -219,7 +229,7 @@ def _build_result(*, location_query: bool = False) -> SearchResult:
         outage_matches=outage_matches,
         planned_matches=planned_matches,
         previous_outage_groups=previous_groups,
-        current_map_layers=[*outage_matches, *planned_matches],
+        current_map_layers=current_map_layers,
         previous_map_layers=[
             {
                 "outage_kind": "previous_outage",
@@ -236,9 +246,11 @@ def _build_result(*, location_query: bool = False) -> SearchResult:
                 "event_count": 1,
                 "recent_events": [],
             }
-        ],
-        disclosure_layers=_disclosure_layers(),
-        regional_metric_layers=_regional_metric_layers(),
+        ]
+        if "previous" in map_layer_scopes
+        else [],
+        disclosure_layers=_disclosure_layers() if "published" in map_layer_scopes else [],
+        regional_metric_layers=_regional_metric_layers() if "published" in map_layer_scopes else [],
         radius_m=5000,
         error=None,
     )
@@ -285,10 +297,16 @@ class E2EStubService:
         self.geocoder = StubGeocoder()
 
     def search(self, **kwargs) -> SearchResult:
-        return _build_result(location_query=False)
+        return _build_result(
+            location_query=False,
+            map_layer_scopes=kwargs.get("map_layer_scopes"),
+        )
 
     def search_location(self, **kwargs) -> SearchResult:
-        return _build_result(location_query=True)
+        return _build_result(
+            location_query=True,
+            map_layer_scopes=kwargs.get("map_layer_scopes"),
+        )
 
     def _regional_metric_map_layers(self) -> list[dict[str, object]]:
         return _regional_metric_layers()

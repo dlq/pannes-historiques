@@ -12,7 +12,13 @@ from .config import Settings, ensure_directories
 from .db import initialize
 from .i18n import choose_language, t
 from .perf import RequestTimer, current_timer, reset_current_timer, set_current_timer
-from .services import AppService
+from .services import (
+    CURRENT_MAP_LAYER_SCOPE,
+    PLANNED_MAP_LAYER_SCOPE,
+    PREVIOUS_MAP_LAYER_SCOPE,
+    PUBLISHED_MAP_LAYER_SCOPE,
+    AppService,
+)
 from .views import (
     FIXED_DAYS,
     FIXED_INCLUDE_PLANNED,
@@ -39,6 +45,28 @@ def create_app(settings: Settings | None = None) -> Flask:
     app.jinja_env.globals["static_version"] = int(
         max(path.stat().st_mtime for path in versioned_static_files if path.exists())
     )
+    initial_map_layers = {CURRENT_MAP_LAYER_SCOPE}
+
+    def map_layer_scope(value: str | None) -> set[str]:
+        return {
+            value
+            if value
+            in {
+                CURRENT_MAP_LAYER_SCOPE,
+                PLANNED_MAP_LAYER_SCOPE,
+                PREVIOUS_MAP_LAYER_SCOPE,
+                PUBLISHED_MAP_LAYER_SCOPE,
+            }
+            else CURRENT_MAP_LAYER_SCOPE
+        }
+
+    def operational_layers_for_scope(scope: str) -> list[dict]:
+        layers = service._current_operational_map_layers(
+            include_planned=scope == PLANNED_MAP_LAYER_SCOPE
+        )
+        if scope == PLANNED_MAP_LAYER_SCOPE:
+            return [item for item in layers if item.get("outage_kind") == "planned"]
+        return [item for item in layers if item.get("outage_kind") == "outage"]
 
     @app.before_request
     def start_request_timer():
@@ -106,6 +134,7 @@ def create_app(settings: Settings | None = None) -> Flask:
                     include_planned=include_planned,
                     include_map_layers=True,
                     record_history=False,
+                    map_layer_scopes=initial_map_layers,
                 )
             with current_timer().step("index.result_context"):
                 search_context = result_context(lang, result)
@@ -121,6 +150,7 @@ def create_app(settings: Settings | None = None) -> Flask:
                     include_planned=include_planned,
                     include_map_layers=True,
                     record_history=False,
+                    map_layer_scopes=initial_map_layers,
                 )
             with current_timer().step("index.result_context"):
                 search_context = result_context(lang, result)
@@ -132,10 +162,7 @@ def create_app(settings: Settings | None = None) -> Flask:
             with current_timer().step("index.default_map_layers"):
                 default_map = default_map_payload(
                     lang,
-                    service._regional_metric_map_layers(),
-                    service._disclosure_map_layers(),
-                    service._current_operational_map_layers(include_planned=include_planned),
-                    service._previous_operational_map_layers(),
+                    current_map_layers=operational_layers_for_scope(CURRENT_MAP_LAYER_SCOPE),
                 )
 
         with current_timer().step("index.render_template"):
@@ -178,6 +205,7 @@ def create_app(settings: Settings | None = None) -> Flask:
                 include_planned=FIXED_INCLUDE_PLANNED,
                 include_map_layers=True,
                 record_history=False,
+                map_layer_scopes=initial_map_layers,
             )
         with current_timer().step("search.result_context"):
             context = result_context(lang, result, include_map_payload=True)
@@ -196,6 +224,7 @@ def create_app(settings: Settings | None = None) -> Flask:
                 include_planned=FIXED_INCLUDE_PLANNED,
                 include_map_layers=True,
                 record_history=False,
+                map_layer_scopes=initial_map_layers,
             )
         with current_timer().step("search_map.result_context"):
             context = result_context(lang, result, include_map_payload=True)
@@ -249,6 +278,67 @@ def create_app(settings: Settings | None = None) -> Flask:
             response.headers["Cache-Control"] = "public, max-age=3600"
             return response
 
+    @app.get("/map-layer")
+    def map_layer():
+        lang = choose_language(request.args.get("lang"))
+        layer = next(iter(map_layer_scope(request.args.get("layer"))))
+        query = request.args.get("q", "")
+        latitude = parse_optional_float(request.args.get("lat"))
+        longitude = parse_optional_float(request.args.get("lon"))
+        accuracy_m = parse_optional_float(request.args.get("accuracy_m"))
+
+        with current_timer().step("map_layer.service"):
+            if query:
+                result = service.search(
+                    query=query,
+                    language=lang,
+                    radius_m=FIXED_RADIUS_M,
+                    days=FIXED_DAYS,
+                    include_planned=FIXED_INCLUDE_PLANNED,
+                    include_map_layers=True,
+                    record_history=False,
+                    map_layer_scopes={layer},
+                )
+                context = result_context(lang, result, include_map_payload=True)
+                payload = context["map_payload"] if not result.error else {"matches": []}
+            elif latitude is not None and longitude is not None:
+                result = service.search_location(
+                    latitude=latitude,
+                    longitude=longitude,
+                    accuracy_m=accuracy_m,
+                    language=lang,
+                    radius_m=FIXED_RADIUS_M,
+                    days=FIXED_DAYS,
+                    include_planned=FIXED_INCLUDE_PLANNED,
+                    include_map_layers=True,
+                    record_history=False,
+                    map_layer_scopes={layer},
+                )
+                context = result_context(lang, result, include_map_payload=True)
+                payload = context["map_payload"] if not result.error else {"matches": []}
+            elif layer == PLANNED_MAP_LAYER_SCOPE:
+                payload = default_map_payload(
+                    lang,
+                    current_map_layers=operational_layers_for_scope(PLANNED_MAP_LAYER_SCOPE),
+                )
+            elif layer == PREVIOUS_MAP_LAYER_SCOPE:
+                payload = default_map_payload(
+                    lang,
+                    previous_map_layers=service._previous_operational_map_layers(),
+                )
+            elif layer == PUBLISHED_MAP_LAYER_SCOPE:
+                payload = default_map_payload(
+                    lang,
+                    regional_metric_layers=service._regional_metric_map_layers(),
+                    disclosure_layers=service._disclosure_map_layers(),
+                )
+            else:
+                payload = default_map_payload(
+                    lang,
+                    current_map_layers=operational_layers_for_scope(CURRENT_MAP_LAYER_SCOPE),
+                )
+        return jsonify({"layer": layer, "matches": payload.get("matches", [])})
+
     @app.post("/search-location")
     def search_location():
         lang = choose_language(request.form.get("lang"))
@@ -265,6 +355,7 @@ def create_app(settings: Settings | None = None) -> Flask:
                 include_planned=FIXED_INCLUDE_PLANNED,
                 include_map_layers=True,
                 record_history=False,
+                map_layer_scopes=initial_map_layers,
             )
         with current_timer().step("search_location.result_context"):
             context = result_context(lang, result, include_map_payload=True)
@@ -287,6 +378,7 @@ def create_app(settings: Settings | None = None) -> Flask:
                 include_planned=FIXED_INCLUDE_PLANNED,
                 include_map_layers=True,
                 record_history=False,
+                map_layer_scopes=initial_map_layers,
             )
         with current_timer().step("search_location_map.result_context"):
             context = result_context(lang, result, include_map_payload=True)

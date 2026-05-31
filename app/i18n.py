@@ -124,6 +124,9 @@ STRINGS: dict[str, dict[str, str]] = {
         "disclosure_area_context": "Contexte de secteur publie",
         "disclosure": "Divulgation",
         "disclosure_region": "Region de divulgation",
+        "map_layer_on": "Visible",
+        "map_layer_off": "Afficher",
+        "map_layer_enable_prompt": "Activez cette couche pour charger ces donnees.",
     },
     "en": {
         "app_title": "Hydro-Quebec Outage History",
@@ -243,6 +246,9 @@ STRINGS: dict[str, dict[str, str]] = {
         "disclosure_area_context": "Published area context",
         "disclosure": "Disclosure",
         "disclosure_region": "Disclosure region",
+        "map_layer_on": "Visible",
+        "map_layer_off": "Show",
+        "map_layer_enable_prompt": "Turn this layer on to load these data.",
     },
 }
 

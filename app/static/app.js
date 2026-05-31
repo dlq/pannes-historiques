@@ -562,6 +562,209 @@ function attachMapFocusCards() {
   }
 }
 
+const CONTEXT_LAYER_KINDS = {
+  current: ["outage"],
+  planned: ["planned"],
+  previous: ["previous_outage"],
+  published: ["disclosure", "regional_metric"],
+};
+
+function contextLayerForKind(kind) {
+  for (const [layer, kinds] of Object.entries(CONTEXT_LAYER_KINDS)) {
+    if (kinds.includes(kind)) return layer;
+  }
+  return "current";
+}
+
+function buildMapLayerUrl(layer) {
+  const url = new URL("/map-layer", window.location.origin);
+  const pageUrl = new URL(window.location.href);
+  const form = document.querySelector("#search-form");
+  const query = form?.querySelector('[name="q"]')?.value?.trim() || pageUrl.searchParams.get("q");
+  const latitude =
+    form?.querySelector('[name="latitude"]')?.value || pageUrl.searchParams.get("lat");
+  const longitude =
+    form?.querySelector('[name="longitude"]')?.value || pageUrl.searchParams.get("lon");
+  const accuracy =
+    form?.querySelector('[name="accuracy_m"]')?.value || pageUrl.searchParams.get("accuracy_m");
+  url.searchParams.set("layer", layer);
+  url.searchParams.set("lang", document.documentElement.lang || "fr");
+  if (query && !isCurrentLocationText(query)) url.searchParams.set("q", query);
+  if (latitude && longitude) {
+    url.searchParams.set("lat", latitude);
+    url.searchParams.set("lon", longitude);
+  }
+  if (accuracy) url.searchParams.set("accuracy_m", accuracy);
+  return url;
+}
+
+function focusPayloadForItem(item) {
+  const payload = {
+    kind: item.kind,
+    lat: item.lat,
+    lon: item.lon,
+    geometry: item.geometry,
+    geometryKey: item.geometryKey,
+    label: item.label,
+    startTime: item.startTime,
+    customersAffected: item.customersAffected,
+    distanceM: item.distanceM,
+  };
+  for (const key of Object.keys(payload)) {
+    if (payload[key] == null) delete payload[key];
+  }
+  return payload;
+}
+
+function renderContextRow(item, labels = {}) {
+  const row = document.createElement("article");
+  row.className = "ph-context-row ph-match-row";
+  row.setAttribute("role", "button");
+  row.setAttribute("tabindex", "0");
+  row.setAttribute("data-map-focus", JSON.stringify(focusPayloadForItem(item)));
+
+  const isPublishedContext = item.kind === "disclosure" || item.kind === "regional_metric";
+  const left = document.createElement("div");
+  left.className = "min-w-0";
+  const primary = document.createElement("p");
+  primary.className = "truncate font-semibold text-[#095797]";
+  if (isPublishedContext) {
+    primary.textContent =
+      item.label ||
+      (item.kind === "regional_metric"
+        ? label(labels, "regional_colour_legend", "Regional outage burden")
+        : label(labels, "disclosure", "Disclosure"));
+  } else {
+    const prefix = document.createElement("span");
+    prefix.className = "text-[#6b778a]";
+    prefix.textContent = `${label(labels, "start", "Start")} `;
+    primary.append(
+      prefix,
+      document.createTextNode(item.startTime || label(labels, "unknown", "Unknown")),
+    );
+  }
+  left.append(primary);
+
+  if (item.kind === "planned") {
+    const secondary = document.createElement("p");
+    secondary.className = "truncate text-[#4e5662]";
+    secondary.textContent = `${label(labels, "end", "End")} ${item.endTime || label(labels, "unknown", "Unknown")}`;
+    left.append(secondary);
+  } else if (item.kind === "outage") {
+    const secondary = document.createElement("p");
+    secondary.className = "truncate text-[#4e5662]";
+    secondary.textContent = item.statusLabel || label(labels, "unknown", "Unknown");
+    left.append(secondary);
+  } else if (item.kind === "regional_metric") {
+    const secondary = document.createElement("p");
+    secondary.className = "truncate text-[#4e5662]";
+    secondary.textContent = label(labels, "regional_colour_legend", "Regional outage burden");
+    left.append(secondary);
+  }
+
+  const pill = document.createElement("p");
+  const pillColor =
+    item.kind === "outage"
+      ? "bg-[#f8e69a]"
+      : item.kind === "planned"
+        ? "bg-[#dae6f0]"
+        : "bg-[#f1f1f2]";
+  pill.className = `ph-context-pill ${pillColor}`;
+  if (item.kind === "disclosure") {
+    pill.textContent = `${item.recordCount || 0} ${label(labels, "rows", "rows")}`;
+  } else if (item.kind === "regional_metric") {
+    pill.textContent = `${item.outageCount || 0} ${label(labels, "outages", "Outages")}`;
+  } else {
+    pill.textContent = `${item.customersAffected || 0} ${label(labels, "clients", "clients")}`;
+  }
+  row.append(left, pill);
+  return row;
+}
+
+function attachMapLayerToggles() {
+  if (document.body.dataset.mapLayerTogglesBound === "1") return;
+  document.body.dataset.mapLayerTogglesBound = "1";
+
+  const setToggleState = (button, on) => {
+    button.classList.toggle("is-on", on);
+    button.setAttribute("aria-pressed", on ? "true" : "false");
+    button.textContent = on
+      ? "Visible"
+      : document.documentElement.lang === "fr"
+        ? "Afficher"
+        : "Show";
+  };
+
+  document.body.addEventListener("click", async (event) => {
+    const button = event.target.closest("[data-layer-toggle]");
+    if (!button) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const section = button.closest("[data-layer-section]");
+    const layer = button.dataset.layerToggle;
+    const rows = section?.querySelector(".ph-context-rows");
+    if (!section || !layer || !rows) return;
+
+    const isOn = button.getAttribute("aria-pressed") === "true";
+    if (isOn) {
+      setToggleState(button, false);
+      section.open = false;
+      document.dispatchEvent(
+        new CustomEvent("map-layer-toggle", { detail: { layer, enabled: false } }),
+      );
+      return;
+    }
+
+    setToggleState(button, true);
+    section.open = true;
+    document.dispatchEvent(
+      new CustomEvent("map-layer-toggle", { detail: { layer, enabled: true } }),
+    );
+    if (section.dataset.layerLoaded === "true" && section._layerMatches) {
+      document.dispatchEvent(
+        new CustomEvent("map-layer-items", {
+          detail: { layer, matches: section._layerMatches },
+        }),
+      );
+      return;
+    }
+
+    button.disabled = true;
+    rows.innerHTML = `<p class="ph-context-empty">${document.documentElement.lang === "fr" ? "Chargement..." : "Loading..."}</p>`;
+    try {
+      const payload = await fetchJson(buildMapLayerUrl(layer), {
+        headers: { Accept: "application/json" },
+      });
+      const matches = (payload.matches || []).filter(
+        (item) => contextLayerForKind(item.kind) === layer,
+      );
+      const map = document.querySelector("outage-map");
+      const labels = map ? JSON.parse(map.getAttribute("data-map") || "{}").labels || {} : {};
+      rows.innerHTML = "";
+      for (const item of matches) rows.appendChild(renderContextRow(item, labels));
+      if (!matches.length) {
+        rows.innerHTML = `<p class="ph-context-empty">${document.documentElement.lang === "fr" ? "Aucune donnee pour cette couche." : "No data for this layer."}</p>`;
+      }
+      section.dataset.layerLoaded = "true";
+      section._layerMatches = matches;
+      const count = section.querySelector(".ph-context-section-summary > span");
+      if (count) {
+        const noun =
+          layer === "current"
+            ? label(labels, "feed_areas", "feed areas")
+            : label(labels, "rows", "rows");
+        count.textContent = `${matches.length} ${noun}`;
+      }
+      document.dispatchEvent(new CustomEvent("map-layer-items", { detail: { layer, matches } }));
+    } catch (_error) {
+      setToggleState(button, false);
+      rows.innerHTML = `<p class="ph-context-empty">${document.documentElement.lang === "fr" ? "Cette couche n'a pas pu etre chargee." : "This layer could not be loaded."}</p>`;
+    } finally {
+      button.disabled = false;
+    }
+  });
+}
+
 function disclosurePopup(item, labels = {}) {
   const causes = (item.topCauses || [])
     .map(
@@ -918,6 +1121,8 @@ class OutageMap extends HTMLElement {
     const bounds = [];
     let focusItems = [];
     let activeMapFocus = null;
+    const renderedLeafletLayers = new Map();
+    const renderedItemKeysByLayer = new Map();
     const visibleMapPadding = (base = 36) => {
       const rail = document.querySelector(".ph-side-rail");
       const mapRect = root.getBoundingClientRect();
@@ -1091,18 +1296,42 @@ class OutageMap extends HTMLElement {
         layer.bringToFront();
       }
     };
-    const orderedMatches = [...(data.matches || [])].sort((left, right) => {
-      const rank = { regional_metric: 0, disclosure: 1, previous_outage: 2, planned: 3, outage: 3 };
-      const rankDifference = (rank[left.kind] ?? 3) - (rank[right.kind] ?? 3);
-      if (rankDifference !== 0) return rankDifference;
-      if (left.kind === "disclosure") {
-        return geometryWeight(right) - geometryWeight(left);
-      }
-      return 0;
-    });
+    const orderMatches = (matches) =>
+      [...(matches || [])].sort((left, right) => {
+        const rank = {
+          regional_metric: 0,
+          disclosure: 1,
+          previous_outage: 2,
+          planned: 3,
+          outage: 3,
+        };
+        const rankDifference = (rank[left.kind] ?? 3) - (rank[right.kind] ?? 3);
+        if (rankDifference !== 0) return rankDifference;
+        if (left.kind === "disclosure") {
+          return geometryWeight(right) - geometryWeight(left);
+        }
+        return 0;
+      });
+    const orderedMatches = orderMatches(data.matches || []);
     focusItems = orderedMatches;
     const renderedGeometryKeys = new Set();
     const isContextLayer = (item) => item.kind === "disclosure" || item.kind === "regional_metric";
+    const itemRenderKey = (item) =>
+      [
+        item.kind,
+        item.geometryKey || "",
+        item.startTime || item.label || "",
+        item.lat ?? "",
+        item.lon ?? "",
+        item.customersAffected ?? "",
+      ].join("|");
+    const rememberRenderedLayer = (item, layer) => {
+      const contextLayer = contextLayerForKind(item.kind);
+      if (!renderedLeafletLayers.has(contextLayer)) renderedLeafletLayers.set(contextLayer, []);
+      renderedLeafletLayers.get(contextLayer).push(layer);
+      if (!renderedItemKeysByLayer.has(contextLayer)) renderedItemKeysByLayer.set(contextLayer, []);
+      renderedItemKeysByLayer.get(contextLayer).push(item.geometryKey || itemRenderKey(item));
+    };
     const bindLayerInteractions = (layer, item) => {
       if (item.kind === "disclosure") {
         disclosureLayers.push({ layer, weight: geometryWeight(item) });
@@ -1124,7 +1353,8 @@ class OutageMap extends HTMLElement {
     };
     const renderMatch = (item) => {
       if (item.deferGeometry && !item.geometry) return;
-      if (item.geometryKey && renderedGeometryKeys.has(item.geometryKey)) return;
+      const renderKey = item.geometryKey || itemRenderKey(item);
+      if (renderedGeometryKeys.has(renderKey)) return;
       let rendered = false;
       if (item.geometry && ["Polygon", "MultiPolygon"].includes(item.geometry.type)) {
         const layer = L.geoJSON(item.geometry, {
@@ -1133,6 +1363,7 @@ class OutageMap extends HTMLElement {
         }).addTo(map);
         applyMapLayerClass(layer, item);
         bindLayerInteractions(layer, item);
+        rememberRenderedLayer(item, layer);
         const layerBounds = layer.getBounds();
         if (!isContextLayer(item) && layerBounds.isValid()) {
           bounds.push(layerBounds.getSouthWest());
@@ -1147,10 +1378,53 @@ class OutageMap extends HTMLElement {
         );
         applyMapLayerClass(marker, item);
         bindLayerInteractions(marker, item);
+        rememberRenderedLayer(item, marker);
         if (!isContextLayer(item)) marker.bringToFront();
         if (!isContextLayer(item)) bounds.push([item.lat, item.lon]);
       }
-      if (item.geometryKey && item.geometry) renderedGeometryKeys.add(item.geometryKey);
+      renderedGeometryKeys.add(renderKey);
+    };
+    const removeLayer = (layerKey) => {
+      for (const layer of renderedLeafletLayers.get(layerKey) || []) {
+        map.removeLayer(layer);
+      }
+      for (const key of renderedItemKeysByLayer.get(layerKey) || []) {
+        renderedGeometryKeys.delete(key);
+      }
+      renderedLeafletLayers.delete(layerKey);
+      renderedItemKeysByLayer.delete(layerKey);
+      focusItems = focusItems.filter((item) => contextLayerForKind(item.kind) !== layerKey);
+      map.invalidateSize();
+    };
+    const addLayerItems = (layerKey, matches) => {
+      const nextItems = orderMatches(matches || []);
+      focusItems = [
+        ...focusItems.filter((item) => contextLayerForKind(item.kind) !== layerKey),
+        ...nextItems,
+      ];
+      for (const item of nextItems) renderMatch(item);
+      if (
+        data.contextGeometryUrl &&
+        nextItems.some((item) => item.deferGeometry && item.geometryKey)
+      ) {
+        fetchJson(data.contextGeometryUrl, {
+          headers: { Accept: "application/json" },
+        })
+          .then((payload) => {
+            const geometries = new Map(
+              (payload.geometries || []).map((item) => [item.geometryKey, item.geometry]),
+            );
+            for (const item of nextItems) {
+              if (!item.deferGeometry || !item.geometryKey) continue;
+              item.geometry = geometries.get(item.geometryKey);
+              renderMatch(item);
+            }
+            refresh();
+          })
+          .catch(() => {});
+      }
+      restackDisclosureLayers();
+      refresh();
     };
     for (const item of orderedMatches) {
       renderMatch(item);
@@ -1180,7 +1454,10 @@ class OutageMap extends HTMLElement {
         replayPendingFocus();
       }, 0),
     );
-    if (data.contextGeometryUrl) {
+    if (
+      data.contextGeometryUrl &&
+      orderedMatches.some((item) => item.deferGeometry && item.geometryKey)
+    ) {
       fetchJson(data.contextGeometryUrl, {
         headers: { Accept: "application/json" },
       })
@@ -1203,6 +1480,19 @@ class OutageMap extends HTMLElement {
           // Context geometry is secondary; operational outage layers remain usable without it.
         });
     }
+    this.handleMapLayerItems = (event) => {
+      const { layer, matches } = event.detail || {};
+      if (!layer) return;
+      removeLayer(layer);
+      addLayerItems(layer, matches || []);
+    };
+    this.handleMapLayerToggle = (event) => {
+      const { layer, enabled } = event.detail || {};
+      if (!layer) return;
+      if (!enabled) removeLayer(layer);
+    };
+    document.addEventListener("map-layer-items", this.handleMapLayerItems);
+    document.addEventListener("map-layer-toggle", this.handleMapLayerToggle);
     if ("ResizeObserver" in window) {
       this.resizeObserver = new ResizeObserver(() => {
         if (activeMapFocus) {
@@ -1217,6 +1507,10 @@ class OutageMap extends HTMLElement {
 
   disconnectedCallback() {
     if (this.handleMapFocus) document.removeEventListener("map-focus", this.handleMapFocus);
+    if (this.handleMapLayerItems)
+      document.removeEventListener("map-layer-items", this.handleMapLayerItems);
+    if (this.handleMapLayerToggle)
+      document.removeEventListener("map-layer-toggle", this.handleMapLayerToggle);
     if (this.resizeObserver) this.resizeObserver.disconnect();
   }
 }
@@ -1233,6 +1527,7 @@ document.addEventListener("DOMContentLoaded", () => {
   attachLocationSearch();
   attachSearchRouting();
   attachMapFocusCards();
+  attachMapLayerToggles();
   updateShellState();
   showSearchLoading(false);
   document.body.addEventListener("input", syncLanguageForm);
@@ -1245,5 +1540,6 @@ document.body.addEventListener("htmx:afterSwap", () => {
   attachLocationSearch();
   attachSearchRouting();
   attachMapFocusCards();
+  attachMapLayerToggles();
   updateShellState();
 });

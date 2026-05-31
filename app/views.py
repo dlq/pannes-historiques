@@ -132,10 +132,27 @@ def default_map_payload(
         for item in regional_metric_layers or []
         if item["centroid_lat"] is not None and item["centroid_lon"] is not None
     }
-    for label in _regional_geometry_labels(_regional_geometry_asset()):
-        regional_matches_by_key.setdefault(
-            f"regional:{label}", _regional_geometry_context_item(lang, label)
-        )
+    if regional_metric_layers is not None:
+        for label in _regional_geometry_labels(_regional_geometry_asset()):
+            regional_matches_by_key.setdefault(
+                f"regional:{label}", _regional_geometry_context_item(lang, label)
+            )
+    matches = [
+        _operational_map_item(lang, item)
+        for item in current_map_layers or []
+        if item["centroid_lat"] is not None and item["centroid_lon"] is not None
+    ]
+    matches += [
+        _previous_operational_map_item(lang, item)
+        for item in previous_map_layers or []
+        if item["centroid_lat"] is not None and item["centroid_lon"] is not None
+    ]
+    matches += list(regional_matches_by_key.values())
+    matches += [
+        _disclosure_map_item(lang, item)
+        for item in disclosure_layers or []
+        if item["centroid_lat"] is not None and item["centroid_lon"] is not None
+    ]
     return {
         "center": DEFAULT_MAP_CENTER,
         "zoom": DEFAULT_MAP_ZOOM,
@@ -144,22 +161,8 @@ def default_map_payload(
         "preserveInitialView": True,
         "contextGeometryUrl": "/map-context-geometries",
         "labels": _map_labels(lang),
-        "matches": [
-            _operational_map_item(lang, item)
-            for item in current_map_layers or []
-            if item["centroid_lat"] is not None and item["centroid_lon"] is not None
-        ]
-        + [
-            _previous_operational_map_item(lang, item)
-            for item in previous_map_layers or []
-            if item["centroid_lat"] is not None and item["centroid_lon"] is not None
-        ]
-        + list(regional_matches_by_key.values())
-        + [
-            _disclosure_map_item(lang, item)
-            for item in disclosure_layers or []
-            if item["centroid_lat"] is not None and item["centroid_lon"] is not None
-        ],
+        "loadedLayers": _loaded_layer_keys(matches),
+        "matches": matches,
     }
 
 
@@ -228,14 +231,8 @@ def build_map_payload(lang: str, result: Any, display_address: str) -> dict[str,
         for item in result.disclosure_layers
         if item["centroid_lat"] is not None and item["centroid_lon"] is not None
     ]
-    return {
-        "center": [result.geocode["latitude"], result.geocode["longitude"]],
-        "zoom": SEARCH_MAP_ZOOM,
-        "addressLabel": display_address or result.normalized.original,
-        "contextGeometryUrl": "/map-context-geometries",
-        "radiusM": result.radius_m,
-        "labels": _map_labels(lang),
-        "matches": _sort_by_distance(current_items)
+    matches = (
+        _sort_by_distance(current_items)
         + _sort_by_distance(previous_items)
         + _sort_by_distance(previous_group_items)
         + [
@@ -243,8 +240,32 @@ def build_map_payload(lang: str, result: Any, display_address: str) -> dict[str,
             for item in result.regional_metric_layers
             if item["centroid_lat"] is not None and item["centroid_lon"] is not None
         ]
-        + _sort_by_distance(disclosure_items),
+        + _sort_by_distance(disclosure_items)
+    )
+    return {
+        "center": [result.geocode["latitude"], result.geocode["longitude"]],
+        "zoom": SEARCH_MAP_ZOOM,
+        "addressLabel": display_address or result.normalized.original,
+        "contextGeometryUrl": "/map-context-geometries",
+        "radiusM": result.radius_m,
+        "labels": _map_labels(lang),
+        "loadedLayers": _loaded_layer_keys(matches),
+        "matches": matches,
     }
+
+
+def _loaded_layer_keys(matches: list[dict[str, Any]]) -> list[str]:
+    loaded = set()
+    for item in matches:
+        if item["kind"] == "outage":
+            loaded.add("current")
+        elif item["kind"] == "planned":
+            loaded.add("planned")
+        elif item["kind"] == "previous_outage":
+            loaded.add("previous")
+        elif item["kind"] in {"disclosure", "regional_metric"}:
+            loaded.add("published")
+    return sorted(loaded)
 
 
 def _operational_map_item(

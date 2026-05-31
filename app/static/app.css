@@ -279,6 +279,29 @@ textarea {
   list-style: none;
 }
 
+.ph-layer-toggle {
+  flex-shrink: 0;
+  border: 1px solid rgba(34, 54, 84, 0.22);
+  border-radius: 0.25rem;
+  background: #f1f1f2;
+  padding: 0.125rem 0.375rem;
+  color: #223654;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.ph-layer-toggle.is-on {
+  border-color: rgba(9, 87, 151, 0.28);
+  background: #dbeafe;
+  color: #095797;
+}
+
+.ph-layer-toggle:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}
+
 .ph-context-section-summary > :first-child,
 .ph-context-disclosure-row > summary > span:first-of-type {
   margin-right: auto;
