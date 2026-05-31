@@ -50,10 +50,19 @@ export default {
     if (url.pathname.startsWith("/cron/")) {
       return new Response("Not found", { status: 404 });
     }
+    if (url.pathname.startsWith("/collect")) {
+      return new Response("Not found", { status: 404 });
+    }
+    if (url.pathname.startsWith("/debug/")) {
+      return new Response("Not found", { status: 404 });
+    }
     if (url.pathname === "/api/durable/hydro") {
       return durableHydroResponse(env);
     }
     if (url.pathname === "/api/durable/status") {
+      if (!isOperationalRequest(request, env)) {
+        return new Response("Not found", { status: 404 });
+      }
       return durableStatusResponse(env);
     }
     if (url.pathname === "/api/durable/nearby") {
@@ -76,6 +85,11 @@ export default {
     }
   },
 };
+
+function isOperationalRequest(request, env) {
+  const token = env.PANNES_OPERATION_TOKEN;
+  return Boolean(token) && request.headers.get("X-Pannes-Operation-Token") === token;
+}
 
 async function fetchContainer(request, env) {
   const started = Date.now();

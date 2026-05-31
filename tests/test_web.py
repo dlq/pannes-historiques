@@ -171,50 +171,68 @@ def test_healthz_route_returns_ok(app_client):
     assert response.get_json() == {"ok": True}
 
 
-def test_collect_route_returns_service_payload(app_client):
+def test_collect_route_is_private_by_default(app_client):
     response = app_client.get("/collect")
+
+    assert response.status_code == 404
+
+
+def test_collect_route_returns_service_payload_when_debug_enabled(debug_app_client):
+    response = debug_app_client.get("/collect")
 
     assert response.status_code == 200
     assert response.get_json() == {"kind": "collect"}
 
 
-def test_collect_changed_route_returns_service_payload(app_client):
-    response = app_client.post("/collect/changed")
+def test_collect_changed_route_returns_service_payload_when_internal(app_client):
+    response = app_client.post("/collect/changed", headers={"X-Cloudflare-Internal": "1"})
 
     assert response.status_code == 200
     assert response.get_json() == {"kind": "collect_changed"}
 
 
-def test_collect_bis_route_returns_service_payload(app_client):
-    response = app_client.get("/collect/bis")
+def test_collect_bis_route_returns_service_payload_when_internal(app_client):
+    response = app_client.get("/collect/bis", headers={"X-Cloudflare-Internal": "1"})
 
     assert response.status_code == 200
     assert response.get_json() == {"kind": "collect_current_outages"}
 
 
-def test_collect_aip_route_returns_service_payload(app_client):
-    response = app_client.get("/collect/aip")
+def test_collect_aip_route_returns_service_payload_when_internal(app_client):
+    response = app_client.get("/collect/aip", headers={"X-Cloudflare-Internal": "1"})
 
     assert response.status_code == 200
     assert response.get_json() == {"kind": "collect_planned_interruptions"}
 
 
-def test_collect_disclosures_route_returns_service_payload(app_client):
-    response = app_client.post("/collect/disclosures")
+def test_collect_disclosures_route_returns_service_payload_when_internal(app_client):
+    response = app_client.post("/collect/disclosures", headers={"X-Cloudflare-Internal": "1"})
 
     assert response.status_code == 200
     assert response.get_json() == {"kind": "collect_disclosures"}
 
 
-def test_cron_hydro_route_returns_service_payload(app_client):
+def test_cron_hydro_route_requires_scheduled_header(app_client):
     response = app_client.post("/cron/hydro")
+
+    assert response.status_code == 404
+
+
+def test_cron_hydro_route_returns_service_payload_when_scheduled(app_client):
+    response = app_client.post("/cron/hydro", headers={"X-Cloudflare-Scheduled": "1"})
 
     assert response.status_code == 200
     assert response.get_json() == {"kind": "run_changed_collection_job"}
 
 
-def test_cron_disclosures_route_returns_service_payload(app_client):
+def test_cron_disclosures_route_requires_scheduled_header(app_client):
     response = app_client.post("/cron/disclosures")
+
+    assert response.status_code == 404
+
+
+def test_cron_disclosures_route_returns_service_payload_when_scheduled(app_client):
+    response = app_client.post("/cron/disclosures", headers={"X-Cloudflare-Scheduled": "1"})
 
     assert response.status_code == 200
     assert response.get_json() == {"kind": "collect_disclosures_if_due"}

@@ -1,7 +1,7 @@
 # Plan: Hydro-Québec Outage History App
 
 Date: 2026-04-25
-Last updated: 2026-05-30
+Last updated: 2026-05-31
 
 This file is the active execution plan. Keep durable evidence, source notes, and long historical reasoning in `research.md`; keep completed release and implementation history in `roadmap-history.md`; keep completed detail here only when it affects current decisions.
 
@@ -13,7 +13,7 @@ This file is the active execution plan. Keep durable evidence, source notes, and
 - Container role: still renders the Flask/Jinja shell and keeps a baked-in SQLite snapshot for local-compatible/container fallback paths.
 - Important architecture caveat: runtime writes inside the container are ephemeral; durable production state belongs in D1/R2 or another durable store.
 - User-facing URL contract: clean root URL with `lang`, `q`, or current-location coordinate parameters; obsolete public `radius_m`, `days`, and `include_planned` parameters were removed from the main interface.
-- Debug timing route: available only when `ENABLE_DEBUG_ROUTES=1`; production returns `404` by default.
+- Debug, collection, cron, internal export/file, and direct durable-status endpoints are private by default; production returns `404` unless the expected debug flag, Worker block, scheduled header, internal header, or operation token is present.
 - Current deployed release: `v0.2.4` at commit `932f78c`; Worker version `acf1eb43-1ca2-4afb-afc1-161c276541b5`; container image `acf1eb43`.
 - Current test baseline: Python tests, deterministic service/geocoding tests, route smoke coverage, Playwright desktop/mobile Chromium coverage, and production-shaped UI regression fixtures.
 
@@ -35,7 +35,7 @@ In progress.
 - `v0.2.2`: mobile installability, search entry, current-location, history/back-forward, lightweight region-entry improvements, and frontend module split. Complete.
 - `v0.2.3`: map hierarchy, side-rail layer explanation, local Leaflet assets, and production-shaped map regression coverage. Complete.
 - `v0.2.4`: scoped copy/data-truth cleanup, safer status labels, side-panel width/focus polish, and accessibility-oriented regression checks. Complete.
-- `v0.2.5`: performance measurement, deployment hygiene, and production hardening. Next.
+- `v0.2.5`: performance measurement, deployment hygiene, and production hardening. In progress.
 
 ### `0.3.x`: Architecture And Product Expansion
 
@@ -46,7 +46,7 @@ Candidate work after the map-first UI is stable:
 - broaden province/region analytics and `Bilan par région`-style views
 - expand disclosure ingestion, geometry enrichment, and geocoder-provider options
 - explore opt-in web notifications after PWA installability, based on saved watch areas rather than requiring a literal home address
-- replace the Tailwind CDN path with a production build pipeline if it is not handled in `0.2.5`
+- replace the Tailwind CDN path with a production build pipeline
 
 ## Current Focus: `v0.2.5`
 
@@ -65,6 +65,8 @@ Current implementation notes:
 - Production-shaped local testing showed short-lived durable runtime caching reduces repeated search service time from roughly 10-12s to roughly 1.2-1.4s.
 - Previous map context is now capped at 48 recent layers for default/search map context to reduce cold endpoint cost and initial payload weight.
 - Sidebar layer toggles are implemented locally: current outages render first; planned, previous, and published disclosure/regional context are opt-in `/map-layer` fetches and can be hidden again without reloading.
+- Public operational hardening is implemented locally: collection and cron routes are hidden by default in Flask, the Worker blocks public `/collect`, `/cron`, `/internal`, and `/debug` paths, and direct durable status now requires an operation token.
+- Tailwind CDN replacement is deferred to `0.3.x` frontend/tooling work.
 
 Scope:
 
@@ -75,6 +77,7 @@ Scope:
 - avoid recording query history or saving matches for shareable/reloadable `GET /?q=...` page loads
 - add sidebar-driven layer toggles for current outages, planned interruptions, previously seen outages, and disclosure/regional context
 - default initial map render to current outages only, then lazy-load secondary layer payloads when toggled on
+- keep debug, collection, cron, internal, and direct durable-status endpoints private by default
 
 Acceptance criteria:
 
@@ -84,12 +87,15 @@ Acceptance criteria:
 - representative local and production-shaped timings improve without changing the visible map interaction model
 - initial address render does not fetch/render planned, previous, disclosure, or regional context until the user enables those layers
 - sidebar layer state is clear enough that users can tell what evidence is currently visible on the map
+- public operational endpoints return `404` by default, while scheduled/internal/debug-enabled paths still work in tests
 
 Verification so far:
 
-- `uv run pytest -q`: `77 passed`
+- `uv run pytest -q`: `80 passed` after private operational route hardening
 - `npm run test:e2e`: `26 passed`
 - `uv run pre-commit run --all-files`: passed
+- `npx biome check src/worker.js`: passed
+- `npx wrangler deploy --dry-run`: passed
 - Local browser check confirmed initial search payload contains only `outage`, secondary toggles start off, and planned/previous/published layers load on demand.
 
 ## Next Release Slices
@@ -104,8 +110,7 @@ Verification so far:
 - revisit real-user Core Web Vitals, especially Cloudflare Observatory LCP findings
 - separate likely causes: container/TTFB, initial HTML size, lazy map payload, tile loading, image/static assets, and client rendering
 - turn the sidebar sections into map layer toggles, keeping current outages on by default and making planned/previous/disclosure/regional context opt-in lazy layers
-- decide whether replacing the Tailwind CDN path belongs in `v0.2.5` or moves to broader `0.3.x` frontend/tooling cleanup
-- keep debug/operational endpoints private by default and decide whether any debug route should remain available through explicit configuration
+- keep debug/operational endpoints private by default, with `/debug/timing/search` retained only behind `ENABLE_DEBUG_ROUTES=1`
 - document or automate the deployment/health-check sequence enough to avoid repeating stale-container/image deployment issues
 
 ## Completed `0.2.x` Summary
@@ -159,13 +164,12 @@ Before handing off code changes:
   - `/healthz`
   - homepage in English/French
   - representative address search
-  - `/api/durable/status`
+  - private durable status through an authorized operational check, not a public unauthenticated URL
   - static app assets and service worker
   - container status/image if the deploy touched container code
 
 ## Current Risks And Open Questions
 
-- The debug/timing endpoint is private by default; decide in `v0.2.5` whether to keep it as an explicitly enabled operational tool or remove it.
 - The desktop side panel can still feel cramped with multiple context sections; `v0.2.4` gives it more width, but broader collapse/minimize design can still wait.
 - Accessibility needs a dedicated pass against W3C/WCAG basics; handle in `v0.2.4`.
 - Performance should be measured before broad architecture work; handle in `v0.2.5`, then decide what belongs in `0.3.x`.

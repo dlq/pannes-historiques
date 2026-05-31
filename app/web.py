@@ -68,6 +68,33 @@ def create_app(settings: Settings | None = None) -> Flask:
             return [item for item in layers if item.get("outage_kind") == "planned"]
         return [item for item in layers if item.get("outage_kind") == "outage"]
 
+    def not_found_response():
+        return jsonify({"error": "not found"}), 404
+
+    def is_internal_request() -> bool:
+        return request.headers.get("X-Cloudflare-Internal") == "1"
+
+    def is_scheduled_request() -> bool:
+        return request.headers.get("X-Cloudflare-Scheduled") == "1"
+
+    def is_private_route_enabled() -> bool:
+        return settings.enable_debug_routes or is_internal_request() or is_scheduled_request()
+
+    def require_private_route():
+        if not is_private_route_enabled():
+            return not_found_response()
+        return None
+
+    def require_scheduled_route():
+        if not is_scheduled_request():
+            return not_found_response()
+        return None
+
+    def require_internal_route():
+        if not is_internal_request():
+            return not_found_response()
+        return None
+
     @app.before_request
     def start_request_timer():
         request_id = (
@@ -234,7 +261,7 @@ def create_app(settings: Settings | None = None) -> Flask:
     @app.get("/debug/timing/search")
     def debug_timing_search():
         if not settings.enable_debug_routes:
-            return jsonify({"error": "not found"}), 404
+            return not_found_response()
         lang = choose_language(request.args.get("lang"))
         with current_timer().step("debug_search.service"):
             result = service.search(
@@ -398,32 +425,44 @@ def create_app(settings: Settings | None = None) -> Flask:
 
     @app.route("/collect", methods=["GET", "POST"])
     def collect():
+        if response := require_private_route():
+            return response
         return jsonify(serialize_payload(service.collect()))
 
     @app.route("/collect/changed", methods=["GET", "POST"])
     def collect_changed():
+        if response := require_private_route():
+            return response
         return jsonify(serialize_payload(service.collect_changed()))
 
     @app.route("/collect/bis", methods=["GET", "POST"])
     def collect_bis():
+        if response := require_private_route():
+            return response
         return jsonify(serialize_payload(service.collect_current_outages()))
 
     @app.route("/collect/aip", methods=["GET", "POST"])
     def collect_aip():
+        if response := require_private_route():
+            return response
         return jsonify(serialize_payload(service.collect_planned_interruptions()))
 
     @app.route("/collect/disclosures", methods=["GET", "POST"])
     def collect_disclosures():
+        if response := require_private_route():
+            return response
         return jsonify(serialize_payload(service.collect_disclosures()))
 
     @app.post("/cron/hydro")
     def cron_hydro():
+        if response := require_scheduled_route():
+            return response
         return jsonify(serialize_payload(service.run_changed_collection_job()))
 
     @app.post("/cron/hydro/durable-fetch")
     def cron_hydro_durable_fetch():
-        if request.headers.get("X-Cloudflare-Scheduled") != "1":
-            return jsonify({"error": "not found"}), 404
+        if response := require_scheduled_route():
+            return response
         payload = request.get_json(silent=True) or {}
         versions = payload.get("versions") or {}
         if not isinstance(versions, dict):
@@ -436,12 +475,14 @@ def create_app(settings: Settings | None = None) -> Flask:
 
     @app.post("/cron/disclosures")
     def cron_disclosures():
+        if response := require_scheduled_route():
+            return response
         return jsonify(serialize_payload(service.collect_disclosures_if_due()))
 
     @app.post("/cron/disclosures/batch")
     def cron_disclosures_batch():
-        if request.headers.get("X-Cloudflare-Scheduled") != "1":
-            return jsonify({"error": "not found"}), 404
+        if response := require_scheduled_route():
+            return response
         payload = request.get_json(silent=True) or {}
         source_keys = payload.get("source_keys") or []
         if not isinstance(source_keys, list) or not all(
@@ -452,8 +493,8 @@ def create_app(settings: Settings | None = None) -> Flask:
 
     @app.post("/cron/disclosures/parse-source")
     def cron_disclosures_parse_source():
-        if request.headers.get("X-Cloudflare-Scheduled") != "1":
-            return jsonify({"error": "not found"}), 404
+        if response := require_scheduled_route():
+            return response
         source_key = request.headers.get("X-Disclosure-Source-Key", "")
         if not source_key:
             return jsonify({"error": "missing source key"}), 400
@@ -473,15 +514,15 @@ def create_app(settings: Settings | None = None) -> Flask:
 
     @app.get("/internal/disclosures/export")
     def internal_disclosures_export():
-        if request.headers.get("X-Cloudflare-Internal") != "1":
-            return jsonify({"error": "not found"}), 404
+        if response := require_internal_route():
+            return response
         source_keys = request.args.getlist("source_key")
         return jsonify(serialize_payload(service.disclosure_export(source_keys or None)))
 
     @app.get("/internal/disclosures/source-file")
     def internal_disclosure_source_file():
-        if request.headers.get("X-Cloudflare-Internal") != "1":
-            return jsonify({"error": "not found"}), 404
+        if response := require_internal_route():
+            return response
         source_key = request.args.get("source_key", "")
         path = service.disclosure_payload_path(source_key)
         if path is None:
@@ -491,8 +532,8 @@ def create_app(settings: Settings | None = None) -> Flask:
 
     @app.get("/internal/raw-snapshot")
     def internal_raw_snapshot():
-        if request.headers.get("X-Cloudflare-Internal") != "1":
-            return jsonify({"error": "not found"}), 404
+        if response := require_internal_route():
+            return response
         payload_path = request.args.get("payload_path", "")
         path = service.raw_snapshot_payload_path(payload_path)
         if path is None:

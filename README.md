@@ -71,6 +71,8 @@ D1/R2 are now used for durable production ingestion:
   previous-outage nearby matches.
 - The Worker also exposes runtime map-layer endpoints for current/planned operational layers and
   previous-outage context layers with Hydro polygon geometry when available.
+- Debug, collection, cron, internal file/export, and direct status endpoints are not public entry
+  points; use the CLI locally and Worker scheduled/internal paths in production.
 
 Production disables automatic Hydro-Quebec refreshes during address search (`AUTO_REFRESH_ON_SEARCH=0`).
 The Worker cron handles changed-feed ingestion and calls the container refresh endpoint so user
