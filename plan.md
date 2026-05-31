@@ -64,6 +64,7 @@ Current implementation notes:
 - Direct durable runtime endpoints were much faster: operational map layers were sub-second, map context was sub-second, and previous map layers were the main cold endpoint at roughly 2-8s depending on sample.
 - Production-shaped local testing showed short-lived durable runtime caching reduces repeated search service time from roughly 10-12s to roughly 1.2-1.4s.
 - Previous map context is now capped at 48 recent layers for default/search map context to reduce cold endpoint cost and initial payload weight.
+- Next performance hypothesis: the sidebar should become the layer-control surface, with secondary layers disabled and unfetched until the user opts in.
 
 Scope:
 
@@ -72,6 +73,8 @@ Scope:
 - decide whether to reduce initial HTML/data payloads before deeper frontend/tooling work
 - keep deployment health checks explicit enough to avoid stale Worker/container state
 - avoid recording query history or saving matches for shareable/reloadable `GET /?q=...` page loads
+- add sidebar-driven layer toggles for current outages, planned interruptions, previously seen outages, and disclosure/regional context
+- default initial map render to current outages only, then lazy-load secondary layer payloads when toggled on
 
 Acceptance criteria:
 
@@ -79,6 +82,8 @@ Acceptance criteria:
 - at least one high-confidence performance bottleneck has an implementation plan or fix
 - deployment notes remain current after any release or hotfix
 - representative local and production-shaped timings improve without changing the visible map interaction model
+- initial address render does not fetch/render planned, previous, disclosure, or regional context until the user enables those layers
+- sidebar layer state is clear enough that users can tell what evidence is currently visible on the map
 
 ## Next Release Slices
 
@@ -91,6 +96,7 @@ Acceptance criteria:
 
 - revisit real-user Core Web Vitals, especially Cloudflare Observatory LCP findings
 - separate likely causes: container/TTFB, initial HTML size, lazy map payload, tile loading, image/static assets, and client rendering
+- turn the sidebar sections into map layer toggles, keeping current outages on by default and making planned/previous/disclosure/regional context opt-in lazy layers
 - decide whether replacing the Tailwind CDN path belongs in `v0.2.5` or moves to broader `0.3.x` frontend/tooling cleanup
 - keep debug/operational endpoints private by default and decide whether any debug route should remain available through explicit configuration
 - document or automate the deployment/health-check sequence enough to avoid repeating stale-container/image deployment issues
