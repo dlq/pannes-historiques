@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import time
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
@@ -15,6 +16,14 @@ from .disclosures import DisclosureCollector
 from .geocoding import GeocodingService, haversine_meters
 from .hydro import HydroCollector
 from .perf import current_timer
+
+DURABLE_RUNTIME_CACHEABLE_PATHS = {
+    "map-context",
+    "operational-map-layers",
+    "previous-map-layers",
+    "status",
+}
+DEFAULT_PREVIOUS_MAP_LAYER_LIMIT = 48
 
 
 def point_in_polygon(point_lon: float, point_lat: float, polygon: list[list[float]]) -> bool:
@@ -81,13 +90,30 @@ class AppService:
         self.geocoder = GeocodingService(settings)
         self.collector = HydroCollector(settings)
         self.disclosure_collector = DisclosureCollector(settings)
-        self._context_cache: dict[str, Any] = {}
+        self._context_cache: dict[str, dict[str, Any]] = {}
 
     def _durable_runtime_get(
         self, path: str, query: dict[str, str] | None = None
     ) -> dict[str, Any] | None:
         if not self.settings.durable_runtime_url:
             return None
+        normalized_path = path.strip("/")
+        if (
+            normalized_path in DURABLE_RUNTIME_CACHEABLE_PATHS
+            and self.settings.durable_context_cache_ttl_seconds > 0
+        ):
+            cache_query = urllib.parse.urlencode(query or {})
+            return self._cached_context(
+                f"durable_runtime_get:{normalized_path}:{cache_query}",
+                lambda: self._durable_runtime_get_uncached(path, query),
+                ttl_seconds=self.settings.durable_context_cache_ttl_seconds,
+                cache_none=False,
+            )
+        return self._durable_runtime_get_uncached(path, query)
+
+    def _durable_runtime_get_uncached(
+        self, path: str, query: dict[str, str] | None = None
+    ) -> dict[str, Any] | None:
         suffix = f"/{path.lstrip('/')}"
         encoded = f"?{urllib.parse.urlencode(query)}" if query else ""
         request = urllib.request.Request(
@@ -349,14 +375,34 @@ class AppService:
     def _clear_context_cache(self) -> None:
         self._context_cache.clear()
 
-    def _cached_context(self, key: str, factory):
-        if key not in self._context_cache:
+    def _cached_context(
+        self,
+        key: str,
+        factory,
+        *,
+        ttl_seconds: int | None = None,
+        cache_none: bool = True,
+    ):
+        now = time.monotonic()
+        cached = self._context_cache.get(key)
+        if cached and (cached["expires_at"] is None or cached["expires_at"] > now):
+            current_timer().set(f"context_cache.{key}.hit", True)
+            return cached["value"]
+
+        if cached:
+            current_timer().set(f"context_cache.{key}.expired", True)
+
+        if key not in self._context_cache or cached:
             current_timer().set(f"context_cache.{key}.hit", False)
             with current_timer().step(f"context_cache.{key}.build"):
-                self._context_cache[key] = factory()
-        else:
-            current_timer().set(f"context_cache.{key}.hit", True)
-        return self._context_cache[key]
+                value = factory()
+                if value is None and not cache_none:
+                    return value
+                self._context_cache[key] = {
+                    "expires_at": None if ttl_seconds is None else now + max(ttl_seconds, 0),
+                    "value": value,
+                }
+                return value
 
     def maybe_refresh(self) -> dict[str, Any] | None:
         with open_db(self.settings.db_path) as connection:
@@ -1234,7 +1280,9 @@ class AppService:
             lambda: self._build_current_operational_map_layers(include_planned),
         )
 
-    def _previous_operational_map_layers(self, limit: int = 120) -> list[dict[str, Any]]:
+    def _previous_operational_map_layers(
+        self, limit: int = DEFAULT_PREVIOUS_MAP_LAYER_LIMIT
+    ) -> list[dict[str, Any]]:
         if self.settings.durable_runtime_url:
             return self._build_previous_operational_map_layers(limit)
         return self._cached_context(

@@ -35,6 +35,13 @@ function reloadOnHistoryNavigation() {
   });
 }
 
+function restoreSearchInputFromUrl() {
+  const input = document.querySelector("#address-input");
+  if (!input || input.value) return;
+  const query = new URL(window.location.href).searchParams.get("q") || "";
+  if (query) input.value = query;
+}
+
 function syncLanguageForm() {
   const searchForm = document.querySelector("#search-form");
   const languageForm = document.querySelector("#language-form");
@@ -1220,6 +1227,7 @@ customElements.define("outage-map", OutageMap);
 document.addEventListener("DOMContentLoaded", () => {
   registerServiceWorker();
   reloadOnHistoryNavigation();
+  restoreSearchInputFromUrl();
   syncLanguageForm();
   attachAddressAutocomplete();
   attachLocationSearch();

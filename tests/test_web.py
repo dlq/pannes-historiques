@@ -39,7 +39,7 @@ def test_service_worker_route_has_root_scope(app_client):
     assert response.status_code == 200
     assert response.headers["Service-Worker-Allowed"] == "/"
     assert response.headers["Cache-Control"] == "no-cache"
-    assert b"pannes-historiques-v0.2.4-copy-a11y-1" in response.data
+    assert b"pannes-historiques-v0.2.5-perf-1" in response.data
     assert b"/static/app-icon-180.png" in response.data
     assert b"/static/map-layers.js" in response.data
     assert b"/static/vendor/leaflet/leaflet.js" in response.data
@@ -74,6 +74,19 @@ def test_index_location_url_uses_coordinates(app_client):
     assert call["days"] == 1825
     assert call["include_planned"] is True
     assert call["include_map_layers"] is True
+    assert call["record_history"] is False
+
+
+def test_index_query_url_is_read_only(app_client):
+    response = app_client.get("/?lang=en&q=5220%20Rue%20Jeanne-Mance")
+
+    assert response.status_code == 200
+    call = app_client.application.testing_stub_service.search_calls[-1]
+    assert call["radius_m"] == 5000
+    assert call["days"] == 1825
+    assert call["include_planned"] is True
+    assert call["include_map_layers"] is True
+    assert call["record_history"] is False
 
 
 def test_search_map_route_uses_fixed_defaults(app_client):

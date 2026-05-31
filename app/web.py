@@ -105,6 +105,7 @@ def create_app(settings: Settings | None = None) -> Flask:
                     days=days,
                     include_planned=include_planned,
                     include_map_layers=True,
+                    record_history=False,
                 )
             with current_timer().step("index.result_context"):
                 search_context = result_context(lang, result)
@@ -119,6 +120,7 @@ def create_app(settings: Settings | None = None) -> Flask:
                     days=days,
                     include_planned=include_planned,
                     include_map_layers=True,
+                    record_history=False,
                 )
             with current_timer().step("index.result_context"):
                 search_context = result_context(lang, result)

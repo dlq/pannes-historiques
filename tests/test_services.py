@@ -286,6 +286,57 @@ def test_durable_runtime_operational_and_previous_map_layers(service_factory, mo
     ]
 
 
+def test_durable_runtime_get_caches_context_reads(service_factory, monkeypatch):
+    service = service_factory(
+        durable_runtime_url="https://example.invalid",
+        durable_context_cache_ttl_seconds=60,
+    )
+    calls = []
+
+    def fake_uncached(path, query=None):
+        calls.append((path, query))
+        return {"value": len(calls)}
+
+    monkeypatch.setattr(service, "_durable_runtime_get_uncached", fake_uncached)
+
+    first = service._durable_runtime_get("previous-map-layers", {"limit": "120"})
+    second = service._durable_runtime_get("previous-map-layers", {"limit": "120"})
+    other_query = service._durable_runtime_get("previous-map-layers", {"limit": "60"})
+    uncached_path = service._durable_runtime_get("query-count", {"address_id": "1"})
+
+    assert first == {"value": 1}
+    assert second == {"value": 1}
+    assert other_query == {"value": 2}
+    assert uncached_path == {"value": 3}
+    assert calls == [
+        ("previous-map-layers", {"limit": "120"}),
+        ("previous-map-layers", {"limit": "60"}),
+        ("query-count", {"address_id": "1"}),
+    ]
+
+
+def test_durable_runtime_get_does_not_cache_failed_context_reads(service_factory, monkeypatch):
+    service = service_factory(
+        durable_runtime_url="https://example.invalid",
+        durable_context_cache_ttl_seconds=60,
+    )
+    calls = []
+    responses = iter([None, {"layers": []}])
+
+    def fake_uncached(path, query=None):
+        calls.append((path, query))
+        return next(responses)
+
+    monkeypatch.setattr(service, "_durable_runtime_get_uncached", fake_uncached)
+
+    assert service._durable_runtime_get("previous-map-layers", {"limit": "48"}) is None
+    assert service._durable_runtime_get("previous-map-layers", {"limit": "48"}) == {"layers": []}
+    assert calls == [
+        ("previous-map-layers", {"limit": "48"}),
+        ("previous-map-layers", {"limit": "48"}),
+    ]
+
+
 def test_find_current_matches_returns_durable_matches_without_local_fallback(
     service_factory, monkeypatch
 ):

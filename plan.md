@@ -52,7 +52,7 @@ Candidate work after the map-first UI is stable:
 
 Goal: measure and improve production performance and deployment hygiene before larger product work resumes.
 
-Status: planning.
+Status: implementation in progress.
 
 Current implementation notes:
 
@@ -60,6 +60,10 @@ Current implementation notes:
 - Production smoke check after `v0.2.4`: `/healthz`, `/`, `/search-map`, `/static/service-worker.js`, and `/api/durable/status` returned `200`.
 - Warm post-deploy homepage/search responses were still several seconds because rendered pages and embedded payloads are large; treat this as a `v0.2.5` measurement target.
 - D1 durable status after deploy showed fresh `bis` and `aip` versions checked at `2026-05-30T21:07-21:08Z`.
+- `v0.2.5` baseline measurement found the slow path was mostly container/app time, not network transfer: production `Server-Timing` was around 5s for `/` and 8-10s for `/search-map`.
+- Direct durable runtime endpoints were much faster: operational map layers were sub-second, map context was sub-second, and previous map layers were the main cold endpoint at roughly 2-8s depending on sample.
+- Production-shaped local testing showed short-lived durable runtime caching reduces repeated search service time from roughly 10-12s to roughly 1.2-1.4s.
+- Previous map context is now capped at 48 recent layers for default/search map context to reduce cold endpoint cost and initial payload weight.
 
 Scope:
 
@@ -67,12 +71,14 @@ Scope:
 - identify whether TTFB, payload size, lazy geometry, tile loading, or client rendering dominates the current delay
 - decide whether to reduce initial HTML/data payloads before deeper frontend/tooling work
 - keep deployment health checks explicit enough to avoid stale Worker/container state
+- avoid recording query history or saving matches for shareable/reloadable `GET /?q=...` page loads
 
 Acceptance criteria:
 
 - production timing data is captured with clear cold/warm measurements
 - at least one high-confidence performance bottleneck has an implementation plan or fix
 - deployment notes remain current after any release or hotfix
+- representative local and production-shaped timings improve without changing the visible map interaction model
 
 ## Next Release Slices
 

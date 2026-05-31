@@ -52,6 +52,12 @@ Production is currently served at `pannes.ca` with Cloudflare Workers + Containe
 npx wrangler deploy
 ```
 
+For a quick post-deploy timing check:
+
+```bash
+uv run python scripts/check_production_perf.py
+```
+
 The deployed container image still includes a baked-in SQLite snapshot for the Flask/container search
 path and disclosure/regional context. Writes inside the running container are ephemeral and should
 not be treated as durable production storage.
