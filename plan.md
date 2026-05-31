@@ -14,7 +14,7 @@ This file is the active execution plan. Keep durable evidence, source notes, and
 - Important architecture caveat: runtime writes inside the container are ephemeral; durable production state belongs in D1/R2 or another durable store.
 - User-facing URL contract: clean root URL with `lang`, `q`, or current-location coordinate parameters; obsolete public `radius_m`, `days`, and `include_planned` parameters were removed from the main interface.
 - Debug, collection, cron, internal export/file, and direct durable-status endpoints are private by default; production returns `404` unless the expected debug flag, Worker block, scheduled header, internal header, or operation token is present.
-- Current deployed release: `v0.2.4` at commit `932f78c`; Worker version `acf1eb43-1ca2-4afb-afc1-161c276541b5`; container image `acf1eb43`.
+- Current deployed release: `v0.2.5` at commit `4af7fd2`; Worker version `43b7a4dc-bb09-4249-92b8-9ad231ad58ae`; container image `43b7a4dc`.
 - Current test baseline: Python tests, deterministic service/geocoding tests, route smoke coverage, Playwright desktop/mobile Chromium coverage, and production-shaped UI regression fixtures.
 
 ## Release Roadmap
@@ -52,7 +52,7 @@ Candidate work after the map-first UI is stable:
 
 Goal: measure and improve production performance and deployment hygiene before larger product work resumes.
 
-Status: release-ready locally; production deploy and smoke/timing verification pending.
+Status: deployed and production smoke-tested; release tag still pending if a Git tag is wanted.
 
 Current implementation notes:
 
@@ -67,6 +67,9 @@ Current implementation notes:
 - Sidebar layer toggles are implemented locally: current outages render first; planned, previous, and published disclosure/regional context are opt-in `/map-layer` fetches and can be hidden again without reloading.
 - Public operational hardening is implemented locally: collection and cron routes are hidden by default in Flask, the Worker blocks public `/collect`, `/cron`, `/internal`, and `/debug` paths, and direct durable status now requires an operation token.
 - Tailwind CDN replacement is deferred to `0.3.x` frontend/tooling work.
+- `v0.2.5` deployed on 2026-05-31 with Worker version `43b7a4dc-bb09-4249-92b8-9ad231ad58ae` and container image `43b7a4dc`.
+- Post-deploy production sample: homepage `200` in about 2.8s total, address map `200` in about 3.2s total, planned layer `/map-layer` `200` in about 1.3s total.
+- Post-deploy privacy checks: public `/api/durable/status`, `/debug/timing/search`, `/collect`, `/cron/hydro`, and `/internal/disclosures/export` returned `404`; `/healthz` and `/service-worker.js` returned `200`.
 
 Scope:
 
@@ -96,6 +99,8 @@ Verification so far:
 - `uv run pre-commit run --all-files`: passed
 - `npx biome check src/worker.js`: passed
 - `npx wrangler deploy --dry-run`: passed
+- `npx wrangler deploy`: deployed Worker `43b7a4dc-bb09-4249-92b8-9ad231ad58ae` and container image `43b7a4dc`
+- Production smoke/timing checks: passed, with intermittent local `curl` DNS failures worked around by Python `urllib` checks
 - Local browser check confirmed initial search payload contains only `outage`, secondary toggles start off, and planned/previous/published layers load on demand.
 
 ## Next Release Slices
@@ -107,12 +112,8 @@ Verification so far:
 
 ### `v0.2.5`: Performance And Production Hygiene
 
-- revisit real-user Core Web Vitals, especially Cloudflare Observatory LCP findings
-- separate likely causes: container/TTFB, initial HTML size, lazy map payload, tile loading, image/static assets, and client rendering
-- turn the sidebar sections into map layer toggles, keeping current outages on by default and making planned/previous/disclosure/regional context opt-in lazy layers
-- keep debug/operational endpoints private by default, with `/debug/timing/search` retained only behind `ENABLE_DEBUG_ROUTES=1`
-- document or automate the deployment/health-check sequence enough to avoid repeating stale-container/image deployment issues
-- local implementation is complete; deploy and production smoke/timing checks remain before tagging `v0.2.5`
+- deployed 2026-05-31: production timing improvements, sidebar opt-in lazy map layers, and private operational/debug endpoint hardening
+- tag `v0.2.5` if a Git release marker is wanted for this deployed state
 
 ## Completed `0.2.x` Summary
 
