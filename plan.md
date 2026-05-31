@@ -52,7 +52,7 @@ Candidate work after the map-first UI is stable:
 
 Goal: measure and improve production performance and deployment hygiene before larger product work resumes.
 
-Status: implementation in progress.
+Status: release-ready locally; production deploy and smoke/timing verification pending.
 
 Current implementation notes:
 
@@ -112,6 +112,7 @@ Verification so far:
 - turn the sidebar sections into map layer toggles, keeping current outages on by default and making planned/previous/disclosure/regional context opt-in lazy layers
 - keep debug/operational endpoints private by default, with `/debug/timing/search` retained only behind `ENABLE_DEBUG_ROUTES=1`
 - document or automate the deployment/health-check sequence enough to avoid repeating stale-container/image deployment issues
+- local implementation is complete; deploy and production smoke/timing checks remain before tagging `v0.2.5`
 
 ## Completed `0.2.x` Summary
 
