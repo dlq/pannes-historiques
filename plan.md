@@ -7,14 +7,14 @@ This file is the active execution plan. Keep durable evidence, source notes, and
 
 ## Current State
 
-- Current release in progress: `v0.2.5` on `main`.
+- Current release in progress: none; `v0.2.6` planning is next.
 - Current product shape: map-first address/current-location lookup with server-rendered Flask/Jinja fragments, HTMX, Leaflet, vanilla JavaScript modules, and a Cloudflare Workers + Containers production deployment.
 - Production data plane: D1/R2-backed durable ingestion for current feed rows, previous-outage rows, raw Hydro-Québec payloads, disclosure metadata, and runtime map-context layers.
 - Container role: still renders the Flask/Jinja shell and keeps a baked-in SQLite snapshot for local-compatible/container fallback paths.
 - Important architecture caveat: runtime writes inside the container are ephemeral; durable production state belongs in D1/R2 or another durable store.
 - User-facing URL contract: clean root URL with `lang`, `q`, or current-location coordinate parameters; obsolete public `radius_m`, `days`, and `include_planned` parameters were removed from the main interface.
 - Debug, collection, cron, internal export/file, and direct durable-status endpoints are private by default; production returns `404` unless the expected debug flag, Worker block, scheduled header, internal header, or operation token is present.
-- Current deployed release: `v0.2.5` at commit `4af7fd2`; Worker version `43b7a4dc-bb09-4249-92b8-9ad231ad58ae`; container image `43b7a4dc`.
+- Current deployed release: `v0.2.5` at commit `1249acf`; Worker version `43b7a4dc-bb09-4249-92b8-9ad231ad58ae`; container image `43b7a4dc`.
 - Current test baseline: Python tests, deterministic service/geocoding tests, route smoke coverage, Playwright desktop/mobile Chromium coverage, and production-shaped UI regression fixtures.
 
 ## Release Roadmap
@@ -35,7 +35,7 @@ In progress.
 - `v0.2.2`: mobile installability, search entry, current-location, history/back-forward, lightweight region-entry improvements, and frontend module split. Complete.
 - `v0.2.3`: map hierarchy, side-rail layer explanation, local Leaflet assets, and production-shaped map regression coverage. Complete.
 - `v0.2.4`: scoped copy/data-truth cleanup, safer status labels, side-panel width/focus polish, and accessibility-oriented regression checks. Complete.
-- `v0.2.5`: performance measurement, deployment hygiene, and production hardening. In progress.
+- `v0.2.5`: performance measurement, deployment hygiene, and production hardening. Complete.
 
 ### `0.3.x`: Architecture And Product Expansion
 
@@ -48,11 +48,11 @@ Candidate work after the map-first UI is stable:
 - explore opt-in web notifications after PWA installability, based on saved watch areas rather than requiring a literal home address
 - replace the Tailwind CDN path with a production build pipeline
 
-## Current Focus: `v0.2.5`
+## Current Focus: Post-`v0.2.5` Planning
 
-Goal: measure and improve production performance and deployment hygiene before larger product work resumes.
+Goal: decide the next small `0.2.x` UI/UX and accessibility polish slice before larger `0.3.x` architecture/product work resumes.
 
-Status: deployed and production smoke-tested; release tag still pending if a Git tag is wanted.
+Status: `v0.2.5` is tagged, deployed, smoke-tested, and closed.
 
 Current implementation notes:
 
@@ -113,7 +113,7 @@ Verification so far:
 ### `v0.2.5`: Performance And Production Hygiene
 
 - deployed 2026-05-31: production timing improvements, sidebar opt-in lazy map layers, and private operational/debug endpoint hardening
-- tag `v0.2.5` if a Git release marker is wanted for this deployed state
+- tagged `v0.2.5` at `1249acf`
 
 ## Completed `0.2.x` Summary
 
