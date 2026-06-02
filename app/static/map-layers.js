@@ -93,17 +93,17 @@ export function geometryStyle(item, metricMax) {
           : item.matchType === "direct_match"
             ? 5
             : 4,
-    opacity: isRegionalMetric ? 0.22 : isDisclosure ? 0.46 : isPreviousOutage ? 0.62 : 1,
+    opacity: isRegionalMetric ? 0.18 : isDisclosure ? 0.38 : isPreviousOutage ? 0.48 : 0.94,
     dashArray: isPreviousOutage ? "4 7" : isDisclosure ? "2 5" : null,
     fillColor: color,
     fillOpacity: isRegionalMetric
       ? regionalFillOpacity(item)
       : isDisclosure
-        ? 0.07
+        ? 0.055
         : isPreviousOutage
-          ? 0.08
+          ? 0.065
           : item.kind === "planned"
-            ? 0.28
+            ? 0.22
             : 0.46,
     className: mapLayerClass(item),
   };
@@ -128,7 +128,7 @@ export function markerStyle(item, metricMax) {
     color,
     weight: isRegionalMetric ? 1.5 : isDisclosure ? 2 : isPreviousOutage ? 1.5 : 2.5,
     fillColor: color,
-    fillOpacity: isRegionalMetric ? 0.22 : isDisclosure ? 0.38 : isPreviousOutage ? 0.3 : 0.78,
+    fillOpacity: isRegionalMetric ? 0.18 : isDisclosure ? 0.3 : isPreviousOutage ? 0.24 : 0.78,
     className: mapLayerClass(item),
   };
 }

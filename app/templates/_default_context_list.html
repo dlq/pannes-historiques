@@ -7,16 +7,15 @@
 {% set loaded_layers = context_payload.loadedLayers or [] %}
 <div class="ph-result-sections ph-map-context-list {{ 'ph-default-context-list' if context_variant == 'default' else 'ph-search-context-list' }}">
   <details id="ph-context-current"
-           class="ph-context-section ph-result-card rounded-lg shadow-sm"
+           class="ph-context-section ph-context-section--primary ph-result-card rounded-lg shadow-sm"
            data-layer-section="current"
            data-layer-loaded="{{ 'true' if 'current' in loaded_layers else 'false' }}"
+           data-layer-state="on"
            aria-label="{{ t(lang, 'current_outages') }}"
            open>
     <summary class="ph-context-section-summary">
-      <h3 class="border-l-4 border-[#f59e0b] pl-2 text-sm font-semibold leading-tight text-[#223654]">
-        {{ t(lang, "current_outages") }}
-      </h3>
-      <span class="text-xs text-[#6b778a]">{{ current_outages | length }} {{ t(lang, "feed_areas") }}</span>
+      <h3 class="text-sm font-semibold leading-tight text-[#223654]">{{ t(lang, "current_layer_heading") }}</h3>
+      <span class="ph-layer-count text-xs text-[#6b778a]">{{ current_outages | length }} {{ t(lang, "areas") }}</span>
       <button class="ph-layer-toggle is-on"
               type="button"
               aria-pressed="true"
@@ -28,12 +27,16 @@
                  role="button"
                  tabindex="0"
                  data-map-focus='{{ {"kind": "outage", "lat": item.lat, "lon": item.lon, "geometry": item.geometry, "label": item.label, "startTime": item.startTime, "customersAffected": item.customersAffected, "distanceM": item.distanceM} | tojson }}'>
-          <div class="min-w-0">
-            <p class="truncate font-semibold text-[#095797]">
-              <span class="text-[#6b778a]">{{ t(lang, "start") }}</span>
-              {{ item.startTime or t(lang, "unknown") }}
-            </p>
-            <p class="truncate text-[#4e5662]">{{ item.statusLabel }}</p>
+          <div class="min-w-0 flex-1">
+            <div class="ph-row-pill-group">
+              {% if item.startTime %}
+                <span class="ph-row-pill ph-row-pill-current-time"
+                      data-relative-time="{{ item.startTime }}">{{ item.startTime[:16] }}</span>
+              {% else %}
+                <span class="ph-row-pill ph-row-pill-current-time">{{ t(lang, "unknown") }}</span>
+              {% endif %}
+              <span class="ph-row-pill ph-row-pill-current-status">{{ item.statusLabel }}</span>
+            </div>
           </div>
           <p class="ph-context-pill bg-[#f8e69a]">{{ item.customersAffected or 0 }} {{ t(lang, "clients") }}</p>
         </article>
@@ -42,15 +45,16 @@
     </div>
   </details>
   <details id="ph-context-planned"
-           class="ph-context-section ph-result-card rounded-lg shadow-sm"
+           class="ph-context-section ph-context-section--secondary ph-result-card rounded-lg shadow-sm"
            data-layer-section="planned"
            data-layer-loaded="{{ 'true' if 'planned' in loaded_layers else 'false' }}"
+           data-layer-state="{{ 'on' if 'planned' in loaded_layers else 'off' }}"
            aria-label="{{ t(lang, 'planned_panel') }}">
     <summary class="ph-context-section-summary">
-      <h3 class="border-l-4 border-[#06b6d4] pl-2 text-sm font-semibold leading-tight text-[#223654]">
-        {{ t(lang, "planned_panel") }}
-      </h3>
-      <span class="text-xs text-[#6b778a]">{{ planned_outages | length }} {{ t(lang, "rows") }}</span>
+      <h3 class="text-sm font-semibold leading-tight text-[#223654]">{{ t(lang, "planned_layer_heading") }}</h3>
+      <span class="ph-layer-count text-xs text-[#6b778a]">
+        {{ planned_outages | length ~ ' ' ~ t(lang, "rows") if 'planned' in loaded_layers else '' }}
+      </span>
       <button class="ph-layer-toggle {{ 'is-on' if 'planned' in loaded_layers else '' }}"
               type="button"
               aria-pressed="{{ 'true' if 'planned' in loaded_layers else 'false' }}"
@@ -63,16 +67,24 @@
         <article class="ph-context-row ph-match-row"
                  role="button"
                  tabindex="0"
-                 data-map-focus='{{ {"kind": "planned", "lat": item.lat, "lon": item.lon, "geometry": item.geometry, "label": item.label, "startTime": item.startTime, "customersAffected": item.customersAffected, "distanceM": item.distanceM} | tojson }}'>
-          <div class="min-w-0">
-            <p class="truncate font-semibold text-[#095797]">
-              <span class="text-[#6b778a]">{{ t(lang, "start") }}</span>
-              {{ item.startTime or t(lang, "unknown") }}
-            </p>
-            <p class="truncate text-[#4e5662]">
-              <span>{{ t(lang, "end") }}</span>
-              {{ item.endTime or t(lang, "unknown") }}
-            </p>
+                 data-map-focus='{{ {"kind": "planned", "lat": item.lat, "lon": item.lon, "geometry": item.geometry, "label": item.label, "startTime": item.startTime, "endTime": item.endTime, "customersAffected": item.customersAffected, "distanceM": item.distanceM} | tojson }}'>
+          <div class="min-w-0 flex-1">
+            <div class="ph-row-pill-group"
+                 data-planned-schedule="true"
+                 data-planned-start="{{ item.startTime or '' }}"
+                 data-planned-end="{{ item.endTime or '' }}">
+              <span class="ph-row-pill ph-row-pill-planned-date" data-planned-date>{{ item.startTime[:10] if item.startTime else t(lang, "unknown") }}</span>
+              <span class="ph-row-pill ph-row-pill-planned-window"
+                    data-planned-time-window>
+                {% if item.startTime and item.endTime %}
+                  {{ item.startTime[11:16] }}-{{ item.endTime[11:16] }}
+                {% elif item.startTime %}
+                  {{ item.startTime[11:16] }}
+                {% endif %}
+              </span>
+              <span class="ph-row-pill ph-row-pill-planned-duration"
+                    data-planned-duration></span>
+            </div>
           </div>
           <p class="ph-context-pill bg-[#dae6f0]">{{ item.customersAffected or 0 }} {{ t(lang, "clients") }}</p>
         </article>
@@ -85,15 +97,16 @@
     </div>
   </details>
   <details id="ph-context-previous"
-           class="ph-context-section ph-result-card rounded-lg shadow-sm"
+           class="ph-context-section ph-context-section--secondary ph-result-card rounded-lg shadow-sm"
            data-layer-section="previous"
            data-layer-loaded="{{ 'true' if 'previous' in loaded_layers else 'false' }}"
+           data-layer-state="{{ 'on' if 'previous' in loaded_layers else 'off' }}"
            aria-label="{{ t(lang, 'previous_outages_legend') }}">
     <summary class="ph-context-section-summary">
-      <h3 class="border-l-4 border-[#64748b] pl-2 text-sm font-semibold leading-tight text-[#223654]">
-        {{ t(lang, "previous_outages_legend") }}
-      </h3>
-      <span class="text-xs text-[#6b778a]">{{ previous_outages | length }} {{ t(lang, "rows") }}</span>
+      <h3 class="text-sm font-semibold leading-tight text-[#223654]">{{ t(lang, "previous_layer_heading") }}</h3>
+      <span class="ph-layer-count text-xs text-[#6b778a]">
+        {{ previous_outages | length ~ ' ' ~ t(lang, "rows") if 'previous' in loaded_layers else '' }}
+      </span>
       <button class="ph-layer-toggle {{ 'is-on' if 'previous' in loaded_layers else '' }}"
               type="button"
               aria-pressed="{{ 'true' if 'previous' in loaded_layers else 'false' }}"
@@ -107,13 +120,14 @@
                  role="button"
                  tabindex="0"
                  data-map-focus='{{ {"kind": "previous_outage", "lat": item.lat, "lon": item.lon, "geometry": item.geometry, "label": item.label, "startTime": item.startTime, "customersAffected": item.customersAffected, "distanceM": item.distanceM} | tojson }}'>
-          <div class="min-w-0">
-            <p class="truncate font-semibold text-[#095797]">
-              <span class="text-[#6b778a]">{{ t(lang, "start") }}</span>
-              {{ item.startTime or t(lang, "unknown") }}
-            </p>
+          <div class="min-w-0 flex-1">
+            <div class="ph-row-pill-group"
+                 data-previous-time="{{ item.startTime or '' }}">
+              <span class="ph-row-pill ph-row-pill-previous-date" data-previous-date>{{ item.startTime[:10] if item.startTime else t(lang, "unknown") }}</span>
+              <span class="ph-row-pill ph-row-pill-previous-time" data-previous-clock>{{ item.startTime[11:16] if item.startTime else '' }}</span>
+            </div>
           </div>
-          <p class="ph-context-pill bg-[#f1f1f2]">{{ item.customersAffected or 0 }} {{ t(lang, "clients") }}</p>
+          <p class="ph-context-pill ph-context-pill-previous">{{ item.customersAffected or 0 }} {{ t(lang, "clients") }}</p>
         </article>
       {% endfor %}
       {% if not previous_outages %}
@@ -124,15 +138,16 @@
     </div>
   </details>
   <details id="ph-context-disclosure"
-           class="ph-context-section ph-result-card rounded-lg shadow-sm"
+           class="ph-context-section ph-context-section--secondary ph-result-card rounded-lg shadow-sm"
            data-layer-section="published"
            data-layer-loaded="{{ 'true' if 'published' in loaded_layers else 'false' }}"
+           data-layer-state="{{ 'on' if 'published' in loaded_layers else 'off' }}"
            aria-label="{{ t(lang, 'disclosure') }}">
     <summary class="ph-context-section-summary">
-      <h3 class="border-l-4 border-[#1d4ed8] pl-2 text-sm font-semibold leading-tight text-[#223654]">
-        {{ t(lang, "disclosure") }}
-      </h3>
-      <span class="text-xs text-[#6b778a]">{{ disclosures | length }} {{ t(lang, "rows") }}</span>
+      <h3 class="text-sm font-semibold leading-tight text-[#223654]">{{ t(lang, "disclosure") }}</h3>
+      <span class="ph-layer-count text-xs text-[#6b778a]">
+        {{ disclosures | length ~ ' ' ~ t(lang, "rows") if 'published' in loaded_layers else '' }}
+      </span>
       <button class="ph-layer-toggle {{ 'is-on' if 'published' in loaded_layers else '' }}"
               type="button"
               aria-pressed="{{ 'true' if 'published' in loaded_layers else 'false' }}"
