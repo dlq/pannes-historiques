@@ -1,7 +1,7 @@
 # Plan: Hydro-Québec Outage History App
 
 Date: 2026-04-25
-Last updated: 2026-05-31
+Last updated: 2026-06-02
 
 This file is the active execution plan. Keep durable evidence, source notes, and long historical reasoning in `research.md`; keep completed release and implementation history in `roadmap-history.md`; keep completed detail here only when it affects current decisions.
 
@@ -16,6 +16,7 @@ This file is the active execution plan. Keep durable evidence, source notes, and
 - Debug, collection, cron, internal export/file, and direct durable-status endpoints are private by default; production returns `404` unless the expected debug flag, Worker block, scheduled header, internal header, or operation token is present.
 - Current deployed release: `v0.2.5` at commit `1249acf`; Worker version `43b7a4dc-bb09-4249-92b8-9ad231ad58ae`; container image `43b7a4dc`.
 - Current test baseline: Python tests, deterministic service/geocoding tests, route smoke coverage, Playwright desktop/mobile Chromium coverage, and production-shaped UI regression fixtures.
+- Previous-outage accumulation is working in D1, but visible map grouping needs review: on 2026-06-02 D1 had `9,542` resolved events and `333,117` sightings, with repeated spatial buckets present, while `/api/durable/runtime/previous-map-layers?limit=120` returned 120 single-event layers and zero multi-event groups.
 
 ## Release Roadmap
 
@@ -47,6 +48,19 @@ Candidate work after the map-first UI is stable:
 - expand disclosure ingestion, geometry enrichment, and geocoder-provider options
 - explore opt-in web notifications after PWA installability, based on saved watch areas rather than requiring a literal home address
 - replace the Tailwind CDN path with a production build pipeline
+- add web-quality fundamentals from the specification.website checklist: page descriptions, canonical/social metadata, `robots.txt`, `sitemap.xml`, cache/resource-hint review, and stronger asset versioning
+- complete the practical WCAG/accessibility pass: skip link or equivalent navigation affordance, landmarks, keyboard traps, live-region status messages, contrast, reduced-motion behavior, and screen-reader spot checks
+- add production security headers once CDN dependencies are removed or explicitly allowed: Content Security Policy, HSTS, Referrer Policy, Permissions Policy, frame protections, and MIME-sniffing protection
+
+### `0.4.x`: Public Maturity And Machine-Readable Readiness
+
+Candidate work after core UI and production architecture are more settled:
+
+- define public privacy/legal posture: privacy policy, data-retention notes, cookie/local-storage statement, and clear geolocation/address-use language
+- add well-known/public-contact files where appropriate: `/.well-known/security.txt`, `humans.txt`, and project/contact metadata
+- add agent/AI-reader affordances if useful: `llms.txt`, concise API/data-source documentation, and machine-readable route/schema notes
+- evaluate structured data only where it genuinely helps discovery; avoid adding schema markup that overstates the app's authority or data completeness
+- revisit observability and incident-response practices once production usage warrants it
 
 ## Current Focus: Post-`v0.2.5` Planning
 
@@ -91,6 +105,7 @@ Acceptance criteria:
 - initial address render does not fetch/render planned, previous, disclosure, or regional context until the user enables those layers
 - sidebar layer state is clear enough that users can tell what evidence is currently visible on the map
 - public operational endpoints return `404` by default, while scheduled/internal/debug-enabled paths still work in tests
+- previous-outage layer review: make the displayed "previously seen" layer group by stable historical area buckets, such as municipality plus rounded centroid or derived stable area, rather than exact/current polygon identity, so accumulated history clumps into meaningful repeated-outage areas
 
 Verification so far:
 
