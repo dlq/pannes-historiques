@@ -37,6 +37,7 @@ In progress.
 - `v0.2.3`: map hierarchy, side-rail layer explanation, local Leaflet assets, and production-shaped map regression coverage. Complete.
 - `v0.2.4`: scoped copy/data-truth cleanup, safer status labels, side-panel width/focus polish, and accessibility-oriented regression checks. Complete.
 - `v0.2.5`: performance measurement, deployment hygiene, and production hardening. Complete.
+- `v0.2.6`: sidebar rhythm, layer hierarchy, row-language consistency, and mobile drawer polish. Planned.
 
 ### `0.3.x`: Architecture And Product Expansion
 
@@ -44,6 +45,7 @@ Candidate work after the map-first UI is stable:
 
 - move more production reads off container SQLite/static assets toward D1-backed or R2-backed paths
 - reduce initial/lazy map payload size with on-demand geometry endpoints, simplified assets, or R2-backed context payloads
+- expose the gathered historical outage/disclosure data through a deliberate API, including clear public/private boundaries, rate limits, data freshness metadata, and stable query shapes
 - broaden province/region analytics and `Bilan par région`-style views
 - expand disclosure ingestion, geometry enrichment, and geocoder-provider options
 - explore opt-in web notifications after PWA installability, based on saved watch areas rather than requiring a literal home address
@@ -84,6 +86,8 @@ Current implementation notes:
 - `v0.2.5` deployed on 2026-05-31 with Worker version `43b7a4dc-bb09-4249-92b8-9ad231ad58ae` and container image `43b7a4dc`.
 - Post-deploy production sample: homepage `200` in about 2.8s total, address map `200` in about 3.2s total, planned layer `/map-layer` `200` in about 1.3s total.
 - Post-deploy privacy checks: public `/api/durable/status`, `/debug/timing/search`, `/collect`, `/cron/hydro`, and `/internal/disclosures/export` returned `404`; `/healthz` and `/service-worker.js` returned `200`.
+- June 2 UI/UX review found the current interface is calmer and coherent, but the default Current sidebar still overwhelms the map, the mobile header/drawer combination squeezes the map, the pill system treats too many fields with equal weight, Disclosures still use a different row language, and section-to-map colour linkage is too implicit.
+- Desktop and mobile detail cards are much improved; detail-card placement and mobile detail-as-drawer behavior remain useful follow-up work but can be deferred unless they naturally fit into the next small UI slice.
 
 Scope:
 
@@ -95,6 +99,7 @@ Scope:
 - add sidebar-driven layer toggles for current outages, planned interruptions, previously seen outages, and disclosure/regional context
 - default initial map render to current outages only, then lazy-load secondary layer payloads when toggled on
 - keep debug, collection, cron, internal, and direct durable-status endpoints private by default
+- keep the next `0.2.x` slice focused on hierarchy/rhythm polish rather than starting the larger historical-data API work
 
 Acceptance criteria:
 
@@ -106,6 +111,7 @@ Acceptance criteria:
 - sidebar layer state is clear enough that users can tell what evidence is currently visible on the map
 - public operational endpoints return `404` by default, while scheduled/internal/debug-enabled paths still work in tests
 - previous-outage layer review: make the displayed "previously seen" layer group by stable historical area buckets, such as municipality plus rounded centroid or derived stable area, rather than exact/current polygon identity, so accumulated history clumps into meaningful repeated-outage areas
+- `v0.2.6` scope is small enough to verify with desktop and mobile visual passes without broad architecture changes
 
 Verification so far:
 
@@ -129,6 +135,16 @@ Verification so far:
 
 - deployed 2026-05-31: production timing improvements, sidebar opt-in lazy map layers, and private operational/debug endpoint hardening
 - tagged `v0.2.5` at `1249acf`
+
+### `v0.2.6`: Sidebar Rhythm, Layer Hierarchy, And Mobile Drawer Polish
+
+- reduce default Current sidebar dominance so the product reads as map-first, not table-first
+- add quiet section-level colour swatches or accents so Current, Planned, Previous, and Disclosures visibly relate to map layer colours
+- normalize Disclosures/Published context rows toward the same row language as Current, Planned, and Previous
+- tune pill hierarchy so primary time/schedule information, low-information status labels, and client/row counts do not all carry equal visual weight
+- recheck mobile header and bottom-drawer proportions so the map retains a clear inspection area
+- defer desktop detail-card placement and mobile detail-as-drawer behavior unless they fall naturally out of drawer/panel work
+- verify with local browser screenshots at desktop and mobile widths, including default, expanded layer, selected-row, and detail-card states
 
 ## Completed `0.2.x` Summary
 

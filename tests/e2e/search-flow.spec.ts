@@ -14,14 +14,15 @@ async function runSearch(page: Page) {
   await page.getByRole("button", { name: "Search" }).click();
   await searchResponse;
   await expect(
-    page.getByRole("heading", { name: "Current Hydro-Quebec feed outages" }),
+    page.getByRole("heading", { name: "Current" }),
   ).toBeVisible();
   await expect(page.locator("#search-loading")).toBeHidden();
 }
 
 test("page loads in English and French", async ({ page }) => {
   await page.goto("/?lang=en");
-  await expect(page.locator(".ph-brand-mark")).toHaveText("Pannes Historiques");
+  await expect(page.locator(".ph-brand-mark")).toHaveText("Outage History");
+  await expect(page).toHaveTitle("Outage History");
   await expect(page.locator("#address-input")).toBeVisible();
   await expect(page.locator("outage-map")).toBeVisible();
   await expect(page.locator(".leaflet-control-zoom")).toBeVisible();
@@ -92,13 +93,13 @@ test("app exposes installable web app metadata", async ({ page, request }) => {
 test("search renders result cards and lazy-loads the map", async ({ page }) => {
   await runSearch(page);
   await expect(
-    page.getByRole("heading", { name: "Current Hydro-Quebec feed outages" }),
+    page.getByRole("heading", { name: "Current" }),
   ).toBeVisible();
   await expect(page).toHaveURL(/lang=en/);
   await expect(page).toHaveURL(/q=5220\+Rue\+Jeanne-Mance|q=5220%20Rue%20Jeanne-Mance/);
-  await expect(page.getByRole("heading", { name: "Current planned interruptions" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Previously seen outages" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Disclosure" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Planned" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Previous" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Disclosures" })).toBeVisible();
   await expect(page.locator("[data-map-focus]").first()).toBeVisible();
   await expect(page.locator("outage-map")).toBeVisible();
   await expect(page.locator("outage-map")).toHaveAttribute("data-map");
@@ -119,7 +120,7 @@ test("map explains and visually prioritizes production-shaped layers", async ({ 
     "aria-label",
     "Current Hydro-Quebec feed outages",
   );
-  await expect(page.locator("#ph-context-current summary")).toContainText("feed areas");
+  await expect(page.locator("#ph-context-current summary")).toContainText("areas");
   await page.locator("#ph-context-current summary").focus();
   await expect
     .poll(() =>
@@ -222,13 +223,13 @@ test("browser history reloads canonical search URL state", async ({ page }) => {
   await expect(page).toHaveURL(/\/\?lang=en$/);
   await expect(page.locator("#address-input")).toHaveValue("");
   await expect(
-    page.getByRole("heading", { name: "Current Hydro-Quebec feed outages" }),
+    page.getByRole("heading", { name: "Current" }),
   ).toBeVisible();
 
   await page.goForward();
   await expect(page).toHaveURL(/q=5220\+Rue\+Jeanne-Mance|q=5220%20Rue%20Jeanne-Mance/);
   await expect(page.locator("#address-input")).toHaveValue(query);
-  await expect(page.getByRole("heading", { name: "Current planned interruptions" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Planned" })).toBeVisible();
 });
 
 test("selected result rows stay visibly linked to the map", async ({ page }) => {
@@ -285,6 +286,6 @@ test("language switch preserves the current query and result state", async ({ pa
   await expect(page).not.toHaveURL(/radius_m|days|include_planned/);
   await expect(page.locator("#address-input")).toHaveValue(query);
   await expect(
-    page.getByRole("heading", { name: "Pannes du flux Hydro-Quebec actuel" }),
+    page.getByRole("heading", { name: "Actuelles" }),
   ).toBeVisible();
 });

@@ -29,13 +29,13 @@ export function detailFactList(facts) {
     ([, value]) => value !== null && value !== undefined && value !== "",
   );
   if (!visibleFacts.length) return "";
-  return `<dl class="mt-4 grid gap-x-5 gap-y-3 border-y border-[#d7dde6] py-3 text-sm sm:grid-cols-2">
+  return `<dl class="mt-3 grid gap-x-5 gap-y-2 border-y border-[#d7dde6]/70 py-3 text-sm sm:grid-cols-2">
     ${visibleFacts
       .map(
         ([factLabel, value]) => `
-          <div>
-            <dt class="text-xs font-semibold uppercase tracking-[0.08em] text-[#6b778a]">${escapeHtml(factLabel)}</dt>
-            <dd class="mt-0.5 font-medium text-[#223654]">${escapeHtml(value)}</dd>
+          <div class="flex min-w-0 items-baseline justify-between gap-3 sm:block">
+            <dt class="text-[#6b778a]">${escapeHtml(factLabel)}</dt>
+            <dd class="min-w-0 truncate font-medium text-[#223654] sm:mt-0.5">${escapeHtml(value)}</dd>
           </div>
         `,
       )
@@ -55,6 +55,122 @@ export function formatDateTimeCell(value, labels = {}) {
   const [date, rawTime = ""] = String(value).replace("T", " ").split(" ");
   const time = rawTime ? rawTime.slice(0, 5) : "";
   return `<span class="block font-semibold text-[#223654]">${escapeHtml(date)}</span>${time ? `<span class="block text-[#4e5662]">${escapeHtml(time)}</span>` : ""}`;
+}
+
+export function formatShortDateTime(value, labels = {}) {
+  if (!value) return label(labels, "unknown", "unknown");
+  const [date, rawTime = ""] = String(value).replace("T", " ").split(" ");
+  const time = rawTime ? rawTime.slice(0, 5) : "";
+  return time ? `${date} ${time}` : date;
+}
+
+export function shortDateTimeParts(value, labels = {}) {
+  if (!value) return { date: label(labels, "unknown", "unknown"), time: "" };
+  const [date, rawTime = ""] = String(value).replace("T", " ").split(" ");
+  return { date, time: rawTime ? rawTime.slice(0, 5) : "" };
+}
+
+function parseLocalDateTime(value) {
+  if (!value) return null;
+  const parsed = new Date(String(value).trim().replace(" ", "T"));
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function compactDuration(ms, lang = "en") {
+  const minutes = Math.max(1, Math.round(Math.abs(ms) / 60000));
+  if (minutes < 60) return lang === "fr" ? `${minutes} min` : `${minutes} min`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) {
+    if (lang === "fr") return `${hours} h`;
+    return `${hours} ${hours === 1 ? "hour" : "hours"}`;
+  }
+  const days = Math.round(hours / 24);
+  if (lang === "fr") return `${days} j`;
+  return `${days} ${days === 1 ? "day" : "days"}`;
+}
+
+function compactScheduleDuration(ms, lang = "en") {
+  const minutes = Math.max(1, Math.round(Math.abs(ms) / 60000));
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours} h`;
+  const days = Math.floor(hours / 24);
+  const remainingHours = hours % 24;
+  if (!remainingHours) return lang === "fr" ? `${days} j` : `${days} d`;
+  return lang === "fr" ? `${days} j ${remainingHours} h` : `${days} d ${remainingHours} h`;
+}
+
+function dateKey(date) {
+  return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+}
+
+function monthDay(date, lang) {
+  return new Intl.DateTimeFormat(lang === "fr" ? "fr-CA" : "en-US", {
+    day: "numeric",
+    month: "short",
+  })
+    .format(date)
+    .replace(".", "");
+}
+
+function timeLabel(date) {
+  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+}
+
+function archiveDateLabel(date, lang) {
+  return new Intl.DateTimeFormat(lang === "fr" ? "fr-CA" : "en-US", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  })
+    .format(date)
+    .replace(".", "")
+    .replace(",", "");
+}
+
+export function formatRelativeTime(value, labels = {}, now = new Date()) {
+  const date = parseLocalDateTime(value);
+  if (!date) return formatShortDateTime(value, labels);
+  const lang = document.documentElement.lang || "en";
+  const delta = date.getTime() - now.getTime();
+  if (Math.abs(delta) < 60000) return lang === "fr" ? "maintenant" : "now";
+  const duration = compactDuration(delta, lang);
+  if (delta < 0) return lang === "fr" ? `il y a ${duration}` : `${duration} ago`;
+  return lang === "fr" ? `dans ${duration}` : `in ${duration}`;
+}
+
+export function formatPlannedScheduleParts(startValue, endValue, labels = {}) {
+  const start = parseLocalDateTime(startValue);
+  const end = parseLocalDateTime(endValue);
+  if (!start) return { date: formatShortDateTime(startValue, labels), window: "", duration: "" };
+  const lang = document.documentElement.lang || "en";
+  const duration =
+    end && end > start ? compactScheduleDuration(end.getTime() - start.getTime(), lang) : "";
+  if (end && dateKey(start) !== dateKey(end)) {
+    return {
+      date: `${monthDay(start, lang)} ${timeLabel(start)}`,
+      window: `${lang === "fr" ? "au" : "to"} ${monthDay(end, lang)} ${timeLabel(end)}`,
+      duration,
+    };
+  }
+  return {
+    date: monthDay(start, lang),
+    window: end ? `${timeLabel(start)}-${timeLabel(end)}` : timeLabel(start),
+    duration,
+  };
+}
+
+export function formatPreviousTimeParts(value, labels = {}) {
+  const date = parseLocalDateTime(value);
+  if (!date) {
+    const parts = shortDateTimeParts(value, labels);
+    return { date: parts.date, time: parts.time };
+  }
+  const lang = document.documentElement.lang || "en";
+  return {
+    date: archiveDateLabel(date, lang),
+    time: timeLabel(date),
+  };
 }
 
 export function localizeCause(cause) {

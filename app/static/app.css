@@ -270,6 +270,10 @@ textarea {
   padding: 0.5rem;
 }
 
+.ph-context-section[data-layer-state="off"] {
+  background: rgba(255, 255, 255, 0.66);
+}
+
 .ph-context-section-summary {
   display: flex;
   cursor: pointer;
@@ -281,20 +285,27 @@ textarea {
 
 .ph-layer-toggle {
   flex-shrink: 0;
-  border: 1px solid rgba(34, 54, 84, 0.22);
-  border-radius: 0.25rem;
-  background: #f1f1f2;
-  padding: 0.125rem 0.375rem;
-  color: #223654;
-  font-size: 0.6875rem;
-  font-weight: 700;
+  border: 0 !important;
+  border-radius: 0;
+  background: transparent !important;
+  padding: 0;
+  color: #095797;
+  font-size: 0.75rem;
+  font-weight: 600;
   line-height: 1.2;
 }
 
 .ph-layer-toggle.is-on {
-  border-color: rgba(9, 87, 151, 0.28);
-  background: #dbeafe;
-  color: #095797;
+  background: transparent !important;
+  color: #6b778a;
+}
+
+#ph-context-current .ph-layer-toggle {
+  display: none;
+}
+
+.ph-layer-count {
+  white-space: nowrap;
 }
 
 .ph-layer-toggle:disabled {
@@ -345,19 +356,30 @@ textarea {
 .ph-context-nested-row {
   display: flex;
   cursor: pointer;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 0.5rem;
-  border-top: 1px solid rgba(197, 202, 210, 0.72);
-  padding: 0.25rem;
+  border-top: 1px solid rgba(197, 202, 210, 0.52);
+  padding: 0.45rem 0.125rem;
   color: #223654;
   font-size: 0.75rem;
   line-height: 1.25;
   outline: none;
 }
 
+#ph-context-current .ph-context-row,
+#ph-context-planned .ph-context-row,
+#ph-context-previous .ph-context-row {
+  border-top: 0;
+  gap: 0.5rem;
+  min-height: 0;
+  padding-block: 0.1875rem;
+  font-size: 0.75rem;
+  line-height: 1.15;
+}
+
 .ph-context-row:hover {
-  background: rgba(218, 230, 240, 0.36);
+  background: rgba(255, 255, 255, 0.48);
 }
 
 .ph-context-row:focus-visible {
@@ -382,12 +404,114 @@ textarea {
 
 .ph-context-pill {
   flex-shrink: 0;
-  border-radius: 0.1875rem;
+  border-radius: 0.375rem;
+  background: rgba(232, 238, 245, 0.86) !important;
   padding: 0.125rem 0.3125rem;
   color: #223654;
   font-size: 0.75rem;
+  font-weight: 500;
   line-height: 1.2;
   white-space: nowrap;
+}
+
+.ph-row-pill-group {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+#ph-context-current .ph-row-pill-group,
+#ph-context-planned .ph-row-pill-group,
+#ph-context-previous .ph-row-pill-group {
+  gap: 0.25rem;
+}
+
+.ph-row-pill {
+  display: inline-flex;
+  max-width: 100%;
+  min-height: 1.375rem;
+  align-items: center;
+  border-radius: 0.375rem;
+  background: rgba(232, 238, 245, 0.76);
+  padding: 0.125rem 0.375rem;
+  color: #223654;
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.15;
+}
+
+.ph-row-pill-time {
+  background: rgba(255, 255, 255, 0.78);
+  color: #095797;
+}
+
+#ph-context-current .ph-row-pill,
+#ph-context-current .ph-context-pill,
+#ph-context-planned .ph-row-pill,
+#ph-context-planned .ph-context-pill,
+#ph-context-previous .ph-row-pill,
+#ph-context-previous .ph-context-pill {
+  min-height: 1.25rem;
+  padding: 0.0625rem 0.3125rem;
+  font-size: inherit;
+  line-height: 1.15;
+}
+
+#ph-context-current .ph-context-pill,
+.ph-context-pill.bg-\[\#f8e69a\] {
+  background: rgba(238, 159, 42, 0.18) !important;
+  color: #223654;
+}
+
+.ph-row-pill-current-date {
+  background: rgba(238, 159, 42, 0.11);
+}
+
+.ph-row-pill-current-time {
+  background: rgba(238, 159, 42, 0.15);
+  color: #223654;
+}
+
+.ph-row-pill-current-status {
+  background: rgba(238, 159, 42, 0.09);
+}
+
+.ph-row-pill-planned-date {
+  background: rgba(8, 145, 178, 0.1);
+  color: #223654;
+}
+
+.ph-row-pill-planned-window {
+  background: rgba(8, 145, 178, 0.14);
+  color: #223654;
+}
+
+.ph-row-pill-planned-duration {
+  background: rgba(8, 145, 178, 0.11);
+  color: #223654;
+}
+
+#ph-context-planned .ph-context-pill,
+.ph-context-pill.bg-\[\#dae6f0\] {
+  background: rgba(8, 145, 178, 0.17) !important;
+  color: #223654;
+}
+
+.ph-row-pill-previous-date {
+  background: rgba(100, 116, 139, 0.1);
+  color: #223654;
+}
+
+.ph-row-pill-previous-time {
+  background: rgba(100, 116, 139, 0.14);
+  color: #223654;
+}
+
+#ph-context-previous .ph-context-pill,
+.ph-context-pill-previous {
+  background: rgba(100, 116, 139, 0.15) !important;
+  color: #223654;
 }
 
 .ph-context-empty {
@@ -427,9 +551,29 @@ textarea {
   flex-direction: column;
 }
 
+.ph-map-context-list .ph-context-section {
+  border-color: rgba(197, 202, 210, 0.5);
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: none;
+}
+
+.ph-map-context-list .ph-context-section-summary h3 {
+  border-left-width: 0 !important;
+  padding-left: 0 !important;
+  font-size: 0.8125rem !important;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.ph-map-context-list .ph-context-section-summary > h3,
+.ph-map-context-list .ph-layer-count,
+.ph-map-context-list .ph-layer-toggle {
+  line-height: 1.25;
+}
+
 .ph-result-card {
-  border: 1px solid var(--ph-gray);
-  background: #fff;
+  border: 1px solid rgba(197, 202, 210, 0.58);
+  background: rgba(255, 255, 255, 0.84);
 }
 
 .ph-match-row {
@@ -437,13 +581,13 @@ textarea {
 }
 
 .ph-match-row.is-map-selected {
-  border-color: #095797;
-  background: #eef6ff;
-  box-shadow: inset 0.25rem 0 0 #095797, 0 0 0 1px rgba(9, 87, 151, 0.2);
+  border-color: rgba(9, 87, 151, 0.34);
+  background: rgba(238, 246, 255, 0.72);
+  box-shadow: inset 0.125rem 0 0 #095797;
 }
 
 .ph-match-row.is-map-selected:hover {
-  background: #e5f1fb;
+  background: rgba(229, 241, 251, 0.82);
 }
 
 .ph-map-context-list .ph-match-row {
@@ -545,6 +689,10 @@ textarea {
     overflow: hidden;
   }
 
+  .ph-results-panel:has(.ph-map-context-list) .ph-context-section[data-layer-state="off"] {
+    padding-block: 0.375rem;
+  }
+
   .ph-results-panel:has(.ph-map-context-list) .ph-context-rows {
     max-height: max(7rem, calc((var(--ph-mobile-panel-height, 42dvh) - 8rem) / 2));
     overflow-y: auto;
@@ -564,7 +712,7 @@ textarea {
     top: 0;
     z-index: 2;
     border-radius: 0.375rem;
-    background: rgba(255, 255, 255, 0.94);
+    background: rgba(255, 255, 255, 0.88);
   }
 
   .ph-results-panel.is-expanded:has(.ph-map-context-list) .ph-context-rows {
@@ -623,9 +771,9 @@ textarea {
 
 @media (min-width: 768px) {
   .ph-app {
-    --ph-map-left-overlay: 25rem;
+    --ph-map-left-overlay: 26.5rem;
     --ph-side-rail-left: 1rem;
-    --ph-side-rail-width: 23rem;
+    --ph-side-rail-width: 24.5rem;
     --ph-topbar-height: calc(4.25rem + var(--ph-safe-top));
   }
 
@@ -693,28 +841,50 @@ textarea {
   .ph-side-rail .ph-results-panel:has(.ph-map-context-list) {
     display: flex;
     min-height: 0;
-    background: rgba(255, 255, 255, 0.74);
+    border-color: rgba(197, 202, 210, 0.42);
+    background: rgba(247, 249, 252, 0.58);
     overflow: hidden;
-    backdrop-filter: blur(3px);
+    box-shadow: 0 16px 40px rgba(34, 54, 84, 0.12);
+    backdrop-filter: blur(12px);
   }
 
   .ph-side-rail .ph-map-context-list {
+    display: flex;
     flex: 1 1 auto;
-    grid-template-rows: repeat(4, minmax(0, 1fr));
+    flex-direction: column;
     height: 100%;
     min-height: 0;
     width: 100%;
     gap: 0.4rem;
     padding: 0.4rem;
+    overflow-y: auto;
   }
 
   .ph-side-rail .ph-map-context-list .ph-context-section {
-    display: grid;
-    grid-template-rows: auto minmax(0, 1fr);
-    height: 100%;
-    max-height: 100%;
+    flex: 0 0 auto;
     min-height: 0;
     overflow: hidden;
+  }
+
+  .ph-side-rail .ph-map-context-list .ph-context-section[open] {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .ph-side-rail .ph-map-context-list .ph-context-section--primary[open] {
+    flex: 1 1 16rem;
+    min-height: 12rem;
+  }
+
+  .ph-side-rail .ph-map-context-list .ph-context-section--secondary[open] {
+    flex: 1 1 10rem;
+    min-height: 8rem;
+  }
+
+  .ph-side-rail .ph-map-context-list .ph-context-section--secondary:not([open]),
+  .ph-side-rail .ph-map-context-list .ph-context-section[data-layer-state="off"] {
+    flex-basis: auto;
+    min-height: auto;
   }
 
   .ph-side-rail .ph-map-context-list .ph-context-rows {
@@ -742,7 +912,7 @@ textarea {
 
 @media (min-width: 1180px) {
   .ph-app {
-    --ph-map-left-overlay: 25.5rem;
+    --ph-map-left-overlay: 27rem;
     --ph-side-rail-left: 1.5rem;
   }
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import mimetypes
+from hashlib import sha256
 from pathlib import Path
 from types import SimpleNamespace
 from uuid import uuid4
@@ -29,6 +30,15 @@ from .views import (
 )
 
 
+def static_asset_version(static_root: Path) -> str:
+    digest = sha256()
+    versioned_static_files = [static_root / "app.css", *static_root.glob("*.js")]
+    for path in sorted((path for path in versioned_static_files if path.exists()), key=str):
+        digest.update(path.name.encode("utf-8"))
+        digest.update(path.read_bytes())
+    return digest.hexdigest()[:12]
+
+
 def create_app(settings: Settings | None = None) -> Flask:
     logging.basicConfig(level=logging.INFO)
     settings = settings or Settings()
@@ -41,10 +51,7 @@ def create_app(settings: Settings | None = None) -> Flask:
     app.config["APP_SERVICE"] = service
     app.jinja_env.globals["t"] = t
     static_root = Path(app.static_folder or "")
-    versioned_static_files = [static_root / "app.css", *static_root.glob("*.js")]
-    app.jinja_env.globals["static_version"] = int(
-        max(path.stat().st_mtime for path in versioned_static_files if path.exists())
-    )
+    app.jinja_env.globals["static_version"] = static_asset_version(static_root)
     initial_map_layers = {CURRENT_MAP_LAYER_SCOPE}
 
     def map_layer_scope(value: str | None) -> set[str]:
