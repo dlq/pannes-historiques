@@ -19,7 +19,7 @@ import {
   hasDistanceValue,
   label,
   localizeCause,
-} from "./ui-format.js?v=20260601e";
+} from "./ui-format.js?v=20260604a";
 
 let autocompleteTimer = null;
 
@@ -101,11 +101,9 @@ function hydrateTimeLabels(root = document) {
       element.dataset.plannedEnd,
       {},
     );
-    const dateElement = element.querySelector("[data-planned-date]");
-    const windowElement = element.querySelector("[data-planned-time-window]");
+    const scheduleElement = element.querySelector("[data-planned-schedule-label]");
     const durationElement = element.querySelector("[data-planned-duration]");
-    if (dateElement) dateElement.textContent = parts.date;
-    if (windowElement) windowElement.textContent = parts.window;
+    if (scheduleElement) scheduleElement.textContent = parts.schedule;
     if (durationElement) {
       durationElement.textContent = parts.duration;
       durationElement.hidden = !parts.duration;
@@ -663,30 +661,32 @@ function renderContextRow(item, labels = {}) {
   const left = document.createElement("div");
   left.className = "min-w-0 flex-1";
   if (isPublishedContext) {
-    const primary = document.createElement("p");
-    primary.className = "truncate font-semibold text-[#095797]";
-    primary.textContent =
+    const pillGroup = document.createElement("div");
+    pillGroup.className = "ph-row-pill-group";
+
+    const labelPill = document.createElement("span");
+    labelPill.className = "ph-row-pill ph-row-pill-published-label";
+    labelPill.textContent =
       item.label ||
       (item.kind === "regional_metric"
         ? label(labels, "regional_colour_legend", "Regional outage burden")
         : label(labels, "disclosure", "Disclosure"));
-    left.append(primary);
+    labelPill.title =
+      item.kind === "regional_metric"
+        ? item.regionalBurdenLabel || label(labels, "regional_colour_legend", "Regional burden")
+        : label(labels, "disclosure_area_context", "Published area context");
+    pillGroup.append(labelPill);
+
+    left.append(pillGroup);
   } else {
     const pillGroup = document.createElement("div");
     pillGroup.className = "ph-row-pill-group";
     if (item.kind === "planned") {
       const parts = formatPlannedScheduleParts(item.startTime, item.endTime, labels);
-      const datePill = document.createElement("span");
-      datePill.className = "ph-row-pill ph-row-pill-planned-date";
-      datePill.textContent = parts.date;
-      pillGroup.append(datePill);
-
-      if (parts.window) {
-        const windowPill = document.createElement("span");
-        windowPill.className = "ph-row-pill ph-row-pill-planned-window";
-        windowPill.textContent = parts.window;
-        pillGroup.append(windowPill);
-      }
+      const schedulePill = document.createElement("span");
+      schedulePill.className = "ph-row-pill ph-row-pill-planned-schedule";
+      schedulePill.textContent = parts.schedule;
+      pillGroup.append(schedulePill);
 
       if (parts.duration) {
         const durationPill = document.createElement("span");
@@ -730,13 +730,6 @@ function renderContextRow(item, labels = {}) {
     left.append(pillGroup);
   }
 
-  if (item.kind === "regional_metric") {
-    const secondary = document.createElement("p");
-    secondary.className = "truncate text-[#4e5662]";
-    secondary.textContent = label(labels, "regional_colour_legend", "Regional outage burden");
-    left.append(secondary);
-  }
-
   const pill = document.createElement("p");
   const pillColor =
     item.kind === "outage"
@@ -745,7 +738,9 @@ function renderContextRow(item, labels = {}) {
         ? "bg-[#dae6f0]"
         : item.kind === "previous_outage"
           ? "ph-context-pill-previous"
-          : "bg-[#f1f1f2]";
+          : item.kind === "regional_metric"
+            ? "ph-context-pill-regional"
+            : "ph-context-pill-disclosure";
   pill.className = `ph-context-pill ${pillColor}`;
   if (item.kind === "disclosure") {
     pill.textContent = `${item.recordCount || 0} ${label(labels, "rows", "rows")}`;

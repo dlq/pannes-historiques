@@ -39,7 +39,7 @@ def test_service_worker_route_has_root_scope(app_client):
     assert response.status_code == 200
     assert response.headers["Service-Worker-Allowed"] == "/"
     assert response.headers["Cache-Control"] == "no-cache"
-    assert b"pannes-historiques-v0.2.5-perf-1" in response.data
+    assert b"pannes-historiques-v0.2.5-ui-1" in response.data
     assert b"/static/app-icon-180.png" in response.data
     assert b"/static/map-layers.js" in response.data
     assert b"/static/vendor/leaflet/leaflet.js" in response.data

@@ -369,7 +369,8 @@ textarea {
 
 #ph-context-current .ph-context-row,
 #ph-context-planned .ph-context-row,
-#ph-context-previous .ph-context-row {
+#ph-context-previous .ph-context-row,
+#ph-context-disclosure .ph-context-row {
   border-top: 0;
   gap: 0.5rem;
   min-height: 0;
@@ -423,7 +424,8 @@ textarea {
 
 #ph-context-current .ph-row-pill-group,
 #ph-context-planned .ph-row-pill-group,
-#ph-context-previous .ph-row-pill-group {
+#ph-context-previous .ph-row-pill-group,
+#ph-context-disclosure .ph-row-pill-group {
   gap: 0.25rem;
 }
 
@@ -451,7 +453,9 @@ textarea {
 #ph-context-planned .ph-row-pill,
 #ph-context-planned .ph-context-pill,
 #ph-context-previous .ph-row-pill,
-#ph-context-previous .ph-context-pill {
+#ph-context-previous .ph-context-pill,
+#ph-context-disclosure .ph-row-pill,
+#ph-context-disclosure .ph-context-pill {
   min-height: 1.25rem;
   padding: 0.0625rem 0.3125rem;
   font-size: inherit;
@@ -477,13 +481,8 @@ textarea {
   background: rgba(238, 159, 42, 0.09);
 }
 
-.ph-row-pill-planned-date {
+.ph-row-pill-planned-schedule {
   background: rgba(8, 145, 178, 0.1);
-  color: #223654;
-}
-
-.ph-row-pill-planned-window {
-  background: rgba(8, 145, 178, 0.14);
   color: #223654;
 }
 
@@ -512,6 +511,30 @@ textarea {
 .ph-context-pill-previous {
   background: rgba(100, 116, 139, 0.15) !important;
   color: #223654;
+}
+
+.ph-row-pill-published-label {
+  max-width: 100%;
+  background: rgba(59, 130, 246, 0.1);
+  color: #223654;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#ph-context-disclosure .ph-context-pill,
+.ph-context-pill-disclosure {
+  background: rgba(59, 130, 246, 0.15) !important;
+  color: #223654;
+}
+
+.ph-context-pill-regional {
+  background: rgba(79, 70, 229, 0.13) !important;
+  color: #223654;
+}
+
+#ph-context-disclosure .ph-context-pill-regional {
+  background: rgba(79, 70, 229, 0.13) !important;
 }
 
 .ph-context-empty {

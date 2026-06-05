@@ -1457,11 +1457,8 @@ class AppService:
         layers = self._map_layers_for_rows(
             rows=rows,
             geometry_payload=[dict(row) for row in geometry_rows],
-            outage_kind="outage",
+            outage_kind="previous_outage",
         )
-        for layer in layers:
-            layer["outage_kind"] = "previous_outage"
-            layer["match_type"] = "previous_context_map"
         return layers[:limit]
 
     def _build_current_operational_map_layers(self, include_planned: bool) -> list[dict[str, Any]]:
@@ -1631,13 +1628,13 @@ class AppService:
                 centroid_lon,
             )
             geometry_id = geometry_match["geometry_id"] if geometry_match else None
-            key = (outage_kind, geometry_id if geometry_id is not None else row["id"])
-            start_time = (
-                row["outage_start_time"] if outage_kind == "outage" else row["scheduled_start"]
-            )
-            end_time = (
-                row["estimated_restore_time"] if outage_kind == "outage" else row["scheduled_end"]
-            )
+            if outage_kind == "previous_outage":
+                key = (outage_kind, self._previous_layer_group_key(row, geometry_match))
+            else:
+                key = (outage_kind, geometry_id if geometry_id is not None else row["id"])
+            is_outage = outage_kind in {"outage", "previous_outage"}
+            start_time = row["outage_start_time"] if is_outage else row["scheduled_start"]
+            end_time = row["estimated_restore_time"] if is_outage else row["scheduled_end"]
             event = {
                 "start_time": start_time,
                 "end_time": end_time,
@@ -1648,6 +1645,15 @@ class AppService:
                 "centroid_lon": centroid_lon,
                 "distance_m": None,
             }
+            event_key = self._outage_event_key(
+                {
+                    "municipality_code": row["municipality_code"],
+                    "start_time": start_time,
+                    "centroid_lat": centroid_lat,
+                    "centroid_lon": centroid_lon,
+                    "interruption_type": row["interruption_type"] if is_outage else "AIP",
+                }
+            )
             group = groups.get(key)
             if group is None:
                 groups[key] = {
@@ -1657,15 +1663,15 @@ class AppService:
                     "geometry_geojson": geometry_match["geometry_geojson"]
                     if geometry_match
                     else None,
-                    "match_type": "current_feed_map",
+                    "match_type": "previous_context_map"
+                    if outage_kind == "previous_outage"
+                    else "current_feed_map",
                     "distance_m": None,
                     "confidence": 0.5,
                     "municipality_code": row["municipality_code"],
                     "customers_affected": row["customers_affected"],
                     "status": row["status"],
-                    "interruption_type": row["interruption_type"]
-                    if outage_kind == "outage"
-                    else "AIP",
+                    "interruption_type": row["interruption_type"] if is_outage else "AIP",
                     "start_time": start_time,
                     "end_time": end_time,
                     "centroid_lat": centroid_lat,
@@ -1673,21 +1679,60 @@ class AppService:
                     "sort_time": start_time,
                     "event_count": 1,
                     "recent_events": [event],
+                    "_event_keys": {event_key} if outage_kind == "previous_outage" else set(),
                 }
             else:
+                if outage_kind == "previous_outage" and event_key in group["_event_keys"]:
+                    continue
+                if outage_kind == "previous_outage":
+                    group["_event_keys"].add(event_key)
                 group["event_count"] += 1
                 group["recent_events"].append(event)
-                group["customers_affected"] = (group["customers_affected"] or 0) + (
-                    row["customers_affected"] or 0
-                )
+                if outage_kind == "planned":
+                    group["customers_affected"] = max(
+                        group["customers_affected"] or 0,
+                        row["customers_affected"] or 0,
+                    )
+                else:
+                    group["customers_affected"] = (group["customers_affected"] or 0) + (
+                        row["customers_affected"] or 0
+                    )
                 if (start_time or "") > (group["start_time"] or ""):
                     group["start_time"] = start_time
                     group["end_time"] = end_time
                     group["status"] = row["status"]
                     group["sort_time"] = start_time
         layers = list(groups.values())
+        for layer in layers:
+            layer.pop("_event_keys", None)
         layers.sort(key=lambda item: item["sort_time"] or "", reverse=True)
         return layers
+
+    @staticmethod
+    def _previous_layer_group_key(row: Any, geometry_match: dict[str, Any] | None) -> str:
+        if geometry_match is not None:
+            geometry_lat = geometry_match.get("centroid_lat")
+            geometry_lon = geometry_match.get("centroid_lon")
+            rounded_geometry = (
+                f"{float(geometry_lat):.2f}:{float(geometry_lon):.2f}"
+                if geometry_lat is not None and geometry_lon is not None
+                else ""
+            )
+            return ":".join(
+                [
+                    str(row["municipality_code"] or ""),
+                    rounded_geometry,
+                ]
+            )
+        return ":".join(
+            [
+                str(row["municipality_code"] or ""),
+                f"{float(row['centroid_lat']):.4f}",
+                f"{float(row['centroid_lon']):.4f}",
+                str(row["interruption_type"] or ""),
+                str(row["outage_start_time"] or ""),
+            ]
+        )
 
     def _match_rows(
         self,
@@ -1834,6 +1879,10 @@ class AppService:
             "contains": contains,
             "geometry_id": assigned_row["id"],
             "geometry_geojson": geojson,
+            "polygon_id": assigned_row["polygon_id"],
+            "name": assigned_row["name"],
+            "centroid_lat": assigned_row["centroid_lat"],
+            "centroid_lon": assigned_row["centroid_lon"],
         }
 
     @staticmethod

@@ -636,3 +636,135 @@ def test_current_operational_map_layers_refreshes_durable_feed(service_factory, 
     assert second_layers == [
         {"outage_kind": "outage", "record_id": "new", "start_time": "2026-05-19 17:15:50"}
     ]
+
+
+def test_previous_map_layers_group_by_stable_area_key(service_factory):
+    service = service_factory()
+    rows = [
+        {
+            "id": 1,
+            "source_version": "v1",
+            "centroid_lat": 45.14447149313006,
+            "centroid_lon": -74.19701651273986,
+            "outage_start_time": "2026-05-31 13:52:04",
+            "estimated_restore_time": None,
+            "customers_affected": 2,
+            "status": "N",
+            "municipality_code": "mun-1",
+            "interruption_type": "P",
+        },
+        {
+            "id": 2,
+            "source_version": "v2",
+            "centroid_lat": 45.14447149313006,
+            "centroid_lon": -74.19701651273986,
+            "outage_start_time": "2026-05-31 13:52:04",
+            "estimated_restore_time": None,
+            "customers_affected": 2,
+            "status": "N",
+            "municipality_code": "mun-1",
+            "interruption_type": "P",
+        },
+    ]
+    geometry_payload = [
+        {
+            "id": 10,
+            "source_version": "v1",
+            "polygon_id": "snapshot-area-107",
+            "name": "Stable area",
+            "centroid_lat": 45.14447149313006,
+            "centroid_lon": -74.19701651273986,
+            "bbox_min_lon": -74.2,
+            "bbox_min_lat": 45.14,
+            "bbox_max_lon": -74.19,
+            "bbox_max_lat": 45.15,
+            "geometry_geojson": (
+                '{"type":"Polygon","coordinates":[[[-74.2,45.14],[-74.19,45.14],'
+                "[-74.19,45.15],[-74.2,45.15],[-74.2,45.14]]]}"
+            ),
+        },
+        {
+            "id": 11,
+            "source_version": "v2",
+            "polygon_id": "snapshot-area-102",
+            "name": "Stable area",
+            "centroid_lat": 45.14447149313006,
+            "centroid_lon": -74.19701651273986,
+            "bbox_min_lon": -74.2,
+            "bbox_min_lat": 45.14,
+            "bbox_max_lon": -74.19,
+            "bbox_max_lat": 45.15,
+            "geometry_geojson": (
+                '{"type":"Polygon","coordinates":[[[-74.2,45.14],[-74.19,45.14],'
+                "[-74.19,45.15],[-74.2,45.15],[-74.2,45.14]]]}"
+            ),
+        },
+    ]
+
+    layers = service._map_layers_for_rows(
+        rows=rows,
+        geometry_payload=geometry_payload,
+        outage_kind="previous_outage",
+    )
+
+    assert len(layers) == 1
+    assert layers[0]["event_count"] == 1
+    assert layers[0]["customers_affected"] == 2
+    assert len(layers[0]["recent_events"]) == 1
+
+
+def test_planned_map_layers_use_peak_clients_for_reused_area(service_factory):
+    service = service_factory()
+    rows = [
+        {
+            "id": 1,
+            "source_version": "v1",
+            "centroid_lat": 45.14447149313006,
+            "centroid_lon": -74.19701651273986,
+            "scheduled_start": "2026-06-10 08:00:00",
+            "scheduled_end": "2026-06-10 12:00:00",
+            "customers_affected": 61,
+            "status": "N",
+            "municipality_code": "mun-1",
+        },
+        {
+            "id": 2,
+            "source_version": "v1",
+            "centroid_lat": 45.14447149313006,
+            "centroid_lon": -74.19701651273986,
+            "scheduled_start": "2026-06-11 08:00:00",
+            "scheduled_end": "2026-06-11 12:00:00",
+            "customers_affected": 125,
+            "status": "N",
+            "municipality_code": "mun-1",
+        },
+    ]
+    geometry_payload = [
+        {
+            "id": 10,
+            "source_version": "v1",
+            "polygon_id": "planned-area-1",
+            "name": "Planned area",
+            "centroid_lat": 45.14447149313006,
+            "centroid_lon": -74.19701651273986,
+            "bbox_min_lon": -74.2,
+            "bbox_min_lat": 45.14,
+            "bbox_max_lon": -74.19,
+            "bbox_max_lat": 45.15,
+            "geometry_geojson": (
+                '{"type":"Polygon","coordinates":[[[-74.2,45.14],[-74.19,45.14],'
+                "[-74.19,45.15],[-74.2,45.15],[-74.2,45.14]]]}"
+            ),
+        }
+    ]
+
+    layers = service._map_layers_for_rows(
+        rows=rows,
+        geometry_payload=geometry_payload,
+        outage_kind="planned",
+    )
+
+    assert len(layers) == 1
+    assert layers[0]["event_count"] == 2
+    assert layers[0]["customers_affected"] == 125
+    assert [event["customers_affected"] for event in layers[0]["recent_events"]] == [61, 125]

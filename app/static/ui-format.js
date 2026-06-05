@@ -142,20 +142,29 @@ export function formatRelativeTime(value, labels = {}, now = new Date()) {
 export function formatPlannedScheduleParts(startValue, endValue, labels = {}) {
   const start = parseLocalDateTime(startValue);
   const end = parseLocalDateTime(endValue);
-  if (!start) return { date: formatShortDateTime(startValue, labels), window: "", duration: "" };
+  if (!start) {
+    const fallback = formatShortDateTime(startValue, labels);
+    return { schedule: fallback, date: fallback, window: "", duration: "" };
+  }
   const lang = document.documentElement.lang || "en";
   const duration =
     end && end > start ? compactScheduleDuration(end.getTime() - start.getTime(), lang) : "";
   if (end && dateKey(start) !== dateKey(end)) {
+    const schedule = `${monthDay(start, lang)} ${timeLabel(start)} → ${monthDay(end, lang)} ${timeLabel(end)}`;
     return {
-      date: `${monthDay(start, lang)} ${timeLabel(start)}`,
-      window: `${lang === "fr" ? "au" : "to"} ${monthDay(end, lang)} ${timeLabel(end)}`,
+      schedule,
+      date: schedule,
+      window: "",
       duration,
     };
   }
+  const schedule = end
+    ? `${monthDay(start, lang)} ${timeLabel(start)}-${timeLabel(end)}`
+    : `${monthDay(start, lang)} ${timeLabel(start)}`;
   return {
-    date: monthDay(start, lang),
-    window: end ? `${timeLabel(start)}-${timeLabel(end)}` : timeLabel(start),
+    schedule,
+    date: schedule,
+    window: "",
     duration,
   };
 }

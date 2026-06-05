@@ -4,6 +4,8 @@
 {% set planned_outages = context_payload.matches | selectattr("kind", "equalto", "planned") | list %}
 {% set previous_outages = context_payload.matches | selectattr("kind", "equalto", "previous_outage") | list %}
 {% set disclosures = context_payload.matches | selectattr("kind", "equalto", "disclosure") | list %}
+{% set regional_context = context_payload.matches | selectattr("kind", "equalto", "regional_metric") | list %}
+{% set published_context = disclosures + regional_context %}
 {% set loaded_layers = context_payload.loadedLayers or [] %}
 <div class="ph-result-sections ph-map-context-list {{ 'ph-default-context-list' if context_variant == 'default' else 'ph-search-context-list' }}">
   <details id="ph-context-current"
@@ -73,13 +75,14 @@
                  data-planned-schedule="true"
                  data-planned-start="{{ item.startTime or '' }}"
                  data-planned-end="{{ item.endTime or '' }}">
-              <span class="ph-row-pill ph-row-pill-planned-date" data-planned-date>{{ item.startTime[:10] if item.startTime else t(lang, "unknown") }}</span>
-              <span class="ph-row-pill ph-row-pill-planned-window"
-                    data-planned-time-window>
+              <span class="ph-row-pill ph-row-pill-planned-schedule"
+                    data-planned-schedule-label>
                 {% if item.startTime and item.endTime %}
-                  {{ item.startTime[11:16] }}-{{ item.endTime[11:16] }}
+                  {{ item.startTime[:16] }} → {{ item.endTime[:16] }}
                 {% elif item.startTime %}
-                  {{ item.startTime[11:16] }}
+                  {{ item.startTime[:16] }}
+                {% else %}
+                  {{ t(lang, "unknown") }}
                 {% endif %}
               </span>
               <span class="ph-row-pill ph-row-pill-planned-duration"
@@ -146,7 +149,7 @@
     <summary class="ph-context-section-summary">
       <h3 class="text-sm font-semibold leading-tight text-[#223654]">{{ t(lang, "disclosure") }}</h3>
       <span class="ph-layer-count text-xs text-[#6b778a]">
-        {{ disclosures | length ~ ' ' ~ t(lang, "rows") if 'published' in loaded_layers else '' }}
+        {{ published_context | length ~ ' ' ~ t(lang, "rows") if 'published' in loaded_layers else '' }}
       </span>
       <button class="ph-layer-toggle {{ 'is-on' if 'published' in loaded_layers else '' }}"
               type="button"
@@ -156,16 +159,27 @@
       </button>
     </summary>
     <div class="ph-context-rows">
-      {% for item in disclosures %}
+      {% for item in published_context %}
         <article class="ph-context-row ph-match-row"
                  role="button"
                  tabindex="0"
-                 data-map-focus='{{ {"kind": "disclosure", "lat": item.lat, "lon": item.lon, "label": item.label, "geometryKey": item.geometryKey, "distanceM": item.distanceM} | tojson }}'>
-          <span class="min-w-0 truncate font-semibold text-[#095797]">{{ item.label }}</span>
-          <span class="ph-context-pill bg-[#f1f1f2]">{{ item.recordCount }} {{ t(lang, "rows") }}</span>
+                 data-map-focus='{{ {"kind": item.kind, "lat": item.lat, "lon": item.lon, "label": item.label, "geometryKey": item.geometryKey, "distanceM": item.distanceM} | tojson }}'>
+          <div class="min-w-0 flex-1">
+            <div class="ph-row-pill-group">
+              <span class="ph-row-pill ph-row-pill-published-label"
+                    title="{{ item.regionalBurdenLabel if item.kind == 'regional_metric' else t(lang, 'disclosure_area_context') }}">{{ item.label }}</span>
+            </div>
+          </div>
+          <span class="ph-context-pill {{ 'ph-context-pill-regional' if item.kind == 'regional_metric' else 'ph-context-pill-disclosure' }}">
+            {% if item.kind == "regional_metric" %}
+              {{ item.outageCount or 0 }} {{ t(lang, "outages") }}
+            {% else %}
+              {{ item.recordCount or 0 }} {{ t(lang, "rows") }}
+            {% endif %}
+          </span>
         </article>
       {% endfor %}
-      {% if not disclosures %}
+      {% if not published_context %}
         <p class="ph-context-empty">
           {{ t(lang, "map_layer_enable_prompt") if 'published' not in loaded_layers else t(lang, "disclosure_empty") }}
         </p>

@@ -1691,7 +1691,6 @@ function operationalMapLayers(rows, geometryRows, outageKind) {
     const stableGeometryKey = geometry
       ? [
           row.municipality_code || "",
-          geometry.polygon_id || geometry.name || "",
           Number.isFinite(geometry.centroid_lat) ? geometry.centroid_lat.toFixed(2) : "",
           Number.isFinite(geometry.centroid_lon) ? geometry.centroid_lon.toFixed(2) : "",
         ].join(":")
@@ -1720,6 +1719,16 @@ function operationalMapLayers(rows, geometryRows, outageKind) {
       distance_m: null,
       sighting_count: row.record_count || 1,
     };
+    const groupEventKey =
+      row.event_key ||
+      eventKey(
+        isOutage ? "outage" : outageKind,
+        row.municipality_code,
+        row.centroid_lat,
+        row.centroid_lon,
+        isOutage ? row.interruption_type : "AIP",
+        startTime,
+      );
     if (!groups.has(key)) {
       groups.set(key, {
         outage_kind: outageKind,
@@ -1740,12 +1749,21 @@ function operationalMapLayers(rows, geometryRows, outageKind) {
         sort_time: startTime || row.last_seen_at || row.updated_at || null,
         event_count: outageKind === "previous_outage" ? 1 : row.record_count || 1,
         recent_events: [event],
+        _eventKeys: outageKind === "previous_outage" ? new Set([groupEventKey]) : new Set(),
       });
     } else {
       const group = groups.get(key);
+      if (outageKind === "previous_outage" && group._eventKeys.has(groupEventKey)) {
+        continue;
+      }
+      if (outageKind === "previous_outage") group._eventKeys.add(groupEventKey);
       group.event_count += outageKind === "previous_outage" ? 1 : row.record_count || 1;
       group.recent_events.push(event);
-      group.customers_affected = (group.customers_affected || 0) + (customersAffected || 0);
+      if (outageKind === "planned") {
+        group.customers_affected = Math.max(group.customers_affected || 0, customersAffected || 0);
+      } else {
+        group.customers_affected = (group.customers_affected || 0) + (customersAffected || 0);
+      }
       if (String(startTime || "") > String(group.start_time || "")) {
         group.start_time = startTime;
         group.end_time = endTime;
@@ -1754,9 +1772,14 @@ function operationalMapLayers(rows, geometryRows, outageKind) {
       }
     }
   }
-  return [...groups.values()].sort((left, right) =>
-    String(right.sort_time || "").localeCompare(String(left.sort_time || "")),
-  );
+  return [...groups.values()]
+    .map((group) => {
+      delete group._eventKeys;
+      return group;
+    })
+    .sort((left, right) =>
+      String(right.sort_time || "").localeCompare(String(left.sort_time || "")),
+    );
 }
 
 function assignedHydroGeometry(row, geometriesByVersion) {
