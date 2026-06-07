@@ -1,7 +1,8 @@
-const CACHE_NAME = "pannes-historiques-v0.2.5-ui-1";
+const CACHE_NAME = "pannes-historiques-v0.2.5-fit-current-no-layer-refit-2";
 const APP_SHELL_URLS = [
   "/static/app.css",
   "/static/app.js",
+  "/static/icons.svg",
   "/static/map-layers.js",
   "/static/ui-format.js",
   "/static/vendor/leaflet/leaflet.css",

@@ -7,6 +7,28 @@
 {% set regional_context = context_payload.matches | selectattr("kind", "equalto", "regional_metric") | list %}
 {% set published_context = disclosures + regional_context %}
 {% set loaded_layers = context_payload.loadedLayers or [] %}
+{% macro ph_icon(name, class_name="") -%}
+  <svg class="ph-icon {{ class_name }}" aria-hidden="true" focusable="false">
+    <use href="{{ url_for('static', filename='icons.svg', v=static_version) }}#ph-icon-{{ name }}"></use>
+  </svg>
+{%- endmacro %}
+{% macro layer_count(value, icon_name, label_text) -%}
+  <span class="ph-layer-count text-xs text-[#6b778a]"
+        aria-label="{{ value }} {{ label_text }}">
+    <span class="ph-layer-count-value">{{ value }}</span>
+    {{ ph_icon(icon_name, "ph-layer-count-icon") }}
+  </span>
+{%- endmacro %}
+{% macro count_pill(value, icon_name, label_text, class_name="") -%}
+  <span class="ph-context-pill {{ class_name }}"
+        aria-label="{{ value }} {{ label_text }}">
+    <span class="ph-count-value">{{ value }}</span>
+    {{ ph_icon(icon_name, "ph-count-icon") }}
+  </span>
+{%- endmacro %}
+{% macro toggle_icon(is_on) -%}
+  {{ ph_icon("eye-off" if is_on else "eye", "ph-toggle-icon") }}
+{%- endmacro %}
 <div class="ph-result-sections ph-map-context-list {{ 'ph-default-context-list' if context_variant == 'default' else 'ph-search-context-list' }}">
   <details id="ph-context-current"
            class="ph-context-section ph-context-section--primary ph-result-card rounded-lg shadow-sm"
@@ -17,30 +39,35 @@
            open>
     <summary class="ph-context-section-summary">
       <h3 class="text-sm font-semibold leading-tight text-[#223654]">{{ t(lang, "current_layer_heading") }}</h3>
-      <span class="ph-layer-count text-xs text-[#6b778a]">{{ current_outages | length }} {{ t(lang, "areas") }}</span>
+      {{ layer_count(current_outages | length, "map", t(lang, "areas") ) }}
       <button class="ph-layer-toggle is-on"
               type="button"
+              aria-label="{{ t(lang, 'map_layer_on') }} {{ t(lang, 'current_layer_heading') }}"
               aria-pressed="true"
-              data-layer-toggle="current">{{ t(lang, "map_layer_on") }}</button>
+              data-layer-toggle="current">{{ toggle_icon(true) }}</button>
     </summary>
     <div class="ph-context-rows">
       {% for item in current_outages %}
         <article class="ph-context-row ph-match-row"
                  role="button"
                  tabindex="0"
-                 data-map-focus='{{ {"kind": "outage", "lat": item.lat, "lon": item.lon, "geometry": item.geometry, "label": item.label, "startTime": item.startTime, "customersAffected": item.customersAffected, "distanceM": item.distanceM} | tojson }}'>
+                 data-map-focus='{{ {"kind": "outage", "lat": item.lat, "lon": item.lon, "label": item.label, "startTime": item.startTime, "customersAffected": item.customersAffected, "distanceM": item.distanceM} | tojson }}'>
           <div class="min-w-0 flex-1">
             <div class="ph-row-pill-group">
               {% if item.startTime %}
                 <span class="ph-row-pill ph-row-pill-current-time"
-                      data-relative-time="{{ item.startTime }}">{{ item.startTime[:16] }}</span>
+                      data-relative-time="{{ item.startTime }}">{{ ph_icon('clock-rewind', 'ph-pill-icon') }}{{ item.startTime[:16] }}</span>
               {% else %}
-                <span class="ph-row-pill ph-row-pill-current-time">{{ t(lang, "unknown") }}</span>
+                <span class="ph-row-pill ph-row-pill-current-time">{{ ph_icon('clock-rewind', 'ph-pill-icon') }}{{ t(lang, "unknown") }}</span>
               {% endif %}
-              <span class="ph-row-pill ph-row-pill-current-status">{{ item.statusLabel }}</span>
+              <span class="ph-row-pill ph-row-pill-current-status"
+                    data-status-code="{{ item.status or '' }}">
+                {{ ph_icon("hard-hat" if item.status == "L" else "truck" if item.status == "R" else "archive" if item.status == "A" else "help", "ph-status-icon") }}
+                <span>{{ item.statusLabel }}</span>
+              </span>
             </div>
           </div>
-          <p class="ph-context-pill bg-[#f8e69a]">{{ item.customersAffected or 0 }} {{ t(lang, "clients") }}</p>
+          {{ count_pill(item.customersAffected or 0, "users", t(lang, "clients") , "bg-[#f8e69a]") }}
         </article>
       {% endfor %}
       {% if not current_outages %}<p class="ph-context-empty">{{ t(lang, "outage_archive_empty") }}</p>{% endif %}
@@ -54,22 +81,23 @@
            aria-label="{{ t(lang, 'planned_panel') }}">
     <summary class="ph-context-section-summary">
       <h3 class="text-sm font-semibold leading-tight text-[#223654]">{{ t(lang, "planned_layer_heading") }}</h3>
-      <span class="ph-layer-count text-xs text-[#6b778a]">
-        {{ planned_outages | length ~ ' ' ~ t(lang, "rows") if 'planned' in loaded_layers else '' }}
-      </span>
+      {% if 'planned' in loaded_layers %}
+        {{ layer_count(planned_outages | length, "calendar", t(lang, "rows") ) }}
+      {% else %}
+        <span class="ph-layer-count text-xs text-[#6b778a]"></span>
+      {% endif %}
       <button class="ph-layer-toggle {{ 'is-on' if 'planned' in loaded_layers else '' }}"
               type="button"
+              aria-label="{{ (t(lang, 'map_layer_on') if 'planned' in loaded_layers else t(lang, 'map_layer_off')) }} {{ t(lang, 'planned_layer_heading') }}"
               aria-pressed="{{ 'true' if 'planned' in loaded_layers else 'false' }}"
-              data-layer-toggle="planned">
-        {{ t(lang, "map_layer_on") if 'planned' in loaded_layers else t(lang, "map_layer_off") }}
-      </button>
+              data-layer-toggle="planned">{{ toggle_icon('planned' in loaded_layers) }}</button>
     </summary>
     <div class="ph-context-rows">
       {% for item in planned_outages %}
         <article class="ph-context-row ph-match-row"
                  role="button"
                  tabindex="0"
-                 data-map-focus='{{ {"kind": "planned", "lat": item.lat, "lon": item.lon, "geometry": item.geometry, "label": item.label, "startTime": item.startTime, "endTime": item.endTime, "customersAffected": item.customersAffected, "distanceM": item.distanceM} | tojson }}'>
+                 data-map-focus='{{ {"kind": "planned", "lat": item.lat, "lon": item.lon, "label": item.label, "startTime": item.startTime, "endTime": item.endTime, "customersAffected": item.customersAffected, "distanceM": item.distanceM} | tojson }}'>
           <div class="min-w-0 flex-1">
             <div class="ph-row-pill-group"
                  data-planned-schedule="true"
@@ -77,6 +105,7 @@
                  data-planned-end="{{ item.endTime or '' }}">
               <span class="ph-row-pill ph-row-pill-planned-schedule"
                     data-planned-schedule-label>
+                {{ ph_icon('calendar', 'ph-pill-icon') }}
                 {% if item.startTime and item.endTime %}
                   {{ item.startTime[:16] }} → {{ item.endTime[:16] }}
                 {% elif item.startTime %}
@@ -86,10 +115,10 @@
                 {% endif %}
               </span>
               <span class="ph-row-pill ph-row-pill-planned-duration"
-                    data-planned-duration></span>
+                    data-planned-duration>{{ ph_icon('clock', 'ph-pill-icon') }}</span>
             </div>
           </div>
-          <p class="ph-context-pill bg-[#dae6f0]">{{ item.customersAffected or 0 }} {{ t(lang, "clients") }}</p>
+          {{ count_pill(item.customersAffected or 0, "users", t(lang, "clients") , "bg-[#dae6f0]") }}
         </article>
       {% endfor %}
       {% if not planned_outages %}
@@ -107,30 +136,31 @@
            aria-label="{{ t(lang, 'previous_outages_legend') }}">
     <summary class="ph-context-section-summary">
       <h3 class="text-sm font-semibold leading-tight text-[#223654]">{{ t(lang, "previous_layer_heading") }}</h3>
-      <span class="ph-layer-count text-xs text-[#6b778a]">
-        {{ previous_outages | length ~ ' ' ~ t(lang, "rows") if 'previous' in loaded_layers else '' }}
-      </span>
+      {% if 'previous' in loaded_layers %}
+        {{ layer_count(previous_outages | length, "archive", t(lang, "rows") ) }}
+      {% else %}
+        <span class="ph-layer-count text-xs text-[#6b778a]"></span>
+      {% endif %}
       <button class="ph-layer-toggle {{ 'is-on' if 'previous' in loaded_layers else '' }}"
               type="button"
+              aria-label="{{ (t(lang, 'map_layer_on') if 'previous' in loaded_layers else t(lang, 'map_layer_off')) }} {{ t(lang, 'previous_layer_heading') }}"
               aria-pressed="{{ 'true' if 'previous' in loaded_layers else 'false' }}"
-              data-layer-toggle="previous">
-        {{ t(lang, "map_layer_on") if 'previous' in loaded_layers else t(lang, "map_layer_off") }}
-      </button>
+              data-layer-toggle="previous">{{ toggle_icon('previous' in loaded_layers) }}</button>
     </summary>
     <div class="ph-context-rows">
       {% for item in previous_outages %}
         <article class="ph-context-row ph-match-row"
                  role="button"
                  tabindex="0"
-                 data-map-focus='{{ {"kind": "previous_outage", "lat": item.lat, "lon": item.lon, "geometry": item.geometry, "label": item.label, "startTime": item.startTime, "customersAffected": item.customersAffected, "distanceM": item.distanceM} | tojson }}'>
+                 data-map-focus='{{ {"kind": "previous_outage", "lat": item.lat, "lon": item.lon, "label": item.label, "startTime": item.startTime, "customersAffected": item.customersAffected, "distanceM": item.distanceM} | tojson }}'>
           <div class="min-w-0 flex-1">
             <div class="ph-row-pill-group"
                  data-previous-time="{{ item.startTime or '' }}">
-              <span class="ph-row-pill ph-row-pill-previous-date" data-previous-date>{{ item.startTime[:10] if item.startTime else t(lang, "unknown") }}</span>
-              <span class="ph-row-pill ph-row-pill-previous-time" data-previous-clock>{{ item.startTime[11:16] if item.startTime else '' }}</span>
+              <span class="ph-row-pill ph-row-pill-previous-date" data-previous-date>{{ ph_icon('calendar', 'ph-pill-icon') }}{{ item.startTime[:10] if item.startTime else t(lang, "unknown") }}</span>
+              <span class="ph-row-pill ph-row-pill-previous-time" data-previous-clock>{{ ph_icon('clock', 'ph-pill-icon') }}{{ item.startTime[11:16] if item.startTime else '' }}</span>
             </div>
           </div>
-          <p class="ph-context-pill ph-context-pill-previous">{{ item.customersAffected or 0 }} {{ t(lang, "clients") }}</p>
+          {{ count_pill(item.customersAffected or 0, "users", t(lang, "clients") , "ph-context-pill-previous") }}
         </article>
       {% endfor %}
       {% if not previous_outages %}
@@ -148,15 +178,16 @@
            aria-label="{{ t(lang, 'disclosure') }}">
     <summary class="ph-context-section-summary">
       <h3 class="text-sm font-semibold leading-tight text-[#223654]">{{ t(lang, "disclosure") }}</h3>
-      <span class="ph-layer-count text-xs text-[#6b778a]">
-        {{ published_context | length ~ ' ' ~ t(lang, "rows") if 'published' in loaded_layers else '' }}
-      </span>
+      {% if 'published' in loaded_layers %}
+        {{ layer_count(published_context | length, "file-search", t(lang, "rows") ) }}
+      {% else %}
+        <span class="ph-layer-count text-xs text-[#6b778a]"></span>
+      {% endif %}
       <button class="ph-layer-toggle {{ 'is-on' if 'published' in loaded_layers else '' }}"
               type="button"
+              aria-label="{{ (t(lang, 'map_layer_on') if 'published' in loaded_layers else t(lang, 'map_layer_off')) }} {{ t(lang, 'disclosure') }}"
               aria-pressed="{{ 'true' if 'published' in loaded_layers else 'false' }}"
-              data-layer-toggle="published">
-        {{ t(lang, "map_layer_on") if 'published' in loaded_layers else t(lang, "map_layer_off") }}
-      </button>
+              data-layer-toggle="published">{{ toggle_icon('published' in loaded_layers) }}</button>
     </summary>
     <div class="ph-context-rows">
       {% for item in published_context %}
@@ -167,16 +198,14 @@
           <div class="min-w-0 flex-1">
             <div class="ph-row-pill-group">
               <span class="ph-row-pill ph-row-pill-published-label"
-                    title="{{ item.regionalBurdenLabel if item.kind == 'regional_metric' else t(lang, 'disclosure_area_context') }}">{{ item.label }}</span>
+                    title="{{ item.regionalBurdenLabel if item.kind == 'regional_metric' else t(lang, 'disclosure_area_context') }}">{{ ph_icon("map" if item.kind == "regional_metric" else "file-search", "ph-pill-icon") }}{{ item.label }}</span>
             </div>
           </div>
-          <span class="ph-context-pill {{ 'ph-context-pill-regional' if item.kind == 'regional_metric' else 'ph-context-pill-disclosure' }}">
-            {% if item.kind == "regional_metric" %}
-              {{ item.outageCount or 0 }} {{ t(lang, "outages") }}
-            {% else %}
-              {{ item.recordCount or 0 }} {{ t(lang, "rows") }}
-            {% endif %}
-          </span>
+          {% if item.kind == "regional_metric" %}
+            {{ count_pill(item.outageCount or 0, "zap", t(lang, "outages") , "ph-context-pill-regional") }}
+          {% else %}
+            {{ count_pill(item.recordCount or 0, "file-search", t(lang, "rows") , "ph-context-pill-disclosure") }}
+          {% endif %}
         </article>
       {% endfor %}
       {% if not published_context %}

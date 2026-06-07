@@ -1,7 +1,7 @@
 # Plan: Hydro-Québec Outage History App
 
 Date: 2026-04-25
-Last updated: 2026-06-05
+Last updated: 2026-06-06
 
 This file is the active execution plan. Keep durable evidence, source notes, and long historical reasoning in `research.md`; keep completed release and implementation history in `roadmap-history.md`; keep completed detail here only when it affects current decisions.
 
@@ -46,6 +46,7 @@ Candidate work after the map-first UI is stable:
 
 - move more production reads off container SQLite/static assets toward D1-backed or R2-backed paths
 - reduce initial/lazy map payload size with on-demand geometry endpoints, simplified assets, or R2-backed context payloads
+- evaluate a no-label basemap plus Quebec-only label overlay as a pragmatic custom-map-style step before a full vector-tile migration; keep Leaflet if possible, add curated and zoom-gated Quebec place labels, and avoid showing non-Quebec city labels baked into raster tiles
 - contain Cloudflare runtime cost by moving ordinary user-facing traffic off the Cloudflare Container path toward Worker/static/D1/R2 responses, leaving the Python container only for bounded internal parser/batch work where Python is actually needed
 - expose the gathered historical outage/disclosure data through a deliberate API, including clear public/private boundaries, rate limits, data freshness metadata, and stable query shapes
 - broaden province/region analytics and `Bilan par région`-style views
@@ -143,6 +144,7 @@ Verification so far:
 - reduce default Current sidebar dominance so the product reads as map-first, not table-first
 - add quiet section-level colour swatches or accents so Current, Planned, Previous, and Disclosures visibly relate to map layer colours
 - normalize Disclosures/Published context rows toward the same row language as Current, Planned, and Previous
+- defer a separate regional `Indice de continuité brut`/regional-burden layer decision; for now keep regional context bundled under Disclosures but subtly colour regions by burden when that layer is shown
 - tune pill hierarchy so primary time/schedule information, low-information status labels, and client/row counts do not all carry equal visual weight
 - recheck mobile header and bottom-drawer proportions so the map retains a clear inspection area
 - defer desktop detail-card placement and mobile detail-as-drawer behavior unless they fall naturally out of drawer/panel work
@@ -208,6 +210,7 @@ Before handing off code changes:
 - The desktop side panel can still feel cramped with multiple context sections; `v0.2.4` gives it more width, but broader collapse/minimize design can still wait.
 - Accessibility needs a dedicated pass against W3C/WCAG basics; handle in `v0.2.4`.
 - Performance should be measured before broad architecture work; handle in `v0.2.5`, then decide what belongs in `0.3.x`.
+- Current CARTO Voyager raster tiles bake city labels into image tiles; hiding only non-Quebec labels requires either no-label raster tiles plus a custom Quebec label overlay or a larger vector-tile/custom-style migration.
 - Do not speculate about Hydro-Québec one-letter status-code meanings unless source documentation or payload context verifies them.
 
 ## Plan Maintenance

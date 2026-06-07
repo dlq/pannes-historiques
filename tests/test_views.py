@@ -69,7 +69,7 @@ def test_result_context_uses_previous_map_layers_for_search_context():
     assert previous_items[1]["customersAffected"] == 99
 
 
-def test_default_map_payload_starts_without_address_marker():
+def test_default_map_payload_starts_without_address_marker_or_fixed_view():
     payload = default_map_payload(
         "en",
         [
@@ -147,7 +147,7 @@ def test_default_map_payload_starts_without_address_marker():
     assert payload["zoom"] == 8
     assert payload["showAddressMarker"] is False
     assert payload["showEmptyNotice"] is False
-    assert payload["preserveInitialView"] is True
+    assert payload["preserveInitialView"] is False
     assert any(item["kind"] == "outage" for item in payload["matches"])
     assert any(item["kind"] == "planned" for item in payload["matches"])
     assert any(

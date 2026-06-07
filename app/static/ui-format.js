@@ -135,7 +135,7 @@ export function formatRelativeTime(value, labels = {}, now = new Date()) {
   const delta = date.getTime() - now.getTime();
   if (Math.abs(delta) < 60000) return lang === "fr" ? "maintenant" : "now";
   const duration = compactDuration(delta, lang);
-  if (delta < 0) return lang === "fr" ? `il y a ${duration}` : `${duration} ago`;
+  if (delta < 0) return lang === "fr" ? `Depuis ${duration}` : `${duration} ago`;
   return lang === "fr" ? `dans ${duration}` : `in ${duration}`;
 }
 

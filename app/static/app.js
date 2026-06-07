@@ -7,10 +7,8 @@ import {
   metricValue,
 } from "./map-layers.js";
 import {
-  detailFactList,
   escapeHtml,
   fetchJson,
-  formatDateTimeCell,
   formatDistanceKm,
   formatDuration,
   formatPlannedScheduleParts,
@@ -19,7 +17,123 @@ import {
   hasDistanceValue,
   label,
   localizeCause,
-} from "./ui-format.js?v=20260604a";
+} from "./ui-format.js?v=20260605icons";
+
+const ICON_SPRITE_URL = "/static/icons.svg?v=20260606b";
+
+function phIcon(name, className = "") {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.classList.add("ph-icon");
+  if (className) svg.classList.add(...className.split(" ").filter(Boolean));
+  svg.setAttribute("aria-hidden", "true");
+  svg.setAttribute("focusable", "false");
+  const use = document.createElementNS("http://www.w3.org/2000/svg", "use");
+  use.setAttribute("href", `${ICON_SPRITE_URL}#ph-icon-${name}`);
+  svg.append(use);
+  return svg;
+}
+
+function phIconMarkup(name, className = "ph-pill-icon") {
+  const classes = ["ph-icon", ...String(className).split(/\s+/).filter(Boolean)]
+    .map((item) => escapeHtml(item))
+    .join(" ");
+  return `<svg class="${classes}" aria-hidden="true" focusable="false"><use href="${escapeHtml(ICON_SPRITE_URL)}#ph-icon-${escapeHtml(name)}"></use></svg>`;
+}
+
+function detailPill(iconName, text, className = "", title = "") {
+  if (text === null || text === undefined || text === "") return "";
+  const extraClass = className ? ` ${escapeHtml(className)}` : "";
+  const titleAttr = title
+    ? ` title="${escapeHtml(title)}" aria-label="${escapeHtml(`${title}: ${text}`)}"`
+    : "";
+  return `<span class="ph-detail-pill${extraClass}"${titleAttr}>${phIconMarkup(iconName)}<span>${escapeHtml(text)}</span></span>`;
+}
+
+function detailPillGrid(pills, className = "") {
+  const visible = pills.filter(Boolean).join("");
+  if (!visible) return "";
+  const extraClass = className ? ` ${escapeHtml(className)}` : "";
+  return `<div class="ph-detail-pill-grid${extraClass}">${visible}</div>`;
+}
+
+function sourcePdfLink(url) {
+  if (!url) return "";
+  const text = document.documentElement.lang === "fr" ? "PDF Hydro-Québec" : "Hydro-Québec PDF";
+  const title =
+    document.documentElement.lang === "fr"
+      ? "Ouvrir le PDF source sur le site d'Hydro-Québec"
+      : "Open the source PDF on Hydro-Québec";
+  return `<a class="ph-detail-source-link" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(title)}">${phIconMarkup("external-link")}<span>${escapeHtml(text)}</span></a>`;
+}
+
+function detailSection(title, iconName, body, className = "") {
+  if (!body) return "";
+  const extraClass = className ? ` ${escapeHtml(className)}` : "";
+  return `
+    <section class="ph-detail-section${extraClass}">
+      <div class="ph-detail-section-title">${phIconMarkup(iconName, "ph-layer-count-icon")}${escapeHtml(title)}</div>
+      ${body}
+    </section>
+  `;
+}
+
+function detailPanelShell({
+  tone,
+  eyebrow,
+  title,
+  subtitle = "",
+  sourceAction = "",
+  pills = "",
+  body = "",
+  labels = {},
+}) {
+  return `
+    <div class="ph-detail-card ph-detail-card--${escapeHtml(tone || "neutral")}">
+      <div class="ph-detail-header">
+        <div class="ph-detail-heading">
+          ${eyebrow ? `<p class="ph-detail-eyebrow">${escapeHtml(eyebrow)}</p>` : ""}
+          <h4 class="ph-detail-title">${escapeHtml(title || label(labels, "unknown", "unknown"))}</h4>
+          ${subtitle ? `<p class="ph-detail-subtitle">${escapeHtml(subtitle)}</p>` : ""}
+          ${sourceAction}
+        </div>
+        <button type="button" class="ph-detail-close" data-dai-detail-close aria-label="${escapeHtml(label(labels, "close", "Close"))}">×</button>
+      </div>
+      ${pills}
+      ${body}
+    </div>
+  `;
+}
+
+function appendText(parent, value) {
+  const span = document.createElement("span");
+  span.textContent = value;
+  parent.append(span);
+  return span;
+}
+
+function replaceWithIconText(element, iconName, text, iconClass = "ph-pill-icon") {
+  element.replaceChildren(phIcon(iconName, iconClass), document.createTextNode(text || ""));
+}
+
+function countPillText(value) {
+  const span = document.createElement("span");
+  span.className = "ph-count-value";
+  span.textContent = value ?? 0;
+  return span;
+}
+
+function iconNameForStatus(status, statusLabel = "") {
+  if (status === "L") return "hard-hat";
+  if (status === "R") return "truck";
+  if (status === "A") return "archive";
+  const normalized = `${status || ""} ${statusLabel || ""}`.toLowerCase();
+  if (normalized.includes("l") || normalized.includes("work") || normalized.includes("travail")) {
+    return "hard-hat";
+  }
+  if (normalized.includes("r") || normalized.includes("route")) return "truck";
+  if (normalized.includes("a") || normalized.includes("assign")) return "archive";
+  return "help";
+}
 
 let autocompleteTimer = null;
 
@@ -93,7 +207,12 @@ function isCurrentLocationText(value = "") {
 function hydrateTimeLabels(root = document) {
   const now = new Date();
   for (const element of root.querySelectorAll("[data-relative-time]")) {
-    element.textContent = formatRelativeTime(element.dataset.relativeTime, {}, now);
+    const text = formatRelativeTime(element.dataset.relativeTime, {}, now);
+    if (element.classList.contains("ph-row-pill-current-time")) {
+      replaceWithIconText(element, "clock-rewind", text);
+    } else {
+      element.textContent = text;
+    }
   }
   for (const element of root.querySelectorAll("[data-planned-schedule]")) {
     const parts = formatPlannedScheduleParts(
@@ -103,9 +222,9 @@ function hydrateTimeLabels(root = document) {
     );
     const scheduleElement = element.querySelector("[data-planned-schedule-label]");
     const durationElement = element.querySelector("[data-planned-duration]");
-    if (scheduleElement) scheduleElement.textContent = parts.schedule;
+    if (scheduleElement) replaceWithIconText(scheduleElement, "calendar", parts.schedule);
     if (durationElement) {
-      durationElement.textContent = parts.duration;
+      replaceWithIconText(durationElement, "clock", parts.duration);
       durationElement.hidden = !parts.duration;
     }
   }
@@ -113,9 +232,9 @@ function hydrateTimeLabels(root = document) {
     const parts = formatPreviousTimeParts(element.dataset.previousTime, {});
     const dateElement = element.querySelector("[data-previous-date]");
     const timeElement = element.querySelector("[data-previous-clock]");
-    if (dateElement) dateElement.textContent = parts.date;
+    if (dateElement) replaceWithIconText(dateElement, "calendar", parts.date);
     if (timeElement) {
-      timeElement.textContent = parts.time;
+      replaceWithIconText(timeElement, "clock", parts.time);
       timeElement.hidden = !parts.time;
     }
   }
@@ -337,6 +456,7 @@ function updateShellState() {
   );
   document.body.classList.toggle("ph-has-results", hasSearchResults);
   attachMobilePanelDrawer();
+  if (typeof window.phSyncContextSections === "function") window.phSyncContextSections();
 }
 
 function applyResultsHtml(html, results) {
@@ -637,7 +757,6 @@ function focusPayloadForItem(item) {
     kind: item.kind,
     lat: item.lat,
     lon: item.lon,
-    geometry: item.geometry,
     geometryKey: item.geometryKey,
     label: item.label,
     startTime: item.startTime,
@@ -666,11 +785,14 @@ function renderContextRow(item, labels = {}) {
 
     const labelPill = document.createElement("span");
     labelPill.className = "ph-row-pill ph-row-pill-published-label";
-    labelPill.textContent =
+    replaceWithIconText(
+      labelPill,
+      item.kind === "regional_metric" ? "map" : "file-search",
       item.label ||
-      (item.kind === "regional_metric"
-        ? label(labels, "regional_colour_legend", "Regional outage burden")
-        : label(labels, "disclosure", "Disclosure"));
+        (item.kind === "regional_metric"
+          ? label(labels, "regional_colour_legend", "Regional outage burden")
+          : label(labels, "disclosure", "Disclosure")),
+    );
     labelPill.title =
       item.kind === "regional_metric"
         ? item.regionalBurdenLabel || label(labels, "regional_colour_legend", "Regional burden")
@@ -685,26 +807,26 @@ function renderContextRow(item, labels = {}) {
       const parts = formatPlannedScheduleParts(item.startTime, item.endTime, labels);
       const schedulePill = document.createElement("span");
       schedulePill.className = "ph-row-pill ph-row-pill-planned-schedule";
-      schedulePill.textContent = parts.schedule;
+      replaceWithIconText(schedulePill, "calendar", parts.schedule);
       pillGroup.append(schedulePill);
 
       if (parts.duration) {
         const durationPill = document.createElement("span");
         durationPill.className = "ph-row-pill ph-row-pill-planned-duration";
-        durationPill.textContent = parts.duration;
+        replaceWithIconText(durationPill, "clock", parts.duration);
         pillGroup.append(durationPill);
       }
     } else if (item.kind === "previous_outage") {
       const parts = formatPreviousTimeParts(item.startTime, labels);
       const datePill = document.createElement("span");
       datePill.className = "ph-row-pill ph-row-pill-previous-date";
-      datePill.textContent = parts.date;
+      replaceWithIconText(datePill, "calendar", parts.date);
       pillGroup.append(datePill);
 
       if (parts.time) {
         const timePill = document.createElement("span");
         timePill.className = "ph-row-pill ph-row-pill-previous-time";
-        timePill.textContent = parts.time;
+        replaceWithIconText(timePill, "clock", parts.time);
         pillGroup.append(timePill);
       }
     } else {
@@ -715,7 +837,7 @@ function renderContextRow(item, labels = {}) {
           : "ph-row-pill ph-row-pill-time";
       if (item.kind === "outage") {
         timePill.dataset.relativeTime = item.startTime || "";
-        timePill.textContent = formatRelativeTime(item.startTime, labels);
+        replaceWithIconText(timePill, "clock-rewind", formatRelativeTime(item.startTime, labels));
       } else {
         timePill.textContent = item.startTime || label(labels, "unknown", "Unknown");
       }
@@ -724,7 +846,13 @@ function renderContextRow(item, labels = {}) {
     if (item.kind === "outage") {
       const statusPill = document.createElement("span");
       statusPill.className = "ph-row-pill ph-row-pill-current-status";
-      statusPill.textContent = item.statusLabel || label(labels, "unknown", "Unknown");
+      statusPill.dataset.statusCode = item.status || "";
+      replaceWithIconText(
+        statusPill,
+        iconNameForStatus(item.status, item.statusLabel),
+        item.statusLabel || label(labels, "unknown", "Unknown"),
+        "ph-status-icon",
+      );
       pillGroup.append(statusPill);
     }
     left.append(pillGroup);
@@ -743,11 +871,26 @@ function renderContextRow(item, labels = {}) {
             : "ph-context-pill-disclosure";
   pill.className = `ph-context-pill ${pillColor}`;
   if (item.kind === "disclosure") {
-    pill.textContent = `${item.recordCount || 0} ${label(labels, "rows", "rows")}`;
+    pill.setAttribute("aria-label", `${item.recordCount || 0} ${label(labels, "rows", "rows")}`);
+    pill.replaceChildren(
+      countPillText(item.recordCount || 0),
+      phIcon("file-search", "ph-count-icon"),
+    );
   } else if (item.kind === "regional_metric") {
-    pill.textContent = `${item.outageCount || 0} ${label(labels, "outages", "Outages")}`;
+    pill.setAttribute(
+      "aria-label",
+      `${item.outageCount || 0} ${label(labels, "outages", "Outages")}`,
+    );
+    pill.replaceChildren(countPillText(item.outageCount || 0), phIcon("zap", "ph-count-icon"));
   } else {
-    pill.textContent = `${item.customersAffected || 0} ${label(labels, "clients", "clients")}`;
+    pill.setAttribute(
+      "aria-label",
+      `${item.customersAffected || 0} ${label(labels, "clients", "clients")}`,
+    );
+    pill.replaceChildren(
+      countPillText(item.customersAffected || 0),
+      phIcon("users", "ph-count-icon"),
+    );
   }
   row.append(left, pill);
   return row;
@@ -769,63 +912,100 @@ function attachMapLayerToggles() {
   const layerNoun = (layer, labels) =>
     layer === "current" ? label(labels, "areas", "areas") : label(labels, "rows", "rows");
 
-  const setLayerCount = (section, text) => {
+  const layerIconName = (layer) =>
+    layer === "current"
+      ? "map"
+      : layer === "planned"
+        ? "calendar"
+        : layer === "previous"
+          ? "archive"
+          : "file-search";
+
+  const setLayerCount = (section, value, iconName, labelText = "") => {
     const count = section?.querySelector(".ph-layer-count");
-    if (count) count.textContent = text;
+    if (!count) return;
+    if (value === "" || value == null) {
+      count.textContent = "";
+      count.removeAttribute("aria-label");
+      return;
+    }
+    count.setAttribute("aria-label", `${value} ${labelText}`.trim());
+    const number = document.createElement("span");
+    number.className = "ph-layer-count-value";
+    number.textContent = value;
+    count.replaceChildren(number, phIcon(iconName, "ph-layer-count-icon"));
   };
 
   const setToggleState = (button, on) => {
     const labels = toggleLabels();
+    const layer = button.dataset.layerToggle;
+    const sectionLabel =
+      button.closest("[data-layer-section]")?.querySelector("h3")?.textContent?.trim() ||
+      layer ||
+      "";
     button.classList.toggle("is-on", on);
     button.setAttribute("aria-pressed", on ? "true" : "false");
-    button.textContent = on
-      ? document.documentElement.lang === "fr"
-        ? "Masquer"
-        : "Hide"
+    const action = on
+      ? label(labels, "map_layer_on", document.documentElement.lang === "fr" ? "Masquer" : "Hide")
       : label(
           labels,
           "map_layer_off",
           document.documentElement.lang === "fr" ? "Afficher" : "Show",
         );
+    button.setAttribute("aria-label", `${action} ${sectionLabel}`.trim());
+    button.replaceChildren(phIcon(on ? "eye-off" : "eye", "ph-toggle-icon"));
   };
 
-  document.body.addEventListener("click", async (event) => {
-    const button = event.target.closest("[data-layer-toggle]");
-    if (!button) return;
-    event.preventDefault();
-    event.stopPropagation();
-    const section = button.closest("[data-layer-section]");
-    const layer = button.dataset.layerToggle;
-    const rows = section?.querySelector(".ph-context-rows");
-    if (!section || !layer || !rows) return;
-
-    const isOn = button.getAttribute("aria-pressed") === "true";
-    if (isOn) {
-      setToggleState(button, false);
-      section.dataset.layerState = "off";
-      section.open = false;
-      document.dispatchEvent(
-        new CustomEvent("map-layer-toggle", { detail: { layer, enabled: false } }),
-      );
-      return;
+  const closeSiblingSections = (section) => {
+    for (const candidate of document.querySelectorAll("[data-layer-section]")) {
+      if (candidate !== section) candidate.open = false;
     }
+  };
 
-    setToggleState(button, true);
-    section.dataset.layerState = "on";
+  const openContextSection = (section) => {
+    if (!section) return;
     section.open = true;
-    document.dispatchEvent(
-      new CustomEvent("map-layer-toggle", { detail: { layer, enabled: true } }),
-    );
-    if (section.dataset.layerLoaded === "true" && section._layerMatches) {
-      document.dispatchEvent(
-        new CustomEvent("map-layer-items", {
-          detail: { layer, matches: section._layerMatches },
-        }),
-      );
-      return;
+    closeSiblingSections(section);
+  };
+
+  const renderLayerRows = (section, rows, layer, matches, labels) => {
+    rows.innerHTML = "";
+    for (const item of matches) rows.appendChild(renderContextRow(item, labels));
+    hydrateTimeLabels(rows);
+    if (!matches.length) {
+      rows.innerHTML = `<p class="ph-context-empty">${document.documentElement.lang === "fr" ? "Aucune donnée pour cette couche." : "No data for this layer."}</p>`;
+    }
+    section.dataset.layerLoaded = "true";
+    section._layerMatches = matches;
+    setLayerCount(section, matches.length, layerIconName(layer), layerNoun(layer, labels));
+  };
+
+  const loadLayerSection = async (section, options = {}) => {
+    const showOnMap = options.showOnMap === true;
+    const layer = section?.dataset.layerSection;
+    const rows = section?.querySelector(".ph-context-rows");
+    if (!section || !layer || !rows) return [];
+
+    if (section._layerMatches) {
+      if (showOnMap) {
+        document.dispatchEvent(
+          new CustomEvent("map-layer-items", {
+            detail: { layer, matches: section._layerMatches },
+          }),
+        );
+      }
+      return section._layerMatches;
     }
 
-    button.disabled = true;
+    if (section._layerLoadPromise) {
+      const matches = await section._layerLoadPromise;
+      if (showOnMap) {
+        document.dispatchEvent(new CustomEvent("map-layer-items", { detail: { layer, matches } }));
+      }
+      return matches;
+    }
+
+    const button = section.querySelector("[data-layer-toggle]");
     const labels = toggleLabels();
     setLayerCount(
       section,
@@ -834,74 +1014,153 @@ function attachMapLayerToggles() {
         "layer_loading",
         document.documentElement.lang === "fr" ? "Chargement" : "Loading",
       ),
+      layerIconName(layer),
     );
     rows.innerHTML = `<p class="ph-context-empty">${document.documentElement.lang === "fr" ? "Chargement..." : "Loading..."}</p>`;
-    try {
-      const payload = await fetchJson(buildMapLayerUrl(layer), {
-        headers: { Accept: "application/json" },
+    if (button && showOnMap) button.disabled = true;
+
+    section._layerLoadPromise = fetchJson(buildMapLayerUrl(layer), {
+      headers: { Accept: "application/json" },
+    })
+      .then((payload) => {
+        const matches = (payload.matches || []).filter(
+          (item) => contextLayerForKind(item.kind) === layer,
+        );
+        renderLayerRows(section, rows, layer, matches, toggleLabels());
+        document.dispatchEvent(new CustomEvent("map-layer-data", { detail: { layer, matches } }));
+        return matches;
+      })
+      .catch((_error) => {
+        if (showOnMap && button) setToggleState(button, false);
+        if (showOnMap) {
+          section.dataset.layerState = "off";
+        }
+        setLayerCount(
+          section,
+          label(
+            toggleLabels(),
+            "layer_off",
+            document.documentElement.lang === "fr" ? "Masquée" : "Off",
+          ),
+          layerIconName(layer),
+        );
+        rows.innerHTML = `<p class="ph-context-empty">${document.documentElement.lang === "fr" ? "Cette couche n'a pas pu être chargée." : "This layer could not be loaded."}</p>`;
+        return [];
+      })
+      .finally(() => {
+        section._layerLoadPromise = undefined;
+        if (button) button.disabled = false;
       });
-      const matches = (payload.matches || []).filter(
-        (item) => contextLayerForKind(item.kind) === layer,
-      );
-      const map = document.querySelector("outage-map");
-      const labels = map ? JSON.parse(map.getAttribute("data-map") || "{}").labels || {} : {};
-      rows.innerHTML = "";
-      for (const item of matches) rows.appendChild(renderContextRow(item, labels));
-      hydrateTimeLabels(rows);
-      if (!matches.length) {
-        rows.innerHTML = `<p class="ph-context-empty">${document.documentElement.lang === "fr" ? "Aucune donnée pour cette couche." : "No data for this layer."}</p>`;
-      }
-      section.dataset.layerLoaded = "true";
-      section._layerMatches = matches;
-      setLayerCount(section, `${matches.length} ${layerNoun(layer, labels)}`);
+
+    const matches = await section._layerLoadPromise;
+    if (showOnMap && matches.length) {
       document.dispatchEvent(new CustomEvent("map-layer-items", { detail: { layer, matches } }));
-    } catch (_error) {
+    }
+    return matches;
+  };
+
+  const preloadContextLayers = () => {
+    const run = () => {
+      for (const section of document.querySelectorAll("[data-layer-section]")) {
+        if (section.dataset.layerSection === "current") continue;
+        if (section._layerMatches || section._layerLoadPromise) continue;
+        loadLayerSection(section, { showOnMap: false });
+      }
+    };
+    if ("requestIdleCallback" in window) {
+      window.requestIdleCallback(run, { timeout: 1200 });
+    } else {
+      window.setTimeout(run, 250);
+    }
+  };
+
+  window.phSyncContextSections = () => {
+    const openSection = document.querySelector("[data-layer-section][open]");
+    if (openSection) {
+      closeSiblingSections(openSection);
+    } else {
+      const currentSection = document.querySelector('[data-layer-section="current"]');
+      if (currentSection) currentSection.open = true;
+    }
+    preloadContextLayers();
+  };
+
+  document.body.addEventListener("click", async (event) => {
+    const button = event.target.closest("[data-layer-toggle]");
+    const summary = event.target.closest(".ph-context-section-summary");
+    if (!button && summary) {
+      const section = summary.closest("[data-layer-section]");
+      if (!section) return;
+      event.preventDefault();
+      openContextSection(section);
+      const toggle = section.querySelector("[data-layer-toggle]");
+      await loadLayerSection(section, {
+        showOnMap: toggle?.getAttribute("aria-pressed") === "true",
+      });
+      return;
+    }
+
+    if (!button) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const section = button.closest("[data-layer-section]");
+    const layer = button.dataset.layerToggle;
+    if (!section || !layer) return;
+
+    const isOn = button.getAttribute("aria-pressed") === "true";
+    if (isOn) {
       setToggleState(button, false);
       section.dataset.layerState = "off";
-      setLayerCount(
-        section,
-        label(
-          toggleLabels(),
-          "layer_off",
-          document.documentElement.lang === "fr" ? "Masquée" : "Off",
-        ),
+      document.dispatchEvent(
+        new CustomEvent("map-layer-toggle", { detail: { layer, enabled: false } }),
       );
-      rows.innerHTML = `<p class="ph-context-empty">${document.documentElement.lang === "fr" ? "Cette couche n'a pas pu être chargée." : "This layer could not be loaded."}</p>`;
-    } finally {
-      button.disabled = false;
+      return;
     }
+
+    setToggleState(button, true);
+    section.dataset.layerState = "on";
+    openContextSection(section);
+    document.dispatchEvent(
+      new CustomEvent("map-layer-toggle", { detail: { layer, enabled: true } }),
+    );
+    await loadLayerSection(section, { showOnMap: true });
   });
 }
 
 function disclosurePopup(item, labels = {}) {
   const causes = (item.topCauses || [])
     .map(
-      (cause) => `<li>${escapeHtml(localizeCause(cause.cause))} (${escapeHtml(cause.count)})</li>`,
+      (cause) =>
+        `<li>${detailPill("zap", `${localizeCause(cause.cause) || label(labels, "unknown", "unknown")} (${cause.count})`, "ph-detail-pill--soft")}</li>`,
     )
     .join("");
   const events = (item.recentEvents || [])
-    .map(
-      (event) =>
-        `<tr class="border-b border-blue-100 last:border-0">
-          <td class="px-1 py-1.5 align-top">${formatDateTimeCell(event.start_time, labels)}</td>
-          <td class="px-1 py-1.5 align-top">${formatDateTimeCell(event.end_time, labels)}</td>
-          <td class="truncate px-1 py-1.5 align-top" title="${escapeHtml(event.row_area || "")}">${escapeHtml(event.row_area || "")}</td>
-          <td class="truncate px-1 py-1.5 align-top" title="${escapeHtml(localizeCause(event.cause) || label(labels, "unknown", "unknown"))}">${escapeHtml(localizeCause(event.cause) || label(labels, "unknown", "unknown"))}</td>
-          <td class="px-1 py-1.5 text-right align-top">${escapeHtml(formatDuration(event.duration_seconds, labels))}</td>
-          <td class="px-1 py-1.5 text-right align-top">${escapeHtml(event.customers_affected ?? "")}</td>
-        </tr>`,
-    )
+    .map((event) => {
+      const startParts = formatPreviousTimeParts(event.start_time, labels);
+      const endParts = formatPreviousTimeParts(event.end_time, labels);
+      const startLabel = startParts.time
+        ? `${startParts.date} ${startParts.time}`
+        : startParts.date;
+      const endLabel = endParts.time ? `${endParts.date} ${endParts.time}` : endParts.date;
+      return `<tr>
+          <td>${detailPill("calendar", startLabel)}</td>
+          <td>${detailPill("clock", endLabel)}</td>
+          <td class="truncate" title="${escapeHtml(event.row_area || "")}">${escapeHtml(event.row_area || "")}</td>
+          <td class="truncate" title="${escapeHtml(localizeCause(event.cause) || label(labels, "unknown", "unknown"))}">${detailPill("zap", localizeCause(event.cause) || label(labels, "unknown", "unknown"))}</td>
+          <td class="text-right">${detailPill("clock", formatDuration(event.duration_seconds, labels), "ph-detail-pill--count")}</td>
+          <td class="text-right">${detailPill("users", event.customers_affected ?? 0, "ph-detail-pill--count")}</td>
+        </tr>`;
+    })
     .join("");
   return `
-      <div class="flex h-full min-h-0 flex-col gap-4 text-sm">
-      ${causes ? `<section><div class="text-xs font-semibold uppercase tracking-[0.08em] text-[#6b778a]">${escapeHtml(label(labels, "top_causes", "Top causes"))}</div><ul class="ml-4 mt-2 list-disc leading-snug text-[#223654]">${causes}</ul></section>` : ""}
+      ${causes ? detailSection(label(labels, "top_causes", "Top causes"), "zap", `<ul class="ph-detail-cause-list">${causes}</ul>`) : ""}
       ${
         events
-          ? `<div class="flex min-h-0 flex-1 flex-col">
-              <div class="overflow-hidden rounded-md border border-[#d7dde6] bg-white">
-              <div class="border-b border-[#d7dde6] px-4 py-2 text-xs font-semibold uppercase tracking-[0.08em] text-[#6b778a]">${escapeHtml(label(labels, "extracted_rows", "Extracted rows"))}</div>
-              <div class="min-h-0 flex-1 overflow-auto">
-                <table class="w-full min-w-[40rem] table-fixed text-left text-xs">
+          ? detailSection(
+              label(labels, "extracted_rows", "Extracted rows"),
+              "file-search",
+              `<div class="ph-detail-table-wrap">
+                <table class="ph-detail-table">
                   <colgroup>
                     <col class="w-[18%]">
                     <col class="w-[18%]">
@@ -910,29 +1169,24 @@ function disclosurePopup(item, labels = {}) {
                     <col class="w-[10%]">
                     <col class="w-[10%]">
                   </colgroup>
-                  <thead class="sticky top-0 bg-[#f1f1f2] uppercase tracking-[0.08em] text-[#6b778a]">
+                  <thead>
                     <tr>
-                      <th class="px-1 py-1.5">${escapeHtml(label(labels, "start", "Start"))}</th>
-                      <th class="px-1 py-1.5">${escapeHtml(label(labels, "end", "End"))}</th>
-                      <th class="px-1 py-1.5">${escapeHtml(label(labels, "area", "Area"))}</th>
-                      <th class="px-1 py-1.5">${escapeHtml(label(labels, "cause", "Cause"))}</th>
-                      <th class="px-1 py-1.5 text-right">${escapeHtml(label(labels, "duration_short", "Dur."))}</th>
-                      <th class="px-1 py-1.5 text-right">${escapeHtml(label(labels, "clients", "clients"))}</th>
+                      <th>${escapeHtml(label(labels, "start", "Start"))}</th>
+                      <th>${escapeHtml(label(labels, "end", "End"))}</th>
+                      <th>${escapeHtml(label(labels, "area", "Area"))}</th>
+                      <th>${escapeHtml(label(labels, "cause", "Cause"))}</th>
+                      <th class="text-right">${escapeHtml(label(labels, "duration_short", "Dur."))}</th>
+                      <th class="text-right">${escapeHtml(label(labels, "clients", "clients"))}</th>
                     </tr>
                   </thead>
-                  <tbody class="text-slate-700">${events}</tbody>
+                  <tbody>${events}</tbody>
                 </table>
-              </div>
-              </div>
-            </div>`
+              </div>`,
+              "ph-detail-section--scroll",
+            )
           : ""
       }
-    </div>
   `;
-}
-
-function disclosureTooltip(item, labels = {}) {
-  return `${escapeHtml(item.label || item.sourceDai || "DAI")} · ${escapeHtml(item.regionLabel || label(labels, "disclosure_region", "Disclosure region"))}`;
 }
 
 function disclosureSummaryPopup(item, labels = {}) {
@@ -958,33 +1212,10 @@ function applyMapLayerClass(layer, item) {
   applyToElement(layer.getElement?.());
 }
 
-function operationalTooltip(item, labels = {}) {
-  if (item.kind === "previous_outage") {
-    return `${escapeHtml(item.kindLabel || "Previously seen outage")} · ${escapeHtml(item.eventCount || 0)} ${escapeHtml(item.eventCountLabel || "retained outages")}`;
-  }
-  const parts = [
-    item.kindLabel || item.kind || "Outage",
-    item.matchLabel || item.matchType,
-    item.customersAffected == null
-      ? null
-      : `${item.customersAffected} ${label(labels, "clients", "clients")}`,
-    item.distanceM == null ? null : formatDistanceKm(item.distanceM, labels),
-  ].filter(Boolean);
-  return parts.map((part) => escapeHtml(part)).join(" · ");
-}
-
 function regionalBurdenText(item, labels = {}) {
   return (
     item.regionalBurdenLabel || label(labels, "regional_colour_legend", "Regional outage burden")
   );
-}
-
-function regionalMetricTooltip(item, labels = {}) {
-  const value = metricValue(item);
-  if (value == null) {
-    return `${escapeHtml(item.label || "Region")} · ${escapeHtml(regionalBurdenText(item, labels))}: unavailable`;
-  }
-  return `${escapeHtml(item.label || "Region")} · ${escapeHtml(regionalBurdenText(item, labels))}: ${escapeHtml(value)}`;
 }
 
 class DaiDetailPanel extends HTMLElement {
@@ -1012,54 +1243,81 @@ class DaiDetailPanel extends HTMLElement {
     const labels = this.uiLabels();
     const title = this.getAttribute("title-label") || "DAI details";
     const sourceLabel = (item.sourceDais || []).join(", ") || item.sourceDai || "";
-    const factList = detailFactList([
-      [label(labels, "rows", "rows"), `${item.recordCount || 0} ${label(labels, "rows", "rows")}`],
-      [
-        label(labels, "period", "Period"),
-        `${item.startMin || label(labels, "unknown", "unknown")} - ${item.startMax || label(labels, "unknown", "unknown")}`,
-      ],
-      [
-        label(labels, "cumulative_disclosed_duration", "Cumulative disclosed outage duration"),
+    const periodValue = `${item.startMin || label(labels, "unknown", "unknown")} - ${item.startMax || label(labels, "unknown", "unknown")}`;
+    const pills = detailPillGrid([
+      detailPill(
+        "file-search",
+        `${item.recordCount || 0} ${label(labels, "rows", "rows")}`,
+        "ph-detail-pill--count",
+      ),
+      detailPill("calendar", periodValue),
+      detailPill(
+        "clock",
         formatDuration(item.durationSecondsTotal, labels),
-      ],
-      ["DAI", sourceLabel],
+        "ph-detail-pill--duration",
+      ),
+      detailPill("archive", sourceLabel),
     ]);
     this.hidden = false;
-    this.innerHTML = `
-      <div class="flex h-full min-h-0 flex-col rounded-lg border border-[#c5cad2] bg-white/95 p-4 shadow-lg">
-        <div class="mb-3 flex flex-none items-start justify-between gap-3">
-          <div class="min-w-0 flex-1">
-            <p class="text-xs font-semibold text-[#095797]">${escapeHtml(title)}</p>
-            <h4 class="mt-1 text-base font-semibold text-[#223654]">${escapeHtml(item.label || "")}</h4>
-            ${sourceLabel ? `<p class="mt-1 text-sm text-[#4e5662]">${escapeHtml(sourceLabel)}</p>` : ""}
-          </div>
-          <button type="button" class="shrink-0 rounded-md border border-[#c5cad2] bg-white px-2 py-1 text-sm font-semibold text-[#4e5662] hover:bg-[#f1f1f2]" data-dai-detail-close aria-label="${escapeHtml(label(labels, "close", "Close"))}">×</button>
-        </div>
-        ${factList}
-        <div class="min-h-0 flex-1 overflow-hidden pr-2">
-          ${disclosurePopup(item, labels)}
-        </div>
-      </div>
-    `;
+    this.innerHTML = detailPanelShell({
+      tone: "disclosure",
+      eyebrow: title,
+      title: item.label || label(labels, "disclosure", "Disclosure"),
+      subtitle: sourceLabel,
+      sourceAction: sourcePdfLink(item.sourceUrl),
+      pills,
+      body: `<div class="ph-detail-scroll">${disclosurePopup(item, labels)}</div>`,
+      labels,
+    });
   }
 
   renderRegionalMetric(item) {
     const labels = this.uiLabels();
     const title = this.getAttribute("title-label") || "DAI details";
     const burdenLabel = regionalBurdenText(item, labels);
-    const rows = (item.metrics || [])
-      .map(
-        (metric) => `
-          <tr class="border-b border-rose-100 last:border-0">
-            <td class="py-2 pr-3 font-medium text-slate-950">${escapeHtml(metric.period_label || metric.year || label(labels, "unknown", "unknown"))}</td>
-            <td class="py-2 pr-3">${escapeHtml(metric.source_dai || "")}</td>
-            <td class="py-2 pr-3 text-right">${escapeHtml(metric.outage_count ?? label(labels, "unknown", "unknown"))}</td>
-            <td class="py-2 pr-3 text-right">${escapeHtml(metric.average_duration_minutes ?? label(labels, "unknown", "unknown"))}</td>
-            <td class="py-2 pr-3 text-right">${escapeHtml(metric.continuity_index_minutes ?? label(labels, "unknown", "unknown"))}</td>
-            <td class="py-2 text-right">${escapeHtml(metric.long_outage_count ?? "")}</td>
-          </tr>
-        `,
-      )
+    const unknownLabel = label(labels, "unknown", "unknown");
+    const sourceMetricRows = (item.metrics || []).filter((metric) => {
+      const metricPeriod = metric.period_label || metric.year || "";
+      const itemPeriod = item.periodLabel || item.year || "";
+      return metric.source_dai !== item.sourceDai || String(metricPeriod) !== String(itemPeriod);
+    });
+    const rows = sourceMetricRows
+      .map((metric) => {
+        const metricPills = [
+          detailPill(
+            "zap",
+            metric.outage_count,
+            "ph-detail-pill--count",
+            label(labels, "outages", "Outages"),
+          ),
+          detailPill(
+            "clock",
+            metric.average_duration_minutes == null ? "" : `${metric.average_duration_minutes} min`,
+            "ph-detail-pill--count",
+            label(labels, "average_duration", "Average duration"),
+          ),
+          detailPill("map", metric.continuity_index_minutes, "ph-detail-pill--count", burdenLabel),
+          detailPill(
+            "clock-rewind",
+            metric.long_outage_count,
+            "ph-detail-pill--count",
+            label(labels, "outages_over_8h", "> 8h"),
+          ),
+        ]
+          .filter(Boolean)
+          .join("");
+        return `
+            <article class="ph-detail-source-row">
+              <div class="ph-detail-source-main">
+                ${detailPill("calendar", metric.period_label || metric.year || unknownLabel)}
+                ${detailPill("archive", metric.source_dai || "")}
+              </div>
+              <div class="ph-detail-source-metrics">
+                ${metricPills || detailPill("help", unknownLabel, "ph-detail-pill--muted")}
+              </div>
+            </article>
+          `;
+      })
       .join("");
     const sourceCount = (item.sourceDais || []).length || 1;
     const sourceLabel = label(
@@ -1067,65 +1325,50 @@ class DaiDetailPanel extends HTMLElement {
       sourceCount === 1 ? "dai_source" : "dai_sources",
       sourceCount === 1 ? "DAI source" : "DAI sources",
     );
-    const factList = detailFactList([
-      [
-        label(labels, "period", "Period"),
-        item.periodLabel || item.year || label(labels, "unknown", "unknown"),
-      ],
-      [
-        label(labels, "outages", "Outages"),
+    const pills = detailPillGrid([
+      detailPill("calendar", item.periodLabel || item.year || label(labels, "unknown", "unknown")),
+      detailPill(
+        "zap",
         item.outageCount ?? label(labels, "unknown", "unknown"),
-      ],
-      [
-        label(labels, "average_duration", "Average duration"),
+        "ph-detail-pill--count",
+      ),
+      detailPill(
+        "clock",
         `${item.averageDurationMinutes ?? label(labels, "unknown", "unknown")} min`,
-      ],
-      [burdenLabel, item.continuityIndexMinutes ?? label(labels, "unknown", "unknown")],
-      [
-        label(labels, "outages_over_8h", "Outages > 8h"),
+      ),
+      detailPill("map", item.continuityIndexMinutes ?? label(labels, "unknown", "unknown")),
+      detailPill(
+        "clock",
         item.longOutageCount ?? label(labels, "unknown", "unknown"),
-      ],
+        "ph-detail-pill--count",
+      ),
     ]);
+    const body = rows
+      ? detailSection(
+          document.documentElement.lang === "fr" ? "Autres sources DAI" : "Other DAI sources",
+          "layers",
+          `<div class="ph-detail-source-list">${rows}</div>`,
+          "ph-detail-section--scroll",
+        )
+      : "";
     this.hidden = false;
-    this.innerHTML = `
-      <div class="rounded-lg border border-[#c5cad2] bg-[#f1f1f2] p-4">
-        <div class="mb-3 flex items-start justify-between gap-3">
-          <div class="min-w-0 flex-1">
-            <p class="text-xs font-semibold text-[#095797]">${escapeHtml(title)}</p>
-            <h4 class="mt-1 text-base font-semibold text-[#223654]">${escapeHtml(item.label || "")}</h4>
-            <p class="mt-1 text-sm text-[#4e5662]">${escapeHtml(sourceCount)} ${escapeHtml(sourceLabel)} · ${escapeHtml(label(labels, "latest_map_source", "latest shown on map"))}: ${escapeHtml(item.sourceDai)}</p>
-          </div>
-          <button type="button" class="shrink-0 rounded-md border border-[#c5cad2] bg-white px-2 py-1 text-sm font-semibold text-[#4e5662] hover:bg-[#f1f1f2]" data-dai-detail-close aria-label="${escapeHtml(label(labels, "close", "Close"))}">×</button>
-        </div>
-        ${factList}
-        ${
-          rows
-            ? `<div class="mt-4 max-h-[28rem] overflow-auto rounded-md border border-[#d7dde6] bg-white/90">
-                <div class="border-b border-[#d7dde6] px-4 py-2 text-sm font-medium text-[#6b778a]">${escapeHtml(label(labels, "rows", "rows"))}</div>
-                <table class="w-full min-w-[42rem] text-left text-sm">
-                  <thead class="sticky top-0 bg-[#f1f1f2] text-xs uppercase tracking-[0.08em] text-[#6b778a]">
-                    <tr>
-                      <th class="px-3 py-2">${escapeHtml(label(labels, "period", "Period"))}</th>
-                      <th class="px-3 py-2">DAI</th>
-                      <th class="px-3 py-2 text-right">${escapeHtml(label(labels, "outages", "Outages"))}</th>
-                      <th class="px-3 py-2 text-right">${escapeHtml(label(labels, "average_duration", "Average duration"))}</th>
-                      <th class="px-3 py-2 text-right">${escapeHtml(burdenLabel)}</th>
-                      <th class="px-3 py-2 text-right">${escapeHtml(label(labels, "outages_over_8h", "> 8h"))}</th>
-                    </tr>
-                  </thead>
-                  <tbody class="text-slate-700">${rows}</tbody>
-                </table>
-              </div>`
-            : ""
-        }
-      </div>
-    `;
+    this.innerHTML = detailPanelShell({
+      tone: "regional",
+      eyebrow: title,
+      title: item.label || label(labels, "regional_colour_legend", "Regional outage burden"),
+      subtitle: `${sourceCount} ${sourceLabel} · ${label(labels, "latest_map_source", "latest shown on map")}: ${item.sourceDai}`,
+      sourceAction: sourcePdfLink(item.sourceUrl),
+      pills,
+      body,
+      labels,
+    });
   }
 
   renderOperational(item) {
     const labels = this.uiLabels();
     const isPreviousOutage = item.kind === "previous_outage";
     const isPlanned = item.kind === "planned";
+    const tone = isPlanned ? "planned" : isPreviousOutage ? "previous" : "current";
     const title = isPreviousOutage
       ? label(labels, "previous_layer_short", "Local archive")
       : isPlanned
@@ -1137,9 +1380,8 @@ class DaiDetailPanel extends HTMLElement {
         ? item.kindLabel || "Previously seen outage"
         : item.kindLabel || label(labels, "outage", "Outage");
     const recentEvents = item.recentEvents || [];
-    const showEventRows = isPreviousOutage || item.matchType === "current_feed_map";
-    const primaryDate =
-      item.startTime || item.latestStartTime || item.label || label(labels, "unknown", "unknown");
+    const showEventRows =
+      recentEvents.length > 1 && (isPreviousOutage || item.matchType === "current_feed_map");
     const customerValue =
       item.customersAffected == null
         ? ""
@@ -1148,51 +1390,76 @@ class DaiDetailPanel extends HTMLElement {
     const distanceValue = hasDistanceValue(item.distanceM)
       ? formatDistanceKm(item.distanceM, labels)
       : "";
-    const metaKind = isPlanned || isPreviousOutage ? kindLabel : "";
-    const primaryMeta = metaKind;
-    const summary = detailFactList([
-      [label(labels, "customers", "Customers"), customerValue],
-      [label(labels, "status", "Status"), statusValue],
-      [label(labels, "end", "End"), item.endTime],
-      [label(labels, "distance", "Distance"), distanceValue],
-    ]);
+    const plannedParts = isPlanned
+      ? formatPlannedScheduleParts(item.startTime, item.endTime, labels)
+      : null;
+    const previousParts = isPreviousOutage ? formatPreviousTimeParts(item.startTime, labels) : null;
+    const currentTimeLabel =
+      !isPlanned && !isPreviousOutage
+        ? formatRelativeTime(item.startTime || item.latestStartTime, labels)
+        : "";
+    const headline = isPlanned
+      ? kindLabel
+      : isPreviousOutage
+        ? kindLabel
+        : label(labels, "outage", "Outage");
+    const pills = showEventRows
+      ? ""
+      : detailPillGrid([
+          isPlanned ? detailPill("calendar", plannedParts?.schedule) : "",
+          isPlanned ? detailPill("clock", plannedParts?.duration) : "",
+          isPreviousOutage ? detailPill("calendar", previousParts?.date) : "",
+          isPreviousOutage ? detailPill("clock", previousParts?.time) : "",
+          currentTimeLabel ? detailPill("clock-rewind", currentTimeLabel) : "",
+          statusValue && !isPlanned
+            ? detailPill(iconNameForStatus(item.status, statusValue), statusValue)
+            : "",
+          customerValue ? detailPill("users", customerValue, "ph-detail-pill--count") : "",
+          distanceValue ? detailPill("route", distanceValue) : "",
+        ]);
     const events = (showEventRows ? recentEvents : [])
       .map((event) => {
         const eventDistance = hasDistanceValue(event.distance_m)
           ? formatDistanceKm(event.distance_m, labels)
           : "";
-        const eventSource = isPreviousOutage
-          ? label(labels, "nearby_match", "Nearby match")
-          : item.matchLabel || item.matchType || "";
+        const eventTime = isPlanned
+          ? formatPlannedScheduleParts(event.start_time, event.end_time, labels)
+          : formatPreviousTimeParts(event.start_time, labels);
+        if (isPlanned) {
+          return `
+            <article class="ph-detail-event-row ph-detail-event-row--planned">
+              ${detailPill("calendar", eventTime.schedule)}
+              ${detailPill("clock", eventTime.duration)}
+              ${detailPill("users", event.customers_affected ?? 0, "ph-detail-pill--count")}
+            </article>
+          `;
+        }
         return `
-          <article class="flex flex-wrap items-start justify-between gap-3 px-4 py-3">
-            <div class="min-w-0">
-              <p class="text-sm font-semibold text-[#223654]">${escapeHtml(event.start_time || label(labels, "unknown", "unknown"))}</p>
-              ${eventSource ? `<p class="mt-0.5 text-xs font-medium text-[#6b778a]">${escapeHtml(eventSource)}</p>` : ""}
-            </div>
-            <div class="flex flex-wrap justify-end gap-2 text-right text-xs font-semibold text-[#223654]">
-              <span class="rounded-md bg-[#eef2f6] px-2 py-1">${escapeHtml(event.customers_affected ?? 0)} ${escapeHtml(label(labels, "clients", "clients"))}</span>
-              ${eventDistance ? `<span class="rounded-md bg-[#eef2f6] px-2 py-1">${escapeHtml(eventDistance)}</span>` : ""}
-            </div>
+          <article class="ph-detail-event-row ${eventDistance ? "ph-detail-event-row--distance" : ""}">
+            ${detailPill("calendar", eventTime.date)}
+            ${eventTime.time ? detailPill("clock", eventTime.time) : ""}
+            ${eventDistance ? detailPill("route", eventDistance) : ""}
+            ${detailPill("users", event.customers_affected ?? 0, "ph-detail-pill--count")}
           </article>
         `;
       })
       .join("");
     this.hidden = false;
-    this.innerHTML = `
-      <div class="rounded-lg border border-[#c5cad2] bg-[#f1f1f2] p-4">
-        <div class="mb-3 flex items-start justify-between gap-3">
-          <div class="min-w-0 flex-1">
-            <p class="text-xs font-semibold text-[#095797]">${escapeHtml(title)}</p>
-            <h4 class="mt-1 text-base font-semibold text-[#223654]">${escapeHtml(primaryDate)}</h4>
-            ${primaryMeta ? `<p class="mt-1 text-sm text-[#4e5662]">${escapeHtml(primaryMeta)}</p>` : ""}
-          </div>
-          <button type="button" class="shrink-0 rounded-md border border-[#c5cad2] bg-white px-2 py-1 text-sm font-semibold text-[#4e5662] hover:bg-[#f1f1f2]" data-dai-detail-close aria-label="${escapeHtml(label(labels, "close", "Close"))}">×</button>
-        </div>
-        ${summary}
-        ${events ? `<div class="mt-4 overflow-hidden rounded-md border border-[#d7dde6] bg-white/90 text-sm"><div class="border-b border-[#d7dde6] px-4 py-2 text-sm font-medium text-[#6b778a]">${escapeHtml(label(labels, "rows", "rows"))}</div><div class="divide-y divide-[#e2e6ec]">${events}</div></div>` : ""}
-      </div>
-    `;
+    this.innerHTML = detailPanelShell({
+      tone,
+      eyebrow: title,
+      title: headline,
+      pills,
+      body: events
+        ? detailSection(
+            label(labels, "rows", "rows"),
+            isPreviousOutage ? "archive" : "layers",
+            `<div class="ph-detail-event-list">${events}</div>`,
+            "ph-detail-section--scroll",
+          )
+        : "",
+      labels,
+    });
   }
 }
 
@@ -1368,11 +1635,14 @@ class OutageMap extends HTMLElement {
         .bindPopup(data.addressLabel || label(labels, "address", "Address"));
       bounds.push(data.center);
     }
-    const metricValues = (data.matches || [])
-      .filter((item) => item.kind === "regional_metric")
-      .map((item) => metricValue(item))
-      .filter((value) => value != null);
-    const metricMax = Math.max(1, ...metricValues);
+    const regionalMetricMax = (items) => {
+      const metricValues = (items || [])
+        .filter((item) => item.kind === "regional_metric")
+        .map((item) => metricValue(item))
+        .filter((value) => value != null);
+      return Math.max(1, ...metricValues);
+    };
+    let metricMax = regionalMetricMax(data.matches || []);
     const showDisclosure = (item) => {
       if (detailPanel && typeof detailPanel.renderDisclosure === "function") {
         detailPanel.renderDisclosure(item);
@@ -1423,7 +1693,10 @@ class OutageMap extends HTMLElement {
     const orderedMatches = orderMatches(data.matches || []);
     focusItems = orderedMatches;
     const renderedGeometryKeys = new Set();
+    const initialExtentBounds = [];
     const isContextLayer = (item) => item.kind === "disclosure" || item.kind === "regional_metric";
+    const shouldContributeToInitialExtent = (item) =>
+      !isContextLayer(item) && contextLayerForKind(item.kind) === "current";
     const itemRenderKey = (item) =>
       [
         item.kind,
@@ -1448,16 +1721,13 @@ class OutageMap extends HTMLElement {
           restackDisclosureLayers();
         });
         layer.bindPopup(disclosureSummaryPopup(item, labels), { maxWidth: 280 });
-        layer.bindTooltip(disclosureTooltip(item, labels), { sticky: true });
         return;
       }
       if (item.kind === "regional_metric") {
         layer.on("click", () => showRegionalMetric(item));
-        layer.bindTooltip(regionalMetricTooltip(item, labels), { sticky: true });
         return;
       }
       layer.on("click", () => showOperational(item));
-      layer.bindTooltip(operationalTooltip(item, labels), { sticky: true });
     };
     const renderMatch = (item) => {
       if (item.deferGeometry && !item.geometry) return;
@@ -1477,6 +1747,10 @@ class OutageMap extends HTMLElement {
           bounds.push(layerBounds.getSouthWest());
           bounds.push(layerBounds.getNorthEast());
         }
+        if (shouldContributeToInitialExtent(item) && layerBounds.isValid()) {
+          initialExtentBounds.push(layerBounds.getSouthWest());
+          initialExtentBounds.push(layerBounds.getNorthEast());
+        }
         if (!isContextLayer(item)) layer.bringToFront();
         rendered = true;
       }
@@ -1489,6 +1763,7 @@ class OutageMap extends HTMLElement {
         rememberRenderedLayer(item, marker);
         if (!isContextLayer(item)) marker.bringToFront();
         if (!isContextLayer(item)) bounds.push([item.lat, item.lon]);
+        if (shouldContributeToInitialExtent(item)) initialExtentBounds.push([item.lat, item.lon]);
       }
       renderedGeometryKeys.add(renderKey);
     };
@@ -1504,12 +1779,21 @@ class OutageMap extends HTMLElement {
       focusItems = focusItems.filter((item) => contextLayerForKind(item.kind) !== layerKey);
       map.invalidateSize();
     };
+    const updateLayerData = (layerKey, matches) => {
+      const nextItems = orderMatches(matches || []);
+      focusItems = [
+        ...focusItems.filter((item) => contextLayerForKind(item.kind) !== layerKey),
+        ...nextItems,
+      ];
+      metricMax = regionalMetricMax(focusItems);
+    };
     const addLayerItems = (layerKey, matches) => {
       const nextItems = orderMatches(matches || []);
       focusItems = [
         ...focusItems.filter((item) => contextLayerForKind(item.kind) !== layerKey),
         ...nextItems,
       ];
+      metricMax = regionalMetricMax(focusItems);
       for (const item of nextItems) renderMatch(item);
       if (
         data.contextGeometryUrl &&
@@ -1527,28 +1811,42 @@ class OutageMap extends HTMLElement {
               item.geometry = geometries.get(item.geometryKey);
               renderMatch(item);
             }
-            refresh();
+            map.invalidateSize();
           })
           .catch(() => {});
       }
       restackDisclosureLayers();
-      refresh();
+      map.invalidateSize();
     };
     for (const item of orderedMatches) {
       renderMatch(item);
     }
     restackDisclosureLayers();
-    const refresh = () => {
+    const refresh = (options = {}) => {
+      const fitToBounds = options.fitToBounds === true;
+      const allowDefaultCenter = options.allowDefaultCenter === true;
+      const fitBounds = options.bounds?.length ? options.bounds : bounds;
       map.invalidateSize();
       if (data.center && Number.isFinite(data.radiusM)) {
         setVisibleCenter(data.center, data.zoom || 14);
       } else if (data.center && data.preserveInitialView) {
         setVisibleCenter(data.center, data.zoom || 14);
-      } else if (bounds.length > 1) {
-        map.fitBounds(bounds, { ...visibleMapPadding(24), maxZoom: 16 });
-      } else if (data.center) {
+      } else if (fitToBounds && fitBounds.length > 1) {
+        map.fitBounds(fitBounds, { ...visibleMapPadding(24), maxZoom: 16 });
+      } else if (fitToBounds && fitBounds.length === 1) {
+        setVisibleCenter(fitBounds[0], data.zoom || 8);
+      } else if (allowDefaultCenter && data.center) {
         setVisibleCenter(data.center, data.zoom || 14);
       }
+    };
+    const startupBounds = () => (initialExtentBounds.length ? initialExtentBounds : bounds);
+    const fitStartupExtent = () => {
+      if (activeMapFocus) return;
+      refresh({
+        fitToBounds: !data.preserveInitialView,
+        allowDefaultCenter: true,
+        bounds: startupBounds(),
+      });
     };
     const replayPendingFocus = () => {
       const focusDetail = window.pendingMapFocus || activeMapFocus;
@@ -1558,8 +1856,10 @@ class OutageMap extends HTMLElement {
     };
     requestAnimationFrame(() =>
       setTimeout(() => {
-        refresh();
+        fitStartupExtent();
         replayPendingFocus();
+        setTimeout(fitStartupExtent, 250);
+        setTimeout(fitStartupExtent, 900);
       }, 0),
     );
     if (
@@ -1580,7 +1880,7 @@ class OutageMap extends HTMLElement {
               item.geometry = geometries.get(item.geometryKey);
               renderMatch(item);
             }
-            refresh();
+            fitStartupExtent();
             replayPendingFocus();
           });
         })
@@ -1594,19 +1894,25 @@ class OutageMap extends HTMLElement {
       removeLayer(layer);
       addLayerItems(layer, matches || []);
     };
+    this.handleMapLayerData = (event) => {
+      const { layer, matches } = event.detail || {};
+      if (!layer) return;
+      updateLayerData(layer, matches || []);
+    };
     this.handleMapLayerToggle = (event) => {
       const { layer, enabled } = event.detail || {};
       if (!layer) return;
       if (!enabled) removeLayer(layer);
     };
     document.addEventListener("map-layer-items", this.handleMapLayerItems);
+    document.addEventListener("map-layer-data", this.handleMapLayerData);
     document.addEventListener("map-layer-toggle", this.handleMapLayerToggle);
     if ("ResizeObserver" in window) {
       this.resizeObserver = new ResizeObserver(() => {
         if (activeMapFocus) {
           focusMap(activeMapFocus, { remember: false });
         } else {
-          refresh();
+          map.invalidateSize();
         }
       });
       this.resizeObserver.observe(this);
@@ -1617,6 +1923,8 @@ class OutageMap extends HTMLElement {
     if (this.handleMapFocus) document.removeEventListener("map-focus", this.handleMapFocus);
     if (this.handleMapLayerItems)
       document.removeEventListener("map-layer-items", this.handleMapLayerItems);
+    if (this.handleMapLayerData)
+      document.removeEventListener("map-layer-data", this.handleMapLayerData);
     if (this.handleMapLayerToggle)
       document.removeEventListener("map-layer-toggle", this.handleMapLayerToggle);
     if (this.resizeObserver) this.resizeObserver.disconnect();

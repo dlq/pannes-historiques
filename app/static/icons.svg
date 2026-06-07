@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg">
+  <symbol id="ph-icon-archive" viewBox="0 0 24 24">
+    <path d="M4 7h16M6 7v12h12V7M9 11h6M5 3h14l1 4H4l1-4Z" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+  </symbol>
+  <symbol id="ph-icon-calendar" viewBox="0 0 24 24">
+    <path d="M8 2v4M16 2v4M3.5 9h17M6 4h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+  </symbol>
+  <symbol id="ph-icon-clock" viewBox="0 0 24 24">
+    <path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20ZM12 6v6l4 2" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+  </symbol>
+  <symbol id="ph-icon-clock-rewind" viewBox="0 0 24 24">
+    <path d="M3 12a9 9 0 1 0 3-6.7M3 4v6h6M12 7v5l3 2" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+  </symbol>
+  <symbol id="ph-icon-eye" viewBox="0 0 24 24">
+    <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+    <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+  </symbol>
+  <symbol id="ph-icon-eye-off" viewBox="0 0 24 24">
+    <path d="m3 3 18 18M10.6 10.6a3 3 0 0 0 3.8 3.8M9.9 5.2A10 10 0 0 1 12 5c6 0 9.5 7 9.5 7a15.5 15.5 0 0 1-3.2 4.1M6.4 6.4C3.7 8.2 2.5 12 2.5 12s3.5 7 9.5 7c1.3 0 2.5-.3 3.6-.8" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+  </symbol>
+  <symbol id="ph-icon-external-link" viewBox="0 0 24 24">
+    <path d="M14 3h7v7M21 3l-9 9M11 5H6a3 3 0 0 0-3 3v10a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+  </symbol>
+  <symbol id="ph-icon-file-search" viewBox="0 0 24 24">
+    <path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h5M14 2v6h6M14 2l6 6v3" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+    <path d="M16.5 18.5a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM19 19l2 2" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+  </symbol>
+  <symbol id="ph-icon-help" viewBox="0 0 24 24">
+    <path d="M9.1 9a3 3 0 1 1 4.9 2.3c-.9.6-1.5 1.1-1.5 2.2M12 17h.01M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Z" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+  </symbol>
+  <symbol id="ph-icon-hard-hat" viewBox="0 0 24 24">
+    <path d="M4 14h16M6 14v-2a6 6 0 0 1 12 0v2M9 14V9M15 14V9M5 14l1 5h12l1-5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+  </symbol>
+  <symbol id="ph-icon-layers" viewBox="0 0 24 24">
+    <path d="m12 3 9 5-9 5-9-5 9-5ZM5 12l7 4 7-4M5 16l7 4 7-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+  </symbol>
+  <symbol id="ph-icon-map" viewBox="0 0 24 24">
+    <path d="m8 18-5 2V6l5-2 8 2 5-2v14l-5 2-8-2ZM8 4v14M16 6v14" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+  </symbol>
+  <symbol id="ph-icon-route" viewBox="0 0 24 24">
+    <path d="M6 19a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM18 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM8.5 16h3.5a4 4 0 0 0 0-8H9.5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+  </symbol>
+  <symbol id="ph-icon-tool" viewBox="0 0 24 24">
+    <path d="M14.7 6.3a4.8 4.8 0 0 0 5.5 6.3l-8.6 8.6a2.1 2.1 0 0 1-3-3l8.6-8.6a4.8 4.8 0 0 0-6.3-5.5l3.7 3.7-2.1 2.1-3.7-3.6Z" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+  </symbol>
+  <symbol id="ph-icon-truck" viewBox="0 0 24 24">
+    <path d="M3 6h11v11H3V6ZM14 10h4l3 3v4h-7v-7ZM7 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4ZM18 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+  </symbol>
+  <symbol id="ph-icon-users" viewBox="0 0 24 24">
+    <path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2M10 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM21 21v-2a4 4 0 0 0-3-3.9M15 3.1a4 4 0 0 1 0 7.8" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+  </symbol>
+  <symbol id="ph-icon-zap" viewBox="0 0 24 24">
+    <path d="M13 2 4 14h8l-1 8 9-12h-8l1-8Z" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+  </symbol>
+</svg>

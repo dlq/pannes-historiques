@@ -158,7 +158,7 @@ def default_map_payload(
         "zoom": DEFAULT_MAP_ZOOM,
         "showAddressMarker": False,
         "showEmptyNotice": False,
-        "preserveInitialView": True,
+        "preserveInitialView": False,
         "contextGeometryUrl": "/map-context-geometries",
         "labels": _map_labels(lang),
         "loadedLayers": _loaded_layer_keys(matches),
