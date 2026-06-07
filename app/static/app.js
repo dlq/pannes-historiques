@@ -646,11 +646,11 @@ function attachMapFocusCards() {
   const focusDetailsMatch = (detail, payload) => {
     if (!detail || !payload) return false;
     if (detail.kind && payload.kind && detail.kind !== payload.kind) return false;
-    if (detail.geometryKey && payload.geometryKey)
-      return detail.geometryKey === payload.geometryKey;
     if (detail.startTime && payload.startTime && detail.startTime !== payload.startTime) {
       return false;
     }
+    if (detail.geometryKey && payload.geometryKey)
+      return detail.geometryKey === payload.geometryKey;
     if (detail.label && payload.label && detail.kind && detail.label !== payload.label)
       return false;
     if (
@@ -896,6 +896,32 @@ function renderContextRow(item, labels = {}) {
   return row;
 }
 
+function expandedOperationalRows(matches, kind) {
+  return (matches || []).flatMap((item) => {
+    if (item.kind !== kind) return [item];
+    const events = item.recentEvents || [];
+    if (!events.length) return [item];
+    return events.map((event) => ({
+      ...item,
+      lat: event.centroid_lat ?? item.lat,
+      lon: event.centroid_lon ?? item.lon,
+      label: event.start_time || item.label,
+      startTime: event.start_time || item.startTime,
+      endTime: event.end_time || item.endTime,
+      customersAffected: event.customers_affected ?? item.customersAffected,
+      status: event.status ?? item.status,
+      distanceM: event.distance_m ?? item.distanceM,
+      recentEvents: [],
+    }));
+  });
+}
+
+function displayRowsForLayer(layer, matches) {
+  if (layer === "planned") return expandedOperationalRows(matches, "planned");
+  if (layer === "previous") return expandedOperationalRows(matches, "previous_outage");
+  return matches || [];
+}
+
 function attachMapLayerToggles() {
   if (document.body.dataset.mapLayerTogglesBound === "1") return;
   document.body.dataset.mapLayerTogglesBound = "1";
@@ -969,15 +995,16 @@ function attachMapLayerToggles() {
   };
 
   const renderLayerRows = (section, rows, layer, matches, labels) => {
+    const displayMatches = displayRowsForLayer(layer, matches);
     rows.innerHTML = "";
-    for (const item of matches) rows.appendChild(renderContextRow(item, labels));
+    for (const item of displayMatches) rows.appendChild(renderContextRow(item, labels));
     hydrateTimeLabels(rows);
-    if (!matches.length) {
+    if (!displayMatches.length) {
       rows.innerHTML = `<p class="ph-context-empty">${document.documentElement.lang === "fr" ? "Aucune donnée pour cette couche." : "No data for this layer."}</p>`;
     }
     section.dataset.layerLoaded = "true";
     section._layerMatches = matches;
-    setLayerCount(section, matches.length, layerIconName(layer), layerNoun(layer, labels));
+    setLayerCount(section, displayMatches.length, layerIconName(layer), layerNoun(layer, labels));
   };
 
   const loadLayerSection = async (section, options = {}) => {
@@ -1368,6 +1395,11 @@ class DaiDetailPanel extends HTMLElement {
     const labels = this.uiLabels();
     const isPreviousOutage = item.kind === "previous_outage";
     const isPlanned = item.kind === "planned";
+    if (isPlanned || isPreviousOutage) {
+      this.hidden = true;
+      this.innerHTML = "";
+      return;
+    }
     const tone = isPlanned ? "planned" : isPreviousOutage ? "previous" : "current";
     const title = isPreviousOutage
       ? label(labels, "previous_layer_short", "Local archive")
@@ -1382,10 +1414,15 @@ class DaiDetailPanel extends HTMLElement {
     const recentEvents = item.recentEvents || [];
     const showEventRows =
       recentEvents.length > 1 && (isPreviousOutage || item.matchType === "current_feed_map");
-    const customerValue =
-      item.customersAffected == null
-        ? ""
-        : `${item.customersAffected} ${label(labels, "clients", "clients")}`;
+    if (!isPlanned && !isPreviousOutage && !showEventRows) {
+      this.hidden = true;
+      this.innerHTML = "";
+      return;
+    }
+    const clientLabel = label(labels, "clients", "clients");
+    const customerValue = item.customersAffected == null ? "" : `${item.customersAffected}`;
+    const customerTitle =
+      item.customersAffected == null ? "" : `${item.customersAffected} ${clientLabel}`;
     const statusValue = item.statusLabel || item.status || "";
     const distanceValue = hasDistanceValue(item.distanceM)
       ? formatDistanceKm(item.distanceM, labels)
@@ -1414,7 +1451,9 @@ class DaiDetailPanel extends HTMLElement {
           statusValue && !isPlanned
             ? detailPill(iconNameForStatus(item.status, statusValue), statusValue)
             : "",
-          customerValue ? detailPill("users", customerValue, "ph-detail-pill--count") : "",
+          customerValue
+            ? detailPill("users", customerValue, "ph-detail-pill--count", customerTitle)
+            : "",
           distanceValue ? detailPill("route", distanceValue) : "",
         ]);
     const events = (showEventRows ? recentEvents : [])
@@ -1430,7 +1469,12 @@ class DaiDetailPanel extends HTMLElement {
             <article class="ph-detail-event-row ph-detail-event-row--planned">
               ${detailPill("calendar", eventTime.schedule)}
               ${detailPill("clock", eventTime.duration)}
-              ${detailPill("users", event.customers_affected ?? 0, "ph-detail-pill--count")}
+              ${detailPill(
+                "users",
+                event.customers_affected ?? 0,
+                "ph-detail-pill--count",
+                `${event.customers_affected ?? 0} ${clientLabel}`,
+              )}
             </article>
           `;
         }
@@ -1439,7 +1483,12 @@ class DaiDetailPanel extends HTMLElement {
             ${detailPill("calendar", eventTime.date)}
             ${eventTime.time ? detailPill("clock", eventTime.time) : ""}
             ${eventDistance ? detailPill("route", eventDistance) : ""}
-            ${detailPill("users", event.customers_affected ?? 0, "ph-detail-pill--count")}
+            ${detailPill(
+              "users",
+              event.customers_affected ?? 0,
+              "ph-detail-pill--count",
+              `${event.customers_affected ?? 0} ${clientLabel}`,
+            )}
           </article>
         `;
       })
@@ -1565,7 +1614,7 @@ class OutageMap extends HTMLElement {
     const findFocusMatch = (detail) =>
       focusItems.find((item) => {
         if (itemMatchesFocus(detail, item)) return true;
-        if (item.kind !== "previous_outage") return false;
+        if (!["planned", "previous_outage"].includes(item.kind)) return false;
         return (item.recentEvents || []).some((event) => eventMatchesFocus(detail, event));
       });
     const enrichFocusDetail = (detail) => {

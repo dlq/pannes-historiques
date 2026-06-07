@@ -98,7 +98,7 @@ test("mobile default context panel is visible and resizable", async ({ page }) =
     .toBe(true);
 });
 
-test("mobile map item details appear as a bottom overlay sheet", async ({ page }) => {
+test("mobile current map row focuses without a redundant detail sheet", async ({ page }) => {
   await page.goto("/?lang=en");
   const viewport = page.viewportSize();
   if ((viewport?.width || 0) >= 768) return;
@@ -108,35 +108,9 @@ test("mobile map item details appear as a bottom overlay sheet", async ({ page }
   await firstContextRow.click();
 
   const detailPanel = page.locator("dai-detail-panel");
-  await expect(detailPanel).toBeVisible();
-  await expect
-    .poll(() =>
-      detailPanel.evaluate((node) => {
-        const rect = node.getBoundingClientRect();
-        return {
-          bottomGap: Math.round(window.innerHeight - rect.bottom),
-          top: Math.round(rect.top),
-          height: Math.round(rect.height),
-        };
-      }),
-    )
-    .toMatchObject({
-      bottomGap: expect.any(Number),
-      height: expect.any(Number),
-      top: expect.any(Number),
-    });
-
-  const geometry = await detailPanel.evaluate((node) => {
-    const rect = node.getBoundingClientRect();
-    return {
-      bottomGap: window.innerHeight - rect.bottom,
-      height: rect.height,
-      top: rect.top,
-    };
-  });
-  expect(geometry.bottomGap).toBeLessThan(40);
-  expect(geometry.height).toBeLessThan((viewport?.height || 0) * 0.62);
-  expect(geometry.top).toBeGreaterThan((viewport?.height || 0) * 0.3);
+  await expect(detailPanel).toBeHidden();
+  await expect(firstContextRow).toHaveClass(/is-map-selected/);
+  await expect(firstContextRow).toHaveAttribute("aria-pressed", "true");
 });
 
 test("mobile search centers the address without left-rail compensation", async ({ page }) => {
