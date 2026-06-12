@@ -120,7 +120,10 @@ test("map explains and visually prioritizes production-shaped layers", async ({ 
     "aria-label",
     "Current Hydro-Quebec feed outages",
   );
-  await expect(page.locator("#ph-context-current summary")).toContainText("areas");
+  await expect(page.locator("#ph-context-current .ph-layer-count")).toHaveAttribute(
+    "aria-label",
+    /\d+ areas/,
+  );
   await page.locator("#ph-context-current summary").focus();
   await expect
     .poll(() =>

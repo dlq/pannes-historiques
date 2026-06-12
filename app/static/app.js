@@ -17,9 +17,10 @@ import {
   hasDistanceValue,
   label,
   localizeCause,
-} from "./ui-format.js?v=20260605icons";
+} from "./ui-format.js?v=20260608compact";
 
 const ICON_SPRITE_URL = "/static/icons.svg?v=20260606b";
+const DETAIL_EXTRACTED_ROW_LIMIT = 80;
 
 function phIcon(name, className = "") {
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
@@ -74,6 +75,19 @@ function detailSection(title, iconName, body, className = "") {
       <div class="ph-detail-section-title">${phIconMarkup(iconName, "ph-layer-count-icon")}${escapeHtml(title)}</div>
       ${body}
     </section>
+  `;
+}
+
+function detailSourceRow({ main = [], metrics = [], className = "" }) {
+  const mainMarkup = main.filter(Boolean).join("");
+  const metricMarkup = metrics.filter(Boolean).join("");
+  const extraClass = className ? ` ${escapeHtml(className)}` : "";
+  if (!mainMarkup && !metricMarkup) return "";
+  return `
+    <article class="ph-detail-source-row${extraClass}">
+      ${mainMarkup ? `<div class="ph-detail-source-main">${mainMarkup}</div>` : ""}
+      ${metricMarkup ? `<div class="ph-detail-source-metrics">${metricMarkup}</div>` : ""}
+    </article>
   `;
 }
 
@@ -680,11 +694,40 @@ function attachMapFocusCards() {
     }
   };
 
+  const matchingLayerItem = (card, detail) => {
+    const section = card.closest("[data-layer-section]");
+    const matches = section?._layerMatches || [];
+    return matches.find((item) => focusDetailsMatch(detail, item));
+  };
+
+  const renderImmediateDetail = (card, detail) => {
+    const detailPanel = document.querySelector("dai-detail-panel");
+    if (!detailPanel) return;
+    const match = matchingLayerItem(card, detail);
+    if (!match) return;
+    if (match.kind === "disclosure" && typeof detailPanel.renderDisclosure === "function") {
+      detailPanel.renderDisclosure(match);
+    }
+    if (
+      match.kind === "regional_metric" &&
+      typeof detailPanel.renderRegionalMetric === "function"
+    ) {
+      detailPanel.renderRegionalMetric(match);
+    }
+  };
+
   const focusCard = (card) => {
     try {
       const detail = JSON.parse(card.getAttribute("data-map-focus") || "{}");
       markActiveFocusCard(detail);
+      renderImmediateDetail(card, detail);
       window.pendingMapFocus = detail;
+      if (["disclosure", "regional_metric"].includes(detail.kind)) {
+        window.setTimeout(() => {
+          document.dispatchEvent(new CustomEvent("map-focus", { detail }));
+        }, 0);
+        return;
+      }
       document.dispatchEvent(new CustomEvent("map-focus", { detail }));
     } catch (_error) {
       // Ignore malformed focus payloads; cards remain normal result rows.
@@ -1161,7 +1204,16 @@ function disclosurePopup(item, labels = {}) {
         `<li>${detailPill("zap", `${localizeCause(cause.cause) || label(labels, "unknown", "unknown")} (${cause.count})`, "ph-detail-pill--soft")}</li>`,
     )
     .join("");
-  const events = (item.recentEvents || [])
+  const allEvents = item.recentEvents || [];
+  const visibleEvents = allEvents.slice(0, DETAIL_EXTRACTED_ROW_LIMIT);
+  const rowCount = item.recordCount || allEvents.length;
+  const rowNote =
+    allEvents.length > visibleEvents.length || rowCount > visibleEvents.length
+      ? document.documentElement.lang === "fr"
+        ? `${visibleEvents.length} sur ${rowCount} lignes affichées`
+        : `Showing ${visibleEvents.length} of ${rowCount} rows`
+      : "";
+  const events = visibleEvents
     .map((event) => {
       const startParts = formatPreviousTimeParts(event.start_time, labels);
       const endParts = formatPreviousTimeParts(event.end_time, labels);
@@ -1169,14 +1221,23 @@ function disclosurePopup(item, labels = {}) {
         ? `${startParts.date} ${startParts.time}`
         : startParts.date;
       const endLabel = endParts.time ? `${endParts.date} ${endParts.time}` : endParts.date;
-      return `<tr>
-          <td>${detailPill("calendar", startLabel)}</td>
-          <td>${detailPill("clock", endLabel)}</td>
-          <td class="truncate" title="${escapeHtml(event.row_area || "")}">${escapeHtml(event.row_area || "")}</td>
-          <td class="truncate" title="${escapeHtml(localizeCause(event.cause) || label(labels, "unknown", "unknown"))}">${detailPill("zap", localizeCause(event.cause) || label(labels, "unknown", "unknown"))}</td>
-          <td class="text-right">${detailPill("clock", formatDuration(event.duration_seconds, labels), "ph-detail-pill--count")}</td>
-          <td class="text-right">${detailPill("users", event.customers_affected ?? 0, "ph-detail-pill--count")}</td>
-        </tr>`;
+      return detailSourceRow({
+        className: "ph-detail-source-row--event",
+        main: [
+          detailPill("calendar", startLabel),
+          detailPill("clock", endLabel),
+          event.row_area ? detailPill("map", event.row_area) : "",
+          detailPill("zap", localizeCause(event.cause) || label(labels, "unknown", "unknown")),
+        ],
+        metrics: [
+          detailPill(
+            "clock",
+            formatDuration(event.duration_seconds, labels),
+            "ph-detail-pill--count",
+          ),
+          detailPill("users", event.customers_affected ?? 0, "ph-detail-pill--count"),
+        ],
+      });
     })
     .join("");
   return `
@@ -1186,29 +1247,8 @@ function disclosurePopup(item, labels = {}) {
           ? detailSection(
               label(labels, "extracted_rows", "Extracted rows"),
               "file-search",
-              `<div class="ph-detail-table-wrap">
-                <table class="ph-detail-table">
-                  <colgroup>
-                    <col class="w-[18%]">
-                    <col class="w-[18%]">
-                    <col class="w-[20%]">
-                    <col class="w-[24%]">
-                    <col class="w-[10%]">
-                    <col class="w-[10%]">
-                  </colgroup>
-                  <thead>
-                    <tr>
-                      <th>${escapeHtml(label(labels, "start", "Start"))}</th>
-                      <th>${escapeHtml(label(labels, "end", "End"))}</th>
-                      <th>${escapeHtml(label(labels, "area", "Area"))}</th>
-                      <th>${escapeHtml(label(labels, "cause", "Cause"))}</th>
-                      <th class="text-right">${escapeHtml(label(labels, "duration_short", "Dur."))}</th>
-                      <th class="text-right">${escapeHtml(label(labels, "clients", "clients"))}</th>
-                    </tr>
-                  </thead>
-                  <tbody>${events}</tbody>
-                </table>
-              </div>`,
+              `${rowNote ? `<p class="ph-detail-row-note">${escapeHtml(rowNote)}</p>` : ""}
+              <div class="ph-detail-source-list ph-detail-source-list--fill">${events}</div>`,
               "ph-detail-section--scroll",
             )
           : ""
@@ -1303,6 +1343,34 @@ class DaiDetailPanel extends HTMLElement {
     const title = this.getAttribute("title-label") || "DAI details";
     const burdenLabel = regionalBurdenText(item, labels);
     const unknownLabel = label(labels, "unknown", "unknown");
+    const regionalSourceMetrics = (metric) => [
+      detailPill(
+        "zap",
+        metric.outage_count ?? metric.outageCount ?? unknownLabel,
+        "ph-detail-pill--count",
+        label(labels, "outages", "Outages"),
+      ),
+      detailPill(
+        "clock",
+        metric.average_duration_minutes == null && metric.averageDurationMinutes == null
+          ? unknownLabel
+          : `${metric.average_duration_minutes ?? metric.averageDurationMinutes} min`,
+        "ph-detail-pill--count",
+        label(labels, "average_duration", "Average duration"),
+      ),
+      detailPill(
+        "map",
+        metric.continuity_index_minutes ?? metric.continuityIndexMinutes ?? unknownLabel,
+        "ph-detail-pill--count",
+        burdenLabel,
+      ),
+      detailPill(
+        "clock-rewind",
+        metric.long_outage_count ?? metric.longOutageCount ?? unknownLabel,
+        "ph-detail-pill--count",
+        label(labels, "outages_over_8h", "> 8h"),
+      ),
+    ];
     const sourceMetricRows = (item.metrics || []).filter((metric) => {
       const metricPeriod = metric.period_label || metric.year || "";
       const itemPeriod = item.periodLabel || item.year || "";
@@ -1310,40 +1378,13 @@ class DaiDetailPanel extends HTMLElement {
     });
     const rows = sourceMetricRows
       .map((metric) => {
-        const metricPills = [
-          detailPill(
-            "zap",
-            metric.outage_count,
-            "ph-detail-pill--count",
-            label(labels, "outages", "Outages"),
-          ),
-          detailPill(
-            "clock",
-            metric.average_duration_minutes == null ? "" : `${metric.average_duration_minutes} min`,
-            "ph-detail-pill--count",
-            label(labels, "average_duration", "Average duration"),
-          ),
-          detailPill("map", metric.continuity_index_minutes, "ph-detail-pill--count", burdenLabel),
-          detailPill(
-            "clock-rewind",
-            metric.long_outage_count,
-            "ph-detail-pill--count",
-            label(labels, "outages_over_8h", "> 8h"),
-          ),
-        ]
-          .filter(Boolean)
-          .join("");
-        return `
-            <article class="ph-detail-source-row">
-              <div class="ph-detail-source-main">
-                ${detailPill("calendar", metric.period_label || metric.year || unknownLabel)}
-                ${detailPill("archive", metric.source_dai || "")}
-              </div>
-              <div class="ph-detail-source-metrics">
-                ${metricPills || detailPill("help", unknownLabel, "ph-detail-pill--muted")}
-              </div>
-            </article>
-          `;
+        return detailSourceRow({
+          main: [
+            detailPill("calendar", metric.period_label || metric.year || unknownLabel),
+            detailPill("archive", metric.source_dai || ""),
+          ],
+          metrics: regionalSourceMetrics(metric),
+        });
       })
       .join("");
     const sourceCount = (item.sourceDais || []).length || 1;
@@ -1352,32 +1393,27 @@ class DaiDetailPanel extends HTMLElement {
       sourceCount === 1 ? "dai_source" : "dai_sources",
       sourceCount === 1 ? "DAI source" : "DAI sources",
     );
-    const pills = detailPillGrid([
-      detailPill("calendar", item.periodLabel || item.year || label(labels, "unknown", "unknown")),
-      detailPill(
-        "zap",
-        item.outageCount ?? label(labels, "unknown", "unknown"),
-        "ph-detail-pill--count",
-      ),
-      detailPill(
-        "clock",
-        `${item.averageDurationMinutes ?? label(labels, "unknown", "unknown")} min`,
-      ),
-      detailPill("map", item.continuityIndexMinutes ?? label(labels, "unknown", "unknown")),
-      detailPill(
-        "clock",
-        item.longOutageCount ?? label(labels, "unknown", "unknown"),
-        "ph-detail-pill--count",
-      ),
-    ]);
+    const latestRow = detailSourceRow({
+      className: "ph-detail-source-row--primary",
+      main: [
+        detailPill("calendar", item.periodLabel || item.year || unknownLabel),
+        detailPill("archive", item.sourceDai || ""),
+      ],
+      metrics: regionalSourceMetrics(item),
+    });
     const body = rows
-      ? detailSection(
+      ? `${detailSection(
+          label(labels, "latest_map_source", "latest shown on map"),
+          "map",
+          latestRow,
+        )}
+        ${detailSection(
           document.documentElement.lang === "fr" ? "Autres sources DAI" : "Other DAI sources",
           "layers",
-          `<div class="ph-detail-source-list">${rows}</div>`,
+          `<div class="ph-detail-source-list ph-detail-source-list--fill">${rows}</div>`,
           "ph-detail-section--scroll",
-        )
-      : "";
+        )}`
+      : detailSection(label(labels, "latest_map_source", "latest shown on map"), "map", latestRow);
     this.hidden = false;
     this.innerHTML = detailPanelShell({
       tone: "regional",
@@ -1385,7 +1421,6 @@ class DaiDetailPanel extends HTMLElement {
       title: item.label || label(labels, "regional_colour_legend", "Regional outage burden"),
       subtitle: `${sourceCount} ${sourceLabel} · ${label(labels, "latest_map_source", "latest shown on map")}: ${item.sourceDai}`,
       sourceAction: sourcePdfLink(item.sourceUrl),
-      pills,
       body,
       labels,
     });

@@ -80,13 +80,9 @@ function compactDuration(ms, lang = "en") {
   const minutes = Math.max(1, Math.round(Math.abs(ms) / 60000));
   if (minutes < 60) return lang === "fr" ? `${minutes} min` : `${minutes} min`;
   const hours = Math.round(minutes / 60);
-  if (hours < 24) {
-    if (lang === "fr") return `${hours} h`;
-    return `${hours} ${hours === 1 ? "hour" : "hours"}`;
-  }
+  if (hours < 24) return `${hours} h`;
   const days = Math.round(hours / 24);
-  if (lang === "fr") return `${days} j`;
-  return `${days} ${days === 1 ? "day" : "days"}`;
+  return lang === "fr" ? `${days} j` : `${days} d`;
 }
 
 function compactScheduleDuration(ms, lang = "en") {
@@ -135,7 +131,7 @@ export function formatRelativeTime(value, labels = {}, now = new Date()) {
   const delta = date.getTime() - now.getTime();
   if (Math.abs(delta) < 60000) return lang === "fr" ? "maintenant" : "now";
   const duration = compactDuration(delta, lang);
-  if (delta < 0) return lang === "fr" ? `Depuis ${duration}` : `${duration} ago`;
+  if (delta < 0) return duration;
   return lang === "fr" ? `dans ${duration}` : `in ${duration}`;
 }
 
