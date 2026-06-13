@@ -91,6 +91,73 @@ function detailSourceRow({ main = [], metrics = [], className = "" }) {
   `;
 }
 
+function normalizedDisclosureText(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .trim()
+    .toLowerCase();
+}
+
+function sameDisclosureArea(value, item) {
+  const normalizedValue = normalizedDisclosureText(value);
+  if (!normalizedValue) return false;
+  return [item.label, item.municipalityCode, item.precisionLabel]
+    .map(normalizedDisclosureText)
+    .filter(Boolean)
+    .includes(normalizedValue);
+}
+
+function disclosureEventWindow(event, labels = {}) {
+  const startParts = formatPreviousTimeParts(event.start_time, labels);
+  const endParts = formatPreviousTimeParts(event.end_time, labels);
+  const startLabel = startParts.time ? `${startParts.date} ${startParts.time}` : startParts.date;
+  if (!event.end_time) return startLabel;
+  if (startParts.date === endParts.date && startParts.time && endParts.time) {
+    return `${startParts.date} ${startParts.time}-${endParts.time}`;
+  }
+  const endLabel = endParts.time ? `${endParts.date} ${endParts.time}` : endParts.date;
+  return `${startLabel} -> ${endLabel}`;
+}
+
+function formatDisclosureEventDuration(seconds, labels = {}) {
+  const value = Number(seconds);
+  if (!Number.isFinite(value) || value <= 0) return label(labels, "unknown", "unknown");
+  if (value < 3600) return `${Math.max(1, Math.round(value / 60))} min`;
+  return formatDuration(value, labels);
+}
+
+function disclosureEventRow(event, item, labels = {}) {
+  const rowArea =
+    event.row_area && !sameDisclosureArea(event.row_area, item)
+      ? detailPill("map", event.row_area, "ph-disclosure-event-pill--area")
+      : "";
+  const customerCount = Number(event.customers_affected);
+  const customers =
+    Number.isFinite(customerCount) && customerCount > 0
+      ? detailPill(
+          "users",
+          customerCount,
+          "ph-detail-pill--count ph-disclosure-event-pill--customers",
+        )
+      : "";
+  const areaClass = rowArea ? " ph-disclosure-event-row--with-area" : "";
+  const customersClass = customers ? " ph-disclosure-event-row--with-customers" : "";
+  return `
+    <article class="ph-disclosure-event-row${areaClass}${customersClass}">
+      <div class="ph-disclosure-event-row-line ph-disclosure-event-row-line--time">
+        ${detailPill("calendar", disclosureEventWindow(event, labels), "ph-disclosure-event-pill--time")}
+        ${detailPill("clock", formatDisclosureEventDuration(event.duration_seconds, labels), "ph-detail-pill--count ph-disclosure-event-pill--duration")}
+      </div>
+      <div class="ph-disclosure-event-row-line ph-disclosure-event-row-line--details">
+        ${detailPill("zap", localizeCause(event.cause) || label(labels, "unknown", "unknown"), "ph-disclosure-event-pill--cause")}
+        ${rowArea}
+        ${customers}
+      </div>
+    </article>
+  `;
+}
+
 function detailPanelShell({
   tone,
   eyebrow,
@@ -1213,33 +1280,7 @@ function disclosurePopup(item, labels = {}) {
         ? `${visibleEvents.length} sur ${rowCount} lignes affichées`
         : `Showing ${visibleEvents.length} of ${rowCount} rows`
       : "";
-  const events = visibleEvents
-    .map((event) => {
-      const startParts = formatPreviousTimeParts(event.start_time, labels);
-      const endParts = formatPreviousTimeParts(event.end_time, labels);
-      const startLabel = startParts.time
-        ? `${startParts.date} ${startParts.time}`
-        : startParts.date;
-      const endLabel = endParts.time ? `${endParts.date} ${endParts.time}` : endParts.date;
-      return detailSourceRow({
-        className: "ph-detail-source-row--event",
-        main: [
-          detailPill("calendar", startLabel),
-          detailPill("clock", endLabel),
-          event.row_area ? detailPill("map", event.row_area) : "",
-          detailPill("zap", localizeCause(event.cause) || label(labels, "unknown", "unknown")),
-        ],
-        metrics: [
-          detailPill(
-            "clock",
-            formatDuration(event.duration_seconds, labels),
-            "ph-detail-pill--count",
-          ),
-          detailPill("users", event.customers_affected ?? 0, "ph-detail-pill--count"),
-        ],
-      });
-    })
-    .join("");
+  const events = visibleEvents.map((event) => disclosureEventRow(event, item, labels)).join("");
   return `
       ${causes ? detailSection(label(labels, "top_causes", "Top causes"), "zap", `<ul class="ph-detail-cause-list">${causes}</ul>`) : ""}
       ${
@@ -1310,21 +1351,6 @@ class DaiDetailPanel extends HTMLElement {
     const labels = this.uiLabels();
     const title = this.getAttribute("title-label") || "DAI details";
     const sourceLabel = (item.sourceDais || []).join(", ") || item.sourceDai || "";
-    const periodValue = `${item.startMin || label(labels, "unknown", "unknown")} - ${item.startMax || label(labels, "unknown", "unknown")}`;
-    const pills = detailPillGrid([
-      detailPill(
-        "file-search",
-        `${item.recordCount || 0} ${label(labels, "rows", "rows")}`,
-        "ph-detail-pill--count",
-      ),
-      detailPill("calendar", periodValue),
-      detailPill(
-        "clock",
-        formatDuration(item.durationSecondsTotal, labels),
-        "ph-detail-pill--duration",
-      ),
-      detailPill("archive", sourceLabel),
-    ]);
     this.hidden = false;
     this.innerHTML = detailPanelShell({
       tone: "disclosure",
@@ -1332,7 +1358,6 @@ class DaiDetailPanel extends HTMLElement {
       title: item.label || label(labels, "disclosure", "Disclosure"),
       subtitle: sourceLabel,
       sourceAction: sourcePdfLink(item.sourceUrl),
-      pills,
       body: `<div class="ph-detail-scroll">${disclosurePopup(item, labels)}</div>`,
       labels,
     });

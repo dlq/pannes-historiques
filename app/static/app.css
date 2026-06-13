@@ -74,9 +74,12 @@ textarea {
 }
 
 .ph-brand-mark {
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.18em;
+  display: inline-flex;
+  min-height: 2.625rem;
+  align-items: center;
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
   line-height: 1;
   text-transform: uppercase;
 }
@@ -812,6 +815,7 @@ textarea {
 }
 
 .ph-detail-section {
+  flex: 0 0 auto;
   min-height: 0;
   margin-top: 0.875rem;
 }
@@ -926,6 +930,51 @@ textarea {
 .ph-detail-source-main .ph-detail-pill,
 .ph-detail-source-metrics .ph-detail-pill {
   width: 100%;
+}
+
+.ph-disclosure-event-row {
+  display: grid;
+  gap: 0.1875rem;
+  border: 1px solid rgba(215, 221, 230, 0.72);
+  border-radius: 0.5rem;
+  background: rgba(255, 255, 255, 0.46);
+  padding: 0.1875rem;
+}
+
+.ph-disclosure-event-row-line {
+  display: grid;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.ph-disclosure-event-row-line--time {
+  grid-template-columns: minmax(0, 1fr) minmax(4.75rem, 0.22fr);
+}
+
+.ph-disclosure-event-row-line--details {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.ph-disclosure-event-row--with-area .ph-disclosure-event-row-line--details {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.ph-disclosure-event-row--with-customers .ph-disclosure-event-row-line--details {
+  grid-template-columns: minmax(0, 1fr) minmax(4.75rem, 0.24fr);
+}
+
+.ph-disclosure-event-row--with-area.ph-disclosure-event-row--with-customers
+  .ph-disclosure-event-row-line--details {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(4.75rem, 0.24fr);
+}
+
+.ph-disclosure-event-row .ph-detail-pill {
+  width: 100%;
+}
+
+.ph-disclosure-event-pill--duration,
+.ph-disclosure-event-pill--customers {
+  justify-content: flex-end;
 }
 
 .ph-detail-pill--muted {
