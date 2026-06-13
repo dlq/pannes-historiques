@@ -7,7 +7,7 @@ This file is the active execution plan. Keep durable evidence, source notes, and
 
 ## Current State
 
-- Current release in progress: `v0.2.6` final verification and deployment.
+- Current release in progress: none; `v0.2.6` is tagged, deployed, and smoke-tested.
 - Current product shape: map-first address/current-location lookup with server-rendered Flask/Jinja fragments, HTMX, Leaflet, decomposed vanilla JavaScript ES modules, icon-backed sidebar/detail rows, and a Cloudflare Workers + Containers production deployment.
 - Production data plane: D1/R2-backed durable ingestion for current feed rows, previous-outage rows, raw Hydro-Québec payloads, disclosure metadata, and runtime map-context layers.
 - Container role: still renders the Flask/Jinja shell and keeps a baked-in SQLite snapshot for local-compatible/container fallback paths.
@@ -15,7 +15,7 @@ This file is the active execution plan. Keep durable evidence, source notes, and
 - Cost caveat: the June 2026 Cloudflare invoice was driven mostly by Workers Paid baseline plus Durable Object/container runtime costs; D1 and R2 were not material cost drivers on that bill.
 - User-facing URL contract: clean root URL with `lang`, `q`, or current-location coordinate parameters; obsolete public `radius_m`, `days`, and `include_planned` parameters were removed from the main interface.
 - Debug, collection, cron, internal export/file, and direct durable-status endpoints are private by default; production returns `404` unless the expected debug flag, Worker block, scheduled header, internal header, or operation token is present.
-- Current deployed release: `v0.2.5` at commit `1249acf`; Worker version `43b7a4dc-bb09-4249-92b8-9ad231ad58ae`; container image `43b7a4dc`. `v0.2.6` is being verified, tagged, and deployed.
+- Current deployed release: `v0.2.6` at commit `9939bb8`; Worker version `1a9a4c62-e388-404f-ad91-d8a89d8d5c90`; container image `1a9a4c62`.
 - Current test baseline: Python tests, deterministic service/geocoding tests, route smoke coverage, Playwright desktop/mobile Chromium coverage, and production-shaped UI regression fixtures.
 - Previous-outage accumulation is working in D1, but visible map grouping needs review: on 2026-06-02 D1 had `9,542` resolved events and `333,117` sightings, with repeated spatial buckets present, while `/api/durable/runtime/previous-map-layers?limit=120` returned 120 single-event layers and zero multi-event groups.
 
@@ -38,7 +38,7 @@ In progress.
 - `v0.2.3`: map hierarchy, side-rail layer explanation, local Leaflet assets, and production-shaped map regression coverage. Complete.
 - `v0.2.4`: scoped copy/data-truth cleanup, safer status labels, side-panel width/focus polish, and accessibility-oriented regression checks. Complete.
 - `v0.2.5`: performance measurement, deployment hygiene, and production hardening. Complete.
-- `v0.2.6`: sidebar rhythm, layer hierarchy, row-language consistency, detail-panel rationalization, and frontend static-module decomposition. In release verification.
+- `v0.2.6`: sidebar rhythm, layer hierarchy, row-language consistency, detail-panel rationalization, and frontend static-module decomposition. Complete.
 
 ### `0.3.x`: Architecture And Product Expansion
 
@@ -68,11 +68,11 @@ Candidate work after core UI and production architecture are more settled:
 - evaluate structured data only where it genuinely helps discovery; avoid adding schema markup that overstates the app's authority or data completeness
 - revisit observability and incident-response practices once production usage warrants it
 
-## Current Focus: `v0.2.6` UI Polish And Frontend Decomposition
+## Current Focus: Post-`v0.2.6` Stabilization
 
-Goal: finish the current local `v0.2.6` slice without turning it into a broad frontend rewrite: keep the app map-first, keep the sidebar/detail interaction coherent on desktop and mobile, and make the large static JS/CSS easier to maintain before any bundler decision.
+Goal: decide the next small post-`v0.2.6` slice without starting broad architecture work prematurely.
 
-Status: local implementation is complete; final browser smoke, automated checks, tag, push, deploy, and production smoke are in progress.
+Status: `v0.2.6` is tagged, pushed, deployed, smoke-tested, and closed. The next work should be chosen from the remaining UI/accessibility polish, previous-outage grouping review, Cloudflare static-asset performance measurement, or `0.3.x` architecture candidates.
 
 Current implementation notes:
 
@@ -93,6 +93,10 @@ Current implementation notes:
 - The first-party frontend has been decomposed from a large `app/static/app.js` into focused native ES modules: `icons.js`, `detail-panels.js`, `search.js`, `side-panel.js`, and `outage-map.js`; `app.js` is now a bootstrap file.
 - `app/static/app.css` remains a single stylesheet for now, but it has section comments for shell/header, map, sidebar, detail panels, search results, mobile, desktop, and wide-desktop areas.
 - The service worker now caches the new first-party ES modules.
+- `v0.2.6` deployed on 2026-06-13 with Worker version `1a9a4c62-e388-404f-ad91-d8a89d8d5c90` and container image `1a9a4c62`.
+- Post-deploy production sample: homepage `200` in about 0.87s total, `/healthz` `200` in about 0.20s total, `/static/app.js` `200` in about 0.31s total, `/static/detail-panels.js` `200` in about 0.34s total, and `/service-worker.js` `200` in about 0.24s total.
+- Post-deploy privacy checks: public `/collect`, `/cron/hydro`, `/internal/disclosures/export`, `/debug/timing/search`, and `/api/durable/status` returned `404`.
+- Post-deploy static check: deployed `/service-worker.js` contains cache marker `pannes-historiques-v0.2.6-static-modules` and lists the new first-party ES modules.
 - Public operational hardening is implemented locally: collection and cron routes are hidden by default in Flask, the Worker blocks public `/collect`, `/cron`, `/internal`, and `/debug` paths, and direct durable status now requires an operation token.
 - Tailwind CDN replacement is deferred to `0.3.x` frontend/tooling work.
 - `v0.2.5` deployed on 2026-05-31 with Worker version `43b7a4dc-bb09-4249-92b8-9ad231ad58ae` and container image `43b7a4dc`.
@@ -138,6 +142,7 @@ Verification so far:
 - Production smoke/timing checks: passed, with intermittent local `curl` DNS failures worked around by Python `urllib` checks
 - Local browser check confirmed initial search payload contains only `outage`, secondary toggles start off, and planned/previous/published layers load on demand.
 - 2026-06-13 frontend decomposition checks: `npm run format`, `npm run check`, browser smoke on `http://127.0.0.1:8005/?lang=en`, and `npm run test:e2e` passed locally.
+- 2026-06-13 release checks: `uv run pre-commit run --all-files`, `npx wrangler deploy --dry-run`, `npx wrangler deploy`, production smoke checks, service-worker cache-marker check, and private-route checks passed.
 
 ## Next Release Slices
 
@@ -158,7 +163,8 @@ Verification so far:
 - complete for release: detail panels that overlay the side panel and avoid repeating selected-row information when no extra detail exists
 - complete for release: DAI/disclosure detail panels with PDF links, source grouping, no horizontal scrolling, and clearer distinction between regional summaries and specific FOI/DAI sources
 - complete for release: full first-party static JS decomposition into native ES modules without adding a bundler
-- final verification: desktop and mobile browser smoke, automated checks, Wrangler dry-run, production deploy, and production smoke
+- complete for release: desktop and mobile browser smoke, automated checks, Wrangler dry-run, production deploy, and production smoke
+- deployed 2026-06-13: tagged `v0.2.6` at `9939bb8`; Worker version `1a9a4c62-e388-404f-ad91-d8a89d8d5c90`; container image `1a9a4c62`
 - accepted for release: DAI/disclosure detail panels are good enough for `v0.2.6`, with deeper information design deferred
 - deferred to `0.3.x`: bundler/build pipeline, no-label/Quebec-label map styling, historical-data API, and deeper Cloudflare static-asset performance conclusions
 

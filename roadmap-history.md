@@ -70,6 +70,7 @@ This file records completed release and implementation history. Keep active exec
 
 ### `v0.2.6`
 
+- Deployed 2026-06-13 at commit `9939bb8` with Worker version `1a9a4c62-e388-404f-ad91-d8a89d8d5c90` and container image `1a9a4c62`.
 - Refined the sidebar into four always-visible accordion headers with one expanded sub-panel at a time on desktop and mobile.
 - Normalized Current, Planned, Previous, and Disclosures rows around compact icon-backed pill layouts with stable count columns and subtle map-layer colour linkage.
 - Changed planned sidebar rows to represent individual planned interruption events instead of summed sequential outages for one area.
