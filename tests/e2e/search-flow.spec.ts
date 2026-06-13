@@ -98,7 +98,9 @@ test("search renders result cards and lazy-loads the map", async ({ page }) => {
   await expect(page).toHaveURL(/lang=en/);
   await expect(page).toHaveURL(/q=5220\+Rue\+Jeanne-Mance|q=5220%20Rue%20Jeanne-Mance/);
   await expect(page.getByRole("heading", { name: "Planned" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Previous" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Seen Before Here" }),
+  ).toBeVisible();
   await expect(page.getByRole("heading", { name: "Disclosures" })).toBeVisible();
   await expect(page.locator("[data-map-focus]").first()).toBeVisible();
   await expect(page.locator("outage-map")).toBeVisible();

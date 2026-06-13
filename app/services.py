@@ -1688,7 +1688,7 @@ class AppService:
                     group["_event_keys"].add(event_key)
                 group["event_count"] += 1
                 group["recent_events"].append(event)
-                if outage_kind == "planned":
+                if outage_kind in {"planned", "previous_outage"}:
                     group["customers_affected"] = max(
                         group["customers_affected"] or 0,
                         row["customers_affected"] or 0,

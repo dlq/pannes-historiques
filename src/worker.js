@@ -1759,7 +1759,7 @@ function operationalMapLayers(rows, geometryRows, outageKind) {
       if (outageKind === "previous_outage") group._eventKeys.add(groupEventKey);
       group.event_count += outageKind === "previous_outage" ? 1 : row.record_count || 1;
       group.recent_events.push(event);
-      if (outageKind === "planned") {
+      if (outageKind === "planned" || outageKind === "previous_outage") {
         group.customers_affected = Math.max(group.customers_affected || 0, customersAffected || 0);
       } else {
         group.customers_affected = (group.customers_affected || 0) + (customersAffected || 0);
@@ -1774,7 +1774,7 @@ function operationalMapLayers(rows, geometryRows, outageKind) {
   }
   return [...groups.values()]
     .map((group) => {
-      delete group._eventKeys;
+      group._eventKeys = undefined;
       return group;
     })
     .sort((left, right) =>

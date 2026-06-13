@@ -19,7 +19,7 @@ def test_result_context_builds_display_address_and_map_payload():
     assert context["map_payload"]["contextGeometryUrl"] == "/map-context-geometries"
 
 
-def test_result_context_uses_previous_map_layers_for_search_context():
+def test_result_context_uses_local_previous_groups_for_search_context():
     result = make_search_result()
     result.previous_outage_groups = [
         {
@@ -61,12 +61,67 @@ def test_result_context_uses_previous_map_layers_for_search_context():
         item for item in context["map_payload"]["matches"] if item["kind"] == "previous_outage"
     ]
 
-    assert len(previous_items) == 2
-    assert previous_items[0]["matchType"] == "previous_context_map"
-    assert previous_items[0]["customersAffected"] == 9
-    assert previous_items[0]["distanceM"] is not None
-    assert previous_items[1]["matchType"] == "previous_query_match"
-    assert previous_items[1]["customersAffected"] == 99
+    assert len(previous_items) == 1
+    assert previous_items[0]["matchType"] == "previous_query_match"
+    assert previous_items[0]["customersAffected"] == 99
+
+
+def test_result_context_marks_previous_section_as_seen_before_here_for_address():
+    result = make_search_result()
+
+    context = result_context("en", result)
+
+    assert context["map_payload"]["previousMode"] == "seen_before_here"
+
+
+def test_result_context_previous_sidebar_rows_prefer_local_matches_for_address():
+    result = make_search_result()
+    result.previous_outage_groups = [
+        {
+            "centroid_lat": 45.7,
+            "centroid_lon": -73.8,
+            "label": "Address saved group",
+            "events": [
+                {
+                    "distance_m": 50,
+                    "customers_affected": 99,
+                    "status": "R",
+                    "start_time": "2026-01-01 09:00:00",
+                }
+            ],
+            "event_count": 1,
+            "latest_start_time": "2026-01-01 09:00:00",
+        }
+    ]
+    result.previous_map_layers = [
+        {
+            "outage_kind": "previous_outage",
+            "match_type": "previous_context_map",
+            "centroid_lat": 45.52,
+            "centroid_lon": -73.61,
+            "start_time": "2026-05-15 10:00:00",
+            "end_time": "2026-05-15 12:00:00",
+            "geometry_geojson": None,
+            "customers_affected": 9,
+            "distance_m": None,
+            "status": "R",
+            "municipality_code": "66023",
+            "event_count": 1,
+            "recent_events": [],
+        }
+    ]
+
+    context = result_context("en", result)
+
+    assert [item["matchType"] for item in context["map_payload"]["previousSidebarMatches"]] == [
+        "previous_query_match"
+    ]
+
+
+def test_default_map_payload_marks_previous_section_as_recent_archive():
+    payload = default_map_payload("en", previous_map_layers=[])
+
+    assert payload["previousMode"] == "recent_archive"
 
 
 def test_default_map_payload_starts_without_address_marker_or_fixed_view():

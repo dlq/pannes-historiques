@@ -72,7 +72,7 @@ Candidate work after core UI and production architecture are more settled:
 
 Goal: decide the next small post-`v0.2.6` slice without starting broad architecture work prematurely.
 
-Status: `v0.2.6` is tagged, pushed, deployed, smoke-tested, and closed. The next work should be chosen from the remaining UI/accessibility polish, previous-outage grouping review, Cloudflare static-asset performance measurement, or `0.3.x` architecture candidates.
+Status: `v0.2.6` is tagged, pushed, deployed, smoke-tested, and closed. Current post-release work is a narrow Previous sidebar cleanup: the same accordion slot should read as `Recent Archive` without an address and `Seen Before Here` after a searched/geocoded address.
 
 Current implementation notes:
 
@@ -88,6 +88,8 @@ Current implementation notes:
 - The sidebar now uses four always-visible accordion headers; current opens by default, and opening another sub-panel closes the others.
 - Current, planned, previous, and disclosures rows now use compact icon-backed pill layouts with fixed-width count pills so the row language is more consistent.
 - Planned sidebar rows now represent individual planned interruption events rather than summing sequential outages for the same area.
+- Previous sidebar rows are being split into two explicit modes: no-address `Recent Archive` for province-wide resolved outage history, and address-context `Seen Before Here` for local retained/nearby previous outages.
+- Previous grouped client counts should show peak/max clients for a historical area rather than summing clients across separate resolved events.
 - Detail panels now overlay the side panel on desktop and mobile; operational detail panels are intentionally minimal when they have no extra information beyond the selected row.
 - DAI/disclosure detail panels distinguish regional summary sources from specific FOI/DAI source panels, include Hydro-Québec PDF links where available, and avoid table-style horizontal scrolling in the current local design.
 - The first-party frontend has been decomposed from a large `app/static/app.js` into focused native ES modules: `icons.js`, `detail-panels.js`, `search.js`, `side-panel.js`, and `outage-map.js`; `app.js` is now a bootstrap file.
@@ -128,7 +130,8 @@ Acceptance criteria:
 - initial address render does not fetch/render planned, previous, disclosure, or regional map context until the user enables those layers
 - sidebar layer state is clear enough that users can tell what evidence is currently visible on the map
 - public operational endpoints return `404` by default, while scheduled/internal/debug-enabled paths still work in tests
-- previous-outage layer review: make the displayed "previously seen" layer group by stable historical area buckets, such as municipality plus rounded centroid or derived stable area, rather than exact/current polygon identity, so accumulated history clumps into meaningful repeated-outage areas
+- previous-outage sidebar review: without an address, the Previous slot is labelled and ordered as a recent archive summary; with an address, the same slot is labelled and filtered as local `Seen Before Here` evidence
+- previous-outage layer review: make the displayed archive layer group by stable historical area buckets, such as municipality plus rounded centroid or derived stable area, rather than exact/current polygon identity, so accumulated history clumps into meaningful repeated-outage areas
 - `v0.2.6` scope remains small enough to verify with desktop and mobile visual passes without broad architecture changes
 
 Verification so far:

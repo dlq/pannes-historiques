@@ -713,6 +713,64 @@ def test_previous_map_layers_group_by_stable_area_key(service_factory):
     assert len(layers[0]["recent_events"]) == 1
 
 
+def test_previous_map_layers_use_peak_clients_for_reused_area(service_factory):
+    service = service_factory()
+    rows = [
+        {
+            "id": 1,
+            "source_version": "v1",
+            "centroid_lat": 45.14447149313006,
+            "centroid_lon": -74.19701651273986,
+            "outage_start_time": "2026-05-31 13:52:04",
+            "estimated_restore_time": None,
+            "customers_affected": 2,
+            "status": "N",
+            "municipality_code": "mun-1",
+            "interruption_type": "P",
+        },
+        {
+            "id": 2,
+            "source_version": "v1",
+            "centroid_lat": 45.14447149313006,
+            "centroid_lon": -74.19701651273986,
+            "outage_start_time": "2026-06-01 13:52:04",
+            "estimated_restore_time": None,
+            "customers_affected": 9,
+            "status": "N",
+            "municipality_code": "mun-1",
+            "interruption_type": "P",
+        },
+    ]
+    geometry_payload = [
+        {
+            "id": 10,
+            "source_version": "v1",
+            "polygon_id": "snapshot-area-107",
+            "name": "Stable area",
+            "centroid_lat": 45.14447149313006,
+            "centroid_lon": -74.19701651273986,
+            "bbox_min_lon": -74.2,
+            "bbox_min_lat": 45.14,
+            "bbox_max_lon": -74.19,
+            "bbox_max_lat": 45.15,
+            "geometry_geojson": (
+                '{"type":"Polygon","coordinates":[[[-74.2,45.14],[-74.19,45.14],'
+                "[-74.19,45.15],[-74.2,45.15],[-74.2,45.14]]]}"
+            ),
+        }
+    ]
+
+    layers = service._map_layers_for_rows(
+        rows=rows,
+        geometry_payload=geometry_payload,
+        outage_kind="previous_outage",
+    )
+
+    assert len(layers) == 1
+    assert layers[0]["event_count"] == 2
+    assert layers[0]["customers_affected"] == 9
+
+
 def test_planned_map_layers_use_peak_clients_for_reused_area(service_factory):
     service = service_factory()
     rows = [

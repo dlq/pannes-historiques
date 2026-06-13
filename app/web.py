@@ -371,7 +371,14 @@ def create_app(settings: Settings | None = None) -> Flask:
                     lang,
                     current_map_layers=operational_layers_for_scope(CURRENT_MAP_LAYER_SCOPE),
                 )
-        return jsonify({"layer": layer, "matches": payload.get("matches", [])})
+        return jsonify(
+            {
+                "layer": layer,
+                "matches": payload.get("matches", []),
+                "previousMode": payload.get("previousMode"),
+                "previousSidebarMatches": payload.get("previousSidebarMatches"),
+            }
+        )
 
     @app.post("/search-location")
     def search_location():

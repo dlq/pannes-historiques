@@ -163,6 +163,8 @@ def default_map_payload(
         "labels": _map_labels(lang),
         "loadedLayers": _loaded_layer_keys(matches),
         "matches": matches,
+        "previousMode": "recent_archive",
+        "previousSidebarMatches": [item for item in matches if item["kind"] == "previous_outage"],
     }
 
 
@@ -196,6 +198,9 @@ def _map_labels(lang: str) -> dict[str, str]:
             "planned",
             "planned_panel",
             "previous_outages_legend",
+            "previous_recent_archive_empty",
+            "previous_recent_archive_heading",
+            "previous_seen_before_here_heading",
             "published_dai_records",
             "regional_colour_legend",
             "rows",
@@ -231,10 +236,10 @@ def build_map_payload(lang: str, result: Any, display_address: str) -> dict[str,
         for item in result.disclosure_layers
         if item["centroid_lat"] is not None and item["centroid_lon"] is not None
     ]
+    previous_sidebar_matches = _previous_sidebar_matches(previous_items, previous_group_items)
     matches = (
         _sort_by_distance(current_items)
-        + _sort_by_distance(previous_items)
-        + _sort_by_distance(previous_group_items)
+        + previous_sidebar_matches
         + [
             _regional_metric_map_item(lang, item)
             for item in result.regional_metric_layers
@@ -251,7 +256,22 @@ def build_map_payload(lang: str, result: Any, display_address: str) -> dict[str,
         "labels": _map_labels(lang),
         "loadedLayers": _loaded_layer_keys(matches),
         "matches": matches,
+        "previousMode": "seen_before_here",
+        "previousSidebarMatches": previous_sidebar_matches,
     }
+
+
+def _previous_sidebar_matches(
+    previous_items: list[dict[str, Any]],
+    previous_group_items: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    if previous_group_items:
+        return _sort_by_distance(previous_group_items)
+    return [
+        item
+        for item in _sort_by_distance(previous_items)
+        if item.get("distanceM") is not None and item["distanceM"] <= FIXED_RADIUS_M
+    ]
 
 
 def _loaded_layer_keys(matches: list[dict[str, Any]]) -> list[str]:

@@ -3,6 +3,10 @@
 {% set current_outages = context_payload.matches | selectattr("kind", "equalto", "outage") | list %}
 {% set planned_outages = context_payload.matches | selectattr("kind", "equalto", "planned") | list %}
 {% set previous_outages = context_payload.matches | selectattr("kind", "equalto", "previous_outage") | list %}
+{% set previous_mode = context_payload.previousMode if context_payload.previousMode is defined else "recent_archive" %}
+{% set previous_sidebar_outages = context_payload.previousSidebarMatches if context_payload.previousSidebarMatches is defined else previous_outages %}
+{% set previous_heading_key = "previous_seen_before_here_heading" if previous_mode == "seen_before_here" else "previous_recent_archive_heading" %}
+{% set previous_empty_key = "previous_outages_empty" if previous_mode == "seen_before_here" else "previous_recent_archive_empty" %}
 {% set disclosures = context_payload.matches | selectattr("kind", "equalto", "disclosure") | list %}
 {% set regional_context = context_payload.matches | selectattr("kind", "equalto", "regional_metric") | list %}
 {% set published_context = disclosures + regional_context %}
@@ -131,24 +135,25 @@
   <details id="ph-context-previous"
            class="ph-context-section ph-context-section--secondary ph-result-card rounded-lg shadow-sm"
            data-layer-section="previous"
+           data-previous-mode="{{ previous_mode }}"
            data-layer-loaded="{{ 'true' if 'previous' in loaded_layers else 'false' }}"
            data-layer-state="{{ 'on' if 'previous' in loaded_layers else 'off' }}"
            aria-label="{{ t(lang, 'previous_outages_legend') }}">
     <summary class="ph-context-section-summary">
-      <h3 class="text-sm font-semibold leading-tight text-[#223654]">{{ t(lang, "previous_layer_heading") }}</h3>
+      <h3 class="text-sm font-semibold leading-tight text-[#223654]">{{ t(lang, previous_heading_key) }}</h3>
       {% if 'previous' in loaded_layers %}
-        {{ layer_count(previous_outages | length, "archive", t(lang, "rows") ) }}
+        {{ layer_count(previous_sidebar_outages | length, "archive", t(lang, "rows") ) }}
       {% else %}
         <span class="ph-layer-count text-xs text-[#6b778a]"></span>
       {% endif %}
       <button class="ph-layer-toggle {{ 'is-on' if 'previous' in loaded_layers else '' }}"
               type="button"
-              aria-label="{{ (t(lang, 'map_layer_on') if 'previous' in loaded_layers else t(lang, 'map_layer_off')) }} {{ t(lang, 'previous_layer_heading') }}"
+              aria-label="{{ (t(lang, 'map_layer_on') if 'previous' in loaded_layers else t(lang, 'map_layer_off')) }} {{ t(lang, previous_heading_key) }}"
               aria-pressed="{{ 'true' if 'previous' in loaded_layers else 'false' }}"
               data-layer-toggle="previous">{{ toggle_icon('previous' in loaded_layers) }}</button>
     </summary>
     <div class="ph-context-rows">
-      {% for item in previous_outages %}
+      {% for item in previous_sidebar_outages %}
         <article class="ph-context-row ph-match-row"
                  role="button"
                  tabindex="0"
@@ -163,9 +168,9 @@
           {{ count_pill(item.customersAffected or 0, "users", t(lang, "clients") , "ph-context-pill-previous") }}
         </article>
       {% endfor %}
-      {% if not previous_outages %}
+      {% if not previous_sidebar_outages %}
         <p class="ph-context-empty">
-          {{ t(lang, "map_layer_enable_prompt") if 'previous' not in loaded_layers else t(lang, "previous_outages_empty") }}
+          {{ t(lang, "map_layer_enable_prompt") if 'previous' not in loaded_layers else t(lang, previous_empty_key) }}
         </p>
       {% endif %}
     </div>

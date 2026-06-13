@@ -213,9 +213,20 @@ export function expandedOperationalRows(matches, kind) {
   });
 }
 
-export function displayRowsForLayer(layer, matches) {
+export function displayRowsForLayer(layer, matches, payload = {}) {
   if (layer === "planned") return expandedOperationalRows(matches, "planned");
-  if (layer === "previous") return expandedOperationalRows(matches, "previous_outage");
+  if (layer === "previous") {
+    if (Array.isArray(payload.previousSidebarMatches)) return payload.previousSidebarMatches;
+    if (payload.previousMode === "seen_before_here") {
+      const localMatches = (matches || []).filter(
+        (item) => item.kind === "previous_outage" && item.matchType === "previous_query_match",
+      );
+      return localMatches.length
+        ? localMatches
+        : (matches || []).filter((item) => item.kind === "previous_outage");
+    }
+    return (matches || []).filter((item) => item.kind === "previous_outage");
+  }
   return matches || [];
 }
 
@@ -243,6 +254,19 @@ export function attachMapLayerToggles() {
         : layer === "previous"
           ? "archive"
           : "file-search";
+
+  const previousHeading = (previousMode, labels) =>
+    previousMode === "seen_before_here"
+      ? label(labels, "previous_seen_before_here_heading", "Seen Before Here")
+      : label(labels, "previous_recent_archive_heading", "Recent Archive");
+
+  const setPreviousMode = (section, payload, labels) => {
+    if (!section || section.dataset.layerSection !== "previous") return;
+    const previousMode = payload?.previousMode || section.dataset.previousMode || "recent_archive";
+    section.dataset.previousMode = previousMode;
+    const heading = section.querySelector("h3");
+    if (heading) heading.textContent = previousHeading(previousMode, labels);
+  };
 
   const setLayerCount = (section, value, iconName, labelText = "") => {
     const count = section?.querySelector(".ph-layer-count");
@@ -291,8 +315,9 @@ export function attachMapLayerToggles() {
     closeSiblingSections(section);
   };
 
-  const renderLayerRows = (section, rows, layer, matches, labels) => {
-    const displayMatches = displayRowsForLayer(layer, matches);
+  const renderLayerRows = (section, rows, layer, matches, labels, payload = {}) => {
+    setPreviousMode(section, payload, labels);
+    const displayMatches = displayRowsForLayer(layer, matches, payload);
     rows.innerHTML = "";
     for (const item of displayMatches) rows.appendChild(renderContextRow(item, labels));
     hydrateTimeLabels(rows);
@@ -350,7 +375,7 @@ export function attachMapLayerToggles() {
         const matches = (payload.matches || []).filter(
           (item) => contextLayerForKind(item.kind) === layer,
         );
-        renderLayerRows(section, rows, layer, matches, toggleLabels());
+        renderLayerRows(section, rows, layer, matches, toggleLabels(), payload);
         document.dispatchEvent(new CustomEvent("map-layer-data", { detail: { layer, matches } }));
         return matches;
       })
