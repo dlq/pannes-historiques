@@ -1,9 +1,14 @@
-const CACHE_NAME = "pannes-historiques-v0.2.5-fit-current-no-layer-refit-2";
+const CACHE_NAME = "pannes-historiques-v0.2.6-static-modules";
 const APP_SHELL_URLS = [
   "/static/app.css",
   "/static/app.js",
+  "/static/detail-panels.js",
   "/static/icons.svg",
+  "/static/icons.js",
   "/static/map-layers.js",
+  "/static/outage-map.js",
+  "/static/search.js",
+  "/static/side-panel.js",
   "/static/ui-format.js",
   "/static/vendor/leaflet/leaflet.css",
   "/static/vendor/leaflet/leaflet.js",

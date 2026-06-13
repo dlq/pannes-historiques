@@ -1,3 +1,5 @@
+/* Design tokens and base */
+
 :root {
   --ph-blue-dark: #223654;
   --ph-blue: #095797;
@@ -33,6 +35,8 @@ textarea {
 .htmx-request.htmx-indicator {
   display: block;
 }
+
+/* Application shell and header */
 
 .ph-app {
   min-height: 100dvh;
@@ -83,6 +87,8 @@ textarea {
   line-height: 1;
   text-transform: uppercase;
 }
+
+/* Header search and language controls */
 
 .ph-header-search {
   grid-column: 1 / -1;
@@ -165,6 +171,8 @@ textarea {
   color: #fff;
 }
 
+/* Map surface */
+
 .ph-empty-map,
 .ph-map-visual-center {
   box-sizing: border-box;
@@ -217,6 +225,8 @@ textarea {
 .ph-dai-detail-panel {
   pointer-events: auto;
 }
+
+/* Sidebar shell, layer headers, icons, and row pills */
 
 .ph-side-rail {
   position: fixed;
@@ -635,6 +645,8 @@ textarea {
   background: rgba(79, 70, 229, 0.13) !important;
 }
 
+/* Detail overlay panels */
+
 .ph-detail-card {
   --ph-detail-count-pill-width: 4.25rem;
   display: flex;
@@ -1040,6 +1052,8 @@ textarea {
   white-space: nowrap;
 }
 
+/* Detail panel narrow-screen adjustments */
+
 @media (max-width: 767px) {
   .ph-detail-source-main {
     grid-template-columns: 1fr;
@@ -1049,6 +1063,8 @@ textarea {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* Search results and map-context cards */
 
 .ph-context-empty {
   border-top: 1px solid rgba(197, 202, 210, 0.72);
@@ -1141,6 +1157,8 @@ textarea {
 .ph-footer {
   display: none;
 }
+
+/* Mobile layout */
 
 @media (max-width: 767px) {
   .ph-language-form {
@@ -1313,6 +1331,8 @@ textarea {
   }
 }
 
+/* Desktop layout */
+
 @media (min-width: 768px) {
   .ph-app {
     --ph-map-left-overlay: 27rem;
@@ -1444,6 +1464,8 @@ textarea {
     padding-right: 1.5rem;
   }
 }
+
+/* Wide desktop layout */
 
 @media (min-width: 1180px) {
   .ph-app {

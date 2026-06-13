@@ -60,6 +60,24 @@ This file records completed release and implementation history. Keep active exec
 - Gave the desktop side rail slightly more room and added visible focus treatment for collapsible section summaries.
 - Added regression coverage for the current-feed copy, summary ARIA labels, and keyboard focus state.
 
+### `v0.2.5`
+
+- Added production timing and deployment hygiene checks for the Cloudflare Workers + Containers path.
+- Reduced default/search map payload cost by lazy-loading secondary planned, previous, disclosure, and regional context layers.
+- Capped previous-outage context in default/search map responses to keep cold payloads bounded.
+- Hardened public operational routes so collection, cron, internal, debug, export/file, and direct durable-status paths are private by default.
+- Added production smoke checks for homepage/search/static assets, service worker, health, private-route behaviour, and container image/version verification.
+
+### `v0.2.6`
+
+- Refined the sidebar into four always-visible accordion headers with one expanded sub-panel at a time on desktop and mobile.
+- Normalized Current, Planned, Previous, and Disclosures rows around compact icon-backed pill layouts with stable count columns and subtle map-layer colour linkage.
+- Changed planned sidebar rows to represent individual planned interruption events instead of summed sequential outages for one area.
+- Removed redundant operational detail panels when selected Current, Planned, or Previous rows have no extra information beyond the row itself.
+- Reworked DAI/disclosure detail panels to distinguish regional summaries from specific FOI/DAI source panels, include Hydro-Québec PDF links where available, avoid horizontal scrolling, and use card-style source/event rows.
+- Decomposed first-party static JavaScript from the large bootstrap file into focused native ES modules for icons, detail panels, search, side panel, and map orchestration without adding a bundler.
+- Updated service-worker caching for the expanded first-party static module set.
+
 ## Implementation Checkpoints
 
 ### Status-Code Decoding

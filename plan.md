@@ -1,21 +1,21 @@
 # Plan: Hydro-Québec Outage History App
 
 Date: 2026-04-25
-Last updated: 2026-06-06
+Last updated: 2026-06-13
 
 This file is the active execution plan. Keep durable evidence, source notes, and long historical reasoning in `research.md`; keep completed release and implementation history in `roadmap-history.md`; keep completed detail here only when it affects current decisions.
 
 ## Current State
 
-- Current release in progress: none; `v0.2.6` planning is next.
-- Current product shape: map-first address/current-location lookup with server-rendered Flask/Jinja fragments, HTMX, Leaflet, vanilla JavaScript modules, and a Cloudflare Workers + Containers production deployment.
+- Current release in progress: `v0.2.6` final verification and deployment.
+- Current product shape: map-first address/current-location lookup with server-rendered Flask/Jinja fragments, HTMX, Leaflet, decomposed vanilla JavaScript ES modules, icon-backed sidebar/detail rows, and a Cloudflare Workers + Containers production deployment.
 - Production data plane: D1/R2-backed durable ingestion for current feed rows, previous-outage rows, raw Hydro-Québec payloads, disclosure metadata, and runtime map-context layers.
 - Container role: still renders the Flask/Jinja shell and keeps a baked-in SQLite snapshot for local-compatible/container fallback paths.
 - Important architecture caveat: runtime writes inside the container are ephemeral; durable production state belongs in D1/R2 or another durable store.
 - Cost caveat: the June 2026 Cloudflare invoice was driven mostly by Workers Paid baseline plus Durable Object/container runtime costs; D1 and R2 were not material cost drivers on that bill.
 - User-facing URL contract: clean root URL with `lang`, `q`, or current-location coordinate parameters; obsolete public `radius_m`, `days`, and `include_planned` parameters were removed from the main interface.
 - Debug, collection, cron, internal export/file, and direct durable-status endpoints are private by default; production returns `404` unless the expected debug flag, Worker block, scheduled header, internal header, or operation token is present.
-- Current deployed release: `v0.2.5` at commit `1249acf`; Worker version `43b7a4dc-bb09-4249-92b8-9ad231ad58ae`; container image `43b7a4dc`.
+- Current deployed release: `v0.2.5` at commit `1249acf`; Worker version `43b7a4dc-bb09-4249-92b8-9ad231ad58ae`; container image `43b7a4dc`. `v0.2.6` is being verified, tagged, and deployed.
 - Current test baseline: Python tests, deterministic service/geocoding tests, route smoke coverage, Playwright desktop/mobile Chromium coverage, and production-shaped UI regression fixtures.
 - Previous-outage accumulation is working in D1, but visible map grouping needs review: on 2026-06-02 D1 had `9,542` resolved events and `333,117` sightings, with repeated spatial buckets present, while `/api/durable/runtime/previous-map-layers?limit=120` returned 120 single-event layers and zero multi-event groups.
 
@@ -38,7 +38,7 @@ In progress.
 - `v0.2.3`: map hierarchy, side-rail layer explanation, local Leaflet assets, and production-shaped map regression coverage. Complete.
 - `v0.2.4`: scoped copy/data-truth cleanup, safer status labels, side-panel width/focus polish, and accessibility-oriented regression checks. Complete.
 - `v0.2.5`: performance measurement, deployment hygiene, and production hardening. Complete.
-- `v0.2.6`: sidebar rhythm, layer hierarchy, row-language consistency, and mobile drawer polish. Planned.
+- `v0.2.6`: sidebar rhythm, layer hierarchy, row-language consistency, detail-panel rationalization, and frontend static-module decomposition. In release verification.
 
 ### `0.3.x`: Architecture And Product Expansion
 
@@ -53,6 +53,7 @@ Candidate work after the map-first UI is stable:
 - expand disclosure ingestion, geometry enrichment, and geocoder-provider options
 - explore opt-in web notifications after PWA installability, based on saved watch areas rather than requiring a literal home address
 - replace the Tailwind CDN path with a production build pipeline
+- measure Cloudflare static-asset performance before adopting a bundler: compare cold/warm module waterfall cost, CSS/JS/icon/font transfer size, compression, cache headers, ETag behaviour, service-worker cache behaviour, and Cloudflare Observatory/Lighthouse results for the current native-module graph versus any bundled candidate
 - add web-quality fundamentals from the specification.website checklist: page descriptions, canonical/social metadata, `robots.txt`, `sitemap.xml`, cache/resource-hint review, and stronger asset versioning
 - complete the practical WCAG/accessibility pass: skip link or equivalent navigation affordance, landmarks, keyboard traps, live-region status messages, contrast, reduced-motion behavior, and screen-reader spot checks
 - add production security headers once CDN dependencies are removed or explicitly allowed: Content Security Policy, HSTS, Referrer Policy, Permissions Policy, frame protections, and MIME-sniffing protection
@@ -67,11 +68,11 @@ Candidate work after core UI and production architecture are more settled:
 - evaluate structured data only where it genuinely helps discovery; avoid adding schema markup that overstates the app's authority or data completeness
 - revisit observability and incident-response practices once production usage warrants it
 
-## Current Focus: Post-`v0.2.5` Planning
+## Current Focus: `v0.2.6` UI Polish And Frontend Decomposition
 
-Goal: decide the next small `0.2.x` UI/UX and accessibility polish slice before larger `0.3.x` architecture/product work resumes.
+Goal: finish the current local `v0.2.6` slice without turning it into a broad frontend rewrite: keep the app map-first, keep the sidebar/detail interaction coherent on desktop and mobile, and make the large static JS/CSS easier to maintain before any bundler decision.
 
-Status: `v0.2.5` is tagged, deployed, smoke-tested, and closed.
+Status: local implementation is complete; final browser smoke, automated checks, tag, push, deploy, and production smoke are in progress.
 
 Current implementation notes:
 
@@ -84,6 +85,14 @@ Current implementation notes:
 - Production-shaped local testing showed short-lived durable runtime caching reduces repeated search service time from roughly 10-12s to roughly 1.2-1.4s.
 - Previous map context is now capped at 48 recent layers for default/search map context to reduce cold endpoint cost and initial payload weight.
 - Sidebar layer toggles are implemented locally: current outages render first; planned, previous, and published disclosure/regional context are opt-in `/map-layer` fetches and can be hidden again without reloading.
+- The sidebar now uses four always-visible accordion headers; current opens by default, and opening another sub-panel closes the others.
+- Current, planned, previous, and disclosures rows now use compact icon-backed pill layouts with fixed-width count pills so the row language is more consistent.
+- Planned sidebar rows now represent individual planned interruption events rather than summing sequential outages for the same area.
+- Detail panels now overlay the side panel on desktop and mobile; operational detail panels are intentionally minimal when they have no extra information beyond the selected row.
+- DAI/disclosure detail panels distinguish regional summary sources from specific FOI/DAI source panels, include Hydro-Québec PDF links where available, and avoid table-style horizontal scrolling in the current local design.
+- The first-party frontend has been decomposed from a large `app/static/app.js` into focused native ES modules: `icons.js`, `detail-panels.js`, `search.js`, `side-panel.js`, and `outage-map.js`; `app.js` is now a bootstrap file.
+- `app/static/app.css` remains a single stylesheet for now, but it has section comments for shell/header, map, sidebar, detail panels, search results, mobile, desktop, and wide-desktop areas.
+- The service worker now caches the new first-party ES modules.
 - Public operational hardening is implemented locally: collection and cron routes are hidden by default in Flask, the Worker blocks public `/collect`, `/cron`, `/internal`, and `/debug` paths, and direct durable status now requires an operation token.
 - Tailwind CDN replacement is deferred to `0.3.x` frontend/tooling work.
 - `v0.2.5` deployed on 2026-05-31 with Worker version `43b7a4dc-bb09-4249-92b8-9ad231ad58ae` and container image `43b7a4dc`.
@@ -94,27 +103,29 @@ Current implementation notes:
 
 Scope:
 
-- establish repeatable production timing checks
-- identify whether TTFB, payload size, lazy geometry, tile loading, or client rendering dominates the current delay
-- decide whether to reduce initial HTML/data payloads before deeper frontend/tooling work
-- keep deployment health checks explicit enough to avoid stale Worker/container state
-- avoid recording query history or saving matches for shareable/reloadable `GET /?q=...` page loads
-- add sidebar-driven layer toggles for current outages, planned interruptions, previously seen outages, and disclosure/regional context
-- default initial map render to current outages only, then lazy-load secondary layer payloads when toggled on
+- finish and deploy the `v0.2.6` UI polish without starting a bundler migration
+- keep all four sidebar sub-panel headers visible on desktop and mobile
+- keep only one sidebar sub-panel expanded at a time
+- keep current outages loaded and visible by default; lazy-load planned, previous, and disclosure/regional data for the sidebar and map without automatically recentering on visibility toggles
+- maintain startup map bounds that show the current outage extent by default
+- keep side-panel rows, detail-panel rows, and map-layer colours visually related but subtle
+- keep DAI/disclosure detail panels readable without horizontal scroll
+- update plan/research only for durable decisions, not iterative screenshot notes
 - keep debug, collection, cron, internal, and direct durable-status endpoints private by default
-- keep the next `0.2.x` slice focused on hierarchy/rhythm polish rather than starting the larger historical-data API work
+- keep broader historical-data API, no-label basemap, Cloudflare asset-performance conclusions, and bundler decisions in `0.3.x`
 
 Acceptance criteria:
 
-- production timing data is captured with clear cold/warm measurements
-- at least one high-confidence performance bottleneck has an implementation plan or fix
-- deployment notes remain current after any release or hotfix
-- representative local and production-shaped timings improve without changing the visible map interaction model
-- initial address render does not fetch/render planned, previous, disclosure, or regional context until the user enables those layers
+- default, layer-toggle, selected-row, and detail-panel states are visually coherent at desktop and mobile widths
+- sidebar row density is compact but still legible; count pills have stable width for up to five-digit values
+- planned rows do not imply that sequential outages are simultaneous aggregate client counts
+- current/previous/planned/disclosure detail panels do not repeat row information unless the repetition clarifies grouping or provenance
+- DAI/disclosure detail panels fill usable panel height, avoid overlapping headings/content, and avoid horizontal scrolling
+- initial address render does not fetch/render planned, previous, disclosure, or regional map context until the user enables those layers
 - sidebar layer state is clear enough that users can tell what evidence is currently visible on the map
 - public operational endpoints return `404` by default, while scheduled/internal/debug-enabled paths still work in tests
 - previous-outage layer review: make the displayed "previously seen" layer group by stable historical area buckets, such as municipality plus rounded centroid or derived stable area, rather than exact/current polygon identity, so accumulated history clumps into meaningful repeated-outage areas
-- `v0.2.6` scope is small enough to verify with desktop and mobile visual passes without broad architecture changes
+- `v0.2.6` scope remains small enough to verify with desktop and mobile visual passes without broad architecture changes
 
 Verification so far:
 
@@ -126,6 +137,7 @@ Verification so far:
 - `npx wrangler deploy`: deployed Worker `43b7a4dc-bb09-4249-92b8-9ad231ad58ae` and container image `43b7a4dc`
 - Production smoke/timing checks: passed, with intermittent local `curl` DNS failures worked around by Python `urllib` checks
 - Local browser check confirmed initial search payload contains only `outage`, secondary toggles start off, and planned/previous/published layers load on demand.
+- 2026-06-13 frontend decomposition checks: `npm run format`, `npm run check`, browser smoke on `http://127.0.0.1:8005/?lang=en`, and `npm run test:e2e` passed locally.
 
 ## Next Release Slices
 
@@ -139,16 +151,16 @@ Verification so far:
 - deployed 2026-05-31: production timing improvements, sidebar opt-in lazy map layers, and private operational/debug endpoint hardening
 - tagged `v0.2.5` at `1249acf`
 
-### `v0.2.6`: Sidebar Rhythm, Layer Hierarchy, And Mobile Drawer Polish
+### `v0.2.6`: Sidebar Rhythm, Detail Panels, And Static Frontend Maintainability
 
-- reduce default Current sidebar dominance so the product reads as map-first, not table-first
-- add quiet section-level colour swatches or accents so Current, Planned, Previous, and Disclosures visibly relate to map layer colours
-- normalize Disclosures/Published context rows toward the same row language as Current, Planned, and Previous
-- defer a separate regional `Indice de continuité brut`/regional-burden layer decision; for now keep regional context bundled under Disclosures but subtly colour regions by burden when that layer is shown
-- tune pill hierarchy so primary time/schedule information, low-information status labels, and client/row counts do not all carry equal visual weight
-- recheck mobile header and bottom-drawer proportions so the map retains a clear inspection area
-- defer desktop detail-card placement and mobile detail-as-drawer behavior unless they fall naturally out of drawer/panel work
-- verify with local browser screenshots at desktop and mobile widths, including default, expanded layer, selected-row, and detail-card states
+- complete for release: compact icon-backed row language for Current, Planned, Previous, and Disclosures
+- complete for release: one-open-section accordion behavior with all four section headers visible on desktop and mobile
+- complete for release: detail panels that overlay the side panel and avoid repeating selected-row information when no extra detail exists
+- complete for release: DAI/disclosure detail panels with PDF links, source grouping, no horizontal scrolling, and clearer distinction between regional summaries and specific FOI/DAI sources
+- complete for release: full first-party static JS decomposition into native ES modules without adding a bundler
+- final verification: desktop and mobile browser smoke, automated checks, Wrangler dry-run, production deploy, and production smoke
+- accepted for release: DAI/disclosure detail panels are good enough for `v0.2.6`, with deeper information design deferred
+- deferred to `0.3.x`: bundler/build pipeline, no-label/Quebec-label map styling, historical-data API, and deeper Cloudflare static-asset performance conclusions
 
 ## Completed `0.2.x` Summary
 
@@ -171,8 +183,8 @@ Verification so far:
 - made address and current-location URLs reloadable/shareable with clean query state
 - removed obsolete public radius/days/include-planned query controls from the primary URL contract
 - improved mobile sheet layout and detail overlay behaviour
-- split shared frontend helpers into `app/static/ui-format.js` and map styling/rendering helpers into `app/static/map-layers.js`
-- updated service-worker/static-version handling for the new ES modules
+- split shared frontend helpers into `app/static/ui-format.js` and map styling/rendering helpers into `app/static/map-layers.js`; the broader first-party module decomposition now belongs to the local `v0.2.6` work
+- updated service-worker/static-version handling for the early ES modules
 
 ## Testing Strategy
 
@@ -187,6 +199,7 @@ Before handing off code changes:
 - Python: `uv run ruff check . --fix` and `uv run ruff format .`
 - Templates: `uv run djlint app/templates --reformat` and `uv run djlint app/templates --lint`
 - Static JS/CSS: `npm run format` and `npm run check`
+- Cloudflare static-asset performance checks: use cold and warm `curl -fsS -w` probes for `/static/app.css`, `/static/app.js`, each first-party ES module, `/static/icons.svg`, `/service-worker.js`, `/static/manifest.webmanifest`, Noto Sans font files, and Leaflet assets; record HTTP status, `cf-cache-status`, `cache-control`, `etag`, `content-encoding`, transfer size, TTFB, and total time; repeat with a cache-busting query and without one; compare browser DevTools waterfalls and Cloudflare Observatory/Lighthouse results before deciding whether a bundler or different asset strategy is justified.
 - Broad changes: prefer `uv run pre-commit run --all-files`
 - UI changes: run the local app and inspect desktop and mobile browser states
 
@@ -207,9 +220,11 @@ Before handing off code changes:
 
 ## Current Risks And Open Questions
 
-- The desktop side panel can still feel cramped with multiple context sections; `v0.2.4` gives it more width, but broader collapse/minimize design can still wait.
-- Accessibility needs a dedicated pass against W3C/WCAG basics; handle in `v0.2.4`.
-- Performance should be measured before broad architecture work; handle in `v0.2.5`, then decide what belongs in `0.3.x`.
+- The desktop side panel is more coherent but may still feel dense when detail panels overlay it; verify after the current `v0.2.6` polish rather than widening again by default.
+- Accessibility still needs a dedicated W3C/WCAG pass beyond the current keyboard/focus regression checks; keep this as practical `0.2.x`/`0.3.x` follow-up depending on scope.
+- Cloudflare performance work now has two tracks: container/app response-time reduction already shipped in `v0.2.5`, while static asset/module waterfall measurement belongs to upcoming `0.3.x` evaluation before any bundler decision.
+- The first-party JS module split improves maintainability, but it increases native module requests; measure this on Cloudflare before assuming either native modules or bundling is better.
+- DAI/disclosure detail panels are data-rich and still visually fragile; make sure the final `v0.2.6` release candidate avoids overlapping text, horizontal scrolling, and unreadable dense rows.
 - Current CARTO Voyager raster tiles bake city labels into image tiles; hiding only non-Quebec labels requires either no-label raster tiles plus a custom Quebec label overlay or a larger vector-tile/custom-style migration.
 - Do not speculate about Hydro-Québec one-letter status-code meanings unless source documentation or payload context verifies them.
 
