@@ -20,6 +20,7 @@ from .perf import current_timer
 DURABLE_RUNTIME_CACHEABLE_PATHS = {
     "map-context",
     "operational-map-layers",
+    "previous-archive-summary",
     "previous-map-layers",
     "status",
 }
@@ -1475,10 +1476,13 @@ class AppService:
         cutoff_30d = (now - timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
         cutoff_1y = (now - timedelta(days=365)).strftime("%Y-%m-%d %H:%M:%S")
         if self.settings.durable_runtime_url:
-            layers = self._build_previous_operational_map_layers(DEFAULT_PREVIOUS_MAP_LAYER_LIMIT)
-            return self._previous_archive_summary_from_items(
-                layers, cutoff_24h, cutoff_7d, cutoff_30d, cutoff_1y
-            )
+            payload = self._durable_runtime_get("previous-archive-summary")
+            if payload:
+                return {
+                    "windows": payload.get("windows", []),
+                    "largest": payload.get("largest"),
+                    "latest": payload.get("latest", []),
+                }
 
         with open_db(self.settings.db_path) as connection:
             latest_snapshot = connection.execute(

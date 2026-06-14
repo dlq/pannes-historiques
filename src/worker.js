@@ -1341,6 +1341,8 @@ async function durableRuntimeResponse(request, env) {
     return runtimeMatchesResponse(request, env);
   if (suffix === "/previous-groups" && request.method === "GET")
     return runtimePreviousGroupsResponse(env, url);
+  if (suffix === "/previous-archive-summary" && request.method === "GET")
+    return runtimePreviousArchiveSummaryResponse(env);
   if (suffix === "/operational-map-layers" && request.method === "GET")
     return runtimeOperationalMapLayersResponse(env, url);
   if (suffix === "/previous-map-layers" && request.method === "GET")
@@ -1648,6 +1650,98 @@ async function runtimePreviousMapLayersResponse(env, url) {
   const geometries = await hydroGeometryRows(env.DB, "bispoly", versions);
   const layers = operationalMapLayers(rows, geometries, "previous_outage").slice(0, limit);
   return jsonResponse({ layers });
+}
+
+async function runtimePreviousArchiveSummaryResponse(env) {
+  const currentRows = await latestRows(env.DB, "bis", "current_outage_records");
+  const currentKeys = new Set(
+    currentRows.map((row) =>
+      eventKey(
+        "outage",
+        row.municipality_code,
+        row.centroid_lat,
+        row.centroid_lon,
+        row.interruption_type,
+        row.outage_start_time,
+      ),
+    ),
+  );
+  const cutoff24h = sqlTimestampHoursAgo(24);
+  const cutoff7d = sqlTimestampDaysAgo(7);
+  const cutoff30d = sqlTimestampDaysAgo(30);
+  const cutoff1y = sqlTimestampDaysAgo(365);
+  const result = await env.DB.prepare(
+    `
+    SELECT *,
+           COALESCE(start_time, last_seen_at, updated_at) AS sort_time
+    FROM resolved_events
+    WHERE outage_kind = 'outage'
+      AND centroid_lat IS NOT NULL
+      AND centroid_lon IS NOT NULL
+      AND COALESCE(start_time, last_seen_at, updated_at, '') >= ?
+    ORDER BY sort_time DESC
+    `,
+  )
+    .bind(cutoff1y)
+    .all();
+  const items = (result.results || [])
+    .filter((row) => !currentKeys.has(row.event_key))
+    .map(previousArchiveItem);
+  return jsonResponse({
+    windows: [
+      previousArchiveWindow(items, "previous_archive_last_24h", cutoff24h),
+      previousArchiveWindow(items, "previous_archive_last_7d", cutoff7d),
+      previousArchiveWindow(items, "previous_archive_last_30d", cutoff30d),
+      previousArchiveWindow(items, "previous_archive_last_1y", cutoff1y),
+    ],
+    largest: previousArchiveLargest(items),
+    latest: items.slice(0, 20).map((item) => ({
+      key: "previous_archive_latest",
+      startTime: item.startTime,
+      customersAffected: item.customersAffected,
+    })),
+  });
+}
+
+function previousArchiveItem(row) {
+  return {
+    startTime: row.sort_time || row.start_time || row.last_seen_at || row.updated_at || "",
+    customersAffected: Number(row.customers_max || 0),
+  };
+}
+
+function previousArchiveWindow(items, key, cutoff) {
+  const windowItems = items.filter((item) => item.startTime >= cutoff);
+  return {
+    key,
+    areas: windowItems.length,
+    totalCustomers: windowItems.reduce((total, item) => total + item.customersAffected, 0),
+  };
+}
+
+function previousArchiveLargest(items) {
+  let largest = null;
+  for (const item of items) {
+    if (!largest || item.customersAffected > largest.customersAffected) largest = item;
+  }
+  if (!largest) return null;
+  return {
+    key: "previous_archive_largest",
+    startTime: largest.startTime,
+    customersAffected: largest.customersAffected,
+  };
+}
+
+function sqlTimestampHoursAgo(hours) {
+  return sqlTimestamp(new Date(Date.now() - hours * 60 * 60 * 1000));
+}
+
+function sqlTimestampDaysAgo(days) {
+  return sqlTimestamp(new Date(Date.now() - days * 24 * 60 * 60 * 1000));
+}
+
+function sqlTimestamp(date) {
+  return date.toISOString().slice(0, 19).replace("T", " ");
 }
 
 async function hydroGeometryRows(db, sourceType, versions) {

@@ -286,6 +286,42 @@ def test_durable_runtime_operational_and_previous_map_layers(service_factory, mo
     ]
 
 
+def test_durable_previous_archive_summary_uses_runtime_summary_endpoint(
+    service_factory, monkeypatch
+):
+    service = service_factory(durable_runtime_url="https://example.invalid")
+    summary = {
+        "windows": [
+            {
+                "key": "previous_archive_last_24h",
+                "areas": 74,
+                "totalCustomers": 12604,
+            }
+        ],
+        "largest": {
+            "key": "previous_archive_largest",
+            "startTime": "2026-06-13 20:19:00",
+            "customersAffected": 3685,
+        },
+        "latest": [
+            {
+                "key": "previous_archive_latest",
+                "startTime": "2026-06-13 20:19:00",
+                "customersAffected": 3685,
+            }
+        ],
+    }
+
+    def fake_runtime_get(path, query=None):
+        assert path == "previous-archive-summary"
+        assert query is None
+        return summary
+
+    monkeypatch.setattr(service, "_durable_runtime_get", fake_runtime_get)
+
+    assert service.previous_operational_archive_summary() == summary
+
+
 def test_durable_runtime_get_caches_context_reads(service_factory, monkeypatch):
     service = service_factory(
         durable_runtime_url="https://example.invalid",
