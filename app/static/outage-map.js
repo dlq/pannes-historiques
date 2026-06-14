@@ -7,7 +7,7 @@ import {
   markerStyle,
   metricValue,
 } from "./map-layers.js";
-import { contextLayerForKind } from "./side-panel.js?v=20260613modules";
+import { contextLayerForKind } from "./side-panel.js?v=20260614previous-totals";
 import { escapeHtml, fetchJson, label } from "./ui-format.js?v=20260608compact";
 
 function applyMapLayerClass(layer, item) {

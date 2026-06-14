@@ -13,7 +13,7 @@ import {
   syncLanguageForm,
   updateShellState,
 } from "./search.js?v=20260613modules";
-import { attachMapLayerToggles } from "./side-panel.js?v=20260613modules";
+import { attachMapLayerToggles } from "./side-panel.js?v=20260614previous-totals";
 
 if (!customElements.get("dai-detail-panel")) {
   customElements.define("dai-detail-panel", DaiDetailPanel);

@@ -260,12 +260,88 @@ export function attachMapLayerToggles() {
       ? label(labels, "previous_seen_before_here_heading", "Seen Before Here")
       : label(labels, "previous_recent_archive_heading", "Recent Archive");
 
+  const formatRadiusKm = (radiusM) => {
+    const radiusKm = Number(radiusM || 0) / 1000;
+    if (!radiusKm) return "";
+    return Number.isInteger(radiusKm) ? `${radiusKm}` : `${radiusKm.toFixed(1)}`;
+  };
+
   const setPreviousMode = (section, payload, labels) => {
     if (!section || section.dataset.layerSection !== "previous") return;
     const previousMode = payload?.previousMode || section.dataset.previousMode || "recent_archive";
     section.dataset.previousMode = previousMode;
     const heading = section.querySelector("h3");
     if (heading) heading.textContent = previousHeading(previousMode, labels);
+    section.querySelector(".ph-layer-scope-pill")?.remove();
+    if (previousMode !== "seen_before_here" || !payload?.previousRadiusM) return;
+    const scope = document.createElement("span");
+    scope.className = "ph-layer-scope-pill";
+    const count = Array.isArray(payload.previousSidebarMatches)
+      ? payload.previousSidebarMatches.length
+      : "";
+    const limit = payload.previousNearestLimit ? `/${payload.previousNearestLimit}` : "";
+    scope.textContent = `${count}${limit} ${label(labels, "previous_nearest_scope", "nearest")} · ${formatRadiusKm(payload.previousRadiusM)} km`;
+    heading?.after(scope);
+  };
+
+  const renderPreviousArchiveSummary = (rows, summary, labels) => {
+    rows.innerHTML = "";
+    const addSummaryRow = (labelText, middleText, countValue, iconName = "archive") => {
+      const row = document.createElement("div");
+      row.className = "ph-context-summary-row ph-context-summary-row--previous";
+
+      const labelPill = document.createElement("span");
+      labelPill.className = "ph-row-pill ph-row-pill-previous-date";
+      replaceWithIconText(labelPill, iconName, labelText);
+
+      const middlePill = document.createElement("span");
+      middlePill.className = "ph-row-pill ph-row-pill-previous-time";
+      middlePill.textContent = middleText;
+
+      const countPill = document.createElement("p");
+      countPill.className = "ph-context-pill ph-context-pill-previous";
+      countPill.setAttribute(
+        "aria-label",
+        `${countValue || 0} ${label(labels, "clients", "clients")}`,
+      );
+      countPill.replaceChildren(countPillText(countValue || 0), phIcon("users", "ph-count-icon"));
+      row.append(labelPill, middlePill, countPill);
+      rows.append(row);
+    };
+
+    for (const item of summary?.windows || []) {
+      addSummaryRow(
+        label(labels, item.key, item.key),
+        `${item.areas || 0} ${label(labels, "previous_archive_summary_areas", "areas")}`,
+        item.totalCustomers || 0,
+      );
+    }
+    if (summary?.largest) {
+      const largestTime = summary.largest.startTime
+        ? String(summary.largest.startTime).slice(0, 16)
+        : label(labels, "unknown", "Unknown");
+      addSummaryRow(
+        label(labels, summary.largest.key, "Largest"),
+        largestTime,
+        summary.largest.customersAffected || 0,
+        "zap",
+      );
+    }
+    if (summary?.latest?.length) {
+      const heading = document.createElement("p");
+      heading.className = "ph-context-subhead";
+      heading.textContent = label(labels, "previous_archive_latest", "Latest");
+      rows.append(heading);
+      for (const item of summary.latest) {
+        const startTime = String(item.startTime || "");
+        addSummaryRow(
+          startTime ? startTime.slice(0, 10) : label(labels, "unknown", "Unknown"),
+          startTime ? startTime.slice(11, 16) : "",
+          item.customersAffected || 0,
+          "calendar",
+        );
+      }
+    }
   };
 
   const setLayerCount = (section, value, iconName, labelText = "") => {
@@ -319,14 +395,23 @@ export function attachMapLayerToggles() {
     setPreviousMode(section, payload, labels);
     const displayMatches = displayRowsForLayer(layer, matches, payload);
     rows.innerHTML = "";
-    for (const item of displayMatches) rows.appendChild(renderContextRow(item, labels));
-    hydrateTimeLabels(rows);
+    if (
+      layer === "previous" &&
+      payload.previousMode === "recent_archive" &&
+      payload.previousArchiveSummary
+    ) {
+      renderPreviousArchiveSummary(rows, payload.previousArchiveSummary, labels);
+      setLayerCount(section, "", layerIconName(layer), "");
+    } else {
+      for (const item of displayMatches) rows.appendChild(renderContextRow(item, labels));
+      hydrateTimeLabels(rows);
+      setLayerCount(section, displayMatches.length, layerIconName(layer), layerNoun(layer, labels));
+    }
     if (!displayMatches.length) {
       rows.innerHTML = `<p class="ph-context-empty">${document.documentElement.lang === "fr" ? "Aucune donnée pour cette couche." : "No data for this layer."}</p>`;
     }
     section.dataset.layerLoaded = "true";
     section._layerMatches = matches;
-    setLayerCount(section, displayMatches.length, layerIconName(layer), layerNoun(layer, labels));
   };
 
   const loadLayerSection = async (section, options = {}) => {

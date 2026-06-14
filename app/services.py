@@ -24,6 +24,7 @@ DURABLE_RUNTIME_CACHEABLE_PATHS = {
     "status",
 }
 DEFAULT_PREVIOUS_MAP_LAYER_LIMIT = 48
+DEFAULT_PREVIOUS_NEAREST_LIMIT = 24
 CURRENT_MAP_LAYER_SCOPE = "current"
 PLANNED_MAP_LAYER_SCOPE = "planned"
 PREVIOUS_MAP_LAYER_SCOPE = "previous"
@@ -1460,6 +1461,143 @@ class AppService:
             outage_kind="previous_outage",
         )
         return layers[:limit]
+
+    def previous_operational_archive_summary(self) -> dict[str, Any]:
+        return self._cached_context(
+            "previous_operational_archive_summary",
+            self._build_previous_operational_archive_summary,
+        )
+
+    def _build_previous_operational_archive_summary(self) -> dict[str, Any]:
+        now = datetime.now(UTC)
+        cutoff_24h = (now - timedelta(hours=24)).strftime("%Y-%m-%d %H:%M:%S")
+        cutoff_7d = (now - timedelta(days=7)).strftime("%Y-%m-%d %H:%M:%S")
+        cutoff_30d = (now - timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
+        cutoff_1y = (now - timedelta(days=365)).strftime("%Y-%m-%d %H:%M:%S")
+        if self.settings.durable_runtime_url:
+            layers = self._build_previous_operational_map_layers(DEFAULT_PREVIOUS_MAP_LAYER_LIMIT)
+            return self._previous_archive_summary_from_items(
+                layers, cutoff_24h, cutoff_7d, cutoff_30d, cutoff_1y
+            )
+
+        with open_db(self.settings.db_path) as connection:
+            latest_snapshot = connection.execute(
+                """
+                SELECT id
+                FROM raw_snapshots
+                WHERE source_type = 'bismarkers'
+                ORDER BY fetched_at DESC, id DESC
+                LIMIT 1
+                """
+            ).fetchone()
+            latest_snapshot_id = latest_snapshot["id"] if latest_snapshot else None
+            current_rows = connection.execute(
+                """
+                SELECT r.*
+                FROM outage_records r
+                JOIN raw_snapshots s ON s.id = r.snapshot_id
+                WHERE s.source_type = 'bismarkers'
+                  AND (? IS NOT NULL AND s.id = ?)
+                """,
+                (latest_snapshot_id, latest_snapshot_id),
+            ).fetchall()
+            rows = connection.execute(
+                """
+                SELECT r.*
+                FROM outage_records r
+                JOIN raw_snapshots s ON s.id = r.snapshot_id
+                WHERE s.source_type = 'bismarkers'
+                  AND (? IS NULL OR s.id != ?)
+                  AND r.centroid_lat IS NOT NULL
+                  AND r.centroid_lon IS NOT NULL
+                  AND COALESCE(r.outage_start_time, r.created_at, '') >= ?
+                ORDER BY COALESCE(r.outage_start_time, r.created_at) DESC
+                """,
+                (latest_snapshot_id, latest_snapshot_id, cutoff_1y),
+            ).fetchall()
+
+        current_keys = {
+            self._outage_display_key(
+                {
+                    "municipality_code": row["municipality_code"],
+                    "start_time": row["outage_start_time"],
+                    "centroid_lat": row["centroid_lat"],
+                    "centroid_lon": row["centroid_lon"],
+                    "interruption_type": row["interruption_type"],
+                }
+            )
+            for row in current_rows
+        }
+        deduped: dict[tuple[Any, ...], dict[str, Any]] = {}
+        for row in rows:
+            key = self._outage_display_key(
+                {
+                    "municipality_code": row["municipality_code"],
+                    "start_time": row["outage_start_time"],
+                    "centroid_lat": row["centroid_lat"],
+                    "centroid_lon": row["centroid_lon"],
+                    "interruption_type": row["interruption_type"],
+                }
+            )
+            if key in current_keys or key in deduped:
+                continue
+            deduped[key] = {
+                "startTime": row["outage_start_time"] or row["created_at"],
+                "customersAffected": row["customers_affected"],
+            }
+        return self._previous_archive_summary_from_items(
+            list(deduped.values()), cutoff_24h, cutoff_7d, cutoff_30d, cutoff_1y
+        )
+
+    @staticmethod
+    def _previous_archive_summary_from_items(
+        items: list[dict[str, Any]],
+        cutoff_24h: str,
+        cutoff_7d: str,
+        cutoff_30d: str,
+        cutoff_1y: str,
+    ) -> dict[str, Any]:
+        def start_time(item: dict[str, Any]) -> str:
+            return str(item.get("startTime") or item.get("start_time") or "")
+
+        def customer_count(item: dict[str, Any]) -> int:
+            value = item.get("customersAffected", item.get("customers_affected", 0))
+            return int(value or 0)
+
+        def window(key: str, cutoff: str) -> dict[str, Any]:
+            window_items = [item for item in items if start_time(item) >= cutoff]
+            return {
+                "key": key,
+                "areas": len(window_items),
+                "totalCustomers": sum(customer_count(item) for item in window_items),
+            }
+
+        last_1y = [item for item in items if start_time(item) >= cutoff_1y]
+        latest = sorted(last_1y, key=start_time, reverse=True)[:20]
+        largest = max(last_1y, key=customer_count, default=None)
+        return {
+            "windows": [
+                window("previous_archive_last_24h", cutoff_24h),
+                window("previous_archive_last_7d", cutoff_7d),
+                window("previous_archive_last_30d", cutoff_30d),
+                window("previous_archive_last_1y", cutoff_1y),
+            ],
+            "largest": {
+                "key": "previous_archive_largest",
+                "startTime": start_time(largest) if largest else None,
+                "customersAffected": customer_count(largest) if largest else 0,
+            }
+            if largest
+            else None,
+            "latest": [
+                {
+                    "key": "previous_archive_latest",
+                    "startTime": start_time(item),
+                    "customersAffected": customer_count(item),
+                }
+                for item in latest
+            ],
+        }
 
     def _build_current_operational_map_layers(self, include_planned: bool) -> list[dict[str, Any]]:
         if self.settings.durable_runtime_url:

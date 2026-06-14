@@ -331,6 +331,20 @@ textarea {
   white-space: nowrap;
 }
 
+.ph-layer-scope-pill {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  border-radius: 0.375rem;
+  background: rgba(100, 116, 139, 0.1);
+  padding: 0.0625rem 0.3125rem;
+  color: #5d6b80;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
 .ph-layer-count-value,
 .ph-count-value {
   font-variant-numeric: tabular-nums;
@@ -435,7 +449,8 @@ textarea {
 #ph-context-current .ph-context-row,
 #ph-context-planned .ph-context-row,
 #ph-context-previous .ph-context-row,
-#ph-context-disclosure .ph-context-row {
+#ph-context-disclosure .ph-context-row,
+.ph-context-summary-row {
   --ph-count-pill-width: 4.25rem;
   display: grid;
   grid-template-columns: minmax(0, 1fr) var(--ph-count-pill-width);
@@ -446,6 +461,21 @@ textarea {
   padding-block: 0.1875rem;
   font-size: 0.75rem;
   line-height: 1.15;
+}
+
+.ph-context-summary-row {
+  grid-template-columns: minmax(0, 1fr) 4.25rem var(--ph-count-pill-width);
+  cursor: default;
+}
+
+.ph-context-subhead {
+  margin: 0.45rem 0 0.125rem;
+  color: #6b778a;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
 }
 
 .ph-context-row:hover {
@@ -549,7 +579,8 @@ textarea {
 #ph-context-current .ph-row-pill,
 #ph-context-planned .ph-row-pill,
 #ph-context-previous .ph-row-pill,
-#ph-context-disclosure .ph-row-pill {
+#ph-context-disclosure .ph-row-pill,
+.ph-context-summary-row .ph-row-pill {
   width: 100%;
 }
 

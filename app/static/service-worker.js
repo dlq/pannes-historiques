@@ -1,4 +1,4 @@
-const CACHE_NAME = "pannes-historiques-v0.2.6-static-modules";
+const CACHE_NAME = "pannes-historiques-v0.2.6-versioned-static-network";
 const APP_SHELL_URLS = [
   "/static/app.css",
   "/static/app.js",
@@ -64,6 +64,11 @@ self.addEventListener("fetch", (event) => {
   }
 
   if (url.pathname.startsWith("/static/")) {
+    if (url.search) {
+      event.respondWith(fetch(request).catch(() => caches.match(url.pathname)));
+      return;
+    }
+
     event.respondWith(
       caches.match(request).then((cachedResponse) => {
         if (cachedResponse) return cachedResponse;

@@ -11,6 +11,7 @@ from .i18n import t
 FIXED_RADIUS_M = 5000
 FIXED_DAYS = 1825
 FIXED_INCLUDE_PLANNED = True
+PREVIOUS_NEAREST_LIMIT = 24
 DEFAULT_MAP_CENTER = [45.56, -73.61]
 DEFAULT_MAP_ZOOM = 8
 SEARCH_MAP_ZOOM = 13
@@ -126,6 +127,7 @@ def default_map_payload(
     disclosure_layers: list[dict[str, Any]] | None = None,
     current_map_layers: list[dict[str, Any]] | None = None,
     previous_map_layers: list[dict[str, Any]] | None = None,
+    previous_archive_summary: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     regional_matches_by_key = {
         _regional_geometry_key(item): _regional_metric_map_item(lang, item)
@@ -164,6 +166,7 @@ def default_map_payload(
         "loadedLayers": _loaded_layer_keys(matches),
         "matches": matches,
         "previousMode": "recent_archive",
+        "previousArchiveSummary": previous_archive_summary,
         "previousSidebarMatches": [item for item in matches if item["kind"] == "previous_outage"],
     }
 
@@ -201,6 +204,16 @@ def _map_labels(lang: str) -> dict[str, str]:
             "previous_recent_archive_empty",
             "previous_recent_archive_heading",
             "previous_seen_before_here_heading",
+            "previous_archive_last_24h",
+            "previous_archive_last_7d",
+            "previous_archive_last_30d",
+            "previous_archive_last_1y",
+            "previous_archive_largest",
+            "previous_archive_latest",
+            "previous_archive_summary_total",
+            "previous_archive_summary_areas",
+            "previous_nearest_scope",
+            "within_radius",
             "published_dai_records",
             "regional_colour_legend",
             "rows",
@@ -257,6 +270,8 @@ def build_map_payload(lang: str, result: Any, display_address: str) -> dict[str,
         "loadedLayers": _loaded_layer_keys(matches),
         "matches": matches,
         "previousMode": "seen_before_here",
+        "previousRadiusM": result.radius_m,
+        "previousNearestLimit": PREVIOUS_NEAREST_LIMIT,
         "previousSidebarMatches": previous_sidebar_matches,
     }
 
@@ -266,12 +281,12 @@ def _previous_sidebar_matches(
     previous_group_items: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
     if previous_group_items:
-        return _sort_by_distance(previous_group_items)
+        return _sort_by_distance(previous_group_items)[:PREVIOUS_NEAREST_LIMIT]
     return [
         item
         for item in _sort_by_distance(previous_items)
         if item.get("distanceM") is not None and item["distanceM"] <= FIXED_RADIUS_M
-    ]
+    ][:PREVIOUS_NEAREST_LIMIT]
 
 
 def _loaded_layer_keys(matches: list[dict[str, Any]]) -> list[str]:

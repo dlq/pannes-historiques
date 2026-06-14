@@ -359,6 +359,7 @@ def create_app(settings: Settings | None = None) -> Flask:
                 payload = default_map_payload(
                     lang,
                     previous_map_layers=service._previous_operational_map_layers(),
+                    previous_archive_summary=service.previous_operational_archive_summary(),
                 )
             elif layer == PUBLISHED_MAP_LAYER_SCOPE:
                 payload = default_map_payload(
@@ -376,6 +377,9 @@ def create_app(settings: Settings | None = None) -> Flask:
                 "layer": layer,
                 "matches": payload.get("matches", []),
                 "previousMode": payload.get("previousMode"),
+                "previousArchiveSummary": payload.get("previousArchiveSummary"),
+                "previousRadiusM": payload.get("previousRadiusM"),
+                "previousNearestLimit": payload.get("previousNearestLimit"),
                 "previousSidebarMatches": payload.get("previousSidebarMatches"),
             }
         )

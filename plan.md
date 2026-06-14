@@ -1,7 +1,7 @@
 # Plan: Hydro-Québec Outage History App
 
 Date: 2026-04-25
-Last updated: 2026-06-13
+Last updated: 2026-06-14
 
 This file is the active execution plan. Keep durable evidence, source notes, and long historical reasoning in `research.md`; keep completed release and implementation history in `roadmap-history.md`; keep completed detail here only when it affects current decisions.
 
@@ -89,6 +89,8 @@ Current implementation notes:
 - Current, planned, previous, and disclosures rows now use compact icon-backed pill layouts with fixed-width count pills so the row language is more consistent.
 - Planned sidebar rows now represent individual planned interruption events rather than summing sequential outages for the same area.
 - Previous sidebar rows are being split into two explicit modes: no-address `Recent Archive` for province-wide resolved outage history, and address-context `Seen Before Here` for local retained/nearby previous outages.
+- No-address `Recent Archive` now shows compact summary windows for the last 24 hours, 7 days, 30 days, and 1 year, using summed affected users for each period, plus the largest archived outage and a 20-row latest-outage sample.
+- Address-context `Seen Before Here` now caps the sidebar to the nearest 24 retained previous outages within the fixed search radius, with the local scope shown in the section header.
 - Previous grouped client counts should show peak/max clients for a historical area rather than summing clients across separate resolved events.
 - Detail panels now overlay the side panel on desktop and mobile; operational detail panels are intentionally minimal when they have no extra information beyond the selected row.
 - DAI/disclosure detail panels distinguish regional summary sources from specific FOI/DAI source panels, include Hydro-Québec PDF links where available, and avoid table-style horizontal scrolling in the current local design.
