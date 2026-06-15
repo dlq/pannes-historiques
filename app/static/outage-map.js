@@ -6,7 +6,7 @@ import {
   mapPane,
   markerStyle,
   metricValue,
-} from "./map-layers.js";
+} from "./map-layers.js?v=20260615archive-style";
 import { contextLayerForKind } from "./side-panel.js?v=20260614previous-totals";
 import { escapeHtml, fetchJson, label } from "./ui-format.js?v=20260608compact";
 

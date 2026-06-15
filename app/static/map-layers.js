@@ -81,6 +81,7 @@ export function geometryStyle(item, metricMax) {
   const isDisclosure = item.kind === "disclosure";
   const isRegionalMetric = item.kind === "regional_metric";
   const isPreviousOutage = item.kind === "previous_outage";
+  const isMunicipalArchive = isPreviousOutage && item.matchType === "municipal_archive";
   const color = layerColor(item, metricMax);
   return {
     color,
@@ -88,23 +89,35 @@ export function geometryStyle(item, metricMax) {
       ? regionalWeight(item)
       : isDisclosure
         ? 1.5
-        : isPreviousOutage
-          ? 1.75
-          : item.matchType === "direct_match"
-            ? 5
-            : 4,
-    opacity: isRegionalMetric ? 0.18 : isDisclosure ? 0.38 : isPreviousOutage ? 0.48 : 0.94,
-    dashArray: isPreviousOutage ? "4 7" : isDisclosure ? "2 5" : null,
+        : isMunicipalArchive
+          ? 2.75
+          : isPreviousOutage
+            ? 1.75
+            : item.matchType === "direct_match"
+              ? 5
+              : 4,
+    opacity: isRegionalMetric
+      ? 0.18
+      : isDisclosure
+        ? 0.38
+        : isMunicipalArchive
+          ? 0.82
+          : isPreviousOutage
+            ? 0.48
+            : 0.94,
+    dashArray: isMunicipalArchive ? "8 6" : isPreviousOutage ? "4 7" : isDisclosure ? "2 5" : null,
     fillColor: color,
     fillOpacity: isRegionalMetric
       ? regionalFillOpacity(item)
       : isDisclosure
         ? 0.055
-        : isPreviousOutage
-          ? 0.065
-          : item.kind === "planned"
-            ? 0.22
-            : 0.46,
+        : isMunicipalArchive
+          ? 0.025
+          : isPreviousOutage
+            ? 0.065
+            : item.kind === "planned"
+              ? 0.22
+              : 0.46,
     className: mapLayerClass(item),
   };
 }

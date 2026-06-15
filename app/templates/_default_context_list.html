@@ -36,6 +36,12 @@
 {% macro toggle_icon(is_on) -%}
   {{ ph_icon("eye-off" if is_on else "eye", "ph-toggle-icon") }}
 {%- endmacro %}
+{% macro layer_info_button(layer, label_text) -%}
+  <button class="ph-layer-info-button"
+          type="button"
+          aria-label="{{ t(lang, 'layer_info_open') }} {{ label_text }}"
+          data-layer-info="{{ layer }}">{{ ph_icon('help', 'ph-toggle-icon') }}</button>
+{%- endmacro %}
 {% macro archive_summary_row(label_text, areas, total_customers) -%}
   <div class="ph-context-summary-row ph-context-summary-row--previous">
     <span class="ph-row-pill ph-row-pill-previous-date">{{ ph_icon('archive', 'ph-pill-icon') }}{{ label_text }}</span>
@@ -50,6 +56,17 @@
     {{ count_pill(item.customersAffected or 0, "users", t(lang, "clients") , "ph-context-pill-previous") }}
   </div>
 {%- endmacro %}
+{% macro municipal_archive_row(item) -%}
+  <article class="ph-context-summary-row ph-context-summary-row--previous ph-context-summary-row--municipal ph-match-row"
+           role="button"
+           tabindex="0"
+           data-map-focus='{{ {"kind": "previous_outage", "geometryKey": item.geometryKey or item.territoryId, "geometry": item.geometry, "lat": item.centroidLat, "lon": item.centroidLon, "label": item.territoryName, "startTime": item.latestStartTime, "customersAffected": item.customersAffected} | tojson }}'>
+    <span class="ph-row-pill ph-row-pill-previous-date">{{ ph_icon('map', 'ph-pill-icon') }}{{ item.territoryName or t(lang, "unknown") }}</span>
+    <span class="ph-row-pill ph-row-pill-previous-time">{{ item.designation or t(lang, "area") }}</span>
+    {{ count_pill(item.eventCount or 0, "zap", t(lang, "previous_archive_events") , "ph-context-pill-previous ph-context-pill-events") }}
+    {{ count_pill(item.customersAffected or 0, "users", t(lang, "clients") , "ph-context-pill-previous") }}
+  </article>
+{%- endmacro %}
 <div class="ph-result-sections ph-map-context-list {{ 'ph-default-context-list' if context_variant == 'default' else 'ph-search-context-list' }}">
   <details id="ph-context-current"
            class="ph-context-section ph-context-section--primary ph-result-card rounded-lg shadow-sm"
@@ -61,6 +78,7 @@
     <summary class="ph-context-section-summary">
       <h3 class="text-sm font-semibold leading-tight text-[#223654]">{{ t(lang, "current_layer_heading") }}</h3>
       {{ layer_count(current_outages | length, "map", t(lang, "areas") ) }}
+      {{ layer_info_button("current", t(lang, "current_layer_heading") ) }}
       <button class="ph-layer-toggle is-on"
               type="button"
               aria-label="{{ t(lang, 'map_layer_on') }} {{ t(lang, 'current_layer_heading') }}"
@@ -107,6 +125,7 @@
       {% else %}
         <span class="ph-layer-count text-xs text-[#6b778a]"></span>
       {% endif %}
+      {{ layer_info_button("planned", t(lang, "planned_layer_heading") ) }}
       <button class="ph-layer-toggle {{ 'is-on' if 'planned' in loaded_layers else '' }}"
               type="button"
               aria-label="{{ (t(lang, 'map_layer_on') if 'planned' in loaded_layers else t(lang, 'map_layer_off')) }} {{ t(lang, 'planned_layer_heading') }}"
@@ -172,6 +191,7 @@
       {% else %}
         <span class="ph-layer-count text-xs text-[#6b778a]"></span>
       {% endif %}
+      {{ layer_info_button("previous", t(lang, previous_heading_key) ) }}
       <button class="ph-layer-toggle {{ 'is-on' if 'previous' in loaded_layers else '' }}"
               type="button"
               aria-label="{{ (t(lang, 'map_layer_on') if 'previous' in loaded_layers else t(lang, 'map_layer_off')) }} {{ t(lang, previous_heading_key) }}"
@@ -180,19 +200,23 @@
     </summary>
     <div class="ph-context-rows">
       {% if previous_mode == "recent_archive" and previous_archive_summary %}
-        {% for item in previous_archive_summary.windows or [] %}
-          {{ archive_summary_row(t(lang, item.key) , item.areas, item.totalCustomers) }}
-        {% endfor %}
-        {% if previous_archive_summary.largest %}
-          <div class="ph-context-summary-row ph-context-summary-row--previous">
-            <span class="ph-row-pill ph-row-pill-previous-date">{{ ph_icon('zap', 'ph-pill-icon') }}{{ t(lang, previous_archive_summary.largest.key) }}</span>
-            <span class="ph-row-pill ph-row-pill-previous-time">{{ previous_archive_summary.largest.startTime[:16] if previous_archive_summary.largest.startTime else t(lang, "unknown") }}</span>
-            {{ count_pill(previous_archive_summary.largest.customersAffected or 0, "users", t(lang, "clients") , "ph-context-pill-previous") }}
-          </div>
-        {% endif %}
-        {% if previous_archive_summary.latest %}
-          <p class="ph-context-subhead">{{ t(lang, "previous_archive_latest") }}</p>
-          {% for item in previous_archive_summary.latest %}{{ previous_latest_row(item) }}{% endfor %}
+        {% if previous_archive_summary.mode == "municipal_archive" %}
+          {% for item in previous_archive_summary.territories or [] %}{{ municipal_archive_row(item) }}{% endfor %}
+        {% else %}
+          {% for item in previous_archive_summary.windows or [] %}
+            {{ archive_summary_row(t(lang, item.key) , item.areas, item.totalCustomers) }}
+          {% endfor %}
+          {% if previous_archive_summary.largest %}
+            <div class="ph-context-summary-row ph-context-summary-row--previous">
+              <span class="ph-row-pill ph-row-pill-previous-date">{{ ph_icon('zap', 'ph-pill-icon') }}{{ t(lang, previous_archive_summary.largest.key) }}</span>
+              <span class="ph-row-pill ph-row-pill-previous-time">{{ previous_archive_summary.largest.startTime[:16] if previous_archive_summary.largest.startTime else t(lang, "unknown") }}</span>
+              {{ count_pill(previous_archive_summary.largest.customersAffected or 0, "users", t(lang, "clients") , "ph-context-pill-previous") }}
+            </div>
+          {% endif %}
+          {% if previous_archive_summary.latest %}
+            <p class="ph-context-subhead">{{ t(lang, "previous_archive_latest") }}</p>
+            {% for item in previous_archive_summary.latest %}{{ previous_latest_row(item) }}{% endfor %}
+          {% endif %}
         {% endif %}
       {% else %}
         {% for item in previous_sidebar_outages %}
@@ -231,6 +255,7 @@
       {% else %}
         <span class="ph-layer-count text-xs text-[#6b778a]"></span>
       {% endif %}
+      {{ layer_info_button("published", t(lang, "disclosure") ) }}
       <button class="ph-layer-toggle {{ 'is-on' if 'published' in loaded_layers else '' }}"
               type="button"
               aria-label="{{ (t(lang, 'map_layer_on') if 'published' in loaded_layers else t(lang, 'map_layer_off')) }} {{ t(lang, 'disclosure') }}"

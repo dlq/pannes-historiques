@@ -1,6 +1,6 @@
 import { escapeHtml } from "./ui-format.js?v=20260608compact";
 
-export const ICON_SPRITE_URL = "/static/icons.svg?v=20260606b";
+export const ICON_SPRITE_URL = "/static/icons.svg?v=20260615info";
 const DETAIL_EXTRACTED_ROW_LIMIT = 80;
 
 export function phIcon(name, className = "") {

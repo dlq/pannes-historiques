@@ -1478,11 +1478,16 @@ class AppService:
         if self.settings.durable_runtime_url:
             payload = self._durable_runtime_get("previous-archive-summary")
             if payload:
-                return {
+                summary = {
                     "windows": payload.get("windows", []),
                     "largest": payload.get("largest"),
                     "latest": payload.get("latest", []),
                 }
+                if payload.get("mode"):
+                    summary["mode"] = payload.get("mode")
+                if "territories" in payload:
+                    summary["territories"] = payload.get("territories", [])
+                return summary
 
         with open_db(self.settings.db_path) as connection:
             latest_snapshot = connection.execute(

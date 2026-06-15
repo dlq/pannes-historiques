@@ -20,6 +20,45 @@ export const CONTEXT_LAYER_KINDS = {
   published: ["disclosure", "regional_metric"],
 };
 
+export const LAYER_INFO_KEYS = {
+  current: {
+    title: "layer_info_current_title",
+    body: "layer_info_current_body",
+    sections: [
+      ["layer_info_provenance", "layer_info_current_provenance"],
+      ["layer_info_layout", "layer_info_current_layout"],
+      ["layer_info_map", "layer_info_current_map"],
+    ],
+  },
+  planned: {
+    title: "layer_info_planned_title",
+    body: "layer_info_planned_body",
+    sections: [
+      ["layer_info_provenance", "layer_info_planned_provenance"],
+      ["layer_info_layout", "layer_info_planned_layout"],
+      ["layer_info_map", "layer_info_planned_map"],
+    ],
+  },
+  previous: {
+    title: "layer_info_previous_title",
+    body: "layer_info_previous_body",
+    sections: [
+      ["layer_info_provenance", "layer_info_previous_provenance"],
+      ["layer_info_layout", "layer_info_previous_layout"],
+      ["layer_info_map", "layer_info_previous_map"],
+    ],
+  },
+  published: {
+    title: "layer_info_published_title",
+    body: "layer_info_published_body",
+    sections: [
+      ["layer_info_provenance", "layer_info_published_provenance"],
+      ["layer_info_layout", "layer_info_published_layout"],
+      ["layer_info_map", "layer_info_published_map"],
+    ],
+  },
+};
+
 export function contextLayerForKind(kind) {
   for (const [layer, kinds] of Object.entries(CONTEXT_LAYER_KINDS)) {
     if (kinds.includes(kind)) return layer;
@@ -54,6 +93,7 @@ export function focusPayloadForItem(item) {
     kind: item.kind,
     lat: item.lat,
     lon: item.lon,
+    geometry: item.geometry,
     geometryKey: item.geometryKey,
     label: item.label,
     startTime: item.startTime,
@@ -64,6 +104,37 @@ export function focusPayloadForItem(item) {
     if (payload[key] == null) delete payload[key];
   }
   return payload;
+}
+
+export function layerInfoContent(layer, labels = {}) {
+  const config = LAYER_INFO_KEYS[layer];
+  if (!config) return null;
+  return {
+    title: label(labels, config.title, layer),
+    body: label(labels, config.body, ""),
+    sections: config.sections.map(([headingKey, bodyKey]) => ({
+      heading: label(labels, headingKey, headingKey),
+      body: label(labels, bodyKey, ""),
+    })),
+  };
+}
+
+export function previousArchiveMapItems(summary) {
+  if (summary?.mode !== "municipal_archive" || !Array.isArray(summary.territories)) return [];
+  return summary.territories.map((item) => ({
+    kind: "previous_outage",
+    matchType: "municipal_archive",
+    geometryKey: item.geometryKey || item.territoryId,
+    geometry: item.geometry,
+    lat: item.centroidLat,
+    lon: item.centroidLon,
+    label: item.territoryName,
+    startTime: item.latestStartTime,
+    customersAffected: Number(item.customersAffected || 0),
+    eventCount: Number(item.eventCount || 0),
+    territoryId: item.territoryId,
+    designation: item.designation,
+  }));
 }
 
 export function renderContextRow(item, labels = {}) {
@@ -230,6 +301,76 @@ export function displayRowsForLayer(layer, matches, payload = {}) {
   return matches || [];
 }
 
+export function previousArchiveLineItems(summary, labels = {}) {
+  if (summary?.mode === "municipal_archive" && Array.isArray(summary.territories)) {
+    return summary.territories.map((item) => {
+      const eventCount = Number(item.eventCount || 0);
+      return {
+        label: item.territoryName || label(labels, "unknown", "Unknown"),
+        middle: item.designation || label(labels, "area", "Area"),
+        eventCount,
+        count: Number(item.customersAffected || 0),
+        icon: "map",
+        variant: "municipal_archive",
+        focus: previousArchiveMapItems({ mode: "municipal_archive", territories: [item] })[0],
+      };
+    });
+  }
+  const items = [];
+  for (const item of summary?.windows || []) {
+    items.push({
+      label: label(labels, item.key, item.key),
+      middle: `${item.areas || 0} ${label(labels, "previous_archive_summary_areas", "areas")}`,
+      count: item.totalCustomers || 0,
+      icon: "archive",
+    });
+  }
+  if (summary?.largest) {
+    items.push({
+      label: label(labels, summary.largest.key, "Largest"),
+      middle: summary.largest.startTime
+        ? String(summary.largest.startTime).slice(0, 16)
+        : label(labels, "unknown", "Unknown"),
+      count: summary.largest.customersAffected || 0,
+      icon: "zap",
+    });
+  }
+  for (const item of summary?.latest || []) {
+    const startTime = String(item.startTime || "");
+    items.push({
+      label: startTime ? startTime.slice(0, 10) : label(labels, "unknown", "Unknown"),
+      middle: startTime ? startTime.slice(11, 16) : "",
+      count: item.customersAffected || 0,
+      icon: "calendar",
+      section: "latest",
+    });
+  }
+  return items;
+}
+
+export function previousArchiveHeaderCount(summary) {
+  if (summary?.mode === "municipal_archive" && Array.isArray(summary.territories)) {
+    return summary.territories.length;
+  }
+  return null;
+}
+
+export function shouldRenderPreviousArchiveSummary(layer, payload = {}) {
+  return (
+    layer === "previous" &&
+    payload.previousMode === "recent_archive" &&
+    Boolean(payload.previousArchiveSummary)
+  );
+}
+
+export function mapLayerMatchesForPayload(layer, matches, payload = {}) {
+  if (layer === "previous") {
+    const archiveItems = previousArchiveMapItems(payload.previousArchiveSummary);
+    if (archiveItems.length) return archiveItems;
+  }
+  return (matches || []).filter((item) => contextLayerForKind(item.kind) === layer);
+}
+
 export function attachMapLayerToggles() {
   if (document.body.dataset.mapLayerTogglesBound === "1") return;
   document.body.dataset.mapLayerTogglesBound = "1";
@@ -260,6 +401,68 @@ export function attachMapLayerToggles() {
       ? label(labels, "previous_seen_before_here_heading", "Seen Before Here")
       : label(labels, "previous_recent_archive_heading", "Recent Archive");
 
+  const closeLayerInfoOverlay = (root = document) => {
+    const overlay = root.querySelector(".ph-layer-info-overlay");
+    overlay?.remove();
+  };
+
+  const renderLayerInfoOverlay = (section, labels) => {
+    const layer = section?.dataset.layerSection;
+    const info = layerInfoContent(layer, labels);
+    if (!section || !info) return;
+    const panel = section.closest(".ph-result-sections") || section;
+    closeLayerInfoOverlay(panel);
+
+    const overlay = document.createElement("aside");
+    overlay.className = "ph-layer-info-overlay";
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "false");
+    overlay.setAttribute("aria-label", info.title);
+
+    const header = document.createElement("div");
+    header.className = "ph-layer-info-header";
+
+    const heading = document.createElement("div");
+    heading.className = "ph-layer-info-heading";
+    const eyebrow = document.createElement("p");
+    eyebrow.className = "ph-layer-info-eyebrow";
+    eyebrow.textContent = label(labels, "layer_info_eyebrow", "About this layer");
+    const title = document.createElement("h4");
+    title.textContent = info.title;
+    heading.append(eyebrow, title);
+
+    const close = document.createElement("button");
+    close.className = "ph-layer-info-close";
+    close.type = "button";
+    close.setAttribute("aria-label", label(labels, "layer_info_close", "Close layer information"));
+    close.replaceChildren(phIcon("x", "ph-toggle-icon"));
+    close.addEventListener("click", () => closeLayerInfoOverlay(panel));
+
+    header.append(heading, close);
+
+    const body = document.createElement("div");
+    body.className = "ph-layer-info-body";
+    const intro = document.createElement("p");
+    intro.className = "ph-layer-info-intro";
+    intro.textContent = info.body;
+    body.append(intro);
+
+    for (const item of info.sections) {
+      const block = document.createElement("section");
+      block.className = "ph-layer-info-section";
+      const sectionHeading = document.createElement("h5");
+      sectionHeading.textContent = item.heading;
+      const sectionBody = document.createElement("p");
+      sectionBody.textContent = item.body;
+      block.append(sectionHeading, sectionBody);
+      body.append(block);
+    }
+
+    overlay.append(header, body);
+    panel.append(overlay);
+    close.focus();
+  };
+
   const formatRadiusKm = (radiusM) => {
     const radiusKm = Number(radiusM || 0) / 1000;
     if (!radiusKm) return "";
@@ -286,61 +489,63 @@ export function attachMapLayerToggles() {
 
   const renderPreviousArchiveSummary = (rows, summary, labels) => {
     rows.innerHTML = "";
-    const addSummaryRow = (labelText, middleText, countValue, iconName = "archive") => {
+    const addSummaryRow = (item) => {
       const row = document.createElement("div");
       row.className = "ph-context-summary-row ph-context-summary-row--previous";
+      if (item.variant === "municipal_archive") {
+        row.classList.add("ph-context-summary-row--municipal");
+      }
+      if (item.focus) {
+        row.classList.add("ph-match-row");
+        row.setAttribute("role", "button");
+        row.setAttribute("tabindex", "0");
+        row.setAttribute("data-map-focus", JSON.stringify(focusPayloadForItem(item.focus)));
+      }
 
       const labelPill = document.createElement("span");
       labelPill.className = "ph-row-pill ph-row-pill-previous-date";
-      replaceWithIconText(labelPill, iconName, labelText);
+      replaceWithIconText(labelPill, item.icon || "archive", item.label);
 
       const middlePill = document.createElement("span");
       middlePill.className = "ph-row-pill ph-row-pill-previous-time";
-      middlePill.textContent = middleText;
+      middlePill.textContent = item.middle;
+      row.append(labelPill, middlePill);
+
+      if (item.eventCount != null) {
+        const eventPill = document.createElement("span");
+        eventPill.className = "ph-context-pill ph-context-pill-previous ph-context-pill-events";
+        eventPill.setAttribute(
+          "aria-label",
+          `${item.eventCount || 0} ${label(labels, "previous_archive_events", "events")}`,
+        );
+        eventPill.replaceChildren(
+          countPillText(item.eventCount || 0),
+          phIcon("zap", "ph-count-icon"),
+        );
+        row.append(eventPill);
+      }
 
       const countPill = document.createElement("p");
       countPill.className = "ph-context-pill ph-context-pill-previous";
       countPill.setAttribute(
         "aria-label",
-        `${countValue || 0} ${label(labels, "clients", "clients")}`,
+        `${item.count || 0} ${label(labels, "clients", "clients")}`,
       );
-      countPill.replaceChildren(countPillText(countValue || 0), phIcon("users", "ph-count-icon"));
-      row.append(labelPill, middlePill, countPill);
+      countPill.replaceChildren(countPillText(item.count || 0), phIcon("users", "ph-count-icon"));
+      row.append(countPill);
       rows.append(row);
     };
 
-    for (const item of summary?.windows || []) {
-      addSummaryRow(
-        label(labels, item.key, item.key),
-        `${item.areas || 0} ${label(labels, "previous_archive_summary_areas", "areas")}`,
-        item.totalCustomers || 0,
-      );
-    }
-    if (summary?.largest) {
-      const largestTime = summary.largest.startTime
-        ? String(summary.largest.startTime).slice(0, 16)
-        : label(labels, "unknown", "Unknown");
-      addSummaryRow(
-        label(labels, summary.largest.key, "Largest"),
-        largestTime,
-        summary.largest.customersAffected || 0,
-        "zap",
-      );
-    }
-    if (summary?.latest?.length) {
+    const lineItems = previousArchiveLineItems(summary, labels);
+    const latestItems = lineItems.filter((item) => item.section === "latest");
+    const primaryItems = lineItems.filter((item) => item.section !== "latest");
+    for (const item of primaryItems) addSummaryRow(item);
+    if (latestItems.length && summary?.mode !== "municipal_archive") {
       const heading = document.createElement("p");
       heading.className = "ph-context-subhead";
       heading.textContent = label(labels, "previous_archive_latest", "Latest");
       rows.append(heading);
-      for (const item of summary.latest) {
-        const startTime = String(item.startTime || "");
-        addSummaryRow(
-          startTime ? startTime.slice(0, 10) : label(labels, "unknown", "Unknown"),
-          startTime ? startTime.slice(11, 16) : "",
-          item.customersAffected || 0,
-          "calendar",
-        );
-      }
+      for (const item of latestItems) addSummaryRow(item);
     }
   };
 
@@ -394,20 +599,23 @@ export function attachMapLayerToggles() {
   const renderLayerRows = (section, rows, layer, matches, labels, payload = {}) => {
     setPreviousMode(section, payload, labels);
     const displayMatches = displayRowsForLayer(layer, matches, payload);
+    const rendersArchiveSummary = shouldRenderPreviousArchiveSummary(layer, payload);
     rows.innerHTML = "";
-    if (
-      layer === "previous" &&
-      payload.previousMode === "recent_archive" &&
-      payload.previousArchiveSummary
-    ) {
+    if (rendersArchiveSummary) {
       renderPreviousArchiveSummary(rows, payload.previousArchiveSummary, labels);
-      setLayerCount(section, "", layerIconName(layer), "");
+      const archiveCount = previousArchiveHeaderCount(payload.previousArchiveSummary);
+      setLayerCount(
+        section,
+        archiveCount,
+        layerIconName(layer),
+        label(labels, "previous_archive_summary_areas", "areas"),
+      );
     } else {
       for (const item of displayMatches) rows.appendChild(renderContextRow(item, labels));
       hydrateTimeLabels(rows);
       setLayerCount(section, displayMatches.length, layerIconName(layer), layerNoun(layer, labels));
     }
-    if (!displayMatches.length) {
+    if (!rendersArchiveSummary && !displayMatches.length) {
       rows.innerHTML = `<p class="ph-context-empty">${document.documentElement.lang === "fr" ? "Aucune donnée pour cette couche." : "No data for this layer."}</p>`;
     }
     section.dataset.layerLoaded = "true";
@@ -457,9 +665,7 @@ export function attachMapLayerToggles() {
       headers: { Accept: "application/json" },
     })
       .then((payload) => {
-        const matches = (payload.matches || []).filter(
-          (item) => contextLayerForKind(item.kind) === layer,
-        );
+        const matches = mapLayerMatchesForPayload(layer, payload.matches || [], payload);
         renderLayerRows(section, rows, layer, matches, toggleLabels(), payload);
         document.dispatchEvent(new CustomEvent("map-layer-data", { detail: { layer, matches } }));
         return matches;
@@ -520,6 +726,15 @@ export function attachMapLayerToggles() {
   };
 
   document.body.addEventListener("click", async (event) => {
+    const infoButton = event.target.closest("[data-layer-info]");
+    if (infoButton) {
+      event.preventDefault();
+      event.stopPropagation();
+      const section = infoButton.closest("[data-layer-section]");
+      if (section) renderLayerInfoOverlay(section, toggleLabels());
+      return;
+    }
+
     const button = event.target.closest("[data-layer-toggle]");
     const summary = event.target.closest(".ph-context-section-summary");
     if (!button && summary) {
@@ -558,5 +773,10 @@ export function attachMapLayerToggles() {
       new CustomEvent("map-layer-toggle", { detail: { layer, enabled: true } }),
     );
     await loadLayerSection(section, { showOnMap: true });
+  });
+
+  document.body.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    closeLayerInfoOverlay();
   });
 }

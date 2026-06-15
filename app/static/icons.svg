@@ -49,6 +49,9 @@
   <symbol id="ph-icon-users" viewBox="0 0 24 24">
     <path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2M10 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM21 21v-2a4 4 0 0 0-3-3.9M15 3.1a4 4 0 0 1 0 7.8" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
   </symbol>
+  <symbol id="ph-icon-x" viewBox="0 0 24 24">
+    <path d="M18 6 6 18M6 6l12 12" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+  </symbol>
   <symbol id="ph-icon-zap" viewBox="0 0 24 24">
     <path d="M13 2 4 14h8l-1 8 9-12h-8l1-8Z" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
   </symbol>

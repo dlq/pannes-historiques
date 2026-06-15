@@ -1,5 +1,12 @@
 import { Container } from "@cloudflare/containers";
 import { unzipSync } from "fflate";
+import {
+  assignPolygonToTerritories,
+  normalizePolygonRow,
+  pointInGeometry,
+  simplifyTerritoryCoverage,
+  territoryFromFeature,
+} from "./municipal-archive.js";
 
 const DISCLOSURE_CRONS = new Set(["0 10 */14 * *", "13 10 */14 * *"]);
 const DISCLOSURE_BATCH_SIZE = 1;
@@ -8,6 +15,10 @@ const DISCLOSURE_FETCH_TIMEOUT_MS = 45_000;
 const DISCLOSURE_PARSE_TIMEOUT_MS = 60_000;
 const DISCLOSURE_SOURCE_DEFER_MS = 24 * 60 * 60 * 1000;
 const CONTAINER_INSTANCE_NAME = "web";
+const ADMIN_TERRITORY_LAYER_URL =
+  "https://servicescarto.mern.gouv.qc.ca/pes/rest/services/Territoire/SDA_WMS/MapServer/2/query";
+const ADMIN_TERRITORY_SOURCE_LAYER = "donnees_quebec_sda_municipalite";
+const ADMIN_TERRITORY_DISPLAY_MIN_WEIGHT = 0.00000002;
 
 export class PannesContainer extends Container {
   defaultPort = 8080;
@@ -1343,6 +1354,18 @@ async function durableRuntimeResponse(request, env) {
     return runtimePreviousGroupsResponse(env, url);
   if (suffix === "/previous-archive-summary" && request.method === "GET")
     return runtimePreviousArchiveSummaryResponse(env);
+  if (suffix === "/admin-territories/import" && request.method === "POST")
+    return operationalRuntimeResponse(request, env, () =>
+      runtimeAdminTerritoriesImportResponse(env),
+    );
+  if (suffix === "/municipal-archive/backfill" && request.method === "POST")
+    return operationalRuntimeResponse(request, env, () =>
+      runtimeMunicipalArchiveBackfillResponse(env, url),
+    );
+  if (suffix === "/municipal-archive/status" && request.method === "GET")
+    return operationalRuntimeResponse(request, env, () =>
+      runtimeMunicipalArchiveStatusResponse(env),
+    );
   if (suffix === "/operational-map-layers" && request.method === "GET")
     return runtimeOperationalMapLayersResponse(env, url);
   if (suffix === "/previous-map-layers" && request.method === "GET")
@@ -1350,6 +1373,391 @@ async function durableRuntimeResponse(request, env) {
   if (suffix === "/status" && request.method === "GET") return runtimeStatusResponse(env);
   if (suffix === "/map-context" && request.method === "GET") return runtimeMapContextResponse(env);
   return jsonResponse({ error: "runtime endpoint not found" }, { status: 404 });
+}
+
+function operationalRuntimeResponse(request, env, handler) {
+  if (!isOperationalRequest(request, env))
+    return jsonResponse({ error: "not found" }, { status: 404 });
+  return handler();
+}
+
+async function runtimeAdminTerritoriesImportResponse(env) {
+  const importedAt = new Date().toISOString();
+  const url = new URL(ADMIN_TERRITORY_LAYER_URL);
+  url.searchParams.set("where", "1=1");
+  url.searchParams.set("outFields", "*");
+  url.searchParams.set("returnGeometry", "true");
+  url.searchParams.set("outSR", "4326");
+  url.searchParams.set("geometryPrecision", "6");
+  url.searchParams.set("maxAllowableOffset", "0.001");
+  url.searchParams.set("f", "geojson");
+  const response = await fetch(url, {
+    headers: { Accept: "application/geo+json, application/json" },
+  });
+  if (!response.ok) {
+    const text = await response.text();
+    return jsonResponse(
+      {
+        error: `admin territory import returned HTTP ${response.status}`,
+        body: text.slice(0, 300),
+      },
+      { status: 502 },
+    );
+  }
+  const payload = await response.json();
+  const features = payload.features || [];
+  const displayCollection = simplifyTerritoryCoverage(features, {
+    minWeight: ADMIN_TERRITORY_DISPLAY_MIN_WEIGHT,
+  });
+  const territories = features.map((feature, index) =>
+    territoryFromFeature(feature, {
+      displayGeometry: displayCollection.features[index]?.geometry || feature.geometry,
+    }),
+  );
+  const statements = territories.map((territory) =>
+    env.DB.prepare(
+      `
+      INSERT INTO admin_territories
+      (territory_id, source_layer, source_object_id, code, name, normalized_name,
+       designation, designation_code, mrc_code, mrc_name, region_code, region_name,
+       source_version, area_km2, centroid_lon, centroid_lat, bbox_min_lon, bbox_min_lat,
+       bbox_max_lon, bbox_max_lat, geometry_geojson, display_geometry_geojson,
+       imported_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(territory_id) DO UPDATE SET
+        source_object_id = excluded.source_object_id,
+        code = excluded.code,
+        name = excluded.name,
+        normalized_name = excluded.normalized_name,
+        designation = excluded.designation,
+        designation_code = excluded.designation_code,
+        mrc_code = excluded.mrc_code,
+        mrc_name = excluded.mrc_name,
+        region_code = excluded.region_code,
+        region_name = excluded.region_name,
+        source_version = excluded.source_version,
+        area_km2 = excluded.area_km2,
+        centroid_lon = excluded.centroid_lon,
+        centroid_lat = excluded.centroid_lat,
+        bbox_min_lon = excluded.bbox_min_lon,
+        bbox_min_lat = excluded.bbox_min_lat,
+        bbox_max_lon = excluded.bbox_max_lon,
+        bbox_max_lat = excluded.bbox_max_lat,
+        geometry_geojson = excluded.geometry_geojson,
+        display_geometry_geojson = excluded.display_geometry_geojson,
+        imported_at = excluded.imported_at,
+        updated_at = excluded.updated_at
+      `,
+    ).bind(
+      territory.territory_id,
+      ADMIN_TERRITORY_SOURCE_LAYER,
+      String(territory.source_object_id || ""),
+      territory.code,
+      territory.name,
+      territory.normalized_name,
+      territory.designation,
+      territory.designation_code,
+      territory.mrc_code,
+      territory.mrc_name,
+      territory.region_code,
+      territory.region_name,
+      territory.version,
+      territory.area_km2,
+      territory.centroid_lon,
+      territory.centroid_lat,
+      territory.bbox?.minLon,
+      territory.bbox?.minLat,
+      territory.bbox?.maxLon,
+      territory.bbox?.maxLat,
+      JSON.stringify(territory.geometry),
+      JSON.stringify(territory.display_geometry),
+      importedAt,
+      importedAt,
+    ),
+  );
+  await batchInChunks(env.DB, statements);
+  await setBuildState(env.DB, "admin_territories_imported_at", importedAt);
+  return jsonResponse({
+    imported: territories.length,
+    source_layer: ADMIN_TERRITORY_SOURCE_LAYER,
+    imported_at: importedAt,
+  });
+}
+
+async function runtimeMunicipalArchiveBackfillResponse(env, url) {
+  const limit = Math.trunc(clamp(numberParam(url, "limit") ?? 100, 1, 500));
+  const afterId =
+    url.searchParams.get("after_id") ||
+    (await getBuildState(env.DB, "municipal_archive_last_polygon_id"));
+  const [territories, polygons] = await Promise.all([
+    adminTerritoryRows(env.DB),
+    hydroPolygonsForMunicipalArchive(env.DB, afterId, limit),
+  ]);
+  if (!territories.length) {
+    return jsonResponse(
+      { error: "admin territories must be imported before municipal archive backfill" },
+      { status: 409 },
+    );
+  }
+
+  const updatedAt = new Date().toISOString();
+  let assignmentCount = 0;
+  const statements = [];
+  for (const polygon of polygons) {
+    const candidateTerritories = territories.filter((territory) =>
+      bboxIntersectsRows(polygon, territory),
+    );
+    const assignments = assignPolygonToTerritories(polygon, candidateTerritories);
+    const outageStats = await outageStatsForPolygon(env.DB, polygon);
+    assignmentCount += assignments.length;
+    for (const assignment of assignments) {
+      statements.push(upsertMunicipalArchiveAssignment(env.DB, assignment, outageStats, updatedAt));
+    }
+  }
+  await batchInChunks(env.DB, statements);
+  const lastPolygonId = polygons.at(-1)?.id || afterId || "";
+  if (lastPolygonId)
+    await setBuildState(env.DB, "municipal_archive_last_polygon_id", lastPolygonId);
+  await setBuildState(env.DB, "municipal_archive_last_backfill_at", updatedAt);
+  return jsonResponse({
+    polygons_processed: polygons.length,
+    assignments: assignmentCount,
+    last_polygon_id: lastPolygonId,
+    has_more: polygons.length === limit,
+    updated_at: updatedAt,
+  });
+}
+
+async function runtimeMunicipalArchiveStatusResponse(env) {
+  const [
+    territories,
+    totalBins,
+    primaryBins,
+    overlapBins,
+    distinctPolygons,
+    importedAt,
+    lastBackfillAt,
+    lastPolygonId,
+  ] = await Promise.all([
+    countRows(env.DB, "admin_territories"),
+    countRows(env.DB, "previous_outage_territory_bins"),
+    countRows(env.DB, "previous_outage_territory_bins", "assignment_type = 'primary'"),
+    countRows(env.DB, "previous_outage_territory_bins", "assignment_type = 'overlap'"),
+    scalar(
+      env.DB,
+      "SELECT COUNT(DISTINCT hydro_polygon_id) AS value FROM previous_outage_territory_bins",
+    ),
+    getBuildState(env.DB, "admin_territories_imported_at"),
+    getBuildState(env.DB, "municipal_archive_last_backfill_at"),
+    getBuildState(env.DB, "municipal_archive_last_polygon_id"),
+  ]);
+  return jsonResponse({
+    territories,
+    bins: totalBins,
+    primary_bins: primaryBins,
+    overlap_bins: overlapBins,
+    processed_polygons: distinctPolygons || 0,
+    admin_territories_imported_at: importedAt || null,
+    municipal_archive_last_backfill_at: lastBackfillAt || null,
+    municipal_archive_last_polygon_id: lastPolygonId || null,
+  });
+}
+
+async function adminTerritoryRows(db) {
+  const result = await db
+    .prepare(
+      `
+      SELECT *
+      FROM admin_territories
+      ORDER BY territory_id
+      `,
+    )
+    .all();
+  return (result.results || []).map((row) => ({
+    ...row,
+    territory_id: row.territory_id,
+    code: row.code,
+    name: row.name,
+    designation: row.designation,
+    mrc_code: row.mrc_code,
+    mrc_name: row.mrc_name,
+    region_code: row.region_code,
+    region_name: row.region_name,
+    bbox: {
+      minLon: row.bbox_min_lon,
+      minLat: row.bbox_min_lat,
+      maxLon: row.bbox_max_lon,
+      maxLat: row.bbox_max_lat,
+    },
+    geometry: JSON.parse(row.geometry_geojson),
+  }));
+}
+
+async function hydroPolygonsForMunicipalArchive(db, afterId, limit) {
+  const sql = `
+    SELECT *
+    FROM hydro_polygon_geometries
+    WHERE source_type = 'bispoly'
+      ${afterId ? "AND id > ?" : ""}
+    ORDER BY id
+    LIMIT ?
+  `;
+  const statement = db.prepare(sql);
+  const result = afterId
+    ? await statement.bind(afterId, limit).all()
+    : await statement.bind(limit).all();
+  return result.results || [];
+}
+
+async function outageStatsForPolygon(db, polygonRow) {
+  const polygon = normalizePolygonRow(polygonRow);
+  const result = await db
+    .prepare(
+      `
+      SELECT customers_affected, outage_start_time, estimated_restore_time, centroid_lon, centroid_lat
+      FROM current_outage_records
+      WHERE source_version = ?
+        AND centroid_lat BETWEEN ? AND ?
+        AND centroid_lon BETWEEN ? AND ?
+      `,
+    )
+    .bind(
+      polygon.source_version,
+      polygon.bbox.minLat,
+      polygon.bbox.maxLat,
+      polygon.bbox.minLon,
+      polygon.bbox.maxLon,
+    )
+    .all();
+  const matching = (result.results || []).filter((row) =>
+    pointInGeometry({ lon: row.centroid_lon, lat: row.centroid_lat }, polygon.geometry),
+  );
+  if (!matching.length) {
+    const observedAt = hydroVersionTimestamp(polygon.source_version);
+    return {
+      eventCount: 1,
+      maxCustomers: null,
+      latestStartTime: observedAt,
+      latestEndTime: null,
+    };
+  }
+  matching.sort((left, right) =>
+    String(right.outage_start_time || "").localeCompare(String(left.outage_start_time || "")),
+  );
+  return {
+    eventCount: matching.length,
+    maxCustomers: Math.max(...matching.map((row) => Number(row.customers_affected || 0))),
+    latestStartTime:
+      matching[0]?.outage_start_time || hydroVersionTimestamp(polygon.source_version),
+    latestEndTime: matching[0]?.estimated_restore_time || null,
+  };
+}
+
+function upsertMunicipalArchiveAssignment(db, assignment, outageStats, updatedAt) {
+  const observedAt = hydroVersionTimestamp(assignment.source_version) || updatedAt;
+  return db
+    .prepare(
+      `
+      INSERT INTO previous_outage_territory_bins
+      (id, hydro_polygon_id, source_type, source_version, polygon_id, territory_id,
+       assignment_type, territory_code, territory_name, designation, mrc_code, mrc_name,
+       region_code, region_name, centroid_lon, centroid_lat, first_seen_at, last_seen_at,
+       event_count, max_customers, latest_start_time, latest_end_time, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        last_seen_at = excluded.last_seen_at,
+        event_count = excluded.event_count,
+        max_customers = excluded.max_customers,
+        latest_start_time = excluded.latest_start_time,
+        latest_end_time = excluded.latest_end_time,
+        updated_at = excluded.updated_at
+      `,
+    )
+    .bind(
+      assignment.id,
+      assignment.hydro_polygon_id,
+      assignment.source_type,
+      assignment.source_version,
+      assignment.polygon_id,
+      assignment.territory_id,
+      assignment.assignment_type,
+      assignment.territory_code,
+      assignment.territory_name,
+      assignment.designation,
+      assignment.mrc_code,
+      assignment.mrc_name,
+      assignment.region_code,
+      assignment.region_name,
+      assignment.centroid_lon,
+      assignment.centroid_lat,
+      observedAt,
+      observedAt,
+      outageStats.eventCount,
+      outageStats.maxCustomers,
+      outageStats.latestStartTime || observedAt,
+      outageStats.latestEndTime,
+      updatedAt,
+    );
+}
+
+function bboxIntersectsRows(polygon, territory) {
+  return (
+    polygon.bbox_min_lon <= territory.bbox.maxLon &&
+    polygon.bbox_max_lon >= territory.bbox.minLon &&
+    polygon.bbox_min_lat <= territory.bbox.maxLat &&
+    polygon.bbox_max_lat >= territory.bbox.minLat
+  );
+}
+
+async function countRows(db, tableName, whereClause = "") {
+  try {
+    const row = await db
+      .prepare(
+        `SELECT COUNT(*) AS value FROM ${tableName}${whereClause ? ` WHERE ${whereClause}` : ""}`,
+      )
+      .first();
+    return row?.value || 0;
+  } catch (_error) {
+    return 0;
+  }
+}
+
+async function scalar(db, sql) {
+  const row = await db.prepare(sql).first();
+  return row?.value || null;
+}
+
+async function getBuildState(db, key) {
+  const row = await db
+    .prepare("SELECT state_value FROM municipal_archive_build_state WHERE state_key = ?")
+    .bind(key)
+    .first();
+  return row?.state_value || null;
+}
+
+async function setBuildState(db, key, value) {
+  const updatedAt = new Date().toISOString();
+  await db
+    .prepare(
+      `
+      INSERT INTO municipal_archive_build_state (state_key, state_value, updated_at)
+      VALUES (?, ?, ?)
+      ON CONFLICT(state_key) DO UPDATE SET
+        state_value = excluded.state_value,
+        updated_at = excluded.updated_at
+      `,
+    )
+    .bind(key, value, updatedAt)
+    .run();
+}
+
+function hydroVersionTimestamp(version) {
+  const value = String(version || "");
+  if (!/^\d{14}$/.test(value)) return null;
+  return `${value.slice(0, 4)}-${value.slice(4, 6)}-${value.slice(6, 8)} ${value.slice(
+    8,
+    10,
+  )}:${value.slice(10, 12)}:${value.slice(12, 14)}`;
 }
 
 async function runtimeGeocodeCacheResponse(request, env, url) {
@@ -1653,6 +2061,13 @@ async function runtimePreviousMapLayersResponse(env, url) {
 }
 
 async function runtimePreviousArchiveSummaryResponse(env) {
+  const primaryBinCount = await countRows(
+    env.DB,
+    "previous_outage_territory_bins",
+    "assignment_type = 'primary'",
+  );
+  if (primaryBinCount > 0) return runtimeMunicipalPreviousArchiveSummaryResponse(env);
+
   const currentRows = await latestRows(env.DB, "bis", "current_outage_records");
   const currentKeys = new Set(
     currentRows.map((row) =>
@@ -1729,6 +2144,141 @@ function previousArchiveLargest(items) {
     key: "previous_archive_largest",
     startTime: largest.startTime,
     customersAffected: largest.customersAffected,
+  };
+}
+
+async function runtimeMunicipalPreviousArchiveSummaryResponse(env) {
+  const cutoff24h = sqlTimestampHoursAgo(24);
+  const cutoff7d = sqlTimestampDaysAgo(7);
+  const cutoff30d = sqlTimestampDaysAgo(30);
+  const cutoff1y = sqlTimestampDaysAgo(365);
+  const result = await env.DB.prepare(
+    `
+    SELECT b.*,
+           t.centroid_lon AS territory_centroid_lon,
+           t.centroid_lat AS territory_centroid_lat,
+           t.bbox_min_lon AS territory_bbox_min_lon,
+           t.bbox_min_lat AS territory_bbox_min_lat,
+           t.bbox_max_lon AS territory_bbox_max_lon,
+           t.bbox_max_lat AS territory_bbox_max_lat,
+           t.display_geometry_geojson AS territory_display_geometry_geojson,
+           COALESCE(b.latest_start_time, b.last_seen_at, b.updated_at) AS sort_time
+    FROM previous_outage_territory_bins b
+    LEFT JOIN admin_territories t ON t.territory_id = b.territory_id
+    WHERE b.assignment_type = 'primary'
+      AND COALESCE(b.latest_start_time, b.last_seen_at, b.updated_at, '') >= ?
+    ORDER BY sort_time DESC
+    `,
+  )
+    .bind(cutoff1y)
+    .all();
+  const items = (result.results || []).map(municipalArchiveItem);
+  const territories = municipalArchiveTerritoryRows(items);
+  return jsonResponse({
+    mode: "municipal_archive",
+    windows: [
+      municipalArchiveWindow(items, "previous_archive_last_24h", cutoff24h),
+      municipalArchiveWindow(items, "previous_archive_last_7d", cutoff7d),
+      municipalArchiveWindow(items, "previous_archive_last_30d", cutoff30d),
+      municipalArchiveWindow(items, "previous_archive_last_1y", cutoff1y),
+    ],
+    largest: municipalArchiveLargest(items),
+    latest: items.slice(0, 20).map((item) => ({
+      key: "previous_archive_latest",
+      startTime: item.startTime,
+      customersAffected: item.customersAffected,
+      territoryName: item.territoryName,
+    })),
+    territories,
+  });
+}
+
+function municipalArchiveItem(row) {
+  return {
+    startTime: row.sort_time || row.latest_start_time || row.last_seen_at || row.updated_at || "",
+    customersAffected: Number(row.max_customers || 0),
+    eventCount: Number(row.event_count || 1),
+    territoryId: row.territory_id,
+    territoryName: row.territory_name,
+    designation: row.designation,
+    latestStartTime: row.latest_start_time || row.sort_time || "",
+    geometryKey: `municipal_archive:${row.territory_id}`,
+    centroidLon: row.territory_centroid_lon ?? row.centroid_lon,
+    centroidLat: row.territory_centroid_lat ?? row.centroid_lat,
+    bbox: {
+      minLon: row.territory_bbox_min_lon,
+      minLat: row.territory_bbox_min_lat,
+      maxLon: row.territory_bbox_max_lon,
+      maxLat: row.territory_bbox_max_lat,
+    },
+    geometry: parseOptionalJson(row.territory_display_geometry_geojson),
+  };
+}
+
+function municipalArchiveTerritoryRows(items) {
+  const groups = new Map();
+  for (const item of items) {
+    if (!groups.has(item.territoryId)) {
+      groups.set(item.territoryId, {
+        territoryId: item.territoryId,
+        territoryName: item.territoryName,
+        designation: item.designation,
+        geometryKey: item.geometryKey,
+        centroidLon: item.centroidLon,
+        centroidLat: item.centroidLat,
+        bbox: item.bbox,
+        geometry: item.geometry,
+        eventCount: 0,
+        customersAffected: 0,
+        latestStartTime: item.latestStartTime || item.startTime,
+      });
+    }
+    const group = groups.get(item.territoryId);
+    group.eventCount += item.eventCount || 1;
+    group.customersAffected = Math.max(group.customersAffected || 0, item.customersAffected || 0);
+    if (String(item.latestStartTime || item.startTime || "") > String(group.latestStartTime || "")) {
+      group.latestStartTime = item.latestStartTime || item.startTime;
+    }
+  }
+  return [...groups.values()]
+    .sort((left, right) => {
+      const timeCompare = String(right.latestStartTime || "").localeCompare(
+        String(left.latestStartTime || ""),
+      );
+      return timeCompare || (right.customersAffected || 0) - (left.customersAffected || 0);
+    })
+    .slice(0, 50);
+}
+
+function parseOptionalJson(raw) {
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch (_error) {
+    return null;
+  }
+}
+
+function municipalArchiveWindow(items, key, cutoff) {
+  const windowItems = items.filter((item) => item.startTime >= cutoff);
+  return {
+    key,
+    areas: new Set(windowItems.map((item) => item.territoryId)).size,
+    totalCustomers: windowItems.reduce((total, item) => total + item.customersAffected, 0),
+  };
+}
+
+function municipalArchiveLargest(items) {
+  let largest = null;
+  for (const item of items) {
+    if (!largest || item.customersAffected > largest.customersAffected) largest = item;
+  }
+  if (!largest) return null;
+  return {
+    key: "previous_archive_largest",
+    startTime: largest.startTime,
+    customersAffected: largest.customersAffected,
+    territoryName: largest.territoryName,
   };
 }
 

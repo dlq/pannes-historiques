@@ -134,6 +134,7 @@ Acceptance criteria:
 - public operational endpoints return `404` by default, while scheduled/internal/debug-enabled paths still work in tests
 - previous-outage sidebar review: without an address, the Previous slot is labelled and ordered as a recent archive summary; with an address, the same slot is labelled and filtered as local `Seen Before Here` evidence
 - previous-outage layer review: make the displayed archive layer group by stable historical area buckets, such as municipality plus rounded centroid or derived stable area, rather than exact/current polygon identity, so accumulated history clumps into meaningful repeated-outage areas
+- archive-bin display geometry should be derived as a topology-preserving simplified coverage of municipalities, TNOs, and Indigenous territories; keep raw admin geometries unchanged for binning/provenance
 - `v0.2.6` scope remains small enough to verify with desktop and mobile visual passes without broad architecture changes
 
 Verification so far:

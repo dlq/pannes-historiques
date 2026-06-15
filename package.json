@@ -1,6 +1,6 @@
 {
   "name": "pannes-historiques",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "private": true,
   "type": "module",
   "scripts": {
@@ -22,6 +22,9 @@
   },
   "dependencies": {
     "fflate": "^0.8.2",
-    "leaflet": "^1.9.4"
+    "leaflet": "^1.9.4",
+    "topojson-client": "^3.1.0",
+    "topojson-server": "^3.0.1",
+    "topojson-simplify": "^3.0.3"
   }
 }

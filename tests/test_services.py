@@ -322,6 +322,38 @@ def test_durable_previous_archive_summary_uses_runtime_summary_endpoint(
     assert service.previous_operational_archive_summary() == summary
 
 
+def test_durable_previous_archive_summary_preserves_municipal_bins(service_factory, monkeypatch):
+    service = service_factory(durable_runtime_url="https://example.invalid")
+    summary = {
+        "mode": "municipal_archive",
+        "windows": [],
+        "largest": None,
+        "latest": [],
+        "territories": [
+            {
+                "territoryId": "municipality:06066",
+                "territoryName": "Montréal",
+                "designation": "Municipalité",
+                "eventCount": 42,
+                "customersAffected": 1200,
+                "latestStartTime": "2026-06-14 10:30:00",
+            }
+        ],
+    }
+
+    def fake_runtime_get(path, query=None):
+        assert path == "previous-archive-summary"
+        assert query is None
+        return summary
+
+    monkeypatch.setattr(service, "_durable_runtime_get", fake_runtime_get)
+
+    result = service.previous_operational_archive_summary()
+
+    assert result["mode"] == "municipal_archive"
+    assert result["territories"] == summary["territories"]
+
+
 def test_durable_runtime_get_caches_context_reads(service_factory, monkeypatch):
     service = service_factory(
         durable_runtime_url="https://example.invalid",
