@@ -5,6 +5,8 @@ import { join } from "node:path";
 
 import {
   assignPolygonToTerritories,
+  compareHydroPolygonIds,
+  parseHydroPolygonId,
   pointInGeometry,
   simplifyGeometry,
   simplifyTerritoryCoverage,
@@ -106,7 +108,7 @@ async function backfillMunicipalArchive() {
     geometry: JSON.parse(row.geometry_geojson),
   }));
 
-  let afterId = process.env.MUNICIPAL_ARCHIVE_AFTER_ID || (await buildState("municipal_archive_last_polygon_id"));
+  let afterId = process.env.MUNICIPAL_ARCHIVE_AFTER_ID || (await municipalArchiveCursor());
   let totalPolygons = 0;
   let totalAssignments = 0;
   let batch = 0;
@@ -178,13 +180,39 @@ async function buildState(key) {
   return result[0].results[0]?.state_value || "";
 }
 
+async function municipalArchiveCursor() {
+  const stateCursor = await buildState("municipal_archive_last_polygon_id");
+  const processedCursor = await latestMunicipalArchiveHydroPolygonId();
+  if (!stateCursor) return processedCursor || "";
+  if (!processedCursor) return stateCursor || "";
+  return compareHydroPolygonIds(stateCursor, processedCursor) >= 0 ? stateCursor : processedCursor;
+}
+
+async function latestMunicipalArchiveHydroPolygonId() {
+  const result = await d1Query(`
+    SELECT hydro_polygon_id
+    FROM previous_outage_territory_bins
+    WHERE source_type = 'bispoly'
+    ORDER BY source_version DESC, CAST(polygon_id AS INTEGER) DESC
+    LIMIT 1
+  `);
+  return result[0].results[0]?.hydro_polygon_id || "";
+}
+
 async function fetchPolygonBatch(afterId, limit) {
+  const cursor = parseHydroPolygonId(afterId);
   const result = await d1Query(`
     SELECT *
     FROM hydro_polygon_geometries
     WHERE source_type = 'bispoly'
-      ${afterId ? `AND id > ${sqlString(afterId)}` : ""}
-    ORDER BY id
+      ${
+        cursor
+          ? `AND (source_version > ${sqlString(cursor.sourceVersion)} OR (source_version = ${sqlString(
+              cursor.sourceVersion,
+            )} AND CAST(polygon_id AS INTEGER) > ${cursor.polygonIndex}))`
+          : ""
+      }
+    ORDER BY source_version, CAST(polygon_id AS INTEGER)
     LIMIT ${Number(limit)}
   `);
   return result[0].results || [];

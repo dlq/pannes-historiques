@@ -4,8 +4,10 @@ import { test } from "node:test";
 import {
   assignPolygonToTerritories,
   bboxIntersects,
+  compareHydroPolygonIds,
   geometryBbox,
   geometryCentroid,
+  parseHydroPolygonId,
   pointInGeometry,
   simplifyGeometry,
   simplifyTerritoryCoverage,
@@ -209,5 +211,19 @@ test("assigns outage polygon to primary centroid territory and overlap territori
       ["overlap", "municipality:west"],
       ["overlap", "municipality:east"],
     ],
+  );
+});
+
+test("orders Hydro polygon ids by source version and numeric polygon index", () => {
+  assert.deepEqual(parseHydroPolygonId("bispoly:20260615193004:10"), {
+    sourceType: "bispoly",
+    sourceVersion: "20260615193004",
+    polygonIndex: 10,
+  });
+  assert.equal(compareHydroPolygonIds("bispoly:20260615193004:9", "bispoly:20260615193004:10"), -1);
+  assert.equal(compareHydroPolygonIds("bispoly:20260615193004:604", "bispoly:20260615200010:0"), -1);
+  assert.deepEqual(
+    ["bispoly:20260615193004:9", "bispoly:20260615193004:10"].sort(),
+    ["bispoly:20260615193004:10", "bispoly:20260615193004:9"],
   );
 });

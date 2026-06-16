@@ -167,6 +167,28 @@ export function normalizePolygonRow(row) {
   };
 }
 
+export function parseHydroPolygonId(id) {
+  const match = String(id || "").match(/^([^:]+):(\d{14}):(\d+)$/);
+  if (!match) return null;
+  return {
+    sourceType: match[1],
+    sourceVersion: match[2],
+    polygonIndex: Number(match[3]),
+  };
+}
+
+export function compareHydroPolygonIds(left, right) {
+  const leftCursor = parseHydroPolygonId(left);
+  const rightCursor = parseHydroPolygonId(right);
+  if (!leftCursor && !rightCursor) return 0;
+  if (!leftCursor) return -1;
+  if (!rightCursor) return 1;
+  return (
+    leftCursor.sourceVersion.localeCompare(rightCursor.sourceVersion) ||
+    leftCursor.polygonIndex - rightCursor.polygonIndex
+  );
+}
+
 function assignmentFor(polygon, territory, assignmentType) {
   return {
     id: `${polygon.id}:${assignmentType}:${territory.territory_id}`,

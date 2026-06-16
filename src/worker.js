@@ -2,7 +2,9 @@ import { Container } from "@cloudflare/containers";
 import { unzipSync } from "fflate";
 import {
   assignPolygonToTerritories,
+  compareHydroPolygonIds,
   normalizePolygonRow,
+  parseHydroPolygonId,
   pointInGeometry,
   simplifyTerritoryCoverage,
   territoryFromFeature,
@@ -1488,16 +1490,16 @@ async function runtimeAdminTerritoriesImportResponse(env) {
 async function runtimeMunicipalArchiveBackfillResponse(env, url) {
   const limit = Math.trunc(clamp(numberParam(url, "limit") ?? 100, 1, 500));
   const afterId =
-    url.searchParams.get("after_id") ||
-    (await getBuildState(env.DB, "municipal_archive_last_polygon_id"));
+    url.searchParams.get("after_id") || (await municipalArchiveCursor(env.DB));
   return jsonResponse(await runMunicipalArchiveBackfill(env, { limit, afterId }));
 }
 
 async function runMunicipalArchiveBackfill(env, { limit = 100, afterId = null } = {}) {
   const boundedLimit = Math.trunc(clamp(limit, 1, 500));
+  const cursor = afterId || (await municipalArchiveCursor(env.DB));
   const [territories, polygons] = await Promise.all([
     adminTerritoryRows(env.DB),
-    hydroPolygonsForMunicipalArchive(env.DB, afterId, boundedLimit),
+    hydroPolygonsForMunicipalArchive(env.DB, cursor, boundedLimit),
   ]);
   if (!territories.length) {
     return {
@@ -1523,7 +1525,7 @@ async function runMunicipalArchiveBackfill(env, { limit = 100, afterId = null } 
     }
   }
   await batchInChunks(env.DB, statements);
-  const lastPolygonId = polygons.at(-1)?.id || afterId || "";
+  const lastPolygonId = polygons.at(-1)?.id || cursor || "";
   if (lastPolygonId)
     await setBuildState(env.DB, "municipal_archive_last_polygon_id", lastPolygonId);
   await setBuildState(env.DB, "municipal_archive_last_backfill_at", updatedAt);
@@ -1602,19 +1604,47 @@ async function adminTerritoryRows(db) {
 }
 
 async function hydroPolygonsForMunicipalArchive(db, afterId, limit) {
+  const cursor = parseHydroPolygonId(afterId);
   const sql = `
     SELECT *
     FROM hydro_polygon_geometries
     WHERE source_type = 'bispoly'
-      ${afterId ? "AND id > ?" : ""}
-    ORDER BY id
+      ${cursor ? "AND (source_version > ? OR (source_version = ? AND CAST(polygon_id AS INTEGER) > ?))" : ""}
+    ORDER BY source_version, CAST(polygon_id AS INTEGER)
     LIMIT ?
   `;
   const statement = db.prepare(sql);
-  const result = afterId
-    ? await statement.bind(afterId, limit).all()
+  const result = cursor
+    ? await statement
+        .bind(cursor.sourceVersion, cursor.sourceVersion, cursor.polygonIndex, limit)
+        .all()
     : await statement.bind(limit).all();
   return result.results || [];
+}
+
+async function municipalArchiveCursor(db) {
+  const [stateCursor, processedCursor] = await Promise.all([
+    getBuildState(db, "municipal_archive_last_polygon_id"),
+    latestMunicipalArchiveHydroPolygonId(db),
+  ]);
+  if (!stateCursor) return processedCursor || "";
+  if (!processedCursor) return stateCursor || "";
+  return compareHydroPolygonIds(stateCursor, processedCursor) >= 0 ? stateCursor : processedCursor;
+}
+
+async function latestMunicipalArchiveHydroPolygonId(db) {
+  const row = await db
+    .prepare(
+      `
+      SELECT hydro_polygon_id
+      FROM previous_outage_territory_bins
+      WHERE source_type = 'bispoly'
+      ORDER BY source_version DESC, CAST(polygon_id AS INTEGER) DESC
+      LIMIT 1
+      `,
+    )
+    .first();
+  return row?.hydro_polygon_id || "";
 }
 
 async function outageStatsForPolygon(db, polygonRow) {
