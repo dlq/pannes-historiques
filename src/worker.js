@@ -131,7 +131,7 @@ async function fetchContainer(request, env) {
 async function runHydroSchedule(env) {
   const started = new Date().toISOString();
   const run = await recordRunStarted(env.DB, "hydro_changed", started);
-  const summary = { d1: null, container: null, errors: [] };
+  const summary = { d1: null, container: null, municipal_archive: null, errors: [] };
   try {
     const versions = await currentFeedVersionMap(env.DB);
     summary.container = {
@@ -144,6 +144,7 @@ async function runHydroSchedule(env) {
       ),
     };
     summary.d1 = await syncHydroFromContainerResult(env, summary.container);
+    summary.municipal_archive = await runMunicipalArchiveBackfill(env, { limit: 500 });
   } catch (error) {
     summary.errors.push({ step: "container_hydro_sync", error: String(error?.stack || error) });
   }
@@ -1489,15 +1490,22 @@ async function runtimeMunicipalArchiveBackfillResponse(env, url) {
   const afterId =
     url.searchParams.get("after_id") ||
     (await getBuildState(env.DB, "municipal_archive_last_polygon_id"));
+  return jsonResponse(await runMunicipalArchiveBackfill(env, { limit, afterId }));
+}
+
+async function runMunicipalArchiveBackfill(env, { limit = 100, afterId = null } = {}) {
+  const boundedLimit = Math.trunc(clamp(limit, 1, 500));
   const [territories, polygons] = await Promise.all([
     adminTerritoryRows(env.DB),
-    hydroPolygonsForMunicipalArchive(env.DB, afterId, limit),
+    hydroPolygonsForMunicipalArchive(env.DB, afterId, boundedLimit),
   ]);
   if (!territories.length) {
-    return jsonResponse(
-      { error: "admin territories must be imported before municipal archive backfill" },
-      { status: 409 },
-    );
+    return {
+      skipped: "admin_territories_missing",
+      polygons_processed: 0,
+      assignments: 0,
+      has_more: false,
+    };
   }
 
   const updatedAt = new Date().toISOString();
@@ -1519,13 +1527,13 @@ async function runtimeMunicipalArchiveBackfillResponse(env, url) {
   if (lastPolygonId)
     await setBuildState(env.DB, "municipal_archive_last_polygon_id", lastPolygonId);
   await setBuildState(env.DB, "municipal_archive_last_backfill_at", updatedAt);
-  return jsonResponse({
+  return {
     polygons_processed: polygons.length,
     assignments: assignmentCount,
     last_polygon_id: lastPolygonId,
-    has_more: polygons.length === limit,
+    has_more: polygons.length === boundedLimit,
     updated_at: updatedAt,
-  });
+  };
 }
 
 async function runtimeMunicipalArchiveStatusResponse(env) {
@@ -2152,59 +2160,63 @@ async function runtimeMunicipalPreviousArchiveSummaryResponse(env) {
   const cutoff7d = sqlTimestampDaysAgo(7);
   const cutoff30d = sqlTimestampDaysAgo(30);
   const cutoff1y = sqlTimestampDaysAgo(365);
-  const result = await env.DB.prepare(
-    `
-    SELECT b.*,
-           t.centroid_lon AS territory_centroid_lon,
-           t.centroid_lat AS territory_centroid_lat,
-           t.bbox_min_lon AS territory_bbox_min_lon,
-           t.bbox_min_lat AS territory_bbox_min_lat,
-           t.bbox_max_lon AS territory_bbox_max_lon,
-           t.bbox_max_lat AS territory_bbox_max_lat,
-           t.display_geometry_geojson AS territory_display_geometry_geojson,
-           COALESCE(b.latest_start_time, b.last_seen_at, b.updated_at) AS sort_time
-    FROM previous_outage_territory_bins b
-    LEFT JOIN admin_territories t ON t.territory_id = b.territory_id
-    WHERE b.assignment_type = 'primary'
-      AND COALESCE(b.latest_start_time, b.last_seen_at, b.updated_at, '') >= ?
-    ORDER BY sort_time DESC
-    `,
-  )
-    .bind(cutoff1y)
-    .all();
-  const items = (result.results || []).map(municipalArchiveItem);
-  const territories = municipalArchiveTerritoryRows(items);
+  const [windows, largest, latest, territoryResult] = await Promise.all([
+    Promise.all([
+      municipalArchiveWindow(env.DB, "previous_archive_last_24h", cutoff24h),
+      municipalArchiveWindow(env.DB, "previous_archive_last_7d", cutoff7d),
+      municipalArchiveWindow(env.DB, "previous_archive_last_30d", cutoff30d),
+      municipalArchiveWindow(env.DB, "previous_archive_last_1y", cutoff1y),
+    ]),
+    municipalArchiveLargest(env.DB, cutoff1y),
+    municipalArchiveLatest(env.DB, cutoff1y),
+    env.DB.prepare(
+      `
+      SELECT b.territory_id,
+             b.territory_name,
+             b.designation,
+             SUM(COALESCE(b.event_count, 1)) AS event_count,
+             MAX(COALESCE(b.max_customers, 0)) AS max_customers,
+             MAX(COALESCE(b.latest_start_time, b.last_seen_at, b.updated_at, '')) AS latest_start_time,
+             t.centroid_lon AS territory_centroid_lon,
+             t.centroid_lat AS territory_centroid_lat,
+             t.bbox_min_lon AS territory_bbox_min_lon,
+             t.bbox_min_lat AS territory_bbox_min_lat,
+             t.bbox_max_lon AS territory_bbox_max_lon,
+             t.bbox_max_lat AS territory_bbox_max_lat,
+             t.display_geometry_geojson AS territory_display_geometry_geojson
+      FROM previous_outage_territory_bins b
+      LEFT JOIN admin_territories t ON t.territory_id = b.territory_id
+      WHERE b.assignment_type = 'primary'
+        AND COALESCE(b.latest_start_time, b.last_seen_at, b.updated_at, '') >= ?
+      GROUP BY b.territory_id
+      ORDER BY latest_start_time DESC, max_customers DESC
+      LIMIT 50
+      `,
+    )
+      .bind(cutoff1y)
+      .all(),
+  ]);
+  const territories = (territoryResult.results || []).map(municipalArchiveTerritoryRow);
   return jsonResponse({
     mode: "municipal_archive",
-    windows: [
-      municipalArchiveWindow(items, "previous_archive_last_24h", cutoff24h),
-      municipalArchiveWindow(items, "previous_archive_last_7d", cutoff7d),
-      municipalArchiveWindow(items, "previous_archive_last_30d", cutoff30d),
-      municipalArchiveWindow(items, "previous_archive_last_1y", cutoff1y),
-    ],
-    largest: municipalArchiveLargest(items),
-    latest: items.slice(0, 20).map((item) => ({
-      key: "previous_archive_latest",
-      startTime: item.startTime,
-      customersAffected: item.customersAffected,
-      territoryName: item.territoryName,
-    })),
+    windows,
+    largest,
+    latest,
     territories,
   });
 }
 
-function municipalArchiveItem(row) {
+function municipalArchiveTerritoryRow(row) {
   return {
-    startTime: row.sort_time || row.latest_start_time || row.last_seen_at || row.updated_at || "",
-    customersAffected: Number(row.max_customers || 0),
     eventCount: Number(row.event_count || 1),
+    customersAffected: Number(row.max_customers || 0),
     territoryId: row.territory_id,
     territoryName: row.territory_name,
     designation: row.designation,
-    latestStartTime: row.latest_start_time || row.sort_time || "",
+    latestStartTime: row.latest_start_time || "",
     geometryKey: `municipal_archive:${row.territory_id}`,
-    centroidLon: row.territory_centroid_lon ?? row.centroid_lon,
-    centroidLat: row.territory_centroid_lat ?? row.centroid_lat,
+    centroidLon: row.territory_centroid_lon,
+    centroidLat: row.territory_centroid_lat,
     bbox: {
       minLon: row.territory_bbox_min_lon,
       minLat: row.territory_bbox_min_lat,
@@ -2213,41 +2225,6 @@ function municipalArchiveItem(row) {
     },
     geometry: parseOptionalJson(row.territory_display_geometry_geojson),
   };
-}
-
-function municipalArchiveTerritoryRows(items) {
-  const groups = new Map();
-  for (const item of items) {
-    if (!groups.has(item.territoryId)) {
-      groups.set(item.territoryId, {
-        territoryId: item.territoryId,
-        territoryName: item.territoryName,
-        designation: item.designation,
-        geometryKey: item.geometryKey,
-        centroidLon: item.centroidLon,
-        centroidLat: item.centroidLat,
-        bbox: item.bbox,
-        geometry: item.geometry,
-        eventCount: 0,
-        customersAffected: 0,
-        latestStartTime: item.latestStartTime || item.startTime,
-      });
-    }
-    const group = groups.get(item.territoryId);
-    group.eventCount += item.eventCount || 1;
-    group.customersAffected = Math.max(group.customersAffected || 0, item.customersAffected || 0);
-    if (String(item.latestStartTime || item.startTime || "") > String(group.latestStartTime || "")) {
-      group.latestStartTime = item.latestStartTime || item.startTime;
-    }
-  }
-  return [...groups.values()]
-    .sort((left, right) => {
-      const timeCompare = String(right.latestStartTime || "").localeCompare(
-        String(left.latestStartTime || ""),
-      );
-      return timeCompare || (right.customersAffected || 0) - (left.customersAffected || 0);
-    })
-    .slice(0, 50);
 }
 
 function parseOptionalJson(raw) {
@@ -2259,27 +2236,73 @@ function parseOptionalJson(raw) {
   }
 }
 
-function municipalArchiveWindow(items, key, cutoff) {
-  const windowItems = items.filter((item) => item.startTime >= cutoff);
+async function municipalArchiveWindow(db, key, cutoff) {
+  const row = await db
+    .prepare(
+      `
+      SELECT COUNT(DISTINCT territory_id) AS areas,
+             SUM(COALESCE(max_customers, 0)) AS total_customers
+      FROM previous_outage_territory_bins
+      WHERE assignment_type = 'primary'
+        AND COALESCE(latest_start_time, last_seen_at, updated_at, '') >= ?
+      `,
+    )
+    .bind(cutoff)
+    .first();
   return {
     key,
-    areas: new Set(windowItems.map((item) => item.territoryId)).size,
-    totalCustomers: windowItems.reduce((total, item) => total + item.customersAffected, 0),
+    areas: Number(row?.areas || 0),
+    totalCustomers: Number(row?.total_customers || 0),
   };
 }
 
-function municipalArchiveLargest(items) {
-  let largest = null;
-  for (const item of items) {
-    if (!largest || item.customersAffected > largest.customersAffected) largest = item;
-  }
-  if (!largest) return null;
+async function municipalArchiveLargest(db, cutoff) {
+  const row = await db
+    .prepare(
+      `
+      SELECT territory_name,
+             max_customers,
+             COALESCE(latest_start_time, last_seen_at, updated_at, '') AS sort_time
+      FROM previous_outage_territory_bins
+      WHERE assignment_type = 'primary'
+        AND COALESCE(latest_start_time, last_seen_at, updated_at, '') >= ?
+      ORDER BY COALESCE(max_customers, 0) DESC, sort_time DESC
+      LIMIT 1
+      `,
+    )
+    .bind(cutoff)
+    .first();
+  if (!row) return null;
   return {
     key: "previous_archive_largest",
-    startTime: largest.startTime,
-    customersAffected: largest.customersAffected,
-    territoryName: largest.territoryName,
+    startTime: row.sort_time || "",
+    customersAffected: Number(row.max_customers || 0),
+    territoryName: row.territory_name,
   };
+}
+
+async function municipalArchiveLatest(db, cutoff) {
+  const result = await db
+    .prepare(
+      `
+      SELECT territory_name,
+             max_customers,
+             COALESCE(latest_start_time, last_seen_at, updated_at, '') AS sort_time
+      FROM previous_outage_territory_bins
+      WHERE assignment_type = 'primary'
+        AND COALESCE(latest_start_time, last_seen_at, updated_at, '') >= ?
+      ORDER BY sort_time DESC
+      LIMIT 20
+      `,
+    )
+    .bind(cutoff)
+    .all();
+  return (result.results || []).map((row) => ({
+    key: "previous_archive_latest",
+    startTime: row.sort_time || "",
+    customersAffected: Number(row.max_customers || 0),
+    territoryName: row.territory_name,
+  }));
 }
 
 function sqlTimestampHoursAgo(hours) {

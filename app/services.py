@@ -1467,6 +1467,7 @@ class AppService:
         return self._cached_context(
             "previous_operational_archive_summary",
             self._build_previous_operational_archive_summary,
+            ttl_seconds=self.settings.durable_context_cache_ttl_seconds,
         )
 
     def _build_previous_operational_archive_summary(self) -> dict[str, Any]:
