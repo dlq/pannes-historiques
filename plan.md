@@ -8,7 +8,7 @@ This file is the active execution plan. Keep durable evidence, source notes, and
 ## Current State
 
 - Current deployed release: `v0.2.7` plus the `codex/frontend-stability-summary` frontend slice is deployed and smoke-tested on `pannes.ca`.
-- Current feature branch: `codex/frontend-stability-summary` is pushed to origin at `e25adec` and deployed. It adds an address-level local stability answer card, makes local previous-outage evidence the default address-search section, adds row/scope labels, removes the zero-size current-layer toggle, labels optional layer visibility controls as explicit Show/Hide actions, makes map/row selection populate an operational detail panel, and replaces the `PH` favicon/app icon with an outage-location mark.
+- Current feature branch: `codex/frontend-stability-summary` is pushed to origin and deployed. It adds an address-level local stability answer card, makes local previous-outage evidence the default address-search section, adds row/scope labels, removes the zero-size current-layer toggle, labels optional layer visibility controls as explicit Show/Hide actions, makes map/row selection populate an operational detail panel, and replaces the `PH` favicon/app icon with an outage-location mark.
 - Current product shape: map-first address/current-location lookup with server-rendered Flask/Jinja fragments, HTMX, Leaflet, decomposed vanilla JavaScript ES modules, icon-backed sidebar/detail rows, local previous-outage evidence, municipal archive bins, and a Cloudflare Workers + Containers production deployment.
 - Production data plane: D1/R2-backed durable ingestion for current feed rows, previous-outage rows, raw Hydro-Québec payloads, disclosure metadata, and runtime map-context layers.
 - Container role: still renders the Flask/Jinja shell and keeps a baked-in SQLite snapshot for local-compatible/container fallback paths.
@@ -76,7 +76,7 @@ Candidate work after core UI and production architecture are more settled:
 
 Goal: keep production stable after deploying the small `codex/frontend-stability-summary` frontend slice on top of `v0.2.7`.
 
-Status: `v0.2.7` is tagged, pushed, deployed, smoke-tested, and closed. The current feature branch is committed, pushed, and deployed at `e25adec`; production Worker version is `865f9f9e-056d-4a63-80e6-d78974f1923b`.
+Status: `v0.2.7` is tagged, pushed, deployed, smoke-tested, and closed. The current feature branch is committed, pushed, deployed, and smoke-tested.
 
 Current implementation notes:
 
@@ -149,7 +149,7 @@ Acceptance criteria:
 
 Verification so far:
 
-- 2026-06-17 production check for current deployment: `/` `200` in about 0.50s, `/healthz` `200` in about 0.33s, `/service-worker.js` `200` in about 0.28s with cache marker `pannes-historiques-v0.2.7-outage-pin-icon`, and representative `/search-map` `200` in about 4.78s.
+- 2026-06-17 production check for current deployment after container warm-up: `/` `200` in about 3.41s, `/healthz` `200` in about 0.64s, `/service-worker.js` `200` in about 0.34s with cache marker `pannes-historiques-v0.2.7-outage-pin-icon`, and representative `/search-map` `200` in about 0.76s.
 - 2026-06-17 feature branch checks for `e25adec`: `uv run pytest tests/test_views.py -q` passed earlier for the local-stability slice, `node --test tests/side-panel-archive.test.js` passed, `uv run pre-commit run --all-files` passed, `uv run djlint app/templates --lint` passed, `npm run format` passed, `npm run check` passed, `git diff --check` passed, commit-time pre-commit hooks passed, and local browser visual checks passed at desktop and mobile widths, including French Show/Hide label fit.
 - 2026-06-17 feature branch limitation: `npx playwright test tests/e2e/search-flow.spec.ts` could not complete in this environment because the sandbox cannot start the configured Playwright web server and the elevated retry hit the app approval usage limit.
 - `uv run pytest -q`: `80 passed` after private operational route hardening
@@ -201,7 +201,7 @@ Verification so far:
 - implemented on `codex/frontend-stability-summary`; the local stability UI landed at `c2054b5`, with the favicon/app-icon replacement and explicit layer action labels committed at `e25adec`
 - complete locally: local stability evidence card, local/province scope labels, visible row labels, address-search history-first default, current-toggle cleanup, and detail-panel feedback for operational row/polygon selection
 - complete locally: `PH` favicon/app icons replaced with a navy-and-amber outage-location mark; service worker cache marker bumped to `pannes-historiques-v0.2.7-outage-pin-icon`
-- deployed 2026-06-17: production Worker version `865f9f9e-056d-4a63-80e6-d78974f1923b`; service worker marker `pannes-historiques-v0.2.7-outage-pin-icon`; post-deploy smoke checks returned `200` for `/`, `/healthz`, `/service-worker.js`, and representative `/search-map`
+- deployed 2026-06-17: service worker marker `pannes-historiques-v0.2.7-outage-pin-icon`; post-deploy smoke checks returned `200` for `/`, `/healthz`, `/service-worker.js`, and representative `/search-map`
 
 ## Completed `0.2.x` Summary
 
