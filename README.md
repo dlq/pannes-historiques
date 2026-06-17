@@ -59,8 +59,8 @@ Production is currently served at `pannes.ca` with Cloudflare Workers + Containe
 
 Current deployment status:
 
-- Deployed release: `v0.2.7` plus the frontend-stability slice now merged into `main`
-- Public service-worker marker checked on 2026-06-17: `pannes-historiques-v0.2.7-outage-pin-icon`
+- Deployed release: `v0.2.8`
+- Public service-worker marker for this release: `pannes-historiques-v0.2.8-post-archive-stability`
 - Public smoke check on 2026-06-17: `/`, `/healthz`, `/service-worker.js`, and representative `/search-map` requests returned `200`
 - Production includes the local stability answer card, outage-location favicon/app icon, and explicit Show/Hide layer controls from `codex/frontend-stability-summary`, which is merged into `main` at `c7fe3cb`
 

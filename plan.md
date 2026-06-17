@@ -7,8 +7,8 @@ This file is the active execution plan. Keep durable evidence, source notes, and
 
 ## Current State
 
-- Current deployed release: `v0.2.7` plus the `codex/frontend-stability-summary` frontend slice is deployed and smoke-tested on `pannes.ca`.
-- Current release in progress: none; `v0.3.0` planning is next after reconciling the post-`v0.2.7` deployed frontend and municipal-archive follow-up state on `main`.
+- Current deployed release: `v0.2.8`, bundling the post-`v0.2.7` municipal archive cursor hardening and frontend stability slice.
+- Current release in progress: none; `v0.3.0` planning is next after this final `0.2.x` checkpoint.
 - Current frontend slice: `codex/frontend-stability-summary` is pushed to origin, deployed, smoke-tested, and merged into `main`. It adds an address-level local stability answer card, makes local previous-outage evidence the default address-search section, adds row/scope labels, removes the zero-size current-layer toggle, labels optional layer visibility controls as explicit Show/Hide actions, makes map/row selection populate an operational detail panel, and replaces the `PH` favicon/app icon with an outage-location mark.
 - Current product shape: map-first address/current-location lookup with server-rendered Flask/Jinja fragments, HTMX, Leaflet, decomposed vanilla JavaScript ES modules, icon-backed sidebar/detail rows, local previous-outage evidence, municipal archive bins, and a Cloudflare Workers + Containers production deployment.
 - Production data plane: D1/R2-backed durable ingestion for current feed rows, previous-outage rows, raw Hydro-Québec payloads, disclosure metadata, and runtime map-context layers.
@@ -17,9 +17,9 @@ This file is the active execution plan. Keep durable evidence, source notes, and
 - Cost caveat: the June 2026 Cloudflare invoice was driven mostly by Workers Paid baseline plus Durable Object/container runtime costs; D1 and R2 were not material cost drivers on that bill.
 - User-facing URL contract: clean root URL with `lang`, `q`, or current-location coordinate parameters; obsolete public `radius_m`, `days`, and `include_planned` parameters were removed from the main interface.
 - Debug, collection, cron, internal export/file, and direct durable-status endpoints are private by default; production returns `404` unless the expected debug flag, Worker block, scheduled header, internal header, or operation token is present.
-- Current deployed release marker: service worker cache name `pannes-historiques-v0.2.7-outage-pin-icon`; latest public smoke check on 2026-06-17 returned `200` for `/`, `/healthz`, `/service-worker.js`, and a representative `/search-map` request.
+- Current release marker: service worker cache name `pannes-historiques-v0.2.8-post-archive-stability`; latest public smoke check before the release commit on 2026-06-17 returned `200` for `/`, `/healthz`, `/service-worker.js`, and a representative `/search-map` request.
 - Current deployed code includes the frontend stability-summary work first landed on the branch through `e25adec`, including the local-stability answer-card UI, no-letter outage-location favicon/app icon, explicit Show/Hide layer actions, and Current-header alignment spacer.
-- Current `main` is past the `v0.2.7` tag: tag `v0.2.7` points at `24b986e`, while `main` includes follow-up municipal archive binning fixes through `9875b1a` plus the merged frontend stability work. Verify whether the combined state needs a final `0.2.x` tag or becomes the `v0.3.0` baseline before starting broad `0.3.x` work.
+- Current `main` is the `v0.2.8` release candidate: it is past the `v0.2.7` tag, includes follow-up municipal archive binning fixes through `9875b1a`, includes the merged frontend stability work, and should become the final `0.2.x` checkpoint before broad `0.3.x` work.
 - Current test baseline: Python tests, deterministic service/geocoding tests, route smoke coverage, Playwright desktop/mobile Chromium coverage, and production-shaped UI regression fixtures.
 - Previous-outage accumulation is working in D1, but visible map grouping needs review: on 2026-06-02 D1 had `9,542` resolved events and `333,117` sightings, with repeated spatial buckets present, while `/api/durable/runtime/previous-map-layers?limit=120` returned 120 single-event layers and zero multi-event groups.
 
@@ -44,7 +44,7 @@ In progress.
 - `v0.2.5`: performance measurement, deployment hygiene, and production hardening. Complete.
 - `v0.2.6`: sidebar rhythm, layer hierarchy, row-language consistency, detail-panel rationalization, and frontend static-module decomposition. Complete.
 - `v0.2.7`: municipal/TNO/Indigenous-territory archive-bin schema, Worker runtime endpoints, binning helpers, previous-archive sidebar polish, and service-worker/static marker update. Complete and deployed.
-- post-`v0.2.7` frontend branch: local stability answer card and address-result UX follow-up from the 2026-06-17 production audit. Implemented, committed, pushed, deployed, and smoke-tested.
+- `v0.2.8`: final `0.2.x` checkpoint bundling post-`v0.2.7` municipal archive cursor hardening, local stability answer card, address-result UX follow-up, favicon/app-icon cleanup, production UI audit artifacts, and docs synchronization. Release/tag/deploy target.
 
 ### `0.3.x`: Architecture, Web Quality, And Product Expansion
 
@@ -66,7 +66,7 @@ Candidate work after the map-first UI is stable:
 
 Planned slice order:
 
-- `v0.3.0`: transition preflight. Reconcile `main`/tag/deploy state, decide whether the combined post-`v0.2.7` municipal archive and frontend-stability fixes need a `v0.2.8` tag or can become the first `v0.3.0` baseline, capture production timing/cost baseline, and choose the first architecture target.
+- `v0.3.0`: transition preflight. Start from the deployed `v0.2.8` baseline, capture production timing/cost baseline, and choose the first architecture target.
 - `v0.3.1`: frontend/web-quality foundation. Replace the Tailwind CDN path with a production build path or explicitly justify a smaller alternative; add SEO basics, `robots.txt`, `sitemap.xml`, and cache/resource-header cleanup.
 - `v0.3.2`: public-read architecture. Move ordinary user-facing shell/search/map reads away from the Cloudflare Container where practical, using Worker/static/D1/R2 paths while keeping the Python container for bounded parser/batch work.
 - `v0.3.3`: historical-data API. Define stable public/private route boundaries, freshness metadata, rate limits, and query shapes for accumulated outage/disclosure data.
@@ -84,9 +84,9 @@ Candidate work after core UI and production architecture are more settled:
 
 ## Current Focus: `v0.3.0` Transition Preflight
 
-Goal: enter `0.3.x` deliberately by reconciling the current post-`v0.2.7` state, measuring the production baseline, and choosing the first architecture/web-quality target.
+Goal: enter `0.3.x` deliberately from the `v0.2.8` baseline by measuring production and choosing the first architecture/web-quality target.
 
-Status: `v0.2.7` is tagged, pushed, deployed, smoke-tested, and closed. The post-`v0.2.7` frontend stability slice is committed, pushed, deployed, smoke-tested, and merged into `main` at `c7fe3cb`. Do not start broad implementation until the combined `main`/tag/deploy state is reconciled and existing local research/output artifacts are intentionally handled.
+Status: `v0.2.7` is tagged, pushed, deployed, smoke-tested, and closed. The post-`v0.2.7` frontend stability slice is committed, pushed, deployed, smoke-tested, and merged into `main` at `c7fe3cb`. `v0.2.8` is the final `0.2.x` release checkpoint before broad `0.3.x` implementation.
 
 Current implementation notes:
 
@@ -120,7 +120,7 @@ Current implementation notes:
 - `v0.2.7` deployed after the municipal archive-bin slice. It added D1 schema `0009_municipal_archive_bins.sql`, `src/municipal-archive.js`, Worker runtime endpoints for territory import/backfill/status, municipal archive summary support, and the maintenance script `scripts/maintenance/municipal-archive-backfill.mjs`.
 - `main` includes `c7fe3cb` (`Merge frontend stability summary`), the `9875b1a` municipal archive binner cursor hardening, and the merged frontend stability slice.
 - Public production check on 2026-06-17: `/` returned `200` in about 0.86s, `/healthz` returned `200` in about 0.20s, `/service-worker.js` returned `200` in about 0.40s, and `/search-map?q=5220%20Rue%20Jeanne-Mance&lang=en` returned `200` in about 1.53s.
-- The deployed service worker currently advertises `pannes-historiques-v0.2.7-outage-pin-icon`, confirming production includes the frontend stability slice and new favicon/app-icon assets.
+- The `v0.2.8` service worker advertises `pannes-historiques-v0.2.8-post-archive-stability`, confirming production should pick up a fresh app shell after deployment.
 - `codex/frontend-stability-summary` implements the 2026-06-17 UI audit recommendations: address-level local stability evidence card, `Seen Before Here` opened by default for address results, local/province scope labels, visible row labels, no current-layer toggle button, explicit Show/Hide layer actions with a Current-header spacer for alignment, operational detail feedback on selected rows/polygons, and the no-letter outage-location favicon/app icon.
 - The feature branch verification passed `uv run pytest tests/test_views.py -q`, `node --test tests/side-panel-archive.test.js`, Ruff, djLint, Biome, `git diff --check`, pre-commit hooks at commit time, and local browser checks at desktop, iPad, and iPhone viewports. Full `npx playwright test tests/e2e/search-flow.spec.ts` was blocked in this environment because the sandbox cannot start the Playwright web server and the elevated retry hit the app approval usage limit.
 - `v0.2.5` deployed on 2026-05-31 with Worker version `43b7a4dc-bb09-4249-92b8-9ad231ad58ae` and container image `43b7a4dc`.
@@ -131,7 +131,7 @@ Current implementation notes:
 
 Scope:
 
-- verify whether the combined municipal archive and frontend stability state on `main` should become `v0.2.8` or the first `v0.3.0` baseline
+- tag, push, deploy, and smoke-test `v0.2.8` as the final `0.2.x` baseline
 - decide whether the first `0.3.x` implementation target is frontend build/web-quality, public-read architecture, or historical-data API design
 - capture a production baseline before architecture changes: homepage, representative address search, static module waterfall, service worker, durable runtime endpoints, container live instance state, and Cloudflare cost drivers
 - keep the existing `0.2.x` UX improvements stable while changing architecture; do not combine broad UI redesign with production-read migration
@@ -140,7 +140,7 @@ Scope:
 
 Acceptance criteria:
 
-- plan identifies whether `v0.2.8` is needed before `v0.3.0`
+- `v0.2.8` is tagged, pushed, deployed, and smoke-tested before `v0.3.0` work begins
 - first `v0.3.x` slice has a single primary objective, explicit non-goals, and production verification steps
 - production baseline is recorded before replacing Tailwind/CDN paths or moving user-facing reads off the container
 - dirty local research/audit artifacts are intentionally handled before implementation work begins
@@ -195,12 +195,12 @@ Verification so far:
 - complete for release: service worker marker updated to `pannes-historiques-v0.2.7-versioned-static-network`
 - deployed and smoke-checked before the frontend stability slice; the municipal archive binner cursor path was fixed after the tag at `9875b1a`
 
-### Post-`v0.2.7`: Local Stability Answer Branch
+### `v0.2.8`: Post-Archive Stability Checkpoint
 
 - implemented on `codex/frontend-stability-summary`; the local stability UI landed at `c2054b5`, with the favicon/app-icon replacement and explicit layer action labels committed at `e25adec`
 - complete locally: local stability evidence card, local/province scope labels, visible row labels, address-search history-first default, current-toggle cleanup, and detail-panel feedback for operational row/polygon selection
-- complete locally: `PH` favicon/app icons replaced with a navy-and-amber outage-location mark; service worker cache marker bumped to `pannes-historiques-v0.2.7-outage-pin-icon`
-- deployed 2026-06-17: service worker marker `pannes-historiques-v0.2.7-outage-pin-icon`; post-deploy smoke checks returned `200` for `/`, `/healthz`, `/service-worker.js`, and representative `/search-map`
+- complete locally: `PH` favicon/app icons replaced with a navy-and-amber outage-location mark; service worker cache marker bumped to `pannes-historiques-v0.2.8-post-archive-stability`
+- release target: tag, push, deploy, and smoke-test `v0.2.8` on 2026-06-17
 
 ## Completed `0.2.x` Summary
 

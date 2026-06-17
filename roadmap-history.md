@@ -150,6 +150,12 @@ This file records completed release and implementation history. Keep active exec
 - Deployment on 2026-06-17 produced a new Cloudflare Worker/container version; post-deploy smoke checks returned `200` for `/`, `/healthz`, `/service-worker.js`, and representative `/search-map`, and the deployed service worker advertises `pannes-historiques-v0.2.7-outage-pin-icon`.
 - Full Playwright search-flow verification was not completed in the Codex sandbox because the configured web server could not start without elevated execution, and the elevated retry hit the app approval usage limit.
 
+### `v0.2.8`
+
+- Final `0.2.x` checkpoint bundling post-`v0.2.7` municipal archive cursor hardening, the frontend stability slice, production UI audit artifacts, and docs synchronization.
+- Bumped package metadata and service-worker marker to `pannes-historiques-v0.2.8-post-archive-stability` so the deployed app shell can be distinguished from the earlier post-`v0.2.7` frontend deployment.
+- Intended as the stable baseline before `v0.3.0` production measurement and architecture/web-quality planning.
+
 ### Production Performance Optimizations
 
 - Early production search profiling found the largest costs in regional/disclosure map context, archived-outage matching, current matching, and large embedded map payloads.
