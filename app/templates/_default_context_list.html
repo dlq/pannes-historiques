@@ -70,6 +70,12 @@
     <span>{{ third }}</span>
   </div>
 {%- endmacro %}
+{% macro row_labels_two(first, second, class_name="") -%}
+  <div class="ph-context-column-labels {{ class_name }}" aria-hidden="true">
+    <span>{{ first }}</span>
+    <span>{{ second }}</span>
+  </div>
+{%- endmacro %}
 {% macro archive_summary_row(label_text, areas, total_customers) -%}
   <div class="ph-context-summary-row ph-context-summary-row--previous">
     <span class="ph-row-pill ph-row-pill-previous-date">{{ ph_icon('archive', 'ph-pill-icon') }}{{ label_text }}</span>
@@ -106,7 +112,6 @@
            {% if previous_mode != "seen_before_here" %}open{% endif %}>
     <summary class="ph-context-section-summary">
       <h3 class="text-sm font-semibold leading-tight text-[#223654]">{{ t(lang, "current_layer_heading") }}</h3>
-      <span class="ph-layer-scope-pill">{{ t(lang, "current_scope_label") }}</span>
       {{ layer_count(current_outages | length, "map", t(lang, "areas") ) }}
       {{ layer_info_button("current", t(lang, "current_layer_heading") ) }}
       <span class="ph-layer-toggle-spacer" aria-hidden="true"></span>
@@ -207,12 +212,7 @@
     <summary class="ph-context-section-summary">
       <h3 class="text-sm font-semibold leading-tight text-[#223654]">{{ t(lang, previous_heading_key) }}</h3>
       {% if previous_mode == "seen_before_here" and previous_radius_km %}
-        <span class="ph-layer-scope-pill">
-          {{ t(lang, "previous_scope_label") }} ·
-          {{ previous_sidebar_outages | length }}
-          {% if previous_nearest_limit %}/{{ previous_nearest_limit }}{% endif %}
-          {{ t(lang, "previous_nearest_scope") }} · {{ previous_radius_km | int }} km
-        </span>
+        <span class="ph-layer-scope-pill">{{ t(lang, "previous_scope_label") }} · {{ previous_radius_km | int }} km</span>
       {% endif %}
       {% if 'previous' in loaded_layers %}
         {% if previous_mode != "recent_archive" %}
@@ -288,6 +288,9 @@
       {{ layer_toggle_button("published", "disclosure", "published" in loaded_layers) }}
     </summary>
     <div class="ph-context-rows">
+      {% if published_context %}
+        {{ row_labels_two(t(lang, "row_label_area") , t(lang, "row_label_records") , "ph-context-column-labels--published") }}
+      {% endif %}
       {% for item in published_context %}
         <article class="ph-context-row ph-match-row"
                  role="button"

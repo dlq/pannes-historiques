@@ -101,12 +101,32 @@ test("search renders result cards and lazy-loads the map", async ({ page }) => {
   ).toBeVisible();
   await expect(page.getByRole("heading", { name: "Disclosures" })).toBeVisible();
   await expect(page.locator(".ph-local-answer-card")).toContainText(
-    "Retained nearby outage records: 1 within 5 km",
+    /Retained nearby outage records: \d+ within 5 km/,
   );
+  await expect(page.locator(".ph-local-answer-card")).toContainText(
+    "All retained records within 5 km shown",
+  );
+  await expect(page.locator(".ph-local-answer-card")).not.toContainText("nearest");
+  await expect(page.locator("#ph-context-current summary")).not.toContainText(
+    "Across Quebec",
+  );
+  await expect(page.locator("#ph-context-previous summary")).toContainText(
+    "Near this address · 5 km",
+  );
+  await expect(page.locator("#ph-context-previous summary")).not.toContainText("/");
   await expect(page.locator("#ph-context-previous")).toHaveAttribute("open", "");
   await expect(page.locator("#ph-context-current")).not.toHaveAttribute("open", "");
+  await expect(page.locator("#ph-context-current .ph-context-column-labels")).toContainText(
+    "Age",
+  );
+  await expect(page.locator("#ph-context-current .ph-context-column-labels")).toContainText(
+    "Status",
+  );
   await expect(page.locator("#ph-context-previous .ph-context-column-labels")).toContainText(
     "Date",
+  );
+  await expect(page.locator("#ph-context-previous .ph-context-column-labels")).toContainText(
+    "Time",
   );
   await expect(page.locator("#ph-context-previous .ph-context-column-labels")).toContainText(
     "Customers",

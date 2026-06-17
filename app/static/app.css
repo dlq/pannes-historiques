@@ -498,9 +498,10 @@ textarea {
 }
 
 .ph-context-column-labels {
+  --ph-count-pill-width: 4.25rem;
   display: grid;
   align-items: center;
-  gap: 0.5rem;
+  column-gap: 0.25rem;
   padding: 0 0.125rem 0.125rem;
   color: #6b778a;
   font-size: 0.625rem;
@@ -517,6 +518,10 @@ textarea {
 .ph-context-column-labels--planned,
 .ph-context-column-labels--previous {
   grid-template-columns: minmax(0, 1fr) 4.25rem var(--ph-count-pill-width);
+}
+
+.ph-context-column-labels--published {
+  grid-template-columns: minmax(0, 1fr) var(--ph-count-pill-width);
 }
 
 .ph-context-column-labels > :last-child {

@@ -128,13 +128,13 @@ test("builds local stability summary copy from previous layer payloads", () => {
         local_reliability_summary_title: "Local stability evidence",
         local_reliability_summary_body:
           "Retained nearby outage records: {count} within {radius_km} km. Higher counts mean the local archive has seen more interruptions nearby.",
-        local_reliability_summary_meta: "{count}/{limit} nearest retained records shown",
+        local_reliability_summary_meta: "All retained records within {radius_km} km shown",
       },
     ),
     {
       title: "Local stability evidence",
       body: "Retained nearby outage records: 2 within 5 km. Higher counts mean the local archive has seen more interruptions nearby.",
-      meta: "2/24 nearest retained records shown",
+      meta: "All retained records within 5 km shown",
       count: 2,
       limit: 24,
       radiusKm: "5",
