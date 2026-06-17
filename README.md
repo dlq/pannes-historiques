@@ -59,10 +59,10 @@ Production is currently served at `pannes.ca` with Cloudflare Workers + Containe
 
 Current deployment status:
 
-- Deployed release: `v0.2.7`
-- Public service-worker marker checked on 2026-06-17: `pannes-historiques-v0.2.7-versioned-static-network`
+- Deployed release: `v0.2.7` plus the `codex/frontend-stability-summary` frontend slice
+- Public service-worker marker checked on 2026-06-17: `pannes-historiques-v0.2.7-outage-pin-icon`
 - Public smoke check on 2026-06-17: `/`, `/healthz`, `/service-worker.js`, and representative `/search-map` requests returned `200`
-- Feature branch `codex/frontend-stability-summary` at `c2054b5` is pushed but not deployed; production does not yet include the local stability answer card
+- Feature branch `codex/frontend-stability-summary` at `e25adec` is pushed and deployed; production includes the local stability answer card, outage-location favicon/app icon, and explicit Show/Hide layer controls
 
 ```bash
 npx wrangler deploy

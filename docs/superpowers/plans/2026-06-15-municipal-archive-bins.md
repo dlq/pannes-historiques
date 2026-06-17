@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status:** Completed in `v0.2.7` and followed by cursor hardening on `origin/main` at `9875b1a`. The production service worker currently advertises `pannes-historiques-v0.2.7-versioned-static-network`. Remaining work is operational maintenance/import/backfill hardening, not initial implementation.
+**Status:** Completed in `v0.2.7` and followed by cursor hardening on `origin/main` at `9875b1a`. Production now also includes the `codex/frontend-stability-summary` slice, and the service worker currently advertises `pannes-historiques-v0.2.7-outage-pin-icon`. Remaining work is operational maintenance/import/backfill hardening, not initial implementation.
 
 **Goal:** Build a derived municipal/TNO/Indigenous-territory archive layer for previously seen outage polygons while preserving raw Hydro snapshots and per-version polygon evidence.
 

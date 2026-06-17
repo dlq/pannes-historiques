@@ -7,8 +7,8 @@ This file is the active execution plan. Keep durable evidence, source notes, and
 
 ## Current State
 
-- Current deployed release: `v0.2.7` is tagged, deployed, and smoke-tested on `pannes.ca`.
-- Current feature branch: `codex/frontend-stability-summary` is pushed to origin but is not deployed. It adds an address-level local stability answer card, makes local previous-outage evidence the default address-search section, adds row/scope labels, removes the zero-size current-layer toggle, labels optional layer visibility controls as explicit Show/Hide actions, makes map/row selection populate an operational detail panel, and replaces the `PH` favicon/app icon with an outage-location mark.
+- Current deployed release: `v0.2.7` plus the `codex/frontend-stability-summary` frontend slice is deployed and smoke-tested on `pannes.ca`.
+- Current feature branch: `codex/frontend-stability-summary` is pushed to origin at `e25adec` and deployed. It adds an address-level local stability answer card, makes local previous-outage evidence the default address-search section, adds row/scope labels, removes the zero-size current-layer toggle, labels optional layer visibility controls as explicit Show/Hide actions, makes map/row selection populate an operational detail panel, and replaces the `PH` favicon/app icon with an outage-location mark.
 - Current product shape: map-first address/current-location lookup with server-rendered Flask/Jinja fragments, HTMX, Leaflet, decomposed vanilla JavaScript ES modules, icon-backed sidebar/detail rows, local previous-outage evidence, municipal archive bins, and a Cloudflare Workers + Containers production deployment.
 - Production data plane: D1/R2-backed durable ingestion for current feed rows, previous-outage rows, raw Hydro-Québec payloads, disclosure metadata, and runtime map-context layers.
 - Container role: still renders the Flask/Jinja shell and keeps a baked-in SQLite snapshot for local-compatible/container fallback paths.
@@ -16,8 +16,8 @@ This file is the active execution plan. Keep durable evidence, source notes, and
 - Cost caveat: the June 2026 Cloudflare invoice was driven mostly by Workers Paid baseline plus Durable Object/container runtime costs; D1 and R2 were not material cost drivers on that bill.
 - User-facing URL contract: clean root URL with `lang`, `q`, or current-location coordinate parameters; obsolete public `radius_m`, `days`, and `include_planned` parameters were removed from the main interface.
 - Debug, collection, cron, internal export/file, and direct durable-status endpoints are private by default; production returns `404` unless the expected debug flag, Worker block, scheduled header, internal header, or operation token is present.
-- Current deployed release marker: service worker cache name `pannes-historiques-v0.2.7-versioned-static-network`; latest public smoke check on 2026-06-17 returned `200` for `/`, `/healthz`, `/service-worker.js`, and a representative `/search-map` request.
-- Current deployed code does not yet include the `c2054b5` local-stability answer-card branch; production search-map output checked on 2026-06-17 did not contain `previousLocalSummary` or `Local stability evidence`.
+- Current deployed release marker: service worker cache name `pannes-historiques-v0.2.7-outage-pin-icon`; latest public smoke check on 2026-06-17 returned `200` for `/`, `/healthz`, `/service-worker.js`, and a representative `/search-map` request.
+- Current deployed code includes the `e25adec` frontend stability-summary branch, including the local-stability answer-card UI, no-letter outage-location favicon/app icon, explicit Show/Hide layer actions, and Current-header alignment spacer.
 - Current test baseline: Python tests, deterministic service/geocoding tests, route smoke coverage, Playwright desktop/mobile Chromium coverage, and production-shaped UI regression fixtures.
 - Previous-outage accumulation is working in D1, but visible map grouping needs review: on 2026-06-02 D1 had `9,542` resolved events and `333,117` sightings, with repeated spatial buckets present, while `/api/durable/runtime/previous-map-layers?limit=120` returned 120 single-event layers and zero multi-event groups.
 
@@ -42,7 +42,7 @@ In progress.
 - `v0.2.5`: performance measurement, deployment hygiene, and production hardening. Complete.
 - `v0.2.6`: sidebar rhythm, layer hierarchy, row-language consistency, detail-panel rationalization, and frontend static-module decomposition. Complete.
 - `v0.2.7`: municipal/TNO/Indigenous-territory archive-bin schema, Worker runtime endpoints, binning helpers, previous-archive sidebar polish, and service-worker/static marker update. Complete and deployed.
-- post-`v0.2.7` frontend branch: local stability answer card and address-result UX follow-up from the 2026-06-17 production audit. Implemented, committed, and pushed; not yet deployed.
+- post-`v0.2.7` frontend branch: local stability answer card and address-result UX follow-up from the 2026-06-17 production audit. Implemented, committed, pushed, deployed, and smoke-tested.
 
 ### `0.3.x`: Architecture And Product Expansion
 
@@ -74,9 +74,9 @@ Candidate work after core UI and production architecture are more settled:
 
 ## Current Focus: Post-`v0.2.7` Frontend Stabilization
 
-Goal: keep production stable on `v0.2.7` while preparing the small `codex/frontend-stability-summary` frontend slice for review/deployment.
+Goal: keep production stable after deploying the small `codex/frontend-stability-summary` frontend slice on top of `v0.2.7`.
 
-Status: `v0.2.7` is tagged, pushed, deployed, smoke-tested, and closed. The current feature branch is committed and pushed at `c2054b5` but intentionally not deployed yet.
+Status: `v0.2.7` is tagged, pushed, deployed, smoke-tested, and closed. The current feature branch is committed, pushed, and deployed at `e25adec`; production Worker version is `865f9f9e-056d-4a63-80e6-d78974f1923b`.
 
 Current implementation notes:
 
@@ -110,7 +110,7 @@ Current implementation notes:
 - `v0.2.7` deployed after the municipal archive-bin slice. It added D1 schema `0009_municipal_archive_bins.sql`, `src/municipal-archive.js`, Worker runtime endpoints for territory import/backfill/status, municipal archive summary support, and the maintenance script `scripts/maintenance/municipal-archive-backfill.mjs`.
 - `origin/main` is currently `9875b1a` (`Fix municipal archive binner cursor`), which hardens the post-`v0.2.7` binning cursor path.
 - Public production check on 2026-06-17: `/` returned `200` in about 0.86s, `/healthz` returned `200` in about 0.20s, `/service-worker.js` returned `200` in about 0.40s, and `/search-map?q=5220%20Rue%20Jeanne-Mance&lang=en` returned `200` in about 1.53s.
-- The deployed service worker currently advertises `pannes-historiques-v0.2.7-versioned-static-network`, confirming production is on the `v0.2.7` static marker rather than the newer frontend feature branch.
+- The deployed service worker currently advertises `pannes-historiques-v0.2.7-outage-pin-icon`, confirming production includes the frontend stability-summary branch and new favicon/app-icon assets.
 - `codex/frontend-stability-summary` implements the 2026-06-17 UI audit recommendations: address-level local stability evidence card, `Seen Before Here` opened by default for address results, local/province scope labels, visible row labels, no current-layer toggle button, explicit Show/Hide layer actions with a Current-header spacer for alignment, operational detail feedback on selected rows/polygons, and the no-letter outage-location favicon/app icon.
 - The feature branch verification passed `uv run pytest tests/test_views.py -q`, `node --test tests/side-panel-archive.test.js`, Ruff, djLint, Biome, `git diff --check`, pre-commit hooks at commit time, and local browser checks at desktop, iPad, and iPhone viewports. Full `npx playwright test tests/e2e/search-flow.spec.ts` was blocked in this environment because the sandbox cannot start the Playwright web server and the elevated retry hit the app approval usage limit.
 - `v0.2.5` deployed on 2026-05-31 with Worker version `43b7a4dc-bb09-4249-92b8-9ad231ad58ae` and container image `43b7a4dc`.
@@ -121,7 +121,7 @@ Current implementation notes:
 
 Scope:
 
-- review and, when explicitly requested, deploy the `c2054b5` frontend stability-summary branch without starting a bundler migration
+- monitor and, if needed, patch the deployed `e25adec` frontend stability-summary branch without starting a bundler migration
 - keep all four sidebar sub-panel headers visible on desktop and mobile
 - keep only one sidebar sub-panel expanded at a time
 - keep current outages loaded and visible by default; lazy-load planned, previous, and disclosure/regional data for the sidebar and map without automatically recentering on visibility toggles
@@ -149,8 +149,8 @@ Acceptance criteria:
 
 Verification so far:
 
-- 2026-06-17 production check for current deployment: `/` `200` in about 0.86s, `/healthz` `200` in about 0.20s, `/service-worker.js` `200` in about 0.40s with cache marker `pannes-historiques-v0.2.7-versioned-static-network`, and representative `/search-map` `200` in about 1.53s.
-- 2026-06-17 feature branch checks for `c2054b5`: `uv run pytest tests/test_views.py -q` passed, `node --test tests/side-panel-archive.test.js` passed, `uv run ruff check . --fix` passed, `uv run ruff format .` passed, `uv run djlint app/templates --reformat` passed, `uv run djlint app/templates --lint` passed, `npm run format` passed, `npm run check` passed, `git diff --check` passed, commit-time pre-commit hooks passed, and local browser visual checks passed at desktop, iPad, and iPhone sizes.
+- 2026-06-17 production check for current deployment: `/` `200` in about 0.50s, `/healthz` `200` in about 0.33s, `/service-worker.js` `200` in about 0.28s with cache marker `pannes-historiques-v0.2.7-outage-pin-icon`, and representative `/search-map` `200` in about 4.78s.
+- 2026-06-17 feature branch checks for `e25adec`: `uv run pytest tests/test_views.py -q` passed earlier for the local-stability slice, `node --test tests/side-panel-archive.test.js` passed, `uv run pre-commit run --all-files` passed, `uv run djlint app/templates --lint` passed, `npm run format` passed, `npm run check` passed, `git diff --check` passed, commit-time pre-commit hooks passed, and local browser visual checks passed at desktop and mobile widths, including French Show/Hide label fit.
 - 2026-06-17 feature branch limitation: `npx playwright test tests/e2e/search-flow.spec.ts` could not complete in this environment because the sandbox cannot start the configured Playwright web server and the elevated retry hit the app approval usage limit.
 - `uv run pytest -q`: `80 passed` after private operational route hardening
 - `npm run test:e2e`: `26 passed`
@@ -198,10 +198,10 @@ Verification so far:
 
 ### Post-`v0.2.7`: Local Stability Answer Branch
 
-- implemented on `codex/frontend-stability-summary`; the local stability UI landed at `c2054b5`, with the favicon/app-icon replacement added afterward
+- implemented on `codex/frontend-stability-summary`; the local stability UI landed at `c2054b5`, with the favicon/app-icon replacement and explicit layer action labels committed at `e25adec`
 - complete locally: local stability evidence card, local/province scope labels, visible row labels, address-search history-first default, current-toggle cleanup, and detail-panel feedback for operational row/polygon selection
 - complete locally: `PH` favicon/app icons replaced with a navy-and-amber outage-location mark; service worker cache marker bumped to `pannes-historiques-v0.2.7-outage-pin-icon`
-- not deployed: production still serves the `v0.2.7` UI until this branch is reviewed and explicitly deployed
+- deployed 2026-06-17: production Worker version `865f9f9e-056d-4a63-80e6-d78974f1923b`; service worker marker `pannes-historiques-v0.2.7-outage-pin-icon`; post-deploy smoke checks returned `200` for `/`, `/healthz`, `/service-worker.js`, and representative `/search-map`
 
 ## Completed `0.2.x` Summary
 
@@ -261,7 +261,7 @@ Before handing off code changes:
 
 ## Current Risks And Open Questions
 
-- The desktop side panel is more coherent but may still feel dense when detail panels overlay it; verify the `c2054b5` answer-card branch on production-like data before widening again by default.
+- The desktop side panel is more coherent but may still feel dense when detail panels overlay it; the `e25adec` answer-card branch is now deployed, so use production observations before widening the panel again by default.
 - Accessibility still needs a dedicated W3C/WCAG pass beyond the current keyboard/focus regression checks; keep this as practical `0.2.x`/`0.3.x` follow-up depending on scope.
 - Cloudflare performance work now has two tracks: container/app response-time reduction already shipped in `v0.2.5`, while static asset/module waterfall measurement belongs to upcoming `0.3.x` evaluation before any bundler decision.
 - The first-party JS module split improves maintainability, but it increases native module requests; measure this on Cloudflare before assuming either native modules or bundling is better.
