@@ -81,11 +81,16 @@ This file records completed release and implementation history. Keep active exec
 
 ### `v0.2.7`
 
+- Deployed the municipal archive-bin slice and updated the service-worker marker to `pannes-historiques-v0.2.7-versioned-static-network`.
 - Tagged at commit `24b986e` as the municipal archive polish release.
 - Refined the previous-outage archive sidebar so the no-address state reads as a recent archive and address-context results read as local historical evidence.
 - Fixed durable previous archive summary behavior.
-- Added municipal archive binning work so accumulated historical outages can be grouped into more stable geographic archive areas.
-- Follow-up commits on `main` after the tag wire and harden municipal archive binning; verify whether those should be deployed/tagged as a final `0.2.x` patch before broad `0.3.x` work starts.
+- Added D1 tables for `admin_territories`, `previous_outage_territory_bins`, and `municipal_archive_build_state`.
+- Added pure JavaScript geometry helpers for territory bboxes, centroids, point containment, simplification, and outage-polygon-to-territory assignment.
+- Added Worker runtime endpoints for operational territory import, municipal archive backfill, and municipal archive status.
+- Updated previous archive summaries and map-layer shaping so production can prefer D1-backed municipal/TNO/Indigenous-territory bins when populated, while retaining resolved-event fallbacks.
+- Added `scripts/maintenance/municipal-archive-backfill.mjs` for resumable archive binning and later fixed the binner cursor path on `origin/main` at `9875b1a`.
+- Public smoke check on 2026-06-17 returned `200` for `/`, `/healthz`, `/service-worker.js`, and representative `/search-map`; production later received the `e25adec` frontend stability-summary branch on 2026-06-17.
 
 ## Implementation Checkpoints
 
@@ -136,6 +141,14 @@ This file records completed release and implementation history. Keep active exec
 - The fix added Worker runtime endpoints for operational and previous map layers.
 - Flask now prefers those runtime endpoints when `DURABLE_RUNTIME_URL` is configured, then falls back to older durable/local paths.
 - Deployment verification should prime `/healthz` and then verify page/map payload geometry counts because a new Cloudflare container can briefly report that it is not running.
+
+### Post-`v0.2.7` Frontend Stability Summary
+
+- Branch `codex/frontend-stability-summary` implements and deploys the 2026-06-17 UI/UX audit follow-up.
+- The branch adds an address-level local stability evidence card, defaults address searches to the `Seen Before Here` section, adds local/province scope labels, adds visible row labels, removes the zero-size current-layer toggle, labels optional layer controls as explicit Show/Hide actions, aligns Current header controls with the other subpanels, replaces the `PH` favicon/app icons with an outage-location mark, and lets operational row/polygon selections populate a readable detail panel.
+- Verification passed focused Python/JS tests, Ruff, djLint, Biome, commit-time pre-commit hooks, local browser checks at desktop, iPad, and iPhone sizes for the original slice, and desktop/mobile browser checks for the final Show/Hide and favicon refinements.
+- Deployment on 2026-06-17 produced a new Cloudflare Worker/container version; post-deploy smoke checks returned `200` for `/`, `/healthz`, `/service-worker.js`, and representative `/search-map`, and the deployed service worker advertises `pannes-historiques-v0.2.7-outage-pin-icon`.
+- Full Playwright search-flow verification was not completed in the Codex sandbox because the configured web server could not start without elevated execution, and the elevated retry hit the app approval usage limit.
 
 ### Production Performance Optimizations
 

@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from .geocoding import haversine_meters
-from .i18n import t
+from .i18n import STRINGS, choose_language, t
 
 FIXED_RADIUS_M = 5000
 FIXED_DAYS = 1825
@@ -172,8 +172,13 @@ def default_map_payload(
 
 
 def _map_labels(lang: str) -> dict[str, str]:
+    def map_label(key: str) -> str:
+        if key in {"local_reliability_summary_body", "local_reliability_summary_meta"}:
+            return STRINGS[choose_language(lang)].get(key, key)
+        return t(lang, key)
+
     return {
-        key: t(lang, key)
+        key: map_label(key)
         for key in [
             "address",
             "average_duration",
@@ -182,6 +187,7 @@ def _map_labels(lang: str) -> dict[str, str]:
             "close",
             "clients",
             "cumulative_disclosed_duration",
+            "current_scope_label",
             "current_outages",
             "customers",
             "dai_source",
@@ -218,6 +224,9 @@ def _map_labels(lang: str) -> dict[str, str]:
             "layer_info_published_map",
             "layer_info_published_provenance",
             "layer_info_published_title",
+            "local_reliability_summary_body",
+            "local_reliability_summary_meta",
+            "local_reliability_summary_title",
             "nearby_match",
             "map_unavailable",
             "outage",
@@ -229,6 +238,7 @@ def _map_labels(lang: str) -> dict[str, str]:
             "previous_outages_legend",
             "previous_recent_archive_empty",
             "previous_recent_archive_heading",
+            "previous_scope_label",
             "previous_seen_before_here_heading",
             "previous_archive_last_24h",
             "previous_archive_last_7d",
@@ -242,6 +252,13 @@ def _map_labels(lang: str) -> dict[str, str]:
             "within_radius",
             "published_dai_records",
             "regional_colour_legend",
+            "row_label_age",
+            "row_label_customers",
+            "row_label_date",
+            "row_label_duration",
+            "row_label_status",
+            "row_label_time",
+            "row_label_window",
             "rows",
             "sources",
             "start",
@@ -276,6 +293,12 @@ def build_map_payload(lang: str, result: Any, display_address: str) -> dict[str,
         if item["centroid_lat"] is not None and item["centroid_lon"] is not None
     ]
     previous_sidebar_matches = _previous_sidebar_matches(previous_items, previous_group_items)
+    previous_local_summary = _previous_local_summary(
+        lang,
+        previous_sidebar_matches,
+        radius_m=result.radius_m,
+        nearest_limit=PREVIOUS_NEAREST_LIMIT,
+    )
     matches = (
         _sort_by_distance(current_items)
         + previous_sidebar_matches
@@ -298,6 +321,7 @@ def build_map_payload(lang: str, result: Any, display_address: str) -> dict[str,
         "previousMode": "seen_before_here",
         "previousRadiusM": result.radius_m,
         "previousNearestLimit": PREVIOUS_NEAREST_LIMIT,
+        "previousLocalSummary": previous_local_summary,
         "previousSidebarMatches": previous_sidebar_matches,
     }
 
@@ -313,6 +337,43 @@ def _previous_sidebar_matches(
         for item in _sort_by_distance(previous_items)
         if item.get("distanceM") is not None and item["distanceM"] <= FIXED_RADIUS_M
     ][:PREVIOUS_NEAREST_LIMIT]
+
+
+def _format_radius_km(radius_m: int | float | None) -> str:
+    radius_km = float(radius_m or 0) / 1000
+    if not radius_km:
+        return "0"
+    return str(int(radius_km)) if radius_km.is_integer() else f"{radius_km:.1f}"
+
+
+def _previous_local_summary(
+    lang: str,
+    previous_sidebar_matches: list[dict[str, Any]],
+    *,
+    radius_m: int | float | None,
+    nearest_limit: int,
+) -> dict[str, Any]:
+    count = len(previous_sidebar_matches)
+    limit = nearest_limit
+    radius_km = _format_radius_km(radius_m)
+    return {
+        "title": t(lang, "local_reliability_summary_title"),
+        "body": t(
+            lang,
+            "local_reliability_summary_body",
+            count=count,
+            radius_km=radius_km,
+        ),
+        "meta": t(
+            lang,
+            "local_reliability_summary_meta",
+            count=count,
+            limit=limit,
+        ),
+        "count": count,
+        "limit": limit,
+        "radiusKm": radius_km,
+    }
 
 
 def _loaded_layer_keys(matches: list[dict[str, Any]]) -> list[str]:

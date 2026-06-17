@@ -1,9 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="PH">
-  <rect width="64" height="64" fill="#223654"/>
-  <text x="32" y="41"
-        fill="#e0ad03"
-        font-family="Arial, Helvetica, sans-serif"
-        font-size="30"
-        font-weight="700"
-        text-anchor="middle">PH</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Outage location">
+  <rect width="64" height="64" rx="12" fill="#223654"/>
+  <path d="M32 5C21.8 5 14 12.8 14 23c0 14.5 18 36 18 36s18-21.5 18-36C50 12.8 42.2 5 32 5z"
+        fill="#f5a623"/>
+  <path d="M34.5 13 23 34h8l-2.5 15L42 27h-8z" fill="#223654"/>
 </svg>

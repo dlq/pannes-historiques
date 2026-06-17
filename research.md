@@ -43,7 +43,7 @@ Observed address-result evidence:
 Interpretation:
 
 - The app can support a relative stability comparison from retained outage evidence: in this sample, Gaspé appears to have fewer retained nearby historical records than Montréal, Québec, and Rouyn-Noranda.
-- The app does not yet answer the user question in plain language. Users must infer the conclusion from `12/24 plus proches · 5 km`, row dates, times, and customer-count pills.
+- The deployed `v0.2.7` app does not yet answer the user question in plain language. Users must infer the conclusion from `12/24 plus proches · 5 km`, row dates, times, and customer-count pills.
 - The current outage section remains province-wide and visually dominant after an address search. That can make the local stability answer feel secondary even though `Déjà vues ici` is the more relevant section for the question.
 - Layer help copy is useful and credible for provenance, but it explains the layer rather than the local answer.
 
@@ -58,15 +58,21 @@ UI findings:
 - Search result row clicks zoom the map to outage polygons, which is useful. Clicking a polygon did not reveal a readable popup or populated detail panel in this pass, so the map movement is the only feedback.
 - English localization works for main labels and section names. Lower layer counts briefly showed `Loading` after switching language and then resolved after several seconds.
 
-Most useful product improvements suggested by the audit:
+Most useful product improvements suggested by the audit, with implementation status:
 
-1. Add an address-level answer card above the layer accordions, for example: `Nearby retained outages: 12 in 5 km. This is high compared with your other sampled locations.` Include freshness/data-coverage caveats.
-2. Make `Déjà vues ici` the default expanded section after an address search, or show a compact stability summary before the province-wide current-outage list.
-3. Add clearer local-vs-province labels: `Current outages across Quebec` versus `Seen before near this address`.
-4. Add visible row column labels or a header row in expanded sections: date/time, status/source, affected customers.
-5. Add map feedback on polygon click: popup or side detail with status/date/time/customers and layer name.
-6. Review zero-size icon buttons and drawer controls for keyboard focus, hit target size, and screen-reader behavior.
-7. Replace Tailwind CDN with a production build path during the planned frontend/tooling work.
+1. Add an address-level answer card above the layer accordions, such as retained nearby outage count within 5 km, with archive-coverage caveats.
+2. Make `Déjà vues ici` / `Seen Before Here` the default expanded section after an address search.
+3. Add clearer local-vs-province labels: current outages across Quebec versus previous outages near this address.
+4. Add visible row column labels in expanded sections: date/time/status/customers as appropriate for the layer.
+5. Add map/detail feedback on row and polygon selection.
+6. Remove the zero-size current-layer toggle from the visible controls.
+
+These items were implemented in `codex/frontend-stability-summary`.
+
+Remaining follow-up:
+
+- Replace Tailwind CDN with a production build path during the planned frontend/tooling work.
+- Keep monitoring long-address clipping and mobile hit targets during the next deployed frontend pass.
 
 ## UI comparable notes for 0.2.0
 

@@ -1,11 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Pannes Historiques">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Outage location">
   <rect width="512" height="512" fill="#223654"/>
-  <circle cx="256" cy="256" r="188" fill="#f7f7f4" opacity="0.08"/>
-  <path d="M276 80 144 300h104l-30 154 158-238H276z" fill="#e0ad03"/>
-  <text x="256" y="420"
-        fill="#f7f7f4"
-        font-family="Arial, Helvetica, sans-serif"
-        font-size="70"
-        font-weight="700"
-        text-anchor="middle">PH</text>
+  <path d="M256 74c-78 0-138 60-138 138 0 112 138 226 138 226s138-114 138-226c0-78-60-138-138-138z"
+        fill="#f5a623"/>
+  <path d="M277 137 193 290h58l-18 86 93-141h-57z" fill="#223654"/>
 </svg>

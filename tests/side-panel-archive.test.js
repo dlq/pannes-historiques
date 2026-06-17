@@ -7,6 +7,7 @@ import {
   previousArchiveHeaderCount,
   previousArchiveMapItems,
   previousArchiveLineItems,
+  previousLocalSummary,
   shouldRenderPreviousArchiveSummary,
 } from "../app/static/side-panel.js";
 import { geometryStyle } from "../app/static/map-layers.js";
@@ -41,7 +42,7 @@ test("prefers municipal territory bins as previous archive line items", () => {
   assert.deepEqual(items, [
     {
       label: "Montréal",
-      middle: "Municipalité",
+      designation: "Municipalité",
       eventCount: 42,
       count: 1200,
       icon: "map",
@@ -63,7 +64,7 @@ test("prefers municipal territory bins as previous archive line items", () => {
     },
     {
       label: "Lac-Jérôme",
-      middle: "Territoire non organisé",
+      designation: "Territoire non organisé",
       eventCount: 7,
       count: 80,
       icon: "map",
@@ -112,6 +113,35 @@ test("renders previous archive summaries even when there are no raw matches", ()
     }),
     false,
   );
+});
+
+test("builds local stability summary copy from previous layer payloads", () => {
+  assert.deepEqual(
+    previousLocalSummary(
+      {
+        previousMode: "seen_before_here",
+        previousRadiusM: 5000,
+        previousNearestLimit: 24,
+        previousSidebarMatches: [{ kind: "previous_outage" }, { kind: "previous_outage" }],
+      },
+      {
+        local_reliability_summary_title: "Local stability evidence",
+        local_reliability_summary_body:
+          "Retained nearby outage records: {count} within {radius_km} km. Higher counts mean the local archive has seen more interruptions nearby.",
+        local_reliability_summary_meta: "{count}/{limit} nearest retained records shown",
+      },
+    ),
+    {
+      title: "Local stability evidence",
+      body: "Retained nearby outage records: 2 within 5 km. Higher counts mean the local archive has seen more interruptions nearby.",
+      meta: "2/24 nearest retained records shown",
+      count: 2,
+      limit: 24,
+      radiusKm: "5",
+    },
+  );
+
+  assert.equal(previousLocalSummary({ previousMode: "recent_archive" }), null);
 });
 
 test("turns municipal archive bins into previous outage map items", () => {

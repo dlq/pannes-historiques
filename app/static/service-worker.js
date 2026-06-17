@@ -1,4 +1,4 @@
-const CACHE_NAME = "pannes-historiques-v0.2.7-versioned-static-network";
+const CACHE_NAME = "pannes-historiques-v0.2.7-outage-pin-icon";
 const APP_SHELL_URLS = [
   "/static/app.css",
   "/static/app.js",

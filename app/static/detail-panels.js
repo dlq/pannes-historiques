@@ -334,11 +334,6 @@ export class DaiDetailPanel extends HTMLElement {
     const labels = this.uiLabels();
     const isPreviousOutage = item.kind === "previous_outage";
     const isPlanned = item.kind === "planned";
-    if (isPlanned || isPreviousOutage) {
-      this.hidden = true;
-      this.innerHTML = "";
-      return;
-    }
     const tone = isPlanned ? "planned" : isPreviousOutage ? "previous" : "current";
     const title = isPreviousOutage
       ? label(labels, "previous_layer_short", "Local archive")
@@ -353,11 +348,6 @@ export class DaiDetailPanel extends HTMLElement {
     const recentEvents = item.recentEvents || [];
     const showEventRows =
       recentEvents.length > 1 && (isPreviousOutage || item.matchType === "current_feed_map");
-    if (!isPlanned && !isPreviousOutage && !showEventRows) {
-      this.hidden = true;
-      this.innerHTML = "";
-      return;
-    }
     const clientLabel = label(labels, "clients", "clients");
     const customerValue = item.customersAffected == null ? "" : `${item.customersAffected}`;
     const customerTitle =

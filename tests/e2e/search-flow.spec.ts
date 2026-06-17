@@ -92,9 +92,7 @@ test("app exposes installable web app metadata", async ({ page, request }) => {
 
 test("search renders result cards and lazy-loads the map", async ({ page }) => {
   await runSearch(page);
-  await expect(
-    page.getByRole("heading", { name: "Current" }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Current" })).toBeVisible();
   await expect(page).toHaveURL(/lang=en/);
   await expect(page).toHaveURL(/q=5220\+Rue\+Jeanne-Mance|q=5220%20Rue%20Jeanne-Mance/);
   await expect(page.getByRole("heading", { name: "Planned" })).toBeVisible();
@@ -102,7 +100,20 @@ test("search renders result cards and lazy-loads the map", async ({ page }) => {
     page.getByRole("heading", { name: "Seen Before Here" }),
   ).toBeVisible();
   await expect(page.getByRole("heading", { name: "Disclosures" })).toBeVisible();
-  await expect(page.locator("[data-map-focus]").first()).toBeVisible();
+  await expect(page.locator(".ph-local-answer-card")).toContainText(
+    "Retained nearby outage records: 1 within 5 km",
+  );
+  await expect(page.locator("#ph-context-previous")).toHaveAttribute("open", "");
+  await expect(page.locator("#ph-context-current")).not.toHaveAttribute("open", "");
+  await expect(page.locator("#ph-context-previous .ph-context-column-labels")).toContainText(
+    "Date",
+  );
+  await expect(page.locator("#ph-context-previous .ph-context-column-labels")).toContainText(
+    "Customers",
+  );
+  await expect(
+    page.locator("#ph-context-previous [data-map-focus]").first(),
+  ).toBeVisible();
   await expect(page.locator("outage-map")).toBeVisible();
   await expect(page.locator("outage-map")).toHaveAttribute("data-map");
 });
@@ -239,10 +250,12 @@ test("browser history reloads canonical search URL state", async ({ page }) => {
 
 test("selected result rows stay visibly linked to the map", async ({ page }) => {
   await runSearch(page);
-  const firstCard = page.locator("[data-map-focus]").first();
+  const firstCard = page.locator("#ph-context-previous [data-map-focus]").first();
   await firstCard.click();
   await expect(firstCard).toHaveClass(/is-map-selected/);
   await expect(firstCard).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator("dai-detail-panel")).toBeVisible();
+  await expect(page.locator("dai-detail-panel")).toContainText("Local archive");
 });
 
 test("autocomplete menu appears above existing result cards", async ({ page }) => {
@@ -273,7 +286,7 @@ test("clicking a result before lazy map load replays focus after the map appears
   });
 
   await runSearch(page);
-  const firstCard = page.locator("[data-map-focus]").first();
+  const firstCard = page.locator("#ph-context-previous [data-map-focus]").first();
   await expect(firstCard).toBeVisible();
   await firstCard.click();
 

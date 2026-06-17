@@ -298,7 +298,8 @@ textarea {
 }
 
 .ph-layer-toggle,
-.ph-layer-info-button {
+.ph-layer-info-button,
+.ph-layer-toggle-spacer {
   display: inline-flex;
   flex-shrink: 0;
   width: 1.5rem;
@@ -313,6 +314,16 @@ textarea {
   font-size: 0.75rem;
   font-weight: 600;
   line-height: 1.2;
+}
+
+.ph-layer-toggle,
+.ph-layer-toggle-spacer {
+  width: 4rem;
+}
+
+.ph-layer-toggle {
+  gap: 0.1875rem;
+  color: #095797;
 }
 
 .ph-layer-info-button {
@@ -336,8 +347,16 @@ textarea {
   color: #6b778a;
 }
 
-#ph-context-current .ph-layer-toggle {
-  display: none;
+.ph-layer-toggle-label {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1;
+}
+
+.ph-layer-toggle-spacer {
+  pointer-events: none;
+  visibility: hidden;
 }
 
 .ph-layer-count {
@@ -444,6 +463,66 @@ textarea {
   margin-top: 0.375rem;
 }
 
+.ph-local-answer-card {
+  display: grid;
+  gap: 0.25rem;
+  border: 1px solid rgba(9, 87, 151, 0.18);
+  border-radius: 0.5rem;
+  background: rgba(238, 246, 255, 0.82);
+  padding: 0.625rem 0.75rem;
+  color: #223654;
+}
+
+.ph-local-answer-title {
+  margin: 0;
+  color: #095797;
+  font-size: 0.6875rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  line-height: 1.15;
+  text-transform: uppercase;
+}
+
+.ph-local-answer-body {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.ph-local-answer-meta {
+  margin: 0;
+  color: #5d6b80;
+  font-size: 0.71875rem;
+  line-height: 1.25;
+}
+
+.ph-context-column-labels {
+  display: grid;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0 0.125rem 0.125rem;
+  color: #6b778a;
+  font-size: 0.625rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+.ph-context-column-labels--current {
+  grid-template-columns: 6.25rem minmax(0, 1fr) var(--ph-count-pill-width);
+}
+
+.ph-context-column-labels--planned,
+.ph-context-column-labels--previous {
+  grid-template-columns: minmax(0, 1fr) 4.25rem var(--ph-count-pill-width);
+}
+
+.ph-context-column-labels > :last-child {
+  text-align: right;
+}
+
 .ph-map-context-list .ph-context-rows {
   max-height: 9rem;
   overflow: auto;
@@ -488,10 +567,8 @@ textarea {
 
 .ph-context-summary-row--municipal {
   --ph-count-pill-width: 3.9rem;
-  grid-template-columns: minmax(7rem, 1.35fr) minmax(5.75rem, 0.95fr) 3.2rem var(
-      --ph-count-pill-width
-    );
-  gap: 0.35rem;
+  grid-template-columns: minmax(10rem, 1fr) 3.2rem var(--ph-count-pill-width);
+  gap: 0.4rem;
   min-height: 0;
   padding-block: 0.125rem;
 }

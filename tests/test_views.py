@@ -74,6 +74,56 @@ def test_result_context_marks_previous_section_as_seen_before_here_for_address()
     assert context["map_payload"]["previousMode"] == "seen_before_here"
 
 
+def test_result_context_summarizes_local_previous_evidence_for_address():
+    result = make_search_result()
+    result.previous_outage_groups = [
+        {
+            "centroid_lat": 45.7,
+            "centroid_lon": -73.8,
+            "label": "Address saved group",
+            "events": [
+                {
+                    "distance_m": 50,
+                    "customers_affected": 99,
+                    "status": "R",
+                    "start_time": "2026-01-01 09:00:00",
+                }
+            ],
+            "event_count": 1,
+            "latest_start_time": "2026-01-01 09:00:00",
+        },
+        {
+            "centroid_lat": 45.71,
+            "centroid_lon": -73.81,
+            "label": "Second saved group",
+            "events": [
+                {
+                    "distance_m": 250,
+                    "customers_affected": 42,
+                    "status": "L",
+                    "start_time": "2026-02-01 08:00:00",
+                }
+            ],
+            "event_count": 1,
+            "latest_start_time": "2026-02-01 08:00:00",
+        },
+    ]
+
+    context = result_context("en", result)
+
+    assert context["map_payload"]["previousLocalSummary"] == {
+        "title": "Local stability evidence",
+        "body": (
+            "Retained nearby outage records: 2 within 5 km. Higher counts mean the "
+            "local archive has seen more interruptions nearby."
+        ),
+        "meta": "2/24 nearest retained records shown",
+        "count": 2,
+        "limit": 24,
+        "radiusKm": "5",
+    }
+
+
 def test_result_context_previous_sidebar_rows_prefer_local_matches_for_address():
     result = make_search_result()
     result.previous_outage_groups = [
