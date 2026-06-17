@@ -307,7 +307,7 @@ export function previousArchiveLineItems(summary, labels = {}) {
       const eventCount = Number(item.eventCount || 0);
       return {
         label: item.territoryName || label(labels, "unknown", "Unknown"),
-        middle: item.designation || label(labels, "area", "Area"),
+        designation: item.designation || label(labels, "area", "Area"),
         eventCount,
         count: Number(item.customersAffected || 0),
         icon: "map",
@@ -598,16 +598,22 @@ export function attachMapLayerToggles() {
         row.setAttribute("role", "button");
         row.setAttribute("tabindex", "0");
         row.setAttribute("data-map-focus", JSON.stringify(focusPayloadForItem(item.focus)));
+        if (item.designation) {
+          row.setAttribute("aria-label", `${item.label} · ${item.designation}`);
+        }
       }
 
       const labelPill = document.createElement("span");
       labelPill.className = "ph-row-pill ph-row-pill-previous-date";
       replaceWithIconText(labelPill, item.icon || "archive", item.label);
+      row.append(labelPill);
 
-      const middlePill = document.createElement("span");
-      middlePill.className = "ph-row-pill ph-row-pill-previous-time";
-      middlePill.textContent = item.middle;
-      row.append(labelPill, middlePill);
+      if (item.middle) {
+        const middlePill = document.createElement("span");
+        middlePill.className = "ph-row-pill ph-row-pill-previous-time";
+        middlePill.textContent = item.middle;
+        row.append(middlePill);
+      }
 
       if (item.eventCount != null) {
         const eventPill = document.createElement("span");
@@ -679,7 +685,11 @@ export function attachMapLayerToggles() {
           document.documentElement.lang === "fr" ? "Afficher" : "Show",
         );
     button.setAttribute("aria-label", `${action} ${sectionLabel}`.trim());
-    button.replaceChildren(phIcon(on ? "eye-off" : "eye", "ph-toggle-icon"));
+    button.title = `${action} ${sectionLabel}`.trim();
+    const labelText = document.createElement("span");
+    labelText.className = "ph-layer-toggle-label";
+    labelText.textContent = action;
+    button.replaceChildren(phIcon(on ? "eye-off" : "eye", "ph-toggle-icon"), labelText);
   };
 
   const closeSiblingSections = (section) => {

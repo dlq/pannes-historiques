@@ -37,6 +37,17 @@
 {% macro toggle_icon(is_on) -%}
   {{ ph_icon("eye-off" if is_on else "eye", "ph-toggle-icon") }}
 {%- endmacro %}
+{% macro layer_toggle_button(layer, heading_key, is_on) -%}
+  {% set action_label = t(lang, "map_layer_on") if is_on else t(lang, "map_layer_off") %}
+  <button class="ph-layer-toggle {{ 'is-on' if is_on else '' }}"
+          type="button"
+          title="{{ action_label }} {{ t(lang, heading_key) }}"
+          aria-label="{{ action_label }} {{ t(lang, heading_key) }}"
+          aria-pressed="{{ 'true' if is_on else 'false' }}"
+          data-layer-toggle="{{ layer }}">
+    {{ toggle_icon(is_on) }}<span class="ph-layer-toggle-label">{{ action_label }}</span>
+  </button>
+{%- endmacro %}
 {% macro layer_info_button(layer, label_text) -%}
   <button class="ph-layer-info-button"
           type="button"
@@ -77,9 +88,9 @@
   <article class="ph-context-summary-row ph-context-summary-row--previous ph-context-summary-row--municipal ph-match-row"
            role="button"
            tabindex="0"
+           aria-label="{{ (item.territoryName or t(lang, 'unknown') ) ~ ' · ' ~ (item.designation or t(lang, 'area')) }}"
            data-map-focus='{{ {"kind": "previous_outage", "geometryKey": item.geometryKey or item.territoryId, "geometry": item.geometry, "lat": item.centroidLat, "lon": item.centroidLon, "label": item.territoryName, "startTime": item.latestStartTime, "customersAffected": item.customersAffected} | tojson }}'>
     <span class="ph-row-pill ph-row-pill-previous-date">{{ ph_icon('map', 'ph-pill-icon') }}{{ item.territoryName or t(lang, "unknown") }}</span>
-    <span class="ph-row-pill ph-row-pill-previous-time">{{ item.designation or t(lang, "area") }}</span>
     {{ count_pill(item.eventCount or 0, "zap", t(lang, "previous_archive_events") , "ph-context-pill-previous ph-context-pill-events") }}
     {{ count_pill(item.customersAffected or 0, "users", t(lang, "clients") , "ph-context-pill-previous") }}
   </article>
@@ -98,6 +109,7 @@
       <span class="ph-layer-scope-pill">{{ t(lang, "current_scope_label") }}</span>
       {{ layer_count(current_outages | length, "map", t(lang, "areas") ) }}
       {{ layer_info_button("current", t(lang, "current_layer_heading") ) }}
+      <span class="ph-layer-toggle-spacer" aria-hidden="true"></span>
     </summary>
     <div class="ph-context-rows">
       {% if current_outages %}
@@ -143,11 +155,7 @@
         <span class="ph-layer-count text-xs text-[#6b778a]"></span>
       {% endif %}
       {{ layer_info_button("planned", t(lang, "planned_layer_heading") ) }}
-      <button class="ph-layer-toggle {{ 'is-on' if 'planned' in loaded_layers else '' }}"
-              type="button"
-              aria-label="{{ (t(lang, 'map_layer_on') if 'planned' in loaded_layers else t(lang, 'map_layer_off')) }} {{ t(lang, 'planned_layer_heading') }}"
-              aria-pressed="{{ 'true' if 'planned' in loaded_layers else 'false' }}"
-              data-layer-toggle="planned">{{ toggle_icon('planned' in loaded_layers) }}</button>
+      {{ layer_toggle_button("planned", "planned_layer_heading", "planned" in loaded_layers) }}
     </summary>
     <div class="ph-context-rows">
       {% if planned_outages %}
@@ -214,11 +222,7 @@
         <span class="ph-layer-count text-xs text-[#6b778a]"></span>
       {% endif %}
       {{ layer_info_button("previous", t(lang, previous_heading_key) ) }}
-      <button class="ph-layer-toggle {{ 'is-on' if 'previous' in loaded_layers else '' }}"
-              type="button"
-              aria-label="{{ (t(lang, 'map_layer_on') if 'previous' in loaded_layers else t(lang, 'map_layer_off')) }} {{ t(lang, previous_heading_key) }}"
-              aria-pressed="{{ 'true' if 'previous' in loaded_layers else 'false' }}"
-              data-layer-toggle="previous">{{ toggle_icon('previous' in loaded_layers) }}</button>
+      {{ layer_toggle_button("previous", previous_heading_key, "previous" in loaded_layers) }}
     </summary>
     <div class="ph-context-rows">
       {% if previous_mode == "recent_archive" and previous_archive_summary %}
@@ -281,11 +285,7 @@
         <span class="ph-layer-count text-xs text-[#6b778a]"></span>
       {% endif %}
       {{ layer_info_button("published", t(lang, "disclosure") ) }}
-      <button class="ph-layer-toggle {{ 'is-on' if 'published' in loaded_layers else '' }}"
-              type="button"
-              aria-label="{{ (t(lang, 'map_layer_on') if 'published' in loaded_layers else t(lang, 'map_layer_off')) }} {{ t(lang, 'disclosure') }}"
-              aria-pressed="{{ 'true' if 'published' in loaded_layers else 'false' }}"
-              data-layer-toggle="published">{{ toggle_icon('published' in loaded_layers) }}</button>
+      {{ layer_toggle_button("published", "disclosure", "published" in loaded_layers) }}
     </summary>
     <div class="ph-context-rows">
       {% for item in published_context %}

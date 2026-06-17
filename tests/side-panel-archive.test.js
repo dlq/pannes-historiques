@@ -42,7 +42,7 @@ test("prefers municipal territory bins as previous archive line items", () => {
   assert.deepEqual(items, [
     {
       label: "Montréal",
-      middle: "Municipalité",
+      designation: "Municipalité",
       eventCount: 42,
       count: 1200,
       icon: "map",
@@ -64,7 +64,7 @@ test("prefers municipal territory bins as previous archive line items", () => {
     },
     {
       label: "Lac-Jérôme",
-      middle: "Territoire non organisé",
+      designation: "Territoire non organisé",
       eventCount: 7,
       count: 80,
       icon: "map",

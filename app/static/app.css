@@ -298,7 +298,8 @@ textarea {
 }
 
 .ph-layer-toggle,
-.ph-layer-info-button {
+.ph-layer-info-button,
+.ph-layer-toggle-spacer {
   display: inline-flex;
   flex-shrink: 0;
   width: 1.5rem;
@@ -313,6 +314,16 @@ textarea {
   font-size: 0.75rem;
   font-weight: 600;
   line-height: 1.2;
+}
+
+.ph-layer-toggle,
+.ph-layer-toggle-spacer {
+  width: 4rem;
+}
+
+.ph-layer-toggle {
+  gap: 0.1875rem;
+  color: #095797;
 }
 
 .ph-layer-info-button {
@@ -336,8 +347,16 @@ textarea {
   color: #6b778a;
 }
 
-#ph-context-current .ph-layer-toggle {
-  display: none;
+.ph-layer-toggle-label {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1;
+}
+
+.ph-layer-toggle-spacer {
+  pointer-events: none;
+  visibility: hidden;
 }
 
 .ph-layer-count {
@@ -548,10 +567,8 @@ textarea {
 
 .ph-context-summary-row--municipal {
   --ph-count-pill-width: 3.9rem;
-  grid-template-columns: minmax(7rem, 1.35fr) minmax(5.75rem, 0.95fr) 3.2rem var(
-      --ph-count-pill-width
-    );
-  gap: 0.35rem;
+  grid-template-columns: minmax(10rem, 1fr) 3.2rem var(--ph-count-pill-width);
+  gap: 0.4rem;
   min-height: 0;
   padding-block: 0.125rem;
 }
