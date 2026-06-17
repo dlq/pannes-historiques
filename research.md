@@ -43,7 +43,7 @@ Observed address-result evidence:
 Interpretation:
 
 - The app can support a relative stability comparison from retained outage evidence: in this sample, Gaspé appears to have fewer retained nearby historical records than Montréal, Québec, and Rouyn-Noranda.
-- The deployed `v0.2.7` app does not yet answer the user question in plain language. Users must infer the conclusion from `12/24 plus proches · 5 km`, row dates, times, and customer-count pills.
+- At audit time, the deployed `v0.2.7` app did not yet answer the user question in plain language. Users had to infer the conclusion from `12/24 plus proches · 5 km`, row dates, times, and customer-count pills.
 - The current outage section remains province-wide and visually dominant after an address search. That can make the local stability answer feel secondary even though `Déjà vues ici` is the more relevant section for the question.
 - Layer help copy is useful and credible for provenance, but it explains the layer rather than the local answer.
 

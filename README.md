@@ -13,7 +13,7 @@ Hydro-Quebec outage history prototype built from the `plan.md` direction.
   - map-first desktop panel and mobile bottom sheet
   - current, planned, previous/archive, and disclosure sections with icon-backed rows
   - local previous-outage evidence for searched addresses, including the `Seen Before Here` mode
-  - on `codex/frontend-stability-summary`, an address-level local stability evidence card, explicit local/province scope labels, visible row labels, and row/polygon detail feedback
+  - a merged frontend-stability slice with an address-level local stability evidence card, explicit local/province scope labels, visible row labels, and row/polygon detail feedback
 - Historical disclosure and map context
   - access-to-information disclosure source registry plus XLSX and supported PDF extraction
   - DAI region outlines from OSM/Nominatim/Overpass with conservative fallback areas
@@ -59,10 +59,10 @@ Production is currently served at `pannes.ca` with Cloudflare Workers + Containe
 
 Current deployment status:
 
-- Deployed release: `v0.2.7` plus the `codex/frontend-stability-summary` frontend slice
+- Deployed release: `v0.2.7` plus the frontend-stability slice now merged into `main`
 - Public service-worker marker checked on 2026-06-17: `pannes-historiques-v0.2.7-outage-pin-icon`
 - Public smoke check on 2026-06-17: `/`, `/healthz`, `/service-worker.js`, and representative `/search-map` requests returned `200`
-- Feature branch `codex/frontend-stability-summary` is pushed and deployed; production includes the local stability answer card, outage-location favicon/app icon, and explicit Show/Hide layer controls
+- Production includes the local stability answer card, outage-location favicon/app icon, and explicit Show/Hide layer controls from `codex/frontend-stability-summary`, which is merged into `main` at `c7fe3cb`
 
 ```bash
 npx wrangler deploy
