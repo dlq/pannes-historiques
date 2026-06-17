@@ -383,6 +383,46 @@ def test_durable_runtime_get_caches_context_reads(service_factory, monkeypatch):
     ]
 
 
+def test_durable_runtime_requests_include_operation_token(service_factory, monkeypatch):
+    service = service_factory(
+        durable_runtime_url="https://example.invalid",
+        durable_runtime_operation_token="secret-token",
+        durable_context_cache_ttl_seconds=0,
+    )
+    seen_headers = []
+
+    class FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def read(self):
+            return b'{"ok": true}'
+
+    def fake_urlopen(request, timeout):
+        seen_headers.append(dict(request.header_items()))
+        return FakeResponse()
+
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+
+    assert service._durable_runtime_get("status") == {"ok": True}
+    assert service._durable_runtime_post("query", {"address_id": 1}) == {"ok": True}
+
+    assert seen_headers == [
+        {
+            "User-agent": "pannes-historiques/0.1 (+https://pannes.ca)",
+            "X-pannes-operation-token": "secret-token",
+        },
+        {
+            "Content-type": "application/json",
+            "User-agent": "pannes-historiques/0.1 (+https://pannes.ca)",
+            "X-pannes-operation-token": "secret-token",
+        },
+    ]
+
+
 def test_durable_runtime_get_does_not_cache_failed_context_reads(service_factory, monkeypatch):
     service = service_factory(
         durable_runtime_url="https://example.invalid",

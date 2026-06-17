@@ -86,12 +86,13 @@ D1/R2 are now used for durable production ingestion:
 - R2 stores raw Hydro-Quebec feed payloads and raw DAI/access-to-information source files.
 - The Worker exposes D1-backed lookup endpoints for current nearby matches and accumulated
   previous-outage nearby matches.
-- The Worker also exposes runtime map-layer endpoints for current/planned operational layers and
-  previous-outage context layers with Hydro polygon geometry when available.
+- Private Worker runtime endpoints provide current/planned operational layers and previous-outage
+  context layers with Hydro polygon geometry to the Flask/container path when the operation token is
+  configured.
 - Operational-only Worker runtime endpoints import official territories, backfill municipal archive
   bins, and report municipal archive status.
-- Debug, collection, cron, internal file/export, and direct status endpoints are not public entry
-  points; use the CLI locally and Worker scheduled/internal paths in production.
+- Debug, collection, cron, internal file/export, direct status, and durable runtime endpoints are not
+  public entry points; use the CLI locally and Worker scheduled/internal paths in production.
 
 Production disables automatic Hydro-Quebec refreshes during address search (`AUTO_REFRESH_ON_SEARCH=0`).
 The Worker cron handles changed-feed ingestion and calls the container refresh endpoint so user

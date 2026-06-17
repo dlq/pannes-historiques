@@ -401,10 +401,15 @@ export function previousLocalSummary(payload = {}, labels = {}) {
 }
 
 export function shouldRenderPreviousArchiveSummary(layer, payload = {}) {
+  const summary = payload.previousArchiveSummary;
+  const hasMunicipalTerritories =
+    summary?.mode !== "municipal_archive" ||
+    (Array.isArray(summary.territories) && summary.territories.length > 0);
   return (
     layer === "previous" &&
     payload.previousMode === "recent_archive" &&
-    Boolean(payload.previousArchiveSummary)
+    Boolean(summary) &&
+    hasMunicipalTerritories
   );
 }
 

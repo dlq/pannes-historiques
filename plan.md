@@ -16,7 +16,7 @@ This file is the active execution plan. Keep durable evidence, source notes, and
 - Important architecture caveat: runtime writes inside the container are ephemeral; durable production state belongs in D1/R2 or another durable store.
 - Cost caveat: the June 2026 Cloudflare invoice was driven mostly by Workers Paid baseline plus Durable Object/container runtime costs; D1 and R2 were not material cost drivers on that bill.
 - User-facing URL contract: clean root URL with `lang`, `q`, or current-location coordinate parameters; obsolete public `radius_m`, `days`, and `include_planned` parameters were removed from the main interface.
-- Debug, collection, cron, internal export/file, and direct durable-status endpoints are private by default; production returns `404` unless the expected debug flag, Worker block, scheduled header, internal header, or operation token is present.
+- Debug, collection, cron, internal export/file, direct durable-status, and durable runtime endpoints are private by default; production returns `404` unless the expected debug flag, Worker block, scheduled header, internal header, or operation token is present.
 - Current release marker: service worker cache name `pannes-historiques-v0.2.8-post-archive-stability`; latest public smoke check before the release commit on 2026-06-17 returned `200` for `/`, `/healthz`, `/service-worker.js`, and a representative `/search-map` request.
 - Current deployed code includes the frontend stability-summary work first landed on the branch through `e25adec`, including the local-stability answer-card UI, no-letter outage-location favicon/app icon, explicit Show/Hide layer actions, and Current-header alignment spacer.
 - Current `main` is the `v0.2.8` release candidate: it is past the `v0.2.7` tag, includes follow-up municipal archive binning fixes through `9875b1a`, includes the merged frontend stability work, and should become the final `0.2.x` checkpoint before broad `0.3.x` work.
@@ -208,7 +208,7 @@ Verification so far:
 
 - full-viewport map surface with desktop side panel and mobile bottom sheet
 - lazy map-context loading retained so result cards/search feedback can appear before heavy geometry
-- runtime map layers can use D1-backed Worker endpoints when `DURABLE_RUNTIME_URL` is configured
+- runtime map layers can use private, operation-token D1-backed Worker endpoints when `DURABLE_RUNTIME_URL` and `DURABLE_RUNTIME_OPERATION_TOKEN` are configured
 
 `v0.2.1` improved result/detail interaction:
 

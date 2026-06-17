@@ -9,6 +9,7 @@ import {
   simplifyTerritoryCoverage,
   territoryFromFeature,
 } from "./municipal-archive.js";
+import { runtimeEndpointRequiresOperationToken } from "./runtime-policy.js";
 
 const DISCLOSURE_CRONS = new Set(["0 10 */14 * *", "13 10 */14 * *"]);
 const DISCLOSURE_BATCH_SIZE = 1;
@@ -26,15 +27,18 @@ export class PannesContainer extends Container {
   defaultPort = 8080;
   sleepAfter = "30m";
   pingEndpoint = "pannes/healthz";
-  envVars = {
-    APP_HOST: "0.0.0.0",
-    APP_PORT: "8080",
-    AUTO_REFRESH_ON_SEARCH: "0",
-    DURABLE_HISTORY_URL: "https://pannes.ca/api/durable/history-nearby",
-    DURABLE_NEARBY_URL: "https://pannes.ca/api/durable/nearby",
-    DURABLE_RUNTIME_URL: "https://pannes.ca/api/durable/runtime",
-    NOMINATIM_USER_AGENT: "pannes-historiques/0.1 (+https://pannes.ca)",
-  };
+  get envVars() {
+    return {
+      APP_HOST: "0.0.0.0",
+      APP_PORT: "8080",
+      AUTO_REFRESH_ON_SEARCH: "0",
+      DURABLE_HISTORY_URL: "https://pannes.ca/api/durable/history-nearby",
+      DURABLE_NEARBY_URL: "https://pannes.ca/api/durable/nearby",
+      DURABLE_RUNTIME_OPERATION_TOKEN: this.env.PANNES_OPERATION_TOKEN || "",
+      DURABLE_RUNTIME_URL: "https://pannes.ca/api/durable/runtime",
+      NOMINATIM_USER_AGENT: "pannes-historiques/0.1 (+https://pannes.ca)",
+    };
+  }
 
   onStart() {
     console.log("Pannes container started");
@@ -1345,6 +1349,12 @@ async function disclosureCounts(db) {
 async function durableRuntimeResponse(request, env) {
   const url = new URL(request.url);
   const suffix = url.pathname.replace("/api/durable/runtime", "") || "/";
+  if (
+    runtimeEndpointRequiresOperationToken(suffix, request.method) &&
+    !isOperationalRequest(request, env)
+  ) {
+    return jsonResponse({ error: "not found" }, { status: 404 });
+  }
   if (suffix === "/geocode-cache") return runtimeGeocodeCacheResponse(request, env, url);
   if (suffix === "/address" && request.method === "POST")
     return runtimeAddressResponse(request, env);
@@ -1489,8 +1499,7 @@ async function runtimeAdminTerritoriesImportResponse(env) {
 
 async function runtimeMunicipalArchiveBackfillResponse(env, url) {
   const limit = Math.trunc(clamp(numberParam(url, "limit") ?? 100, 1, 500));
-  const afterId =
-    url.searchParams.get("after_id") || (await municipalArchiveCursor(env.DB));
+  const afterId = url.searchParams.get("after_id") || (await municipalArchiveCursor(env.DB));
   return jsonResponse(await runMunicipalArchiveBackfill(env, { limit, afterId }));
 }
 

@@ -26,7 +26,9 @@ const MAX_SQL_STATEMENT_LENGTH = 100_000;
 const mode = process.argv[2] || "backfill";
 
 if (!["import-admin", "backfill", "status"].includes(mode)) {
-  console.error("Usage: node scripts/maintenance/municipal-archive-backfill.mjs [import-admin|backfill|status]");
+  console.error(
+    "Usage: node scripts/maintenance/municipal-archive-backfill.mjs [import-admin|backfill|status]",
+  );
   process.exit(2);
 }
 
@@ -118,7 +120,9 @@ async function backfillMunicipalArchive() {
     if (!polygons.length) break;
     batch += 1;
     const updatedAt = new Date().toISOString();
-    const records = await fetchRecordsForVersions([...new Set(polygons.map((row) => row.source_version))]);
+    const records = await fetchRecordsForVersions([
+      ...new Set(polygons.map((row) => row.source_version)),
+    ]);
     const statements = [];
     for (const polygon of polygons) {
       const candidateTerritories = normalizedTerritories.filter((territory) =>
@@ -258,7 +262,8 @@ function outageStatsForPolygon(polygon, records) {
   return {
     eventCount: matching.length,
     maxCustomers: Math.max(...matching.map((row) => Number(row.customers_affected || 0))),
-    latestStartTime: matching[0]?.outage_start_time || hydroVersionTimestamp(polygon.source_version),
+    latestStartTime:
+      matching[0]?.outage_start_time || hydroVersionTimestamp(polygon.source_version),
     latestEndTime: matching[0]?.estimated_restore_time || null,
   };
 }
@@ -328,17 +333,18 @@ function adminTerritorySql(territory, importedAt) {
   const rawSql = sql(geometryJson, displayGeometryJson);
   if (rawSql.length <= MAX_SQL_STATEMENT_LENGTH) return rawSql;
 
-  const displaySql = sql(displayGeometryJson, displayGeometryJson);
-  if (displaySql.length <= MAX_SQL_STATEMENT_LENGTH) return displaySql;
-
   for (const tolerance of [0.01, 0.05, 0.1, 0.25]) {
     const simplifiedJson = JSON.stringify(simplifyGeometry(territory.display_geometry, tolerance));
-    const simplifiedSql = sql(simplifiedJson, simplifiedJson);
+    const simplifiedSql = sql(geometryJson, simplifiedJson);
     if (simplifiedSql.length <= MAX_SQL_STATEMENT_LENGTH) return simplifiedSql;
   }
 
   const bboxJson = JSON.stringify(bboxGeometry(territory.bbox));
-  return sql(bboxJson, bboxJson);
+  const bboxSql = sql(geometryJson, bboxJson);
+  if (bboxSql.length <= MAX_SQL_STATEMENT_LENGTH) return bboxSql;
+  throw new Error(
+    `admin territory geometry SQL exceeds ${MAX_SQL_STATEMENT_LENGTH} bytes for ${territory.territory_id}`,
+  );
 }
 
 function assignmentSql(assignment, outageStats, updatedAt) {
@@ -481,7 +487,8 @@ function sqlString(value) {
 
 function chunks(items, size) {
   const result = [];
-  for (let index = 0; index < items.length; index += size) result.push(items.slice(index, index + size));
+  for (let index = 0; index < items.length; index += size)
+    result.push(items.slice(index, index + size));
   return result;
 }
 

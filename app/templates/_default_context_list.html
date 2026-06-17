@@ -227,7 +227,11 @@
     <div class="ph-context-rows">
       {% if previous_mode == "recent_archive" and previous_archive_summary %}
         {% if previous_archive_summary.mode == "municipal_archive" %}
-          {% for item in previous_archive_summary.territories or [] %}{{ municipal_archive_row(item) }}{% endfor %}
+          {% if previous_archive_summary.territories %}
+            {% for item in previous_archive_summary.territories or [] %}{{ municipal_archive_row(item) }}{% endfor %}
+          {% else %}
+            <p class="ph-context-empty">{{ t(lang, previous_empty_key) }}</p>
+          {% endif %}
         {% else %}
           {% for item in previous_archive_summary.windows or [] %}
             {{ archive_summary_row(t(lang, item.key) , item.areas, item.totalCustomers) }}
