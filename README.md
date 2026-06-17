@@ -164,9 +164,9 @@ Search result cards are rendered first and map overlays are lazy-loaded through 
 Regional and DAI/disclosure context geometries are served through `/map-context-geometries` and the
 precomputed static assets in `app/static/regional_metric_geometries.json` and
 `app/static/disclosure_geometries.json`. In production, current outages, planned interruptions, and
-default previous-outage context use D1-backed Worker runtime map-layer endpoints before falling back
-to local SQLite-derived layers. Previous outages without polygon geometry are rendered as centroid
-markers instead of older outage polygons.
+default previous-outage context use private D1-backed Worker runtime map-layer endpoints before
+falling back to local SQLite-derived layers. Previous outages without polygon geometry are rendered
+as centroid markers instead of older outage polygons.
 
 For searched addresses, previous local evidence is capped to the nearest retained outage records
 within the fixed 5 km search radius. On the current frontend feature branch, that evidence is also
@@ -198,6 +198,9 @@ Useful test queries:
 - `1 Chemin Pembroke, L'Isle-aux-Allumettes, QC`
 
 ## Tooling
+
+For a repo map and contributor workflow, see [docs/architecture.md](docs/architecture.md) and
+[docs/contributing.md](docs/contributing.md).
 
 ```bash
 uv sync

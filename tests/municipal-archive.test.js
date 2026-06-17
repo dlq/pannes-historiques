@@ -221,9 +221,12 @@ test("orders Hydro polygon ids by source version and numeric polygon index", () 
     polygonIndex: 10,
   });
   assert.equal(compareHydroPolygonIds("bispoly:20260615193004:9", "bispoly:20260615193004:10"), -1);
-  assert.equal(compareHydroPolygonIds("bispoly:20260615193004:604", "bispoly:20260615200010:0"), -1);
-  assert.deepEqual(
-    ["bispoly:20260615193004:9", "bispoly:20260615193004:10"].sort(),
-    ["bispoly:20260615193004:10", "bispoly:20260615193004:9"],
+  assert.equal(
+    compareHydroPolygonIds("bispoly:20260615193004:604", "bispoly:20260615200010:0"),
+    -1,
   );
+  assert.deepEqual(["bispoly:20260615193004:9", "bispoly:20260615193004:10"].sort(), [
+    "bispoly:20260615193004:10",
+    "bispoly:20260615193004:9",
+  ]);
 });

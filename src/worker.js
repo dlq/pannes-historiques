@@ -1,5 +1,5 @@
-import { Container } from "@cloudflare/containers";
 import { unzipSync } from "fflate";
+export { PannesContainer } from "./container.js";
 import {
   assignPolygonToTerritories,
   compareHydroPolygonIds,
@@ -10,6 +10,7 @@ import {
   territoryFromFeature,
 } from "./municipal-archive.js";
 import { runtimeEndpointRequiresOperationToken } from "./runtime-policy.js";
+import { workerRouteForPath } from "./worker-routing.js";
 
 const DISCLOSURE_CRONS = new Set(["0 10 */14 * *", "13 10 */14 * *"]);
 const DISCLOSURE_BATCH_SIZE = 1;
@@ -23,37 +24,6 @@ const ADMIN_TERRITORY_LAYER_URL =
 const ADMIN_TERRITORY_SOURCE_LAYER = "donnees_quebec_sda_municipalite";
 const ADMIN_TERRITORY_DISPLAY_MIN_WEIGHT = 0.00000002;
 
-export class PannesContainer extends Container {
-  defaultPort = 8080;
-  sleepAfter = "30m";
-  pingEndpoint = "pannes/healthz";
-  get envVars() {
-    return {
-      APP_HOST: "0.0.0.0",
-      APP_PORT: "8080",
-      AUTO_REFRESH_ON_SEARCH: "0",
-      DURABLE_HISTORY_URL: "https://pannes.ca/api/durable/history-nearby",
-      DURABLE_NEARBY_URL: "https://pannes.ca/api/durable/nearby",
-      DURABLE_RUNTIME_OPERATION_TOKEN: this.env.PANNES_OPERATION_TOKEN || "",
-      DURABLE_RUNTIME_URL: "https://pannes.ca/api/durable/runtime",
-      NOMINATIM_USER_AGENT: "pannes-historiques/0.1 (+https://pannes.ca)",
-    };
-  }
-
-  onStart() {
-    console.log("Pannes container started");
-  }
-
-  onStop() {
-    console.log("Pannes container stopped");
-  }
-
-  onError(error) {
-    console.error("Pannes container error", error);
-    throw error;
-  }
-}
-
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -61,36 +31,18 @@ export default {
       url.hostname = "pannes.ca";
       return Response.redirect(url.toString(), 308);
     }
-    if (url.pathname.startsWith("/internal/")) {
-      return new Response("Not found", { status: 404 });
-    }
-    if (url.pathname.startsWith("/cron/")) {
-      return new Response("Not found", { status: 404 });
-    }
-    if (url.pathname.startsWith("/collect")) {
-      return new Response("Not found", { status: 404 });
-    }
-    if (url.pathname.startsWith("/debug/")) {
-      return new Response("Not found", { status: 404 });
-    }
-    if (url.pathname === "/api/durable/hydro") {
-      return durableHydroResponse(env);
-    }
-    if (url.pathname === "/api/durable/status") {
+    const route = workerRouteForPath(url.pathname);
+    if (route === "blocked") return new Response("Not found", { status: 404 });
+    if (route === "durable_hydro") return durableHydroResponse(env);
+    if (route === "durable_status") {
       if (!isOperationalRequest(request, env)) {
         return new Response("Not found", { status: 404 });
       }
       return durableStatusResponse(env);
     }
-    if (url.pathname === "/api/durable/nearby") {
-      return durableNearbyResponse(request, env);
-    }
-    if (url.pathname === "/api/durable/history-nearby") {
-      return durableHistoryNearbyResponse(request, env);
-    }
-    if (url.pathname.startsWith("/api/durable/runtime")) {
-      return durableRuntimeResponse(request, env);
-    }
+    if (route === "durable_nearby") return durableNearbyResponse(request, env);
+    if (route === "durable_history_nearby") return durableHistoryNearbyResponse(request, env);
+    if (route === "durable_runtime") return durableRuntimeResponse(request, env);
     return fetchContainer(request, env);
   },
 
