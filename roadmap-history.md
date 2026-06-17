@@ -1,6 +1,6 @@
 # Roadmap History: Hydro-Québec Outage History App
 
-Date: 2026-05-30
+Date: 2026-06-17
 
 This file records completed release and implementation history. Keep active execution state in `plan.md` and source/evidence research in `research.md`.
 
@@ -78,6 +78,14 @@ This file records completed release and implementation history. Keep active exec
 - Reworked DAI/disclosure detail panels to distinguish regional summaries from specific FOI/DAI source panels, include Hydro-Québec PDF links where available, avoid horizontal scrolling, and use card-style source/event rows.
 - Decomposed first-party static JavaScript from the large bootstrap file into focused native ES modules for icons, detail panels, search, side panel, and map orchestration without adding a bundler.
 - Updated service-worker caching for the expanded first-party static module set.
+
+### `v0.2.7`
+
+- Tagged at commit `24b986e` as the municipal archive polish release.
+- Refined the previous-outage archive sidebar so the no-address state reads as a recent archive and address-context results read as local historical evidence.
+- Fixed durable previous archive summary behavior.
+- Added municipal archive binning work so accumulated historical outages can be grouped into more stable geographic archive areas.
+- Follow-up commits on `main` after the tag wire and harden municipal archive binning; verify whether those should be deployed/tagged as a final `0.2.x` patch before broad `0.3.x` work starts.
 
 ## Implementation Checkpoints
 

@@ -1,13 +1,13 @@
 # Plan: Hydro-Québec Outage History App
 
 Date: 2026-04-25
-Last updated: 2026-06-14
+Last updated: 2026-06-17
 
 This file is the active execution plan. Keep durable evidence, source notes, and long historical reasoning in `research.md`; keep completed release and implementation history in `roadmap-history.md`; keep completed detail here only when it affects current decisions.
 
 ## Current State
 
-- Current release in progress: none; `v0.2.6` is tagged, deployed, and smoke-tested.
+- Current release in progress: none; `v0.3.0` planning is next.
 - Current product shape: map-first address/current-location lookup with server-rendered Flask/Jinja fragments, HTMX, Leaflet, decomposed vanilla JavaScript ES modules, icon-backed sidebar/detail rows, and a Cloudflare Workers + Containers production deployment.
 - Production data plane: D1/R2-backed durable ingestion for current feed rows, previous-outage rows, raw Hydro-Québec payloads, disclosure metadata, and runtime map-context layers.
 - Container role: still renders the Flask/Jinja shell and keeps a baked-in SQLite snapshot for local-compatible/container fallback paths.
@@ -15,7 +15,8 @@ This file is the active execution plan. Keep durable evidence, source notes, and
 - Cost caveat: the June 2026 Cloudflare invoice was driven mostly by Workers Paid baseline plus Durable Object/container runtime costs; D1 and R2 were not material cost drivers on that bill.
 - User-facing URL contract: clean root URL with `lang`, `q`, or current-location coordinate parameters; obsolete public `radius_m`, `days`, and `include_planned` parameters were removed from the main interface.
 - Debug, collection, cron, internal export/file, and direct durable-status endpoints are private by default; production returns `404` unless the expected debug flag, Worker block, scheduled header, internal header, or operation token is present.
-- Current deployed release: `v0.2.6` at commit `9939bb8`; Worker version `1a9a4c62-e388-404f-ad91-d8a89d8d5c90`; container image `1a9a4c62`.
+- Last plan-confirmed deployed release: `v0.2.6` at commit `9939bb8`; Worker version `1a9a4c62-e388-404f-ad91-d8a89d8d5c90`; container image `1a9a4c62`.
+- Current `main` is past `v0.2.7`: tag `v0.2.7` points at `24b986e`, while `main` includes follow-up municipal archive binning fixes through `9875b1a`; verify deploy/tag state before starting broad `0.3.x` work.
 - Current test baseline: Python tests, deterministic service/geocoding tests, route smoke coverage, Playwright desktop/mobile Chromium coverage, and production-shaped UI regression fixtures.
 - Previous-outage accumulation is working in D1, but visible map grouping needs review: on 2026-06-02 D1 had `9,542` resolved events and `333,117` sightings, with repeated spatial buckets present, while `/api/durable/runtime/previous-map-layers?limit=120` returned 120 single-event layers and zero multi-event groups.
 
@@ -39,8 +40,9 @@ In progress.
 - `v0.2.4`: scoped copy/data-truth cleanup, safer status labels, side-panel width/focus polish, and accessibility-oriented regression checks. Complete.
 - `v0.2.5`: performance measurement, deployment hygiene, and production hardening. Complete.
 - `v0.2.6`: sidebar rhythm, layer hierarchy, row-language consistency, detail-panel rationalization, and frontend static-module decomposition. Complete.
+- `v0.2.7`: municipal archive polish and previous-outage archive follow-up. Tagged; post-tag fixes on `main` need deployment-state reconciliation.
 
-### `0.3.x`: Architecture And Product Expansion
+### `0.3.x`: Architecture, Web Quality, And Product Expansion
 
 Candidate work after the map-first UI is stable:
 
@@ -58,6 +60,14 @@ Candidate work after the map-first UI is stable:
 - complete the practical WCAG/accessibility pass: skip link or equivalent navigation affordance, landmarks, keyboard traps, live-region status messages, contrast, reduced-motion behavior, and screen-reader spot checks
 - add production security headers once CDN dependencies are removed or explicitly allowed: Content Security Policy, HSTS, Referrer Policy, Permissions Policy, frame protections, and MIME-sniffing protection
 
+Planned slice order:
+
+- `v0.3.0`: transition preflight. Reconcile `main`/tag/deploy state, decide whether the post-`v0.2.7` municipal archive fixes need a `v0.2.8` tag or can become the first `v0.3.0` baseline, capture production timing/cost baseline, and choose the first architecture target.
+- `v0.3.1`: frontend/web-quality foundation. Replace the Tailwind CDN path with a production build path or explicitly justify a smaller alternative; add SEO basics, `robots.txt`, `sitemap.xml`, and cache/resource-header cleanup.
+- `v0.3.2`: public-read architecture. Move ordinary user-facing shell/search/map reads away from the Cloudflare Container where practical, using Worker/static/D1/R2 paths while keeping the Python container for bounded parser/batch work.
+- `v0.3.3`: historical-data API. Define stable public/private route boundaries, freshness metadata, rate limits, and query shapes for accumulated outage/disclosure data.
+- `v0.3.4`: analytical map/product expansion. Revisit Quebec-only labels, regional/municipal archive views, `Bilan par région`-style summaries, and saved-area notification feasibility.
+
 ### `0.4.x`: Public Maturity And Machine-Readable Readiness
 
 Candidate work after core UI and production architecture are more settled:
@@ -68,11 +78,11 @@ Candidate work after core UI and production architecture are more settled:
 - evaluate structured data only where it genuinely helps discovery; avoid adding schema markup that overstates the app's authority or data completeness
 - revisit observability and incident-response practices once production usage warrants it
 
-## Current Focus: Post-`v0.2.6` Stabilization
+## Current Focus: `v0.3.0` Transition Preflight
 
-Goal: decide the next small post-`v0.2.6` slice without starting broad architecture work prematurely.
+Goal: enter `0.3.x` deliberately by reconciling the current post-`v0.2.7` state, measuring the production baseline, and choosing the first architecture/web-quality target.
 
-Status: `v0.2.6` is tagged, pushed, deployed, smoke-tested, and closed. Current post-release work is a narrow Previous sidebar cleanup: the same accordion slot should read as `Recent Archive` without an address and `Seen Before Here` after a searched/geocoded address.
+Status: ready to plan. Do not start broad implementation until the `main`/tag/deploy state is reconciled and existing local research/output artifacts are either committed intentionally, archived, or ignored.
 
 Current implementation notes:
 
@@ -111,31 +121,18 @@ Current implementation notes:
 
 Scope:
 
-- finish and deploy the `v0.2.6` UI polish without starting a bundler migration
-- keep all four sidebar sub-panel headers visible on desktop and mobile
-- keep only one sidebar sub-panel expanded at a time
-- keep current outages loaded and visible by default; lazy-load planned, previous, and disclosure/regional data for the sidebar and map without automatically recentering on visibility toggles
-- maintain startup map bounds that show the current outage extent by default
-- keep side-panel rows, detail-panel rows, and map-layer colours visually related but subtle
-- keep DAI/disclosure detail panels readable without horizontal scroll
-- update plan/research only for durable decisions, not iterative screenshot notes
-- keep debug, collection, cron, internal, and direct durable-status endpoints private by default
-- keep broader historical-data API, no-label basemap, Cloudflare asset-performance conclusions, and bundler decisions in `0.3.x`
+- verify whether `9875b1a` is already deployed, should become `v0.2.8`, or should be treated as the `v0.3.0` baseline
+- decide whether the first `0.3.x` implementation target is frontend build/web-quality, public-read architecture, or historical-data API design
+- capture a production baseline before architecture changes: homepage, representative address search, static module waterfall, service worker, durable runtime endpoints, container live instance state, and Cloudflare cost drivers
+- keep the existing `0.2.x` UX improvements stable while changing architecture; do not combine broad UI redesign with production-read migration
+- preserve existing local `research.md` and `output/` artifacts until they are explicitly committed, archived, or cleaned up
 
 Acceptance criteria:
 
-- default, layer-toggle, selected-row, and detail-panel states are visually coherent at desktop and mobile widths
-- sidebar row density is compact but still legible; count pills have stable width for up to five-digit values
-- planned rows do not imply that sequential outages are simultaneous aggregate client counts
-- current/previous/planned/disclosure detail panels do not repeat row information unless the repetition clarifies grouping or provenance
-- DAI/disclosure detail panels fill usable panel height, avoid overlapping headings/content, and avoid horizontal scrolling
-- initial address render does not fetch/render planned, previous, disclosure, or regional map context until the user enables those layers
-- sidebar layer state is clear enough that users can tell what evidence is currently visible on the map
-- public operational endpoints return `404` by default, while scheduled/internal/debug-enabled paths still work in tests
-- previous-outage sidebar review: without an address, the Previous slot is labelled and ordered as a recent archive summary; with an address, the same slot is labelled and filtered as local `Seen Before Here` evidence
-- previous-outage layer review: production now has D1-backed archive bins for Quebec administrative territories and cron-triggered incremental binning for new `bispoly` snapshots; continue hardening the maintenance/import path so it is repeatable without one-off Wrangler SQL batches
-- archive-bin display geometry should be derived as a topology-preserving simplified coverage of municipalities, TNOs, and Indigenous territories; keep raw admin geometries unchanged for binning/provenance, and replace any oversimplified import fallbacks where D1 statement-size limits forced degraded geometry
-- `v0.2.6` scope remains small enough to verify with desktop and mobile visual passes without broad architecture changes
+- plan identifies whether `v0.2.8` is needed before `v0.3.0`
+- first `v0.3.x` slice has a single primary objective, explicit non-goals, and production verification steps
+- production baseline is recorded before replacing Tailwind/CDN paths or moving user-facing reads off the container
+- dirty local research/audit artifacts are intentionally handled before implementation work begins
 
 Verification so far:
 

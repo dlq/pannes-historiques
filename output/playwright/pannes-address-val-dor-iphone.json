@@ -1,0 +1,21 @@
+{
+  "title": "",
+  "url": "https://pannes.ca/search-map?q=855%203e%20Avenue%2C%20Val-d%27Or%2C%20QC&lang=en",
+  "viewport": {
+    "width": 980,
+    "height": 2121
+  },
+  "bodyText": "",
+  "sidebarRect": null,
+  "mapRect": null,
+  "searchRect": null,
+  "visibleTextNodes": [],
+  "consoleMessages": [],
+  "failedRequests": [],
+  "responseSummaries": [
+    {
+      "url": "https://pannes.ca/search-map?q=855%203e%20Avenue%2C%20Val-d%27Or%2C%20QC&lang=en",
+      "status": 200
+    }
+  ]
+}
