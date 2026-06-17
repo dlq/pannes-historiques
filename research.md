@@ -1,7 +1,76 @@
 # Research: Hydro-Québec Historic Outage Data
 
 Date: 2026-04-25
-Last updated: 2026-05-29
+Last updated: 2026-06-17
+
+## Production UI/UX audit: pannes.ca, 2026-06-17
+
+Live site checked: `https://pannes.ca/`.
+
+Browsers/viewports checked:
+
+- desktop: 1280 x 720
+- iPad portrait-sized: 834 x 1112
+- iPhone portrait-sized: 390 x 844
+
+Browser checks run:
+
+- page identity: title `Historique des pannes Hydro-Québec`
+- non-blank map and sidebar rendering
+- desktop, iPad-sized, and iPhone-sized screenshots
+- console warning/error pass
+- address search, layer help, layer toggle, row selection, map polygon click, and English-language toggle
+
+Console result:
+
+- no application errors observed
+- repeated production warning from `cdn.tailwindcss.com`: Tailwind CDN should not be used in production
+
+Addresses sampled:
+
+- `500 Boulevard René-Lévesque Ouest, Montréal, QC` on desktop
+- `835 Avenue Wilfrid-Laurier, Québec, QC` on iPad-sized viewport
+- `172 Rue de la Reine, Gaspé, QC` on iPad-sized viewport
+- `100 Rue Perreault Est, Rouyn-Noranda, QC` on iPhone-sized viewport
+
+Observed address-result evidence:
+
+- Montréal: `Déjà vues ici` / `Seen before here` showed `12/24 plus proches · 5 km`
+- Québec: `Déjà vues ici` showed `12/24 plus proches · 5 km`
+- Gaspé: `Déjà vues ici` showed `3/24 plus proches · 5 km`
+- Rouyn-Noranda: `Déjà vues ici` showed `12/24 plus proches · 5 km`
+
+Interpretation:
+
+- The app can support a relative stability comparison from retained outage evidence: in this sample, Gaspé appears to have fewer retained nearby historical records than Montréal, Québec, and Rouyn-Noranda.
+- The deployed `v0.2.7` app does not yet answer the user question in plain language. Users must infer the conclusion from `12/24 plus proches · 5 km`, row dates, times, and customer-count pills.
+- The current outage section remains province-wide and visually dominant after an address search. That can make the local stability answer feel secondary even though `Déjà vues ici` is the more relevant section for the question.
+- Layer help copy is useful and credible for provenance, but it explains the layer rather than the local answer.
+
+UI findings:
+
+- Desktop map-first layout is coherent. The search bar, language switcher, map, and left result panel are visually restrained and usable.
+- iPad-sized layout remains usable. The panel and map both have enough room, but the current-outage list consumes most of the result panel height.
+- iPhone-sized layout is functional. The bottom sheet pattern works and expanding `Déjà vues ici` collapses `Actuelles`, but the long address is clipped in the input and the stability evidence is still a small secondary line in the sheet.
+- Icons are visually consistent and many icon-only buttons have useful accessible labels, such as `Expliquer Déjà vues ici` and `Afficher Déjà vues ici`.
+- Some button nodes observed in the DOM had zero-size boxes, including current-layer toggle and resize controls in some states. This should be reviewed for keyboard and screen-reader reliability.
+- Row icon language is compact and consistent, but the rows lack always-visible column labels. A new user has to infer time/status/customers from icon meaning and repetition.
+- Search result row clicks zoom the map to outage polygons, which is useful. Clicking a polygon did not reveal a readable popup or populated detail panel in this pass, so the map movement is the only feedback.
+- English localization works for main labels and section names. Lower layer counts briefly showed `Loading` after switching language and then resolved after several seconds.
+
+Product response implemented in `codex/frontend-stability-summary`:
+
+1. Add an address-level answer card above the layer accordions, such as retained nearby outage count within 5 km, with archive-coverage caveats.
+2. Make `Déjà vues ici` / `Seen Before Here` the default expanded section after an address search.
+3. Add clearer local-vs-province labels: current outages across Quebec versus previous outages near this address.
+4. Add visible row column labels in expanded sections: date/time/status/customers as appropriate for the layer.
+5. Add map/detail feedback on row and polygon selection.
+6. Remove the zero-size current-layer toggle from the visible controls.
+
+Remaining follow-up:
+
+- Replace Tailwind CDN with a production build path during the planned frontend/tooling work.
+- Keep monitoring long-address clipping and mobile hit targets during the next deployed frontend pass.
 
 ## UI comparable notes for 0.2.0
 

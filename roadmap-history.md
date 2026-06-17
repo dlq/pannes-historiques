@@ -79,6 +79,16 @@ This file records completed release and implementation history. Keep active exec
 - Decomposed first-party static JavaScript from the large bootstrap file into focused native ES modules for icons, detail panels, search, side panel, and map orchestration without adding a bundler.
 - Updated service-worker caching for the expanded first-party static module set.
 
+### `v0.2.7`
+
+- Deployed the municipal archive-bin slice and updated the service-worker marker to `pannes-historiques-v0.2.7-versioned-static-network`.
+- Added D1 tables for `admin_territories`, `previous_outage_territory_bins`, and `municipal_archive_build_state`.
+- Added pure JavaScript geometry helpers for territory bboxes, centroids, point containment, simplification, and outage-polygon-to-territory assignment.
+- Added Worker runtime endpoints for operational territory import, municipal archive backfill, and municipal archive status.
+- Updated previous archive summaries and map-layer shaping so production can prefer D1-backed municipal/TNO/Indigenous-territory bins when populated, while retaining resolved-event fallbacks.
+- Added `scripts/maintenance/municipal-archive-backfill.mjs` for resumable archive binning and later fixed the binner cursor path on `origin/main` at `9875b1a`.
+- Public smoke check on 2026-06-17 returned `200` for `/`, `/healthz`, `/service-worker.js`, and representative `/search-map`; production did not yet include the later `c2054b5` frontend stability-summary branch.
+
 ## Implementation Checkpoints
 
 ### Status-Code Decoding
@@ -128,6 +138,13 @@ This file records completed release and implementation history. Keep active exec
 - The fix added Worker runtime endpoints for operational and previous map layers.
 - Flask now prefers those runtime endpoints when `DURABLE_RUNTIME_URL` is configured, then falls back to older durable/local paths.
 - Deployment verification should prime `/healthz` and then verify page/map payload geometry counts because a new Cloudflare container can briefly report that it is not running.
+
+### Post-`v0.2.7` Frontend Stability Summary
+
+- Branch `codex/frontend-stability-summary` at `c2054b5` implements the 2026-06-17 UI/UX audit follow-up but has not been deployed.
+- The branch adds an address-level local stability evidence card, defaults address searches to the `Seen Before Here` section, adds local/province scope labels, adds visible row labels, removes the zero-size current-layer toggle, and lets operational row/polygon selections populate a readable detail panel.
+- Verification passed focused Python/JS tests, Ruff, djLint, Biome, commit-time pre-commit hooks, and local browser checks at desktop, iPad, and iPhone sizes.
+- Full Playwright search-flow verification was not completed in the Codex sandbox because the configured web server could not start without elevated execution, and the elevated retry hit the app approval usage limit.
 
 ### Production Performance Optimizations
 

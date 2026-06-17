@@ -9,10 +9,19 @@ Hydro-Quebec outage history prototype built from the `plan.md` direction.
   - HTMX search flow plus plain Web Components for the map shell and detail panels
   - SQLite persistence plus raw Hydro-Quebec snapshot archival on local disk
   - Hydro feed parsing, address normalization, cached geocoding, spatial matching, and first-pass resolved-event deduplication
+- Address and sidebar UI
+  - map-first desktop panel and mobile bottom sheet
+  - current, planned, previous/archive, and disclosure sections with icon-backed rows
+  - local previous-outage evidence for searched addresses, including the `Seen Before Here` mode
+  - on `codex/frontend-stability-summary`, an address-level local stability evidence card, explicit local/province scope labels, visible row labels, and row/polygon detail feedback
 - Historical disclosure and map context
   - access-to-information disclosure source registry plus XLSX and supported PDF extraction
   - DAI region outlines from OSM/Nominatim/Overpass with conservative fallback areas
   - always-on disclosure context, lazy Leaflet loading, and simplified geometry assets for regional and local overlays
+- Municipal archive bins
+  - D1 schema and Worker runtime endpoints for derived municipal/TNO/Indigenous-territory previous-outage archive bins
+  - pure geometry helpers and tests for territory assignment and display simplification
+  - maintenance script for resumable municipal archive backfills
 - Deployed Cloudflare path
   - Worker + container deployment for `pannes.ca`
   - durable D1/R2-backed ingestion for current-feed rows, previous-outage rows, and raw archives
@@ -48,6 +57,13 @@ not public URL parameters unless a future UI makes them user-controlled.
 
 Production is currently served at `pannes.ca` with Cloudflare Workers + Containers, D1, and R2.
 
+Current deployment status:
+
+- Deployed release: `v0.2.7`
+- Public service-worker marker checked on 2026-06-17: `pannes-historiques-v0.2.7-versioned-static-network`
+- Public smoke check on 2026-06-17: `/`, `/healthz`, `/service-worker.js`, and representative `/search-map` requests returned `200`
+- Feature branch `codex/frontend-stability-summary` at `c2054b5` is pushed but not deployed; production does not yet include the local stability answer card
+
 ```bash
 npx wrangler deploy
 ```
@@ -65,12 +81,15 @@ not be treated as durable production storage.
 D1/R2 are now used for durable production ingestion:
 
 - D1 stores normalized feed versions, current outage rows, planned-interruption rows, resolved
-  previous-outage rows, disclosure metadata, event rows, annual metrics, and geometry metadata.
+  previous-outage rows, disclosure metadata, event rows, annual metrics, municipal archive bins,
+  and geometry metadata.
 - R2 stores raw Hydro-Quebec feed payloads and raw DAI/access-to-information source files.
 - The Worker exposes D1-backed lookup endpoints for current nearby matches and accumulated
   previous-outage nearby matches.
 - The Worker also exposes runtime map-layer endpoints for current/planned operational layers and
   previous-outage context layers with Hydro polygon geometry when available.
+- Operational-only Worker runtime endpoints import official territories, backfill municipal archive
+  bins, and report municipal archive status.
 - Debug, collection, cron, internal file/export, and direct status endpoints are not public entry
   points; use the CLI locally and Worker scheduled/internal paths in production.
 
@@ -129,6 +148,8 @@ The map uses separate colors and draw order for each evidence type:
 
 - amber/orange: live outage API records from archived Hydro-Quebec snapshots
 - cyan/blue: planned interruption API records
+- gray dashed territory outlines: derived previous-outage archive bins for municipalities, TNOs,
+  and Indigenous territories when the runtime archive has populated bins
 - yellow/orange/red background: latest DAI administrative-region summary, colored by gross continuity index when available
 - blue dashed areas: DAI / access-to-information local historical area context
 
@@ -145,6 +166,10 @@ precomputed static assets in `app/static/regional_metric_geometries.json` and
 default previous-outage context use D1-backed Worker runtime map-layer endpoints before falling back
 to local SQLite-derived layers. Previous outages without polygon geometry are rendered as centroid
 markers instead of older outage polygons.
+
+For searched addresses, previous local evidence is capped to the nearest retained outage records
+within the fixed 5 km search radius. On the current frontend feature branch, that evidence is also
+summarized in a plain-language local stability card before the layer accordions.
 
 For the regional summary layer, `Montréal` is treated as the administrative region used by the DAI
 tables, not only the municipal City of Montréal, so its background area includes island
