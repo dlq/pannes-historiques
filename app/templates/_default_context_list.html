@@ -10,6 +10,7 @@
 {% set previous_nearest_limit = context_payload.previousNearestLimit if context_payload.previousNearestLimit is defined else none %}
 {% set previous_heading_key = "previous_seen_before_here_heading" if previous_mode == "seen_before_here" else "previous_recent_archive_heading" %}
 {% set previous_empty_key = "previous_outages_empty" if previous_mode == "seen_before_here" else "previous_recent_archive_empty" %}
+{% set previous_local_summary = context_payload.previousLocalSummary if context_payload.previousLocalSummary is defined else none %}
 {% set disclosures = context_payload.matches | selectattr("kind", "equalto", "disclosure") | list %}
 {% set regional_context = context_payload.matches | selectattr("kind", "equalto", "regional_metric") | list %}
 {% set published_context = disclosures + regional_context %}
@@ -42,6 +43,22 @@
           aria-label="{{ t(lang, 'layer_info_open') }} {{ label_text }}"
           data-layer-info="{{ layer }}">{{ ph_icon('help', 'ph-toggle-icon') }}</button>
 {%- endmacro %}
+{% macro local_answer_card(summary) -%}
+  {% if summary %}
+    <section class="ph-local-answer-card" aria-label="{{ summary.title }}">
+      <p class="ph-local-answer-title">{{ summary.title }}</p>
+      <p class="ph-local-answer-body">{{ summary.body }}</p>
+      <p class="ph-local-answer-meta">{{ summary.meta }}</p>
+    </section>
+  {% endif %}
+{%- endmacro %}
+{% macro row_labels(first, second, third, class_name="") -%}
+  <div class="ph-context-column-labels {{ class_name }}" aria-hidden="true">
+    <span>{{ first }}</span>
+    <span>{{ second }}</span>
+    <span>{{ third }}</span>
+  </div>
+{%- endmacro %}
 {% macro archive_summary_row(label_text, areas, total_customers) -%}
   <div class="ph-context-summary-row ph-context-summary-row--previous">
     <span class="ph-row-pill ph-row-pill-previous-date">{{ ph_icon('archive', 'ph-pill-icon') }}{{ label_text }}</span>
@@ -68,24 +85,24 @@
   </article>
 {%- endmacro %}
 <div class="ph-result-sections ph-map-context-list {{ 'ph-default-context-list' if context_variant == 'default' else 'ph-search-context-list' }}">
+  {{ local_answer_card(previous_local_summary) }}
   <details id="ph-context-current"
            class="ph-context-section ph-context-section--primary ph-result-card rounded-lg shadow-sm"
            data-layer-section="current"
            data-layer-loaded="{{ 'true' if 'current' in loaded_layers else 'false' }}"
            data-layer-state="on"
            aria-label="{{ t(lang, 'current_outages') }}"
-           open>
+           {% if previous_mode != "seen_before_here" %}open{% endif %}>
     <summary class="ph-context-section-summary">
       <h3 class="text-sm font-semibold leading-tight text-[#223654]">{{ t(lang, "current_layer_heading") }}</h3>
+      <span class="ph-layer-scope-pill">{{ t(lang, "current_scope_label") }}</span>
       {{ layer_count(current_outages | length, "map", t(lang, "areas") ) }}
       {{ layer_info_button("current", t(lang, "current_layer_heading") ) }}
-      <button class="ph-layer-toggle is-on"
-              type="button"
-              aria-label="{{ t(lang, 'map_layer_on') }} {{ t(lang, 'current_layer_heading') }}"
-              aria-pressed="true"
-              data-layer-toggle="current">{{ toggle_icon(true) }}</button>
     </summary>
     <div class="ph-context-rows">
+      {% if current_outages %}
+        {{ row_labels(t(lang, "row_label_age") , t(lang, "row_label_status") , t(lang, "row_label_customers") , "ph-context-column-labels--current") }}
+      {% endif %}
       {% for item in current_outages %}
         <article class="ph-context-row ph-match-row"
                  role="button"
@@ -133,6 +150,9 @@
               data-layer-toggle="planned">{{ toggle_icon('planned' in loaded_layers) }}</button>
     </summary>
     <div class="ph-context-rows">
+      {% if planned_outages %}
+        {{ row_labels(t(lang, "row_label_window") , t(lang, "row_label_duration") , t(lang, "row_label_customers") , "ph-context-column-labels--planned") }}
+      {% endif %}
       {% for item in planned_outages %}
         <article class="ph-context-row ph-match-row"
                  role="button"
@@ -174,11 +194,13 @@
            data-previous-mode="{{ previous_mode }}"
            data-layer-loaded="{{ 'true' if 'previous' in loaded_layers else 'false' }}"
            data-layer-state="{{ 'on' if 'previous' in loaded_layers else 'off' }}"
-           aria-label="{{ t(lang, 'previous_outages_legend') }}">
+           aria-label="{{ t(lang, 'previous_outages_legend') }}"
+           {% if previous_mode == "seen_before_here" %}open{% endif %}>
     <summary class="ph-context-section-summary">
       <h3 class="text-sm font-semibold leading-tight text-[#223654]">{{ t(lang, previous_heading_key) }}</h3>
       {% if previous_mode == "seen_before_here" and previous_radius_km %}
         <span class="ph-layer-scope-pill">
+          {{ t(lang, "previous_scope_label") }} ·
           {{ previous_sidebar_outages | length }}
           {% if previous_nearest_limit %}/{{ previous_nearest_limit }}{% endif %}
           {{ t(lang, "previous_nearest_scope") }} · {{ previous_radius_km | int }} km
@@ -219,6 +241,9 @@
           {% endif %}
         {% endif %}
       {% else %}
+        {% if previous_sidebar_outages %}
+          {{ row_labels(t(lang, "row_label_date") , t(lang, "row_label_time") , t(lang, "row_label_customers") , "ph-context-column-labels--previous") }}
+        {% endif %}
         {% for item in previous_sidebar_outages %}
           <article class="ph-context-row ph-match-row"
                    role="button"

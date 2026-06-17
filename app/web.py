@@ -378,6 +378,7 @@ def create_app(settings: Settings | None = None) -> Flask:
                 "matches": payload.get("matches", []),
                 "previousMode": payload.get("previousMode"),
                 "previousArchiveSummary": payload.get("previousArchiveSummary"),
+                "previousLocalSummary": payload.get("previousLocalSummary"),
                 "previousRadiusM": payload.get("previousRadiusM"),
                 "previousNearestLimit": payload.get("previousNearestLimit"),
                 "previousSidebarMatches": payload.get("previousSidebarMatches"),

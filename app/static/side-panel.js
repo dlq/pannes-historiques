@@ -355,6 +355,51 @@ export function previousArchiveHeaderCount(summary) {
   return null;
 }
 
+export function formatRadiusKm(radiusM) {
+  const radiusKm = Number(radiusM || 0) / 1000;
+  if (!radiusKm) return "0";
+  return Number.isInteger(radiusKm) ? `${radiusKm}` : `${radiusKm.toFixed(1)}`;
+}
+
+function formatTemplate(template, values) {
+  return String(template || "").replace(/\{([a-zA-Z0-9_]+)\}/g, (_match, key) =>
+    values[key] == null ? "" : String(values[key]),
+  );
+}
+
+export function previousLocalSummary(payload = {}, labels = {}) {
+  if (payload.previousMode !== "seen_before_here") return null;
+  if (payload.previousLocalSummary) return payload.previousLocalSummary;
+  const count = Array.isArray(payload.previousSidebarMatches)
+    ? payload.previousSidebarMatches.length
+    : 0;
+  const limit = Number(payload.previousNearestLimit || 0);
+  const radiusKm = formatRadiusKm(payload.previousRadiusM);
+  const values = { count, limit, radius_km: radiusKm };
+  return {
+    title: label(labels, "local_reliability_summary_title", "Local stability evidence"),
+    body: formatTemplate(
+      label(
+        labels,
+        "local_reliability_summary_body",
+        "Retained nearby outage records: {count} within {radius_km} km. Higher counts mean the local archive has seen more interruptions nearby.",
+      ),
+      values,
+    ),
+    meta: formatTemplate(
+      label(
+        labels,
+        "local_reliability_summary_meta",
+        "{count}/{limit} nearest retained records shown",
+      ),
+      values,
+    ),
+    count,
+    limit,
+    radiusKm,
+  };
+}
+
 export function shouldRenderPreviousArchiveSummary(layer, payload = {}) {
   return (
     layer === "previous" &&
@@ -463,10 +508,31 @@ export function attachMapLayerToggles() {
     close.focus();
   };
 
-  const formatRadiusKm = (radiusM) => {
-    const radiusKm = Number(radiusM || 0) / 1000;
-    if (!radiusKm) return "";
-    return Number.isInteger(radiusKm) ? `${radiusKm}` : `${radiusKm.toFixed(1)}`;
+  const renderPreviousLocalSummary = (section, payload, labels) => {
+    if (!section || section.dataset.layerSection !== "previous") return;
+    const panel = section.closest(".ph-result-sections");
+    if (!panel) return;
+    const summary = previousLocalSummary(payload, labels);
+    const existing = panel.querySelector(".ph-local-answer-card");
+    if (!summary) {
+      existing?.remove();
+      return;
+    }
+    const card = existing || document.createElement("section");
+    card.className = "ph-local-answer-card";
+    card.setAttribute("aria-label", summary.title);
+
+    const title = document.createElement("p");
+    title.className = "ph-local-answer-title";
+    title.textContent = summary.title;
+    const body = document.createElement("p");
+    body.className = "ph-local-answer-body";
+    body.textContent = summary.body;
+    const meta = document.createElement("p");
+    meta.className = "ph-local-answer-meta";
+    meta.textContent = summary.meta;
+    card.replaceChildren(title, body, meta);
+    if (!existing) section.before(card);
   };
 
   const setPreviousMode = (section, payload, labels) => {
@@ -476,6 +542,7 @@ export function attachMapLayerToggles() {
     const heading = section.querySelector("h3");
     if (heading) heading.textContent = previousHeading(previousMode, labels);
     section.querySelector(".ph-layer-scope-pill")?.remove();
+    renderPreviousLocalSummary(section, payload, labels);
     if (previousMode !== "seen_before_here" || !payload?.previousRadiusM) return;
     const scope = document.createElement("span");
     scope.className = "ph-layer-scope-pill";
@@ -483,8 +550,39 @@ export function attachMapLayerToggles() {
       ? payload.previousSidebarMatches.length
       : "";
     const limit = payload.previousNearestLimit ? `/${payload.previousNearestLimit}` : "";
-    scope.textContent = `${count}${limit} ${label(labels, "previous_nearest_scope", "nearest")} · ${formatRadiusKm(payload.previousRadiusM)} km`;
+    scope.textContent = `${label(labels, "previous_scope_label", "Near this address")} · ${count}${limit} ${label(labels, "previous_nearest_scope", "nearest")} · ${formatRadiusKm(payload.previousRadiusM)} km`;
     heading?.after(scope);
+  };
+
+  const rowLabelsForLayer = (layer, labels) => {
+    const labelsByLayer = {
+      current: [
+        label(labels, "row_label_age", "Age"),
+        label(labels, "row_label_status", "Status"),
+        label(labels, "row_label_customers", "Customers"),
+      ],
+      planned: [
+        label(labels, "row_label_window", "Window"),
+        label(labels, "row_label_duration", "Duration"),
+        label(labels, "row_label_customers", "Customers"),
+      ],
+      previous: [
+        label(labels, "row_label_date", "Date"),
+        label(labels, "row_label_time", "Time"),
+        label(labels, "row_label_customers", "Customers"),
+      ],
+    };
+    const values = labelsByLayer[layer];
+    if (!values) return null;
+    const row = document.createElement("div");
+    row.className = `ph-context-column-labels ph-context-column-labels--${layer}`;
+    row.setAttribute("aria-hidden", "true");
+    for (const value of values) {
+      const item = document.createElement("span");
+      item.textContent = value;
+      row.append(item);
+    }
+    return row;
   };
 
   const renderPreviousArchiveSummary = (rows, summary, labels) => {
@@ -611,6 +709,10 @@ export function attachMapLayerToggles() {
         label(labels, "previous_archive_summary_areas", "areas"),
       );
     } else {
+      if (displayMatches.length) {
+        const labelsRow = rowLabelsForLayer(layer, labels);
+        if (labelsRow) rows.append(labelsRow);
+      }
       for (const item of displayMatches) rows.appendChild(renderContextRow(item, labels));
       hydrateTimeLabels(rows);
       setLayerCount(section, displayMatches.length, layerIconName(layer), layerNoun(layer, labels));
