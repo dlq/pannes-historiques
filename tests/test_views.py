@@ -117,7 +117,7 @@ def test_result_context_summarizes_local_previous_evidence_for_address():
             "Retained nearby outage records: 2 within 5 km. Higher counts mean the "
             "local archive has seen more interruptions nearby."
         ),
-        "meta": "2/24 nearest retained records shown",
+        "meta": "All retained records within 5 km shown",
         "count": 2,
         "limit": 24,
         "radiusKm": "5",

@@ -390,7 +390,7 @@ export function previousLocalSummary(payload = {}, labels = {}) {
       label(
         labels,
         "local_reliability_summary_meta",
-        "{count}/{limit} nearest retained records shown",
+        "All retained records within {radius_km} km shown",
       ),
       values,
     ),
@@ -546,11 +546,7 @@ export function attachMapLayerToggles() {
     if (previousMode !== "seen_before_here" || !payload?.previousRadiusM) return;
     const scope = document.createElement("span");
     scope.className = "ph-layer-scope-pill";
-    const count = Array.isArray(payload.previousSidebarMatches)
-      ? payload.previousSidebarMatches.length
-      : "";
-    const limit = payload.previousNearestLimit ? `/${payload.previousNearestLimit}` : "";
-    scope.textContent = `${label(labels, "previous_scope_label", "Near this address")} · ${count}${limit} ${label(labels, "previous_nearest_scope", "nearest")} · ${formatRadiusKm(payload.previousRadiusM)} km`;
+    scope.textContent = `${label(labels, "previous_scope_label", "Near this address")} · ${formatRadiusKm(payload.previousRadiusM)} km`;
     heading?.after(scope);
   };
 
@@ -570,6 +566,10 @@ export function attachMapLayerToggles() {
         label(labels, "row_label_date", "Date"),
         label(labels, "row_label_time", "Time"),
         label(labels, "row_label_customers", "Customers"),
+      ],
+      published: [
+        label(labels, "row_label_area", "Area"),
+        label(labels, "row_label_records", "Records"),
       ],
     };
     const values = labelsByLayer[layer];
