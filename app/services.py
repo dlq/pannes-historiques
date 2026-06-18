@@ -132,7 +132,7 @@ class AppService:
         encoded = f"?{urllib.parse.urlencode(query)}" if query else ""
         request = urllib.request.Request(
             f"{self.settings.durable_runtime_url}{suffix}{encoded}",
-            headers={"User-Agent": "pannes-historiques/0.1 (+https://pannes.ca)"},
+            headers=self._durable_runtime_headers(),
         )
         try:
             with urllib.request.urlopen(request, timeout=8) as response:
@@ -149,7 +149,7 @@ class AppService:
             data=json.dumps(payload, ensure_ascii=True).encode("utf-8"),
             headers={
                 "Content-Type": "application/json",
-                "User-Agent": "pannes-historiques/0.1 (+https://pannes.ca)",
+                **self._durable_runtime_headers(),
             },
             method="POST",
         )
@@ -159,6 +159,12 @@ class AppService:
         except Exception as exc:
             current_timer().set(f"durable_runtime_{path.replace('/', '_')}_error", str(exc))
             return None
+
+    def _durable_runtime_headers(self) -> dict[str, str]:
+        headers = {"User-Agent": "pannes-historiques/0.1 (+https://pannes.ca)"}
+        if self.settings.durable_runtime_operation_token:
+            headers["X-Pannes-Operation-Token"] = self.settings.durable_runtime_operation_token
+        return headers
 
     def collect(self) -> dict[str, Any]:
         result = self.collector.collect_all()

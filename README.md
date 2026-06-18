@@ -86,12 +86,13 @@ D1/R2 are now used for durable production ingestion:
 - R2 stores raw Hydro-Quebec feed payloads and raw DAI/access-to-information source files.
 - The Worker exposes D1-backed lookup endpoints for current nearby matches and accumulated
   previous-outage nearby matches.
-- The Worker also exposes runtime map-layer endpoints for current/planned operational layers and
-  previous-outage context layers with Hydro polygon geometry when available.
+- Private Worker runtime endpoints provide current/planned operational layers and previous-outage
+  context layers with Hydro polygon geometry to the Flask/container path when the operation token is
+  configured.
 - Operational-only Worker runtime endpoints import official territories, backfill municipal archive
   bins, and report municipal archive status.
-- Debug, collection, cron, internal file/export, and direct status endpoints are not public entry
-  points; use the CLI locally and Worker scheduled/internal paths in production.
+- Debug, collection, cron, internal file/export, direct status, and durable runtime endpoints are not
+  public entry points; use the CLI locally and Worker scheduled/internal paths in production.
 
 Production disables automatic Hydro-Quebec refreshes during address search (`AUTO_REFRESH_ON_SEARCH=0`).
 The Worker cron handles changed-feed ingestion and calls the container refresh endpoint so user
@@ -163,9 +164,9 @@ Search result cards are rendered first and map overlays are lazy-loaded through 
 Regional and DAI/disclosure context geometries are served through `/map-context-geometries` and the
 precomputed static assets in `app/static/regional_metric_geometries.json` and
 `app/static/disclosure_geometries.json`. In production, current outages, planned interruptions, and
-default previous-outage context use D1-backed Worker runtime map-layer endpoints before falling back
-to local SQLite-derived layers. Previous outages without polygon geometry are rendered as centroid
-markers instead of older outage polygons.
+default previous-outage context use private D1-backed Worker runtime map-layer endpoints before
+falling back to local SQLite-derived layers. Previous outages without polygon geometry are rendered
+as centroid markers instead of older outage polygons.
 
 For searched addresses, previous local evidence is capped to the nearest retained outage records
 within the fixed 5 km search radius. On the current frontend feature branch, that evidence is also
@@ -197,6 +198,9 @@ Useful test queries:
 - `1 Chemin Pembroke, L'Isle-aux-Allumettes, QC`
 
 ## Tooling
+
+For a repo map and contributor workflow, see [docs/architecture.md](docs/architecture.md) and
+[docs/contributing.md](docs/contributing.md).
 
 ```bash
 uv sync

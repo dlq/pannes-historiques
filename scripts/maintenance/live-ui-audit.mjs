@@ -1,16 +1,20 @@
-import { chromium } from "playwright";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { chromium } from "playwright";
 
-const outDir = "/Users/dlq/Developer/Pannes Historiques/output/playwright";
-const chromePath = "/Users/dlq/Library/Caches/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-mac-arm64/chrome-headless-shell";
+const outDir = path.resolve(process.env.PANNES_AUDIT_OUTPUT_DIR || "output/playwright");
+const chromePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE;
 
 await fs.mkdir(outDir, { recursive: true });
 
-const browser = await chromium.launch({
-  headless: true,
-  executablePath: chromePath,
-});
+const browser = await chromium.launch(
+  chromePath
+    ? {
+        headless: true,
+        executablePath: chromePath,
+      }
+    : { headless: true },
+);
 
 const addresses = [
   {
@@ -91,7 +95,10 @@ async function pageSnapshot(page) {
         className: String(element.className || ""),
         aria: element.getAttribute("aria-label"),
         title: element.getAttribute("title"),
-        text: (element.innerText || element.textContent || "").trim().replace(/\s+/g, " ").slice(0, 180),
+        text: (element.innerText || element.textContent || "")
+          .trim()
+          .replace(/\s+/g, " ")
+          .slice(0, 180),
         rect: rectForElement(element),
       }));
     return {
@@ -124,7 +131,9 @@ async function openPage(viewportConfig, url, name) {
     }
   });
   page.on("requestfailed", (request) => {
-    failedRequests.push(`${request.method()} ${request.url()} ${request.failure()?.errorText || ""}`);
+    failedRequests.push(
+      `${request.method()} ${request.url()} ${request.failure()?.errorText || ""}`,
+    );
   });
   page.on("response", (response) => {
     const responseUrl = response.url();
@@ -163,7 +172,10 @@ for (const address of addresses) {
   };
 }
 
-await fs.writeFile(path.join(outDir, "pannes-live-audit-summary.json"), JSON.stringify(results, null, 2));
+await fs.writeFile(
+  path.join(outDir, "pannes-live-audit-summary.json"),
+  JSON.stringify(results, null, 2),
+);
 await browser.close();
 
 console.log(

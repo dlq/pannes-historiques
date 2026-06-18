@@ -1,16 +1,16 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
+import { geometryStyle } from "../app/static/map-layers.js";
 import {
   layerInfoContent,
   mapLayerMatchesForPayload,
   previousArchiveHeaderCount,
-  previousArchiveMapItems,
   previousArchiveLineItems,
+  previousArchiveMapItems,
   previousLocalSummary,
   shouldRenderPreviousArchiveSummary,
 } from "../app/static/side-panel.js";
-import { geometryStyle } from "../app/static/map-layers.js";
 
 test("prefers municipal territory bins as previous archive line items", () => {
   const items = previousArchiveLineItems(
@@ -102,13 +102,26 @@ test("renders previous archive summaries even when there are no raw matches", ()
   assert.equal(
     shouldRenderPreviousArchiveSummary("previous", {
       previousMode: "recent_archive",
-      previousArchiveSummary: { mode: "municipal_archive", territories: [] },
+      previousArchiveSummary: {
+        mode: "municipal_archive",
+        territories: [{ territoryName: "Montréal" }],
+      },
     }),
     true,
   );
   assert.equal(
     shouldRenderPreviousArchiveSummary("previous", {
       previousMode: "seen_before_here",
+      previousArchiveSummary: { mode: "municipal_archive", territories: [] },
+    }),
+    false,
+  );
+});
+
+test("does not render an empty municipal archive summary as a populated archive", () => {
+  assert.equal(
+    shouldRenderPreviousArchiveSummary("previous", {
+      previousMode: "recent_archive",
       previousArchiveSummary: { mode: "municipal_archive", territories: [] },
     }),
     false,
