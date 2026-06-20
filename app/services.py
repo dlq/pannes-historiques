@@ -1490,6 +1490,8 @@ class AppService:
                     "largest": payload.get("largest"),
                     "latest": payload.get("latest", []),
                 }
+                if payload.get("generatedAt"):
+                    summary["generatedAt"] = payload.get("generatedAt")
                 if payload.get("mode"):
                     summary["mode"] = payload.get("mode")
                 if "territories" in payload:

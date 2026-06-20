@@ -1490,6 +1490,7 @@ async function runMunicipalArchiveBackfill(env, { limit = 100, afterId = null } 
   if (lastPolygonId)
     await setBuildState(env.DB, "municipal_archive_last_polygon_id", lastPolygonId);
   await setBuildState(env.DB, "municipal_archive_last_backfill_at", updatedAt);
+  await refreshMunicipalArchiveSummary(env.DB, lastPolygonId || cursor || "");
   return {
     polygons_processed: polygons.length,
     assignments: assignmentCount,
@@ -2147,20 +2148,70 @@ function previousArchiveLargest(items) {
 }
 
 async function runtimeMunicipalPreviousArchiveSummaryResponse(env) {
+  const materialized = await municipalArchiveSummary(env.DB);
+  if (materialized) return jsonResponse(materialized);
+  const summary = await buildMunicipalArchiveSummary(env.DB);
+  await storeMunicipalArchiveSummary(env.DB, summary, await latestMunicipalArchiveHydroPolygonId(env.DB));
+  return jsonResponse(summary);
+}
+
+async function refreshMunicipalArchiveSummary(db, sourceCursor = "") {
+  const summary = await buildMunicipalArchiveSummary(db);
+  await storeMunicipalArchiveSummary(db, summary, sourceCursor);
+  return summary;
+}
+
+async function storeMunicipalArchiveSummary(db, summary, sourceCursor = "") {
+  await db
+    .prepare(
+      `
+      INSERT INTO municipal_archive_summaries
+        (summary_key, summary_json, source_cursor, generated_at, updated_at)
+      VALUES ('previous_archive_summary', ?, ?, ?, ?)
+      ON CONFLICT(summary_key) DO UPDATE SET
+        summary_json = excluded.summary_json,
+        source_cursor = excluded.source_cursor,
+        generated_at = excluded.generated_at,
+        updated_at = excluded.updated_at
+      `,
+    )
+    .bind(JSON.stringify(summary), sourceCursor, summary.generatedAt, summary.generatedAt)
+    .run();
+}
+
+async function municipalArchiveSummary(db) {
+  try {
+    const row = await db
+      .prepare(
+        `
+        SELECT summary_json
+        FROM municipal_archive_summaries
+        WHERE summary_key = 'previous_archive_summary'
+        LIMIT 1
+        `,
+      )
+      .first();
+    return row?.summary_json ? JSON.parse(row.summary_json) : null;
+  } catch (_error) {
+    return null;
+  }
+}
+
+async function buildMunicipalArchiveSummary(db) {
   const cutoff24h = sqlTimestampHoursAgo(24);
   const cutoff7d = sqlTimestampDaysAgo(7);
   const cutoff30d = sqlTimestampDaysAgo(30);
   const cutoff1y = sqlTimestampDaysAgo(365);
   const [windows, largest, latest, territoryResult] = await Promise.all([
     Promise.all([
-      municipalArchiveWindow(env.DB, "previous_archive_last_24h", cutoff24h),
-      municipalArchiveWindow(env.DB, "previous_archive_last_7d", cutoff7d),
-      municipalArchiveWindow(env.DB, "previous_archive_last_30d", cutoff30d),
-      municipalArchiveWindow(env.DB, "previous_archive_last_1y", cutoff1y),
+      municipalArchiveWindow(db, "previous_archive_last_24h", cutoff24h),
+      municipalArchiveWindow(db, "previous_archive_last_7d", cutoff7d),
+      municipalArchiveWindow(db, "previous_archive_last_30d", cutoff30d),
+      municipalArchiveWindow(db, "previous_archive_last_1y", cutoff1y),
     ]),
-    municipalArchiveLargest(env.DB, cutoff1y),
-    municipalArchiveLatest(env.DB, cutoff1y),
-    env.DB.prepare(
+    municipalArchiveLargest(db, cutoff1y),
+    municipalArchiveLatest(db, cutoff1y),
+    db.prepare(
       `
       SELECT b.territory_id,
              b.territory_name,
@@ -2188,13 +2239,14 @@ async function runtimeMunicipalPreviousArchiveSummaryResponse(env) {
       .all(),
   ]);
   const territories = (territoryResult.results || []).map(municipalArchiveTerritoryRow);
-  return jsonResponse({
+  return {
     mode: "municipal_archive",
+    generatedAt: new Date().toISOString(),
     windows,
     largest,
     latest,
     territories,
-  });
+  };
 }
 
 function municipalArchiveTerritoryRow(row) {

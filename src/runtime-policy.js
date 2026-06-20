@@ -6,7 +6,6 @@ const PRIVATE_RUNTIME_ENDPOINTS = new Set([
   "GET /query-count",
   "POST /matches",
   "GET /previous-groups",
-  "GET /previous-archive-summary",
   "POST /admin-territories/import",
   "POST /municipal-archive/backfill",
   "GET /municipal-archive/status",

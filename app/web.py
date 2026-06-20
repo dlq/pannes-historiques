@@ -356,10 +356,16 @@ def create_app(settings: Settings | None = None) -> Flask:
                     current_map_layers=operational_layers_for_scope(PLANNED_MAP_LAYER_SCOPE),
                 )
             elif layer == PREVIOUS_MAP_LAYER_SCOPE:
+                previous_archive_summary = service.previous_operational_archive_summary()
+                previous_map_layers = (
+                    []
+                    if previous_archive_summary.get("mode") == "municipal_archive"
+                    else service._previous_operational_map_layers()
+                )
                 payload = default_map_payload(
                     lang,
-                    previous_map_layers=service._previous_operational_map_layers(),
-                    previous_archive_summary=service.previous_operational_archive_summary(),
+                    previous_map_layers=previous_map_layers,
+                    previous_archive_summary=previous_archive_summary,
                 )
             elif layer == PUBLISHED_MAP_LAYER_SCOPE:
                 payload = default_map_payload(

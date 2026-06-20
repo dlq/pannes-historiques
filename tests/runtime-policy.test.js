@@ -23,9 +23,12 @@ test("requires operation token for address-scoped durable runtime reads", () => 
   }
 });
 
-test("requires operation token for runtime map and archive reads", () => {
+test("allows public access to the materialized previous archive summary", () => {
+  assert.equal(runtimeEndpointRequiresOperationToken("/previous-archive-summary", "GET"), false);
+});
+
+test("requires operation token for runtime map and status reads", () => {
   for (const [suffix, method] of [
-    ["/previous-archive-summary", "GET"],
     ["/operational-map-layers", "GET"],
     ["/previous-map-layers", "GET"],
     ["/status", "GET"],
