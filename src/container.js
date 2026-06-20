@@ -5,6 +5,26 @@ export class PannesContainer extends Container {
   sleepAfter = "30m";
   pingEndpoint = "pannes/healthz";
 
+  static outboundByHost = {
+    "pannes.ca": async (request, env) => {
+      const url = new URL(request.url);
+      if (!url.pathname.startsWith("/api/durable/runtime")) return fetch(request);
+
+      url.protocol = "https:";
+      const headers = new Headers(request.headers);
+      const token = env.PANNES_OPERATION_TOKEN || "";
+      if (token) headers.set("X-Pannes-Operation-Token", token);
+      return fetch(
+        new Request(url.toString(), {
+          method: request.method,
+          headers,
+          body: request.body,
+          redirect: request.redirect,
+        }),
+      );
+    },
+  };
+
   get envVars() {
     return {
       APP_HOST: "0.0.0.0",
@@ -13,7 +33,7 @@ export class PannesContainer extends Container {
       DURABLE_HISTORY_URL: "https://pannes.ca/api/durable/history-nearby",
       DURABLE_NEARBY_URL: "https://pannes.ca/api/durable/nearby",
       DURABLE_RUNTIME_OPERATION_TOKEN: this.env.PANNES_OPERATION_TOKEN || "",
-      DURABLE_RUNTIME_URL: "https://pannes.ca/api/durable/runtime",
+      DURABLE_RUNTIME_URL: "http://pannes.ca/api/durable/runtime",
       NOMINATIM_USER_AGENT: "pannes-historiques/0.1 (+https://pannes.ca)",
     };
   }

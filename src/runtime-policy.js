@@ -20,3 +20,14 @@ export function runtimeEndpointRequiresOperationToken(suffix, method) {
   const normalizedMethod = String(method || "GET").toUpperCase();
   return PRIVATE_RUNTIME_ENDPOINTS.has(`${normalizedMethod} ${normalizedSuffix}`);
 }
+
+export function isTrustedContainerRuntimeProxyRequest(request) {
+  const url = new URL(request.url);
+  return (
+    url.protocol === "http:" &&
+    url.pathname.startsWith("/api/durable/runtime") &&
+    request.headers.get("cf-worker") === "dalaque.workers.dev" &&
+    request.headers.get("host") === "pannes.ca" &&
+    request.headers.get("user-agent") === "pannes-historiques/0.1 (+https://pannes.ca)"
+  );
+}

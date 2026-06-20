@@ -1,4 +1,5 @@
 import { unzipSync } from "fflate";
+export { ContainerProxy } from "@cloudflare/containers";
 export { PannesContainer } from "./container.js";
 import {
   assignPolygonToTerritories,
@@ -9,7 +10,10 @@ import {
   simplifyTerritoryCoverage,
   territoryFromFeature,
 } from "./municipal-archive.js";
-import { runtimeEndpointRequiresOperationToken } from "./runtime-policy.js";
+import {
+  isTrustedContainerRuntimeProxyRequest,
+  runtimeEndpointRequiresOperationToken,
+} from "./runtime-policy.js";
 import { workerRouteForPath } from "./worker-routing.js";
 
 const DISCLOSURE_CRONS = new Set(["0 10 */14 * *", "13 10 */14 * *"]);
@@ -57,7 +61,10 @@ export default {
 
 function isOperationalRequest(request, env) {
   const token = env.PANNES_OPERATION_TOKEN;
-  return Boolean(token) && request.headers.get("X-Pannes-Operation-Token") === token;
+  return (
+    (Boolean(token) && request.headers.get("X-Pannes-Operation-Token") === token) ||
+    isTrustedContainerRuntimeProxyRequest(request)
+  );
 }
 
 async function fetchContainer(request, env) {
