@@ -19,8 +19,8 @@ uv run python server.py serve
 
 - Check `git status --short`.
 - Use a dedicated worktree/branch for implementation work.
-- Keep durable technical findings in `research.md`.
-- Keep execution state, release decisions, and next steps in `plan.md`.
+- Keep durable technical findings in `NOTES.md`.
+- Keep execution state, release decisions, and next steps in `PLANS.md`.
 
 ## Common Verification
 
@@ -66,5 +66,4 @@ npx wrangler deploy --dry-run
 - Worker routing or endpoint privacy: start in `src/worker-routing.js` and `src/runtime-policy.js`.
 - D1/R2 ingestion or scheduled work: start in `src/worker.js`, then consider extracting a focused module if the change grows.
 - Municipal archive geometry: start in `src/municipal-archive.js`; maintenance scripts should reuse these helpers.
-- Production evidence: summarize in `research.md` or `plan.md`; keep raw screenshots and JSON under ignored `output/`.
-
+- Production evidence: summarize in `NOTES.md` or `PLANS.md`; keep raw screenshots and JSON under ignored `output/`.

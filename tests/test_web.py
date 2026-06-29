@@ -20,6 +20,39 @@ def test_index_includes_pwa_metadata(app_client):
     assert 'href="/static/app-icon-180.png"' in html
 
 
+def test_index_links_to_about_page(app_client):
+    response = app_client.get("/?lang=en")
+    html = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert 'href="/about?lang=en"' in html
+    assert ">About</a>" in html
+
+
+def test_about_page_renders_in_english(app_client):
+    response = app_client.get("/about?lang=en")
+    html = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert "About Outage History" in html
+    assert "Data sources" in html
+    assert 'href="mailto:contact@pannes.ca"' in html
+    assert "contact@pannes.ca" in html
+    assert 'href="/?lang=en"' in html
+
+
+def test_about_page_renders_in_french(app_client):
+    response = app_client.get("/about?lang=fr")
+    html = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert "À propos de Pannes Historiques" in html
+    assert "Sources de données" in html
+    assert 'href="mailto:contact@pannes.ca"' in html
+    assert "contact@pannes.ca" in html
+    assert 'href="/?lang=fr"' in html
+
+
 def test_manifest_route_exposes_installability_metadata(app_client):
     response = app_client.get("/static/manifest.webmanifest")
 

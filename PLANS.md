@@ -3,7 +3,7 @@
 Date: 2026-04-25
 Last updated: 2026-06-20
 
-This file is the active execution plan. Keep durable evidence, source notes, and long historical reasoning in `research.md`; keep completed release and implementation history in `roadmap-history.md`; keep completed detail here only when it affects current decisions.
+This file is the active execution plan. Keep durable evidence, source notes, and long historical reasoning in `NOTES.md`; keep completed release and implementation history in `CHANGELOG.md`; keep completed detail here only when it affects current decisions.
 
 ## Current State
 
@@ -23,6 +23,53 @@ This file is the active execution plan. Keep durable evidence, source notes, and
 - Current operational follow-ups from 2026-06-20 health sweep: remove or expire stale `ingestion_runs` rows stuck in `running`; group/de-duplicate the Archive "latest" summary rows by territory before display; monitor D1 growth after the database reached roughly 935 MB; keep archive/count aggregations on materialized summaries rather than live full-table scans; continue moving user search paths away from the container where practical; and make the trusted container-runtime Worker host configurable instead of hardcoding the current `dalaque.workers.dev` value.
 - Current test baseline: Python tests, deterministic service/geocoding tests, route smoke coverage, Playwright desktop/mobile Chromium coverage, and production-shaped UI regression fixtures.
 - Previous-outage accumulation is working in D1, but visible map grouping needs review: on 2026-06-02 D1 had `9,542` resolved events and `333,117` sightings, with repeated spatial buckets present, while `/api/durable/runtime/previous-map-layers?limit=120` returned 120 single-event layers and zero multi-event groups.
+
+## Cost Containment Plan
+
+This project has no current monetization model: no ads, subscriptions, paid API, or sponsor-backed operating budget. Treat it as a public-interest/research prototype with a near-zero marginal-cost target.
+
+Budget posture:
+
+- Target steady-state cost: Workers Paid baseline plus domain registration, with D1/R2 remaining within included usage where possible.
+- Acceptable overage: small, occasional, explainable spikes from development deploys, manual backfills, or one-time data migrations.
+- Unacceptable steady state: recurring Durable Object/container overage caused by normal public browsing, searching, or map interaction.
+- Cost decision rule: any feature that increases recurring Cloudflare runtime cost needs an explicit research/user-value justification and a fallback or disable path.
+
+Primary architecture direction:
+
+- Public user traffic should not wake the Python container.
+- Ordinary browsing, startup map context, address search, layer toggles, archive summaries, disclosure summaries, language switches, and static assets should be served by Worker/static/D1/R2 paths.
+- The Python container should become an internal parser/batch service for scheduled ingestion, complex one-off maintenance, and local-compatible development behavior.
+- Production writes and durable state should stay in D1/R2; container-local writes remain ephemeral and should not be part of the production data contract.
+
+Execution plan:
+
+1. Public route/runtime audit.
+   - Classify production routes as `edge-safe`, `container-needed`, or `internal-only`.
+   - Add response headers or `Server-Timing` markers such as `x-pannes-runtime: worker` and `x-pannes-runtime: container` so production smoke tests can prove whether a browser path touched the container.
+   - Include `/`, `/search-map`, static assets, current/planned/archive/disclosure layer endpoints, language switching, address search, and current-location search.
+2. Cost health endpoint and monthly evidence.
+   - Add a private `/api/ops/cost-health` or equivalent operational check reporting container live-instance state, last container wake, last cron run, D1 size, R2 approximate storage/object counts where available, latest ingestion status, and archive-bin materialization status.
+   - Add a monthly bill/usage review checklist that compares Durable Object duration, container memory/vCPU/disk usage, D1 storage, D1 row reads/writes, and R2 storage/operations against the target posture.
+3. Move public reads off the container.
+   - Prioritize `v0.3.2` work so startup data, representative search, operational map layers, archive summaries, and disclosure summaries use Worker/D1/R2 without invoking Flask/container.
+   - Keep D1 for indexed relational rows and compact materialized summaries.
+   - Keep R2 for raw feeds, DAI/source files, and bulky precomputed geometry/map payload artifacts.
+4. Make cron/parser work bounded.
+   - Split scheduled ingestion into resumable phases: version check, raw download to R2, parse, D1 write, summary/materialization update, and cleanup.
+   - Add max runtime, retry/backoff, and resume cursors for long parser jobs.
+   - Incrementally bin only newly resolved outage sightings where possible instead of rebuilding global archive summaries on every run.
+5. Add low-cost production mode.
+   - Add a config switch where public routes refuse to call the container and serve last-known-good D1/R2 data.
+   - Allow scheduled ingestion/parser jobs to be paused without breaking public read-only access.
+   - Surface data freshness clearly in operational checks and, if needed, in the UI.
+
+Cost follow-up thresholds:
+
+- Durable Object duration above roughly `$5/month`: investigate immediately.
+- Container runtime above roughly `$3/month`: audit public route wakeups and migrate the highest-traffic route first.
+- D1 approaching the included 5 GB storage threshold: define retention, rollup, compaction, or archive-offload policy before it becomes a recurring charge.
+- R2 leaving included storage/operation ranges: review raw-file retention and precomputed geometry payload strategy.
 
 ## Release Roadmap
 
@@ -137,7 +184,7 @@ Scope:
 - make `v0.3.1` the first implementation slice after this release, focused on frontend/web-quality foundations unless production observations require a narrower hotfix first
 - preserve the 2026-06-20 production baseline: homepage, representative address search, map layers, service worker, archive summary, durable runtime endpoints, container live instance state, D1 growth, and Cloudflare cost drivers
 - keep the existing `0.2.x` UX improvements stable while changing architecture; do not combine broad UI redesign with production-read migration
-- preserve existing local `research.md` and `output/` artifacts until they are explicitly committed, archived, or cleaned up
+- preserve existing local `NOTES.md` and `output/` artifacts until they are explicitly committed, archived, or cleaned up
 - monitor and, if needed, patch the deployed frontend stability slice without starting a bundler migration
 
 Acceptance criteria:
@@ -279,6 +326,6 @@ Before handing off code changes:
 
 - Keep this file focused on current goals, release boundaries, risks, and next steps.
 - Do not append long implementation narratives for completed releases.
-- Move durable findings, source URLs, command evidence, and longer reasoning to `research.md`.
-- Move completed release summaries and implementation checkpoints to `roadmap-history.md`.
+- Move durable findings, source URLs, command evidence, and longer reasoning to `NOTES.md`.
+- Move completed release summaries and implementation checkpoints to `CHANGELOG.md`.
 - If this file grows past roughly 300-400 lines again, compact completed sections before adding more plan detail.

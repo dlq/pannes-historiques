@@ -212,6 +212,11 @@ def create_app(settings: Settings | None = None) -> Flask:
                 settings=settings,
             )
 
+    @app.get("/about")
+    def about():
+        lang = choose_language(request.args.get("lang"))
+        return render_template("about.html", lang=lang, settings=settings)
+
     @app.get("/healthz")
     def healthz():
         return jsonify({"ok": True})

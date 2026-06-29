@@ -1,6 +1,6 @@
 # Pannes Historiques
 
-Hydro-Quebec outage history prototype built from the `plan.md` direction.
+Hydro-Quebec outage history prototype built from the `PLANS.md` direction.
 
 ## What is implemented
 

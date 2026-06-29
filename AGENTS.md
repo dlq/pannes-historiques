@@ -8,8 +8,8 @@
 ## Project Notes
 
 - For debugging or ambiguous technical decisions, separate observed facts, inferences, assumptions, and next verification steps before making changes.
-- Use `research.md` for durable findings: observed facts, evidence, source URLs, commands run, open questions, and conclusions that should survive chat context loss.
-- Use `plan.md` for durable execution state: current goal, task checklist, decisions, risks, and next steps.
+- Use `NOTES.md` for durable findings: observed facts, evidence, source URLs, commands run, open questions, and conclusions that should survive chat context loss.
+- Use `PLANS.md` for durable execution state: current goal, task checklist, decisions, risks, and next steps.
 - Update these files only when the durable findings, task list, decision, or next step changes. Do not add conversational notes or duplicate the final response.
 
 ## Verification

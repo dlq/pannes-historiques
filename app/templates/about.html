@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#223654">
+    <meta name="application-name" content="{{ t(lang, 'brand_title') }}">
+    <title>{{ t(lang, "about_title") }}</title>
+    <link rel="icon"
+          type="image/svg+xml"
+          href="{{ url_for('static', filename='favicon.svg') }}">
+    <link rel="apple-touch-icon"
+          href="{{ url_for('static', filename='app-icon-180.png') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&amp;display=swap">
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='app.css', v=static_version) }}">
+  </head>
+  <body class="ph-about-page">
+    <header class="ph-about-header">
+      <a href="{{ url_for('index', lang=lang) }}"
+         class="ph-brand-mark ph-about-brand">{{ t(lang, 'brand_title') }}</a>
+      <nav class="ph-about-nav" aria-label="{{ t(lang, 'language') }}">
+        <a href="{{ url_for('index', lang=lang) }}" class="ph-about-map-link">{{ t(lang, "about_back") }}</a>
+        <form class="ph-language-form flex shrink-0 items-center"
+              method="get"
+              action="{{ url_for('about') }}">
+          <div class="flex">
+            <button name="lang"
+                    value="fr"
+                    class="ph-language-button rounded-l-sm {{ 'is-active' if lang == 'fr' else '' }}">fr</button>
+            <button name="lang"
+                    value="en"
+                    class="ph-language-button rounded-r-sm border-l-0 {{ 'is-active' if lang == 'en' else '' }}">
+              en
+            </button>
+          </div>
+        </form>
+      </nav>
+    </header>
+    <main class="ph-about-main">
+      <article class="ph-about-card">
+        <p class="ph-about-eyebrow">{{ t(lang, "about_link") }}</p>
+        <h1>{{ t(lang, "about_title") }}</h1>
+        <p class="ph-about-lede">{{ t(lang, "about_intro") }}</p>
+        <section>
+          <h2>{{ t(lang, "about_sources_title") }}</h2>
+          <p>{{ t(lang, "about_sources_body") }}</p>
+        </section>
+        <section>
+          <h2>{{ t(lang, "about_archive_title") }}</h2>
+          <p>{{ t(lang, "about_archive_body") }}</p>
+        </section>
+        <section>
+          <h2>{{ t(lang, "about_privacy_title") }}</h2>
+          <p>{{ t(lang, "about_privacy_body") }}</p>
+        </section>
+        <section>
+          <h2>{{ t(lang, "about_contact_title") }}</h2>
+          <p>
+            {{ t(lang, "about_contact_body") }}
+            <a href="mailto:contact@pannes.ca" class="ph-about-inline-link">contact@pannes.ca</a>.
+          </p>
+        </section>
+        <section>
+          <h2>{{ t(lang, "about_limitations_title") }}</h2>
+          <p>{{ t(lang, "about_limitations_body") }}</p>
+        </section>
+        <footer class="ph-about-actions">
+          <a href="{{ url_for('index', lang=lang) }}"
+             class="ph-about-primary-link">{{ t(lang, "about_back") }}</a>
+          <a href="{{ settings.app_repo_url }}"
+             target="_blank"
+             rel="noreferrer"
+             class="ph-about-secondary-link">{{ t(lang, "footer_source") }}</a>
+        </footer>
+      </article>
+    </main>
+  </body>
+</html>

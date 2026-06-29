@@ -28,5 +28,4 @@ Pannes Historiques is a Flask application deployed behind a Cloudflare Worker an
 
 ## Generated Evidence
 
-Playwright screenshots, JSON snapshots, and other large run outputs belong under ignored `output/` paths. Commit durable conclusions to `research.md`, `plan.md`, or release notes instead of committing raw generated artifacts.
-
+Playwright screenshots, JSON snapshots, and other large run outputs belong under ignored `output/` paths. Commit durable conclusions to `NOTES.md`, `PLANS.md`, or release notes instead of committing raw generated artifacts.

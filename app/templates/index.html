@@ -104,6 +104,7 @@
               class="ph-language-form flex shrink-0 items-center"
               method="get"
               action="{{ url_for('index') }}">
+          <a href="{{ url_for('about', lang=lang) }}" class="ph-about-link">{{ t(lang, "about_link") }}</a>
           <div class="flex">
             <button name="lang"
                     value="fr"
@@ -184,10 +185,14 @@
       <footer class="ph-footer mt-8 border-t border-[#c5cad2] px-2 py-5 text-sm text-[#4e5662]">
         <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <span>{{ t(lang, "footer_note") }}</span>
-          <a href="{{ settings.app_repo_url }}"
-             target="_blank"
-             rel="noreferrer"
-             class="font-medium text-[#095797] underline-offset-4 hover:underline">{{ t(lang, "footer_source") }}</a>
+          <span class="ph-footer-links">
+            <a href="{{ url_for('about', lang=lang) }}"
+               class="font-medium text-[#095797] underline-offset-4 hover:underline">{{ t(lang, "about_link") }}</a>
+            <a href="{{ settings.app_repo_url }}"
+               target="_blank"
+               rel="noreferrer"
+               class="font-medium text-[#095797] underline-offset-4 hover:underline">{{ t(lang, "footer_source") }}</a>
+          </span>
         </div>
       </footer>
     </main>
