@@ -215,9 +215,7 @@ export class OutageMap extends HTMLElement {
       );
     };
     const showOperational = (item) => {
-      if (detailPanel && typeof detailPanel.renderOperational === "function") {
-        detailPanel.renderOperational(item);
-      }
+      if (detailPanel && typeof detailPanel.renderEmpty === "function") detailPanel.renderEmpty();
       this.dispatchEvent(
         new CustomEvent("operational-layer-selected", { bubbles: true, detail: item }),
       );

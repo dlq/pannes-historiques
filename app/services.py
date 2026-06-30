@@ -1562,6 +1562,8 @@ class AppService:
             deduped[key] = {
                 "startTime": row["outage_start_time"] or row["created_at"],
                 "customersAffected": row["customers_affected"],
+                "centroidLat": row["centroid_lat"],
+                "centroidLon": row["centroid_lon"],
             }
         return self._previous_archive_summary_from_items(
             list(deduped.values()), cutoff_24h, cutoff_7d, cutoff_30d, cutoff_1y
@@ -1612,6 +1614,8 @@ class AppService:
                     "key": "previous_archive_latest",
                     "startTime": start_time(item),
                     "customersAffected": customer_count(item),
+                    "centroidLat": item.get("centroidLat", item.get("centroid_lat")),
+                    "centroidLon": item.get("centroidLon", item.get("centroid_lon")),
                 }
                 for item in latest
             ],
@@ -1816,6 +1820,9 @@ class AppService:
                     "outage_kind": outage_kind,
                     "record_id": row["id"],
                     "geometry_id": geometry_id,
+                    "geometry_key": f"{outage_kind}:{geometry_id}"
+                    if geometry_id is not None
+                    else None,
                     "geometry_geojson": geometry_match["geometry_geojson"]
                     if geometry_match
                     else None,

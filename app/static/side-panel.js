@@ -317,32 +317,24 @@ export function previousArchiveLineItems(summary, labels = {}) {
     });
   }
   const items = [];
-  for (const item of summary?.windows || []) {
-    items.push({
-      label: label(labels, item.key, item.key),
-      middle: `${item.areas || 0} ${label(labels, "previous_archive_summary_areas", "areas")}`,
-      count: item.totalCustomers || 0,
-      icon: "archive",
-    });
-  }
-  if (summary?.largest) {
-    items.push({
-      label: label(labels, summary.largest.key, "Largest"),
-      middle: summary.largest.startTime
-        ? String(summary.largest.startTime).slice(0, 16)
-        : label(labels, "unknown", "Unknown"),
-      count: summary.largest.customersAffected || 0,
-      icon: "zap",
-    });
-  }
   for (const item of summary?.latest || []) {
     const startTime = String(item.startTime || "");
+    const focus = {
+      kind: "previous_outage",
+      matchType: "recent_archive_latest",
+      lat: item.centroidLat,
+      lon: item.centroidLon,
+      label: startTime || label(labels, "previous_archive_latest", "Latest"),
+      startTime,
+      customersAffected: item.customersAffected,
+    };
     items.push({
       label: startTime ? startTime.slice(0, 10) : label(labels, "unknown", "Unknown"),
       middle: startTime ? startTime.slice(11, 16) : "",
       count: item.customersAffected || 0,
       icon: "calendar",
       section: "latest",
+      focus,
     });
   }
   return items;
@@ -598,6 +590,10 @@ export function attachMapLayerToggles() {
       if (item.variant === "municipal_archive") {
         row.classList.add("ph-context-summary-row--municipal");
       }
+      if (item.section === "latest") {
+        row.classList.add("ph-context-summary-row--latest");
+        row.classList.add("ph-match-row-compact");
+      }
       if (item.focus) {
         row.classList.add("ph-match-row");
         row.setAttribute("role", "button");
@@ -645,10 +641,7 @@ export function attachMapLayerToggles() {
       rows.append(row);
     };
 
-    const lineItems = previousArchiveLineItems(summary, labels);
-    const latestItems = lineItems.filter((item) => item.section === "latest");
-    const primaryItems = lineItems.filter((item) => item.section !== "latest");
-    for (const item of primaryItems) addSummaryRow(item);
+    const latestItems = previousArchiveLineItems(summary, labels);
     if (latestItems.length && summary?.mode !== "municipal_archive") {
       const heading = document.createElement("p");
       heading.className = "ph-context-subhead";

@@ -405,6 +405,12 @@ def _operational_map_item(
         "kindLabel": t(lang, item["outage_kind"]),
         "matchLabel": t(lang, "current_feed_map"),
         "geometry": item.get("geometry_geojson"),
+        "geometryKey": item.get("geometry_key")
+        or (
+            f"{item['outage_kind']}:{item.get('geometry_id')}"
+            if item.get("geometry_id") is not None
+            else None
+        ),
         "customersAffected": item.get("customers_affected"),
         "distanceM": item.get("distance_m")
         if item.get("distance_m") is not None

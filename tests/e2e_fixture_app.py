@@ -82,6 +82,8 @@ def _planned_matches() -> list[dict[str, object]]:
         {
             "outage_kind": "planned",
             "match_type": "nearby_match",
+            "geometry_id": 9001,
+            "geometry_key": "planned:9001",
             "centroid_lat": 45.5201,
             "centroid_lon": -73.6002,
             "geometry_geojson": _polygon(-73.6013, 45.5194, -73.5995, 45.5209),
@@ -93,7 +95,24 @@ def _planned_matches() -> list[dict[str, object]]:
             "municipality_code": "2466023",
             "event_count": 1,
             "recent_events": [],
-        }
+        },
+        {
+            "outage_kind": "planned",
+            "match_type": "nearby_match",
+            "geometry_id": 9001,
+            "geometry_key": "planned:9001",
+            "centroid_lat": 45.5203,
+            "centroid_lon": -73.6004,
+            "geometry_geojson": _polygon(-73.6013, 45.5194, -73.5995, 45.5209),
+            "start_time": "2026-05-13 09:00:00",
+            "end_time": "2026-05-13 11:00:00",
+            "customers_affected": 22,
+            "distance_m": 315,
+            "status": "A",
+            "municipality_code": "2466023",
+            "event_count": 1,
+            "recent_events": [],
+        },
     ]
 
 
@@ -338,6 +357,36 @@ class E2EStubService:
                 "recent_events": [],
             }
         ][:limit]
+
+    def previous_operational_archive_summary(self) -> dict[str, object]:
+        return {
+            "windows": [
+                {
+                    "key": "previous_archive_last_24h",
+                    "areas": 0,
+                    "totalCustomers": 0,
+                },
+                {
+                    "key": "previous_archive_last_7d",
+                    "areas": 0,
+                    "totalCustomers": 0,
+                },
+            ],
+            "largest": {
+                "key": "previous_archive_largest",
+                "startTime": "2025-12-18 13:20:00",
+                "customersAffected": 133,
+            },
+            "latest": [
+                {
+                    "key": "previous_archive_latest",
+                    "startTime": "2026-06-14 14:06:00",
+                    "customersAffected": 4,
+                    "centroidLat": 45.63,
+                    "centroidLon": -73.84,
+                }
+            ],
+        }
 
     def collect(self) -> dict[str, object]:
         return {"kind": "collect"}

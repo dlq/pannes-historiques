@@ -517,11 +517,11 @@ export function attachMapFocusCards() {
   const focusDetailsMatch = (detail, payload) => {
     if (!detail || !payload) return false;
     if (detail.kind && payload.kind && detail.kind !== payload.kind) return false;
+    if (detail.geometryKey && payload.geometryKey)
+      return detail.geometryKey === payload.geometryKey;
     if (detail.startTime && payload.startTime && detail.startTime !== payload.startTime) {
       return false;
     }
-    if (detail.geometryKey && payload.geometryKey)
-      return detail.geometryKey === payload.geometryKey;
     if (detail.label && payload.label && detail.kind && detail.label !== payload.label)
       return false;
     if (

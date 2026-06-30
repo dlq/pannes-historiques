@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
 const query = "5220 Rue Jeanne-Mance";
 
@@ -17,6 +17,19 @@ async function runSearch(page: Page) {
     page.getByRole("heading", { name: "Current" }),
   ).toBeVisible();
   await expect(page.locator("#search-loading")).toBeHidden();
+}
+
+async function activateMapFocusRow(page: Page, row: Locator) {
+  await expect(row).toBeVisible();
+  try {
+    await row.click({ timeout: 3000 });
+  } catch (error) {
+    if (!(error instanceof Error) || !error.message.includes("intercepts pointer events")) {
+      throw error;
+    }
+    await row.focus();
+    await page.keyboard.press("Enter");
+  }
 }
 
 test("page loads in English and French", async ({ page }) => {
@@ -271,11 +284,77 @@ test("browser history reloads canonical search URL state", async ({ page }) => {
 test("selected result rows stay visibly linked to the map", async ({ page }) => {
   await runSearch(page);
   const firstCard = page.locator("#ph-context-previous [data-map-focus]").first();
-  await firstCard.click();
+  await activateMapFocusRow(page, firstCard);
   await expect(firstCard).toHaveClass(/is-map-selected/);
   await expect(firstCard).toHaveAttribute("aria-pressed", "true");
-  await expect(page.locator("dai-detail-panel")).toBeVisible();
-  await expect(page.locator("dai-detail-panel")).toContainText("Local archive");
+  await expect(page.locator("dai-detail-panel")).toBeHidden();
+  await expect(page.locator("outage-map")).toHaveAttribute(
+    "data-active-focus-kind",
+    "previous_outage",
+  );
+  await expect(page.locator("outage-map")).toHaveAttribute(
+    "data-active-focus-start-time",
+    "2025-12-18 13:20:00",
+  );
+});
+
+test("planned rows sharing one geometry highlight together", async ({ page }) => {
+  await page.goto("/?lang=en");
+
+  await page.getByRole("button", { name: "Show Planned" }).click();
+
+  const plannedRows = page.locator("#ph-context-planned [data-map-focus]");
+  await expect(plannedRows).toHaveCount(2);
+  await plannedRows.first().click();
+
+  await expect(plannedRows.first()).toHaveClass(/is-map-selected/);
+  await expect(plannedRows.nth(1)).toHaveClass(/is-map-selected/);
+  await expect(page.locator("dai-detail-panel")).toBeHidden();
+  await expect(page.locator("outage-map")).toHaveAttribute("data-active-focus-kind", "planned");
+});
+
+test("latest archive rows recenter the map without summary rows or detail panel", async ({
+  page,
+}) => {
+  await page.goto("/?lang=en");
+
+  await page.getByRole("button", { name: "Show Archive" }).click();
+
+  await expect(page.locator("#ph-context-previous")).toContainText("Latest");
+  await expect(page.locator("#ph-context-previous")).not.toContainText("24 h");
+  await expect(page.locator("#ph-context-previous")).not.toContainText("7 d");
+  await expect(page.locator("#ph-context-previous")).not.toContainText("Largest");
+
+  const latestRow = page.locator("#ph-context-previous .ph-context-summary-row--latest").first();
+  await expect(latestRow).toBeVisible();
+  await expect(latestRow).toHaveClass(/ph-match-row-compact/);
+  await expect
+    .poll(async () =>
+      page.evaluate(() => {
+        const currentRow = document.querySelector("#ph-context-current .ph-match-row");
+        const archiveRow = document.querySelector(
+          "#ph-context-previous .ph-context-summary-row--latest",
+        );
+        if (!currentRow || !archiveRow) return null;
+        return Math.abs(
+          archiveRow.getBoundingClientRect().height - currentRow.getBoundingClientRect().height,
+        );
+      }),
+    )
+    .toBeLessThanOrEqual(2);
+  await latestRow.click();
+
+  await expect(latestRow).toHaveClass(/is-map-selected/);
+  await expect(latestRow).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator("dai-detail-panel")).toBeHidden();
+  await expect(page.locator("outage-map")).toHaveAttribute(
+    "data-active-focus-kind",
+    "previous_outage",
+  );
+  await expect(page.locator("outage-map")).toHaveAttribute(
+    "data-active-focus-start-time",
+    "2026-06-14 14:06:00",
+  );
 });
 
 test("autocomplete menu appears above existing result cards", async ({ page }) => {
@@ -307,13 +386,12 @@ test("clicking a result before lazy map load replays focus after the map appears
 
   await runSearch(page);
   const firstCard = page.locator("#ph-context-previous [data-map-focus]").first();
-  await expect(firstCard).toBeVisible();
-  await firstCard.click();
+  await activateMapFocusRow(page, firstCard);
 
   const map = page.locator("outage-map");
   await expect(map).toBeVisible();
-  await expect(map).toHaveAttribute("data-active-focus-kind", "outage");
-  await expect(map).toHaveAttribute("data-active-focus-start-time", "2026-05-09 10:15:00");
+  await expect(map).toHaveAttribute("data-active-focus-kind", "previous_outage");
+  await expect(map).toHaveAttribute("data-active-focus-start-time", "2025-12-18 13:20:00");
 });
 
 test("language switch preserves the current query and result state", async ({ page }) => {

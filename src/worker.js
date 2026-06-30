@@ -2121,6 +2121,8 @@ async function runtimePreviousArchiveSummaryResponse(env) {
       key: "previous_archive_latest",
       startTime: item.startTime,
       customersAffected: item.customersAffected,
+      centroidLat: item.centroidLat,
+      centroidLon: item.centroidLon,
     })),
   });
 }
@@ -2129,6 +2131,8 @@ function previousArchiveItem(row) {
   return {
     startTime: row.sort_time || row.start_time || row.last_seen_at || row.updated_at || "",
     customersAffected: Number(row.customers_max || 0),
+    centroidLat: row.centroid_lat,
+    centroidLon: row.centroid_lon,
   };
 }
 
@@ -2451,6 +2455,7 @@ function operationalMapLayers(rows, geometryRows, outageKind) {
         outage_kind: outageKind,
         record_id: row.id || row.event_key,
         geometry_id: geometryId,
+        geometry_key: geometryId != null ? `${outageKind}:${geometryId}` : null,
         geometry_geojson: geometry?.geometry_geojson || null,
         match_type: outageKind === "previous_outage" ? "previous_context_map" : "current_feed_map",
         distance_m: null,

@@ -1441,6 +1441,10 @@ textarea {
   min-height: 2.375rem;
 }
 
+.ph-context-summary-row--latest.ph-match-row-compact {
+  min-height: 0;
+}
+
 .ph-search-loading {
   margin: 0.75rem;
 }

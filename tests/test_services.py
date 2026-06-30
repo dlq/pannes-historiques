@@ -308,6 +308,8 @@ def test_durable_previous_archive_summary_uses_runtime_summary_endpoint(
                 "key": "previous_archive_latest",
                 "startTime": "2026-06-13 20:19:00",
                 "customersAffected": 3685,
+                "centroidLat": 45.5,
+                "centroidLon": -73.6,
             }
         ],
     }

@@ -98,6 +98,54 @@ test("counts municipal archive territories for the layer header", () => {
   assert.equal(previousArchiveHeaderCount({ mode: "legacy", territories: [] }), null);
 });
 
+test("legacy recent archive line items only show focusable latest rows", () => {
+  const items = previousArchiveLineItems(
+    {
+      windows: [
+        {
+          key: "previous_archive_last_24h",
+          areas: 4,
+          totalCustomers: 100,
+        },
+      ],
+      largest: {
+        key: "previous_archive_largest",
+        startTime: "2026-06-13 20:19:00",
+        customersAffected: 3685,
+      },
+      latest: [
+        {
+          key: "previous_archive_latest",
+          startTime: "2026-06-14 14:06:00",
+          customersAffected: 4,
+          centroidLat: 45.63,
+          centroidLon: -73.84,
+        },
+      ],
+    },
+    { previous_archive_latest: "Latest" },
+  );
+
+  assert.deepEqual(items, [
+    {
+      label: "2026-06-14",
+      middle: "14:06",
+      count: 4,
+      icon: "calendar",
+      section: "latest",
+      focus: {
+        kind: "previous_outage",
+        matchType: "recent_archive_latest",
+        lat: 45.63,
+        lon: -73.84,
+        label: "2026-06-14 14:06:00",
+        startTime: "2026-06-14 14:06:00",
+        customersAffected: 4,
+      },
+    },
+  ]);
+});
+
 test("renders previous archive summaries even when there are no raw matches", () => {
   assert.equal(
     shouldRenderPreviousArchiveSummary("previous", {

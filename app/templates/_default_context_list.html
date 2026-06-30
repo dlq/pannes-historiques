@@ -84,11 +84,14 @@
   </div>
 {%- endmacro %}
 {% macro previous_latest_row(item) -%}
-  <div class="ph-context-summary-row ph-context-summary-row--previous ph-context-summary-row--latest">
+  <article class="ph-context-summary-row ph-context-summary-row--previous ph-context-summary-row--latest ph-match-row ph-match-row-compact"
+           role="button"
+           tabindex="0"
+           data-map-focus='{{ {"kind": "previous_outage", "matchType": "recent_archive_latest", "lat": item.centroidLat, "lon": item.centroidLon, "label": item.startTime, "startTime": item.startTime, "customersAffected": item.customersAffected} | tojson }}'>
     <span class="ph-row-pill ph-row-pill-previous-date">{{ ph_icon('calendar', 'ph-pill-icon') }}{{ item.startTime[:10] if item.startTime else t(lang, "unknown") }}</span>
     <span class="ph-row-pill ph-row-pill-previous-time">{{ ph_icon('clock', 'ph-pill-icon') }}{{ item.startTime[11:16] if item.startTime else "" }}</span>
     {{ count_pill(item.customersAffected or 0, "users", t(lang, "clients") , "ph-context-pill-previous") }}
-  </div>
+  </article>
 {%- endmacro %}
 {% macro municipal_archive_row(item) -%}
   <article class="ph-context-summary-row ph-context-summary-row--previous ph-context-summary-row--municipal ph-match-row"
@@ -233,16 +236,6 @@
             <p class="ph-context-empty">{{ t(lang, previous_empty_key) }}</p>
           {% endif %}
         {% else %}
-          {% for item in previous_archive_summary.windows or [] %}
-            {{ archive_summary_row(t(lang, item.key) , item.areas, item.totalCustomers) }}
-          {% endfor %}
-          {% if previous_archive_summary.largest %}
-            <div class="ph-context-summary-row ph-context-summary-row--previous">
-              <span class="ph-row-pill ph-row-pill-previous-date">{{ ph_icon('zap', 'ph-pill-icon') }}{{ t(lang, previous_archive_summary.largest.key) }}</span>
-              <span class="ph-row-pill ph-row-pill-previous-time">{{ previous_archive_summary.largest.startTime[:16] if previous_archive_summary.largest.startTime else t(lang, "unknown") }}</span>
-              {{ count_pill(previous_archive_summary.largest.customersAffected or 0, "users", t(lang, "clients") , "ph-context-pill-previous") }}
-            </div>
-          {% endif %}
           {% if previous_archive_summary.latest %}
             <p class="ph-context-subhead">{{ t(lang, "previous_archive_latest") }}</p>
             {% for item in previous_archive_summary.latest %}{{ previous_latest_row(item) }}{% endfor %}
