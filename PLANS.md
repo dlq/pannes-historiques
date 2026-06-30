@@ -1,15 +1,15 @@
 # Plan: Hydro-Québec Outage History App
 
 Date: 2026-04-25
-Last updated: 2026-06-20
+Last updated: 2026-06-29
 
 This file is the active execution plan. Keep durable evidence, source notes, and long historical reasoning in `NOTES.md`; keep completed release and implementation history in `CHANGELOG.md`; keep completed detail here only when it affects current decisions.
 
 ## Current State
 
-- Current deployed release: `v0.3.0`, the architecture-transition baseline after the post-`v0.2.8` municipal archive materialization, runtime/container fix, production health sweep, and operational follow-up notes.
+- Current deployed release: `v0.3.0`, with the 2026-06-29 archive map-focus patch `b85599b` deployed on top of the architecture-transition baseline.
 - Current release in progress: none; `v0.3.1` frontend/web-quality foundation is next.
-- Current frontend slice: `codex/frontend-stability-summary` is pushed to origin, deployed, smoke-tested, and merged into `main`. It adds an address-level local stability answer card, makes local previous-outage evidence the default address-search section, adds row/scope labels, removes the zero-size current-layer toggle, labels optional layer visibility controls as explicit Show/Hide actions, makes map/row selection populate an operational detail panel, and replaces the `PH` favicon/app icon with an outage-location mark.
+- Current frontend state: the `codex/frontend-stability-summary` slice is deployed and merged, and `b85599b` refines the map-focus behavior. Address/local previous-outage evidence remains the default address-search section, optional layer controls use explicit Show/Hide actions, shared-geometry rows highlight together, latest archive rows are compact/focusable map rows, and operational row selection recenters/highlights the map without opening the DAI detail panel.
 - Current product shape: map-first address/current-location lookup with server-rendered Flask/Jinja fragments, HTMX, Leaflet, decomposed vanilla JavaScript ES modules, icon-backed sidebar/detail rows, local previous-outage evidence, municipal archive bins, and a Cloudflare Workers + Containers production deployment.
 - Production data plane: D1/R2-backed durable ingestion for current feed rows, previous-outage rows, raw Hydro-Québec payloads, disclosure metadata, and runtime map-context layers.
 - Container role: still renders the Flask/Jinja shell and keeps a baked-in SQLite snapshot for local-compatible/container fallback paths.
@@ -17,9 +17,9 @@ This file is the active execution plan. Keep durable evidence, source notes, and
 - Cost caveat: the June 2026 Cloudflare invoice was driven mostly by Workers Paid baseline plus Durable Object/container runtime costs; D1 and R2 were not material cost drivers on that bill.
 - User-facing URL contract: clean root URL with `lang`, `q`, or current-location coordinate parameters; obsolete public `radius_m`, `days`, and `include_planned` parameters were removed from the main interface.
 - Debug, collection, cron, internal export/file, direct durable-status, and durable runtime endpoints are private by default; production returns `404` unless the expected debug flag, Worker block, scheduled header, internal header, or operation token is present.
-- Current release marker: service worker cache name `pannes-historiques-v0.3.0-architecture-transition`; latest public smoke check before the release commit on 2026-06-20 returned `200` for `/`, `/search-map`, current/archive/planned map layers, archive summary, and Hydro data endpoints.
-- Current deployed code includes the frontend stability-summary work first landed on the branch through `e25adec`, including the local-stability answer-card UI, no-letter outage-location favicon/app icon, explicit Show/Hide layer actions, and Current-header alignment spacer.
-- Current `main` is the `v0.3.0` release candidate: it is past the `v0.2.8` tag, includes municipal archive materialization and the container runtime authentication fix, and is the baseline for upcoming `0.3.x` work.
+- Current release marker: service worker cache name `pannes-historiques-v0.3.0-architecture-transition`; the 2026-06-29 production patch did not change the service-worker marker.
+- Latest public smoke check after `b85599b` deployed on 2026-06-29 returned `200` for `/healthz`, `/`, `/search-map`, and current/previous/planned map layers. Cloudflare reported Worker version `fa81e51f-be5d-4c3f-8df6-1819116ccc47` and active container image `pannes-historiques-pannescontainer:fa81e51f`.
+- Current `main` is the deployed `v0.3.0` baseline plus the `b85599b` archive map-focus patch; it remains the baseline for upcoming `0.3.x` work.
 - Current operational follow-ups from 2026-06-20 health sweep: remove or expire stale `ingestion_runs` rows stuck in `running`; group/de-duplicate the Archive "latest" summary rows by territory before display; monitor D1 growth after the database reached roughly 935 MB; keep archive/count aggregations on materialized summaries rather than live full-table scans; continue moving user search paths away from the container where practical; and make the trusted container-runtime Worker host configurable instead of hardcoding the current `dalaque.workers.dev` value.
 - Current test baseline: Python tests, deterministic service/geocoding tests, route smoke coverage, Playwright desktop/mobile Chromium coverage, and production-shaped UI regression fixtures.
 - Previous-outage accumulation is working in D1, but visible map grouping needs review: on 2026-06-02 D1 had `9,542` resolved events and `333,117` sightings, with repeated spatial buckets present, while `/api/durable/runtime/previous-map-layers?limit=120` returned 120 single-event layers and zero multi-event groups.
@@ -134,7 +134,7 @@ Candidate work after core UI and production architecture are more settled:
 
 Goal: build on the `v0.3.0` architecture-transition baseline with a focused frontend/web-quality slice.
 
-Status: `v0.3.0` is the release checkpoint being tagged from `main` after municipal archive materialization, production runtime authentication repair, and the 2026-06-20 health/performance sweep. `v0.3.1` should remain a narrow web-quality/frontend foundation slice rather than a broad data architecture rewrite.
+Status: `v0.3.0` is the tagged architecture-transition checkpoint after municipal archive materialization, production runtime authentication repair, and the 2026-06-20 health/performance sweep. Production also includes the 2026-06-29 archive map-focus patch `b85599b`. `v0.3.1` should remain a narrow web-quality/frontend foundation slice rather than a broad data architecture rewrite.
 
 Current implementation notes:
 
@@ -314,7 +314,7 @@ Before handing off code changes:
 - D1 growth and query cost: production D1 was about 935 MB on 2026-06-20, and ad hoc full-bin aggregate checks read over 115k rows; monitor growth, consider retention/rollup policy, and keep user-facing archive summaries materialized.
 - Runtime host configuration: the trusted container-runtime proxy check currently depends on the Cloudflare worker host `dalaque.workers.dev`; make this configurable before changing the workers.dev subdomain again.
 - Search architecture: representative search is fixed and under roughly one second when warm, but it still depends on the container path; keep moving ordinary search/render reads toward Worker/static/D1/R2 paths in `0.3.x`.
-- The desktop side panel is more coherent but may still feel dense when detail panels overlay it; the `e25adec` answer-card branch is now deployed, so use production observations before widening the panel again by default.
+- The desktop side panel is more coherent, and `b85599b` keeps operational row focus from opening the DAI detail panel. Disclosure/regional detail panels can still make dense states feel crowded, so use production observations before widening the panel again by default.
 - Accessibility still needs a dedicated W3C/WCAG pass beyond the current keyboard/focus regression checks; keep this as practical `0.2.x`/`0.3.x` follow-up depending on scope.
 - Cloudflare performance work now has two tracks: container/app response-time reduction already shipped in `v0.2.5`, while static asset/module waterfall measurement belongs to upcoming `0.3.x` evaluation before any bundler decision.
 - The first-party JS module split improves maintainability, but it increases native module requests; measure this on Cloudflare before assuming either native modules or bundling is better.

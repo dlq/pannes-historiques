@@ -6,7 +6,19 @@ Keep active execution state in `PLANS.md` and source/evidence research in `NOTES
 
 ## [Unreleased]
 
-- No unreleased changes recorded here yet.
+### Changed
+
+- Refined operational and archive map-focus behavior so current/planned/previous rows recenter and highlight the map without opening the DAI detail panel.
+- Made latest archive summary rows compact, focusable map rows and removed the older summary-window/largest rows from the default archive summary display.
+
+### Fixed
+
+- Added geometry keys for operational map items so rows sharing one geometry highlight together.
+
+### Verified
+
+- Deployed production patch `b85599b` on 2026-06-29 with Worker version `fa81e51f-be5d-4c3f-8df6-1819116ccc47` and active container image `pannes-historiques-pannescontainer:fa81e51f`.
+- Post-deploy smoke checks returned `200` for `/healthz`, `/`, `/search-map`, and current/previous/planned map layers.
 
 ## [v0.3.0] - 2026-06-20
 

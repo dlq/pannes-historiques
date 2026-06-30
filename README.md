@@ -59,10 +59,10 @@ Production is currently served at `pannes.ca` with Cloudflare Workers + Containe
 
 Current deployment status:
 
-- Deployed release: `v0.3.0`
+- Deployed release: `v0.3.0` plus production patch `b85599b`
 - Public service-worker marker for this release: `pannes-historiques-v0.3.0-architecture-transition`
-- Public smoke check on 2026-06-20: `/`, `/search-map`, current/archive/planned map layers, archive summary, and Hydro data endpoints returned `200`
-- Production includes the local stability answer card, outage-location favicon/app icon, explicit Show/Hide layer controls, municipal archive materialization, and the container runtime authentication fix.
+- Public smoke check on 2026-06-29: `/healthz`, `/`, `/search-map`, and current/previous/planned map layers returned `200`
+- Production includes the local stability answer card, outage-location favicon/app icon, explicit Show/Hide layer controls, municipal archive materialization, archive map-focus row refinements, and the container runtime authentication fix.
 
 ```bash
 npx wrangler deploy
