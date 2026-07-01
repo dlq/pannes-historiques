@@ -641,14 +641,15 @@ export function attachMapLayerToggles() {
       rows.append(row);
     };
 
-    const latestItems = previousArchiveLineItems(summary, labels);
-    if (latestItems.length && summary?.mode !== "municipal_archive") {
+    const archiveItems = previousArchiveLineItems(summary, labels);
+    if (!archiveItems.length) return;
+    if (summary?.mode !== "municipal_archive") {
       const heading = document.createElement("p");
       heading.className = "ph-context-subhead";
       heading.textContent = label(labels, "previous_archive_latest", "Latest");
       rows.append(heading);
-      for (const item of latestItems) addSummaryRow(item);
     }
+    for (const item of archiveItems) addSummaryRow(item);
   };
 
   const setLayerCount = (section, value, iconName, labelText = "") => {

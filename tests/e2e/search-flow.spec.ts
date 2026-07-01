@@ -313,43 +313,35 @@ test("planned rows sharing one geometry highlight together", async ({ page }) =>
   await expect(page.locator("outage-map")).toHaveAttribute("data-active-focus-kind", "planned");
 });
 
-test("latest archive rows recenter the map without summary rows or detail panel", async ({
+test("municipal archive rows recenter the map without opening the detail panel", async ({
   page,
 }) => {
   await page.goto("/?lang=en");
 
   await page.getByRole("button", { name: "Show Archive" }).click();
 
-  await expect(page.locator("#ph-context-previous")).toContainText("Latest");
+  await expect(page.locator("#ph-context-previous")).toContainText("Montréal");
+  await expect(page.locator("#ph-context-previous")).toContainText("Drummondville");
   await expect(page.locator("#ph-context-previous")).not.toContainText("24 h");
   await expect(page.locator("#ph-context-previous")).not.toContainText("7 d");
   await expect(page.locator("#ph-context-previous")).not.toContainText("Largest");
 
-  const latestRow = page.locator("#ph-context-previous .ph-context-summary-row--latest").first();
-  await expect(latestRow).toBeVisible();
-  await expect(latestRow).toHaveClass(/ph-match-row-compact/);
-  await expect
-    .poll(async () =>
-      page.evaluate(() => {
-        const currentRow = document.querySelector("#ph-context-current .ph-match-row");
-        const archiveRow = document.querySelector(
-          "#ph-context-previous .ph-context-summary-row--latest",
-        );
-        if (!currentRow || !archiveRow) return null;
-        return Math.abs(
-          archiveRow.getBoundingClientRect().height - currentRow.getBoundingClientRect().height,
-        );
-      }),
-    )
-    .toBeLessThanOrEqual(2);
-  await latestRow.click();
+  const municipalRow = page
+    .locator("#ph-context-previous .ph-context-summary-row--municipal")
+    .filter({ hasText: "Montréal" });
+  await expect(municipalRow).toBeVisible();
+  await municipalRow.click();
 
-  await expect(latestRow).toHaveClass(/is-map-selected/);
-  await expect(latestRow).toHaveAttribute("aria-pressed", "true");
+  await expect(municipalRow).toHaveClass(/is-map-selected/);
+  await expect(municipalRow).toHaveAttribute("aria-pressed", "true");
   await expect(page.locator("dai-detail-panel")).toBeHidden();
   await expect(page.locator("outage-map")).toHaveAttribute(
     "data-active-focus-kind",
     "previous_outage",
+  );
+  await expect(page.locator("outage-map")).toHaveAttribute(
+    "data-active-focus-label",
+    "Montréal",
   );
   await expect(page.locator("outage-map")).toHaveAttribute(
     "data-active-focus-start-time",

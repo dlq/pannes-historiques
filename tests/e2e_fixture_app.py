@@ -360,6 +360,33 @@ class E2EStubService:
 
     def previous_operational_archive_summary(self) -> dict[str, object]:
         return {
+            "mode": "municipal_archive",
+            "territories": [
+                {
+                    "territoryId": "municipality:66023",
+                    "territoryName": "Montréal",
+                    "designation": "Municipalité",
+                    "eventCount": 42,
+                    "customersAffected": 1200,
+                    "latestStartTime": "2026-06-14 14:06:00",
+                    "geometryKey": "municipal_archive:municipality:66023",
+                    "centroidLat": 45.52,
+                    "centroidLon": -73.6,
+                    "geometry": _polygon(-73.62, 45.5, -73.58, 45.54),
+                },
+                {
+                    "territoryId": "municipality:49058",
+                    "territoryName": "Drummondville",
+                    "designation": "Municipalité",
+                    "eventCount": 7,
+                    "customersAffected": 80,
+                    "latestStartTime": "2026-06-13 09:00:00",
+                    "geometryKey": "municipal_archive:municipality:49058",
+                    "centroidLat": 45.88,
+                    "centroidLon": -72.48,
+                    "geometry": _polygon(-72.5, 45.86, -72.46, 45.9),
+                },
+            ],
             "windows": [
                 {
                     "key": "previous_archive_last_24h",
