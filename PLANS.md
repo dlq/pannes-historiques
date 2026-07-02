@@ -1,13 +1,14 @@
 # Plan: Hydro-Québec Outage History App
 
 Date: 2026-04-25
-Last updated: 2026-06-29
+Last updated: 2026-07-02
 
 This file is the active execution plan. Keep durable evidence, source notes, and long historical reasoning in `NOTES.md`; keep completed release and implementation history in `CHANGELOG.md`; keep completed detail here only when it affects current decisions.
 
 ## Current State
 
 - Current deployed release: `v0.3.1` frontend/web-quality foundation.
+- Current production deployment: Worker version `6c95e2bf-9f6a-4bb1-a32a-74fb5526d8fa`; container image `pannes-historiques-pannescontainer:6c95e2bf`.
 - Current release in progress: none; next release slice is `v0.3.2` public-read architecture unless production observations require a narrower hotfix first.
 - Current frontend state: the `codex/frontend-stability-summary` slice is deployed and merged, and `b85599b` refines the map-focus behavior. Address/local previous-outage evidence remains the default address-search section, optional layer controls use explicit Show/Hide actions, shared-geometry rows highlight together, latest archive rows are compact/focusable map rows, and operational row selection recenters/highlights the map without opening the DAI detail panel.
 - Current product shape: map-first address/current-location lookup with server-rendered Flask/Jinja fragments, HTMX, Leaflet, decomposed vanilla JavaScript ES modules, icon-backed sidebar/detail rows, local previous-outage evidence, municipal archive bins, and a Cloudflare Workers + Containers production deployment.
@@ -18,7 +19,7 @@ This file is the active execution plan. Keep durable evidence, source notes, and
 - User-facing URL contract: clean root URL with `lang`, `q`, or current-location coordinate parameters; obsolete public `radius_m`, `days`, and `include_planned` parameters were removed from the main interface.
 - Debug, collection, cron, internal export/file, direct durable-status, and durable runtime endpoints are private by default; production returns `404` unless the expected debug flag, Worker block, scheduled header, internal header, or operation token is present.
 - Current release marker: service worker cache name `pannes-historiques-v0.3.1-web-quality-foundation`.
-- Latest planned public smoke check for the 2026-07-02 release covers `/healthz`, `/`, `/service-worker.js`, `/robots.txt`, `/sitemap.xml`, `/search-map`, and current/previous/planned map layers.
+- Latest public smoke check for the 2026-07-02 release passed for `/healthz`, `/`, `/service-worker.js`, `/robots.txt`, `/sitemap.xml`, representative `/search-map`, `/api/durable/hydro`, and current/planned/previous/published `/map-layer` routes.
 - Current `main` is the `v0.3.1` frontend/web-quality foundation baseline; it remains the baseline for upcoming `0.3.x` work.
 - Current operational follow-ups from 2026-06-20 health sweep: remove or expire stale `ingestion_runs` rows stuck in `running`; group/de-duplicate the Archive "latest" summary rows by territory before display; monitor D1 growth after the database reached roughly 935 MB; keep archive/count aggregations on materialized summaries rather than live full-table scans; continue moving user search paths away from the container where practical; and make the trusted container-runtime Worker host configurable instead of hardcoding the current `dalaque.workers.dev` value.
 - Current test baseline: Python tests, deterministic service/geocoding/parser tests, route smoke coverage, Playwright desktop/mobile Chromium coverage, and production-shaped UI regression fixtures.

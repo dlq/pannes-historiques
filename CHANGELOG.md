@@ -30,8 +30,8 @@ Keep active execution state in `PLANS.md` and source/evidence research in `NOTES
 ### Verified
 
 - Local release verification passed `uv run pytest -q`, `node --test tests/*.test.js`, `uv run pre-commit run --all-files`, `npx playwright test tests/e2e/search-flow.spec.ts --config=playwright.config.ts`, and `npx wrangler deploy --dry-run`.
-- Deployed production patch `b85599b` on 2026-06-29 with Worker version `fa81e51f-be5d-4c3f-8df6-1819116ccc47` and active container image `pannes-historiques-pannescontainer:fa81e51f`.
-- Post-deploy smoke checks returned `200` for `/healthz`, `/`, `/search-map`, and current/previous/planned map layers.
+- Deployed `v0.3.1` to production on 2026-07-02 with Worker version `6c95e2bf-9f6a-4bb1-a32a-74fb5526d8fa` and container image `pannes-historiques-pannescontainer:6c95e2bf`.
+- Post-deploy smoke checks returned `200` for `/healthz`, `/`, `/service-worker.js`, `/robots.txt`, `/sitemap.xml`, representative `/search-map`, `/api/durable/hydro`, and current/planned/previous/published `/map-layer` routes.
 
 ## [v0.3.0] - 2026-06-20
 
