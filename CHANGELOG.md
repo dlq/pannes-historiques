@@ -10,6 +10,7 @@ Keep active execution state in `PLANS.md` and source/evidence research in `NOTES
 
 - Added canonical URL, description, Open Graph, and Twitter summary metadata for the map and About pages.
 - Added public `robots.txt` and `sitemap.xml` routes for discovery.
+- Added risk-based parser coverage for Hydro KML payloads, access-disclosure discovery, PDF outage rows, and regional disclosure metrics.
 
 ### Changed
 
