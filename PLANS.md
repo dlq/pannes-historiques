@@ -7,8 +7,8 @@ This file is the active execution plan. Keep durable evidence, source notes, and
 
 ## Current State
 
-- Current deployed release: `v0.3.0`, with the 2026-06-29 archive map-focus patch `b85599b` deployed on top of the architecture-transition baseline.
-- Current release in progress: `v0.3.1` frontend/web-quality foundation is implemented locally and awaiting final verification/release handling.
+- Current deployed release: `v0.3.1` frontend/web-quality foundation.
+- Current release in progress: none; next release slice is `v0.3.2` public-read architecture unless production observations require a narrower hotfix first.
 - Current frontend state: the `codex/frontend-stability-summary` slice is deployed and merged, and `b85599b` refines the map-focus behavior. Address/local previous-outage evidence remains the default address-search section, optional layer controls use explicit Show/Hide actions, shared-geometry rows highlight together, latest archive rows are compact/focusable map rows, and operational row selection recenters/highlights the map without opening the DAI detail panel.
 - Current product shape: map-first address/current-location lookup with server-rendered Flask/Jinja fragments, HTMX, Leaflet, decomposed vanilla JavaScript ES modules, icon-backed sidebar/detail rows, local previous-outage evidence, municipal archive bins, and a Cloudflare Workers + Containers production deployment.
 - Production data plane: D1/R2-backed durable ingestion for current feed rows, previous-outage rows, raw Hydro-Québec payloads, disclosure metadata, and runtime map-context layers.
@@ -17,11 +17,11 @@ This file is the active execution plan. Keep durable evidence, source notes, and
 - Cost caveat: the June 2026 Cloudflare invoice was driven mostly by Workers Paid baseline plus Durable Object/container runtime costs; D1 and R2 were not material cost drivers on that bill.
 - User-facing URL contract: clean root URL with `lang`, `q`, or current-location coordinate parameters; obsolete public `radius_m`, `days`, and `include_planned` parameters were removed from the main interface.
 - Debug, collection, cron, internal export/file, direct durable-status, and durable runtime endpoints are private by default; production returns `404` unless the expected debug flag, Worker block, scheduled header, internal header, or operation token is present.
-- Current local release marker: service worker cache name `pannes-historiques-v0.3.1-web-quality-foundation`; the latest deployed production patch before this slice still used the `v0.3.0` marker.
-- Latest public smoke check after `b85599b` deployed on 2026-06-29 returned `200` for `/healthz`, `/`, `/search-map`, and current/previous/planned map layers. Cloudflare reported Worker version `fa81e51f-be5d-4c3f-8df6-1819116ccc47` and active container image `pannes-historiques-pannescontainer:fa81e51f`.
-- Current `main` is the deployed `v0.3.0` baseline plus the `b85599b` archive map-focus patch; it remains the baseline for upcoming `0.3.x` work.
+- Current release marker: service worker cache name `pannes-historiques-v0.3.1-web-quality-foundation`.
+- Latest planned public smoke check for the 2026-07-02 release covers `/healthz`, `/`, `/service-worker.js`, `/robots.txt`, `/sitemap.xml`, `/search-map`, and current/previous/planned map layers.
+- Current `main` is the `v0.3.1` frontend/web-quality foundation baseline; it remains the baseline for upcoming `0.3.x` work.
 - Current operational follow-ups from 2026-06-20 health sweep: remove or expire stale `ingestion_runs` rows stuck in `running`; group/de-duplicate the Archive "latest" summary rows by territory before display; monitor D1 growth after the database reached roughly 935 MB; keep archive/count aggregations on materialized summaries rather than live full-table scans; continue moving user search paths away from the container where practical; and make the trusted container-runtime Worker host configurable instead of hardcoding the current `dalaque.workers.dev` value.
-- Current test baseline: Python tests, deterministic service/geocoding tests, route smoke coverage, Playwright desktop/mobile Chromium coverage, and production-shaped UI regression fixtures.
+- Current test baseline: Python tests, deterministic service/geocoding/parser tests, route smoke coverage, Playwright desktop/mobile Chromium coverage, and production-shaped UI regression fixtures.
 - Previous-outage accumulation is working in D1. On 2026-06-30 production had `18,236` resolved outage events and `146,109` folded outage sightings; all resolved outage events had centroids. Geographic archive bins were current through `bispoly:20260630193015:30`, but archive-bin completeness still needs a cleanup/audit pass.
 
 ## Cost Containment Plan
@@ -115,7 +115,7 @@ Candidate work after the map-first UI is stable:
 Planned slice order:
 
 - `v0.3.0`: architecture-transition baseline. Starts from the deployed `v0.2.8` baseline, captures production timing/cost/data-health evidence, lands municipal archive summary materialization and the container runtime authentication fix, and records the first architecture follow-ups. Complete.
-- `v0.3.1`: frontend/web-quality foundation. Replace the Tailwind CDN path with a local CSS utility shim for the templates' current utility classes; add SEO/social metadata, `robots.txt`, `sitemap.xml`, cache/resource-header cleanup, package version bumps, and a fresh service-worker marker. Implemented locally; release verification pending.
+- `v0.3.1`: frontend/web-quality foundation. Replaced the Tailwind CDN path with a local CSS utility shim for the templates' current utility classes; added SEO/social metadata, `robots.txt`, `sitemap.xml`, cache/resource-header cleanup, package version bumps, a fresh service-worker marker, and risk-based parser coverage. Complete.
 - `v0.3.2`: public-read architecture. Move ordinary user-facing shell/search/map reads away from the Cloudflare Container where practical, using Worker/static/D1/R2 paths while keeping the Python container for bounded parser/batch work.
 - `v0.3.3`: historical-data API. Define stable public/private route boundaries, freshness metadata, rate limits, and query shapes for accumulated outage/disclosure data.
 - `v0.3.4`: analytical map/product expansion. Revisit Quebec-only labels, regional/municipal archive views, `Bilan par région`-style summaries, and saved-area notification feasibility.
@@ -130,11 +130,11 @@ Candidate work after core UI and production architecture are more settled:
 - evaluate structured data only where it genuinely helps discovery; avoid adding schema markup that overstates the app's authority or data completeness
 - revisit observability and incident-response practices once production usage warrants it
 
-## Current Focus: `v0.3.1` Frontend/Web-Quality Foundation
+## Completed Release Slice: `v0.3.1` Frontend/Web-Quality Foundation
 
 Goal: build on the `v0.3.0` architecture-transition baseline with a focused frontend/web-quality slice.
 
-Status: `v0.3.0` is the tagged architecture-transition checkpoint after municipal archive materialization, production runtime authentication repair, and the 2026-06-20 health/performance sweep. Production also includes the 2026-06-29 archive map-focus patch `b85599b`. The local `v0.3.1` slice remains a narrow web-quality/frontend foundation rather than a broad data architecture rewrite.
+Status: `v0.3.1` is the tagged frontend/web-quality foundation checkpoint after the `v0.3.0` architecture-transition baseline and the 2026-06-29 archive map-focus patch `b85599b`. This slice remains a narrow web-quality/frontend foundation rather than a broad data architecture rewrite.
 
 Current implementation notes:
 
@@ -170,7 +170,7 @@ Current implementation notes:
 - Public production check on 2026-06-17: `/` returned `200` in about 0.86s, `/healthz` returned `200` in about 0.20s, `/service-worker.js` returned `200` in about 0.40s, and `/search-map?q=5220%20Rue%20Jeanne-Mance&lang=en` returned `200` in about 1.53s.
 - Production health sweep on 2026-06-20 after `eb14b9d`: public endpoints were healthy (`/` about 0.92s, current layer about 0.30s, archive layer about 0.51s, planned layer about 0.55s, representative search about 0.91s, archive summary about 0.21s); latest Hydro feed versions were `bis=20260620133012` and `aip=20260620133012`; the latest scheduled Hydro run finished `ok` at `2026-06-20T17:37:44Z`; municipal archive backfill state advanced to `bispoly:20260620133012:30`; D1 had 115,756 primary archive bins across 1,030 territories and 141,856 overlap bins.
 - The `v0.3.0` service worker advertises `pannes-historiques-v0.3.0-architecture-transition`, confirming production should pick up a fresh app shell after deployment.
-- The local `v0.3.1` slice replaces the Tailwind CDN script with local CSS coverage for the templates' currently used utility classes, adds canonical/social metadata, adds public `robots.txt` and `sitemap.xml`, adds version-aware static cache headers, bumps package metadata to `0.3.1`, and advertises service-worker marker `pannes-historiques-v0.3.1-web-quality-foundation`.
+- The `v0.3.1` slice replaces the Tailwind CDN script with local CSS coverage for the templates' currently used utility classes, adds canonical/social metadata, adds public `robots.txt` and `sitemap.xml`, adds version-aware static cache headers, bumps package metadata to `0.3.1`, adds risk-based parser coverage, and advertises service-worker marker `pannes-historiques-v0.3.1-web-quality-foundation`.
 - `codex/frontend-stability-summary` implements the 2026-06-17 UI audit recommendations: address-level local stability evidence card, `Seen Before Here` opened by default for address results, local/province scope labels, visible row labels, no current-layer toggle button, explicit Show/Hide layer actions with a Current-header spacer for alignment, operational detail feedback on selected rows/polygons, and the no-letter outage-location favicon/app icon.
 - The feature branch verification passed `uv run pytest tests/test_views.py -q`, `node --test tests/side-panel-archive.test.js`, Ruff, djLint, Biome, `git diff --check`, pre-commit hooks at commit time, and local browser checks at desktop, iPad, and iPhone viewports. Full `npx playwright test tests/e2e/search-flow.spec.ts` was blocked in this environment because the sandbox cannot start the Playwright web server and the elevated retry hit the app approval usage limit.
 - `v0.2.5` deployed on 2026-05-31 with Worker version `43b7a4dc-bb09-4249-92b8-9ad231ad58ae` and container image `43b7a4dc`.
@@ -179,23 +179,23 @@ Current implementation notes:
 - June 2 UI/UX review found the current interface is calmer and coherent, but the default Current sidebar still overwhelms the map, the mobile header/drawer combination squeezes the map, the pill system treats too many fields with equal weight, Disclosures still use a different row language, and section-to-map colour linkage is too implicit.
 - Desktop and mobile detail cards are much improved; detail-card placement and mobile detail-as-drawer behavior remain useful follow-up work but can be deferred unless they naturally fit into the next small UI slice.
 
-Scope:
+Completed scope:
 
-- tag, push, deploy, and smoke-test `v0.3.0` as the architecture-transition baseline
-- finish `v0.3.1` as the first implementation slice after this release, focused on frontend/web-quality foundations unless production observations require a narrower hotfix first
-- preserve the 2026-06-20 production baseline: homepage, representative address search, map layers, service worker, archive summary, durable runtime endpoints, container live instance state, D1 growth, and Cloudflare cost drivers
-- keep the existing `0.2.x` UX improvements stable while changing architecture; do not combine broad UI redesign with production-read migration
-- preserve existing local `NOTES.md` and `output/` artifacts until they are explicitly committed, archived, or cleaned up
-- monitor and, if needed, patch the deployed frontend stability slice without starting a bundler migration
+- `v0.3.0` was tagged, pushed, deployed, and smoke-tested as the architecture-transition baseline.
+- `v0.3.1` is the first implementation slice after the architecture-transition release, focused on frontend/web-quality foundations.
+- The 2026-06-20 production baseline remains the comparison point for homepage, representative address search, map layers, service worker, archive summary, durable runtime endpoints, container live instance state, D1 growth, and Cloudflare cost drivers.
+- The existing `0.2.x` UX improvements remain stable while changing architecture; this slice does not combine broad UI redesign with production-read migration.
+- Existing local `NOTES.md` and `output/` artifacts remain preserved until they are explicitly committed, archived, or cleaned up.
+- The deployed frontend stability slice remains monitored without starting a bundler migration.
 
-Acceptance criteria:
+Acceptance criteria status:
 
-- `v0.3.0` is tagged, pushed, deployed, and smoke-tested before `v0.3.1` work begins
-- `v0.3.1` has a single primary objective, explicit non-goals, and production verification steps
-- `v0.3.1` removes the Tailwind CDN script without adding a broad bundler migration, exposes `robots.txt` and `sitemap.xml`, renders canonical/social metadata, and sends predictable cache headers for static assets
-- production baseline is preserved before replacing Tailwind/CDN paths or moving user-facing reads off the container
-- dirty local research/audit artifacts are intentionally handled before implementation work begins
-- deployed frontend stability remains intact at desktop, iPad, and mobile widths: local stability card, local/province scope labels, row labels, Show/Hide layer actions, selected row/polygon feedback, and no zero-size current-layer toggle
+- Complete: `v0.3.0` was tagged, pushed, deployed, and smoke-tested before `v0.3.1` work began.
+- Complete: `v0.3.1` has a single primary objective, explicit non-goals, and production verification steps.
+- Complete: `v0.3.1` removes the Tailwind CDN script without adding a broad bundler migration, exposes `robots.txt` and `sitemap.xml`, renders canonical/social metadata, and sends predictable cache headers for static assets.
+- Complete: production baseline was preserved before replacing Tailwind/CDN paths or moving user-facing reads off the container.
+- Complete: dirty local research/audit artifacts were intentionally handled before implementation work began.
+- Complete: deployed frontend stability remains intact at desktop, iPad, and mobile widths: local stability card, local/province scope labels, row labels, Show/Hide layer actions, selected row/polygon feedback, and no zero-size current-layer toggle.
 
 Verification so far:
 

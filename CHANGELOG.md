@@ -6,6 +6,8 @@ Keep active execution state in `PLANS.md` and source/evidence research in `NOTES
 
 ## [Unreleased]
 
+## [v0.3.1] - 2026-07-02
+
 ### Added
 
 - Added canonical URL, description, Open Graph, and Twitter summary metadata for the map and About pages.
@@ -27,6 +29,7 @@ Keep active execution state in `PLANS.md` and source/evidence research in `NOTES
 
 ### Verified
 
+- Local release verification passed `uv run pytest -q`, `node --test tests/*.test.js`, `uv run pre-commit run --all-files`, `npx playwright test tests/e2e/search-flow.spec.ts --config=playwright.config.ts`, and `npx wrangler deploy --dry-run`.
 - Deployed production patch `b85599b` on 2026-06-29 with Worker version `fa81e51f-be5d-4c3f-8df6-1819116ccc47` and active container image `pannes-historiques-pannescontainer:fa81e51f`.
 - Post-deploy smoke checks returned `200` for `/healthz`, `/`, `/search-map`, and current/previous/planned map layers.
 
