@@ -5,9 +5,10 @@ import mimetypes
 from hashlib import sha256
 from pathlib import Path
 from types import SimpleNamespace
+from urllib.parse import urlencode
 from uuid import uuid4
 
-from flask import Flask, g, jsonify, render_template, request, send_file
+from flask import Flask, Response, g, jsonify, render_template, request, send_file
 
 from .config import Settings, ensure_directories
 from .db import initialize
@@ -37,6 +38,14 @@ def static_asset_version(static_root: Path) -> str:
         digest.update(path.name.encode("utf-8"))
         digest.update(path.read_bytes())
     return digest.hexdigest()[:12]
+
+
+def absolute_public_url(settings: Settings, path: str, query: dict[str, str] | None = None) -> str:
+    base_url = settings.public_base_url.rstrip("/")
+    public_path = path if path.startswith("/") else f"/{path}"
+    if not query:
+        return f"{base_url}{public_path}"
+    return f"{base_url}{public_path}?{urlencode(query)}"
 
 
 def create_app(settings: Settings | None = None) -> Flask:
@@ -129,6 +138,12 @@ def create_app(settings: Settings | None = None) -> Flask:
         if token is not None:
             reset_current_timer(token)
             g.perf_token = None
+        if request.path.startswith("/static/") and request.path != "/static/service-worker.js":
+            response.headers["Cache-Control"] = (
+                "public, max-age=31536000, immutable"
+                if request.args.get("v")
+                else "public, max-age=300"
+            )
         return response
 
     @app.teardown_request
@@ -157,6 +172,15 @@ def create_app(settings: Settings | None = None) -> Flask:
         initial_latitude = ""
         initial_longitude = ""
         initial_accuracy_m = ""
+        canonical_query = {"lang": lang}
+        if query:
+            canonical_query["q"] = query
+        elif latitude is not None and longitude is not None:
+            canonical_query["lat"] = f"{latitude:.5f}"
+            canonical_query["lon"] = f"{longitude:.5f}"
+            if accuracy_m is not None:
+                canonical_query["accuracy_m"] = f"{accuracy_m:g}"
+        canonical_url = absolute_public_url(settings, "/", canonical_query)
 
         if query:
             with current_timer().step("index.search"):
@@ -210,12 +234,68 @@ def create_app(settings: Settings | None = None) -> Flask:
                 default_map_payload=default_map,
                 result_context=search_context,
                 settings=settings,
+                page_description=t(lang, "page_description"),
+                canonical_url=canonical_url,
+                social_title=t(lang, "app_title"),
+                social_description=t(lang, "page_description"),
             )
 
     @app.get("/about")
     def about():
         lang = choose_language(request.args.get("lang"))
-        return render_template("about.html", lang=lang, settings=settings)
+        return render_template(
+            "about.html",
+            lang=lang,
+            settings=settings,
+            page_description=t(lang, "about_description"),
+            canonical_url=absolute_public_url(settings, "/about", {"lang": lang}),
+            social_title=t(lang, "about_title"),
+            social_description=t(lang, "about_description"),
+        )
+
+    @app.get("/robots.txt")
+    def robots_txt():
+        body = "\n".join(
+            [
+                "User-agent: *",
+                "Allow: /",
+                "Disallow: /debug/",
+                "Disallow: /internal/",
+                "Disallow: /collect",
+                "Disallow: /cron/",
+                f"Sitemap: {absolute_public_url(settings, '/sitemap.xml')}",
+                "",
+            ]
+        )
+        return Response(
+            body,
+            mimetype="text/plain",
+            headers={"Cache-Control": "public, max-age=3600"},
+        )
+
+    @app.get("/sitemap.xml")
+    def sitemap_xml():
+        urls = [
+            absolute_public_url(settings, "/", {"lang": "fr"}),
+            absolute_public_url(settings, "/", {"lang": "en"}),
+            absolute_public_url(settings, "/about", {"lang": "fr"}),
+            absolute_public_url(settings, "/about", {"lang": "en"}),
+        ]
+        items = "\n".join(
+            f"  <url><loc>{public_url}</loc><changefreq>daily</changefreq></url>"
+            for public_url in urls
+        )
+        body = (
+            '<?xml version="1.0" encoding="UTF-8"?>\n'
+            '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+            f"{items}\n"
+            "</urlset>\n"
+        )
+        return Response(
+            body,
+            mimetype="application/xml",
+            headers={"Cache-Control": "public, max-age=3600"},
+        )
 
     @app.get("/healthz")
     def healthz():

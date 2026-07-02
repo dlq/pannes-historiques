@@ -20,6 +20,87 @@ def test_index_includes_pwa_metadata(app_client):
     assert 'href="/static/app-icon-180.png"' in html
 
 
+def test_index_includes_web_quality_metadata_and_no_tailwind_cdn(app_client):
+    response = app_client.get("/?lang=en")
+    html = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert '<meta name="description"' in html
+    assert (
+        'content="Search current, planned, and archived Hydro-Quebec outage evidence for Quebec addresses."'
+        in html
+    )
+    assert '<link rel="canonical" href="https://pannes.ca/?lang=en">' in html
+    assert '<meta property="og:title" content="Outage History">' in html
+    assert '<meta property="og:url" content="https://pannes.ca/?lang=en">' in html
+    assert '<meta name="twitter:card" content="summary">' in html
+    assert "cdn.tailwindcss.com" not in html
+
+
+def test_search_index_canonical_metadata_preserves_query(app_client):
+    response = app_client.get("/?lang=en&q=5220%20Rue%20Jeanne-Mance")
+    html = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert (
+        '<link rel="canonical" href="https://pannes.ca/?lang=en&amp;q=5220+Rue+Jeanne-Mance">'
+    ) in html
+    assert (
+        '<meta property="og:url" content="https://pannes.ca/?lang=en&amp;q=5220+Rue+Jeanne-Mance">'
+    ) in html
+
+
+def test_about_page_includes_web_quality_metadata(app_client):
+    response = app_client.get("/about?lang=en")
+    html = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert '<meta name="description"' in html
+    assert (
+        'content="Learn what Pannes Historiques archives, where the outage evidence comes from, and what its limits are."'
+        in html
+    )
+    assert '<link rel="canonical" href="https://pannes.ca/about?lang=en">' in html
+    assert '<meta property="og:title" content="About Outage History">' in html
+    assert '<meta name="twitter:card" content="summary">' in html
+
+
+def test_robots_txt_points_to_sitemap(app_client):
+    response = app_client.get("/robots.txt")
+    body = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert response.mimetype == "text/plain"
+    assert "User-agent: *" in body
+    assert "Allow: /" in body
+    assert "Disallow: /debug/" in body
+    assert "Sitemap: https://pannes.ca/sitemap.xml" in body
+    assert response.headers["Cache-Control"] == "public, max-age=3600"
+
+
+def test_sitemap_xml_lists_public_pages(app_client):
+    response = app_client.get("/sitemap.xml")
+    body = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert response.mimetype == "application/xml"
+    assert "<loc>https://pannes.ca/?lang=fr</loc>" in body
+    assert "<loc>https://pannes.ca/?lang=en</loc>" in body
+    assert "<loc>https://pannes.ca/about?lang=fr</loc>" in body
+    assert "<loc>https://pannes.ca/about?lang=en</loc>" in body
+    assert response.headers["Cache-Control"] == "public, max-age=3600"
+
+
+def test_static_assets_have_version_aware_cache_headers(app_client):
+    versioned_response = app_client.get("/static/app.css?v=test-version")
+    unversioned_response = app_client.get("/static/app.css")
+
+    assert versioned_response.status_code == 200
+    assert versioned_response.headers["Cache-Control"] == "public, max-age=31536000, immutable"
+    assert unversioned_response.status_code == 200
+    assert unversioned_response.headers["Cache-Control"] == "public, max-age=300"
+
+
 def test_index_links_to_about_page(app_client):
     response = app_client.get("/?lang=en")
     html = response.get_data(as_text=True)
@@ -72,7 +153,7 @@ def test_service_worker_route_has_root_scope(app_client):
     assert response.status_code == 200
     assert response.headers["Service-Worker-Allowed"] == "/"
     assert response.headers["Cache-Control"] == "no-cache"
-    assert b"pannes-historiques-v0.3.0-architecture-transition" in response.data
+    assert b"pannes-historiques-v0.3.1-web-quality-foundation" in response.data
     assert b"/static/app-icon-180.png" in response.data
     assert b"/static/icons.svg" in response.data
     assert b"/static/map-layers.js" in response.data

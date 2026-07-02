@@ -23,6 +23,7 @@ class Settings:
         "APP_REPO_URL",
         "https://github.com/dlq/pannes-historiques",
     )
+    public_base_url: str = os.environ.get("APP_PUBLIC_BASE_URL", "https://pannes.ca")
     host: str = os.environ.get("APP_HOST", "127.0.0.1")
     port: int = int(os.environ.get("APP_PORT", "8000"))
     base_dir: Path = BASE_DIR

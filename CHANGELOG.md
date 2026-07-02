@@ -6,8 +6,17 @@ Keep active execution state in `PLANS.md` and source/evidence research in `NOTES
 
 ## [Unreleased]
 
+### Added
+
+- Added canonical URL, description, Open Graph, and Twitter summary metadata for the map and About pages.
+- Added public `robots.txt` and `sitemap.xml` routes for discovery.
+
 ### Changed
 
+- Bumped package metadata to `0.3.1`.
+- Replaced the Tailwind CDN script with local CSS coverage for the utility classes currently used by the templates.
+- Added version-aware static asset cache headers: immutable for `?v=` assets and short-lived caching for unversioned static assets.
+- Updated the service-worker marker to `pannes-historiques-v0.3.1-web-quality-foundation`.
 - Refined operational and archive map-focus behavior so current/planned/previous rows recenter and highlight the map without opening the DAI detail panel.
 - Made latest archive summary rows compact, focusable map rows and removed the older summary-window/largest rows from the default archive summary display.
 

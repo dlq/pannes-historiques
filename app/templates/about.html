@@ -6,7 +6,19 @@
           content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="#223654">
     <meta name="application-name" content="{{ t(lang, 'brand_title') }}">
+    <meta name="description" content="{{ page_description }}">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="{{ t(lang, 'brand_title') }}">
+    <meta property="og:title" content="{{ social_title }}">
+    <meta property="og:description" content="{{ social_description }}">
+    <meta property="og:url" content="{{ canonical_url }}">
+    <meta property="og:image"
+          content="{{ url_for('static', filename='app-icon-512.png', _external=True) }}">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="{{ social_title }}">
+    <meta name="twitter:description" content="{{ social_description }}">
     <title>{{ t(lang, "about_title") }}</title>
+    <link rel="canonical" href="{{ canonical_url }}">
     <link rel="icon"
           type="image/svg+xml"
           href="{{ url_for('static', filename='favicon.svg') }}">

@@ -9,6 +9,7 @@ STRINGS: dict[str, dict[str, str]] = {
     "fr": {
         "brand_title": "Pannes Historiques",
         "app_title": "Historique des pannes Hydro-Québec",
+        "page_description": "Recherchez les pannes actuelles, planifiées et archivées de Hydro-Québec pour les adresses du Québec.",
         "app_subtitle": "Prototype de recherche des pannes Hydro-Québec",
         "hero_title": "Commencez par une adresse précise au Québec",
         "hero_body": "Recherchez une adresse pour voir les pannes connues, les interruptions planifiées à proximité et les données publiées par accès à l'information.",
@@ -149,6 +150,7 @@ STRINGS: dict[str, dict[str, str]] = {
         "footer_source": "Code source",
         "about_link": "À propos",
         "about_title": "À propos de Pannes Historiques",
+        "about_description": "Découvrez ce que Pannes Historiques archive, d'où viennent les données de panne et quelles sont ses limites.",
         "about_intro": "Pannes Historiques est un prototype de recherche qui conserve des observations publiques des pannes Hydro-Québec afin d'aider à comprendre les interruptions dans le temps et dans l'espace.",
         "about_sources_title": "Sources de données",
         "about_sources_body": "L'application utilise les flux publics Info-pannes de Hydro-Québec pour les pannes actuelles, les interruptions planifiées, les marqueurs et les polygones. Elle ajoute aussi des documents publiés par accès à l'information quand ils sont disponibles.",
@@ -209,6 +211,7 @@ STRINGS: dict[str, dict[str, str]] = {
     "en": {
         "brand_title": "Outage History",
         "app_title": "Outage History",
+        "page_description": "Search current, planned, and archived Hydro-Quebec outage evidence for Quebec addresses.",
         "app_subtitle": "Hydro-Quebec outage lookup prototype",
         "hero_title": "Start from a specific Quebec address",
         "hero_body": "Search an address to see known outages, nearby planned interruptions, and published access-to-information data for that area.",
@@ -349,6 +352,7 @@ STRINGS: dict[str, dict[str, str]] = {
         "footer_source": "Source code",
         "about_link": "About",
         "about_title": "About Outage History",
+        "about_description": "Learn what Pannes Historiques archives, where the outage evidence comes from, and what its limits are.",
         "about_intro": "Outage History is a research prototype that preserves public Hydro-Quebec outage observations to help understand interruptions across time and place.",
         "about_sources_title": "Data sources",
         "about_sources_body": "The app uses Hydro-Quebec's public Info-pannes feeds for current outages, planned interruptions, markers, and polygons. It also adds published access-to-information documents when they are available.",

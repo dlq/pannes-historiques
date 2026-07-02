@@ -59,9 +59,11 @@ Production is currently served at `pannes.ca` with Cloudflare Workers + Containe
 
 Current deployment status:
 
-- Deployed release: `v0.3.0` plus production patch `b85599b`
-- Public service-worker marker for this release: `pannes-historiques-v0.3.0-architecture-transition`
+- Current code version: `0.3.1`
+- Latest deployed release: `v0.3.0` plus production patch `b85599b`
+- Public service-worker marker for the `0.3.1` code path: `pannes-historiques-v0.3.1-web-quality-foundation`
 - Public smoke check on 2026-06-29: `/healthz`, `/`, `/search-map`, and current/previous/planned map layers returned `200`
+- The `0.3.1` code path adds web-quality fundamentals: local CSS utility coverage instead of the Tailwind CDN script, canonical/social metadata, `robots.txt`, `sitemap.xml`, version-aware static caching, and a refreshed service-worker marker.
 - Production includes the local stability answer card, outage-location favicon/app icon, explicit Show/Hide layer controls, municipal archive materialization, archive map-focus row refinements, and the container runtime authentication fix.
 
 ```bash
