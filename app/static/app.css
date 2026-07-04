@@ -2257,7 +2257,7 @@ textarea {
   .ph-results-panel:has(.ph-search-context-list) .ph-local-answer-card {
     gap: 0.125rem;
     border-radius: 0.4375rem;
-    padding: 0.5rem 0.625rem;
+    padding: 0.4375rem 0.625rem;
   }
 
   .ph-results-panel:has(.ph-search-context-list) .ph-local-answer-title {
