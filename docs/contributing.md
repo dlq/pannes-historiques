@@ -53,6 +53,12 @@ Full local pre-commit check:
 uv run pre-commit run --all-files
 ```
 
+Module-boundary check:
+
+```bash
+uv run python scripts/check_module_boundaries.py
+```
+
 Deployment validation, without deploying:
 
 ```bash
@@ -67,3 +73,5 @@ npx wrangler deploy --dry-run
 - D1/R2 ingestion or scheduled work: start in `src/worker.js`, then consider extracting a focused module if the change grows.
 - Municipal archive geometry: start in `src/municipal-archive.js`; maintenance scripts should reuse these helpers.
 - Production evidence: summarize in `NOTES.md` or `PLANS.md`; keep raw screenshots and JSON under ignored `output/`.
+
+Keep production runtime dependencies one-way. Flask code under `app/` should not import Worker, script, or test modules; browser modules under `app/static/` should stay within the browser module tree; Worker modules under `src/` should stay within the Worker module tree. If a helper needs to cross one of those boundaries, extract a smaller shared module deliberately and update `docs/architecture.md` plus the boundary checker in the same patch.

@@ -20,6 +20,17 @@ Pannes Historiques is a Flask application deployed behind a Cloudflare Worker an
 - `src/municipal-archive.js` owns pure municipal geometry helpers shared by Worker code and maintenance scripts.
 - `scripts/maintenance/` owns one-off or operator-driven maintenance scripts.
 
+## Enforced Module Boundaries
+
+`uv run python scripts/check_module_boundaries.py` enforces the core runtime boundaries:
+
+- Python runtime modules under `app/` must not import from `scripts/`, `src/`, or `tests/`.
+- Browser modules under `app/static/` may only use relative imports that stay inside `app/static/`.
+- Worker modules under `src/` may only use relative imports that stay inside `src/`; package imports remain allowed.
+- Tests and maintenance scripts may depend on production modules, but production modules must not depend back on tests or scripts.
+
+The checker runs in pre-commit and has focused regression coverage in `tests/test_module_boundaries.py`.
+
 ## Data Stores
 
 - D1 stores normalized feed versions, current outage rows, planned interruption rows, resolved previous-outage rows, disclosure metadata, municipal archive bins, and geometry metadata.

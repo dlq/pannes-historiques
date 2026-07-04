@@ -1,7 +1,7 @@
 # Plan: Hydro-Québec Outage History App
 
 Date: 2026-04-25
-Last updated: 2026-07-02
+Last updated: 2026-07-04
 
 This file is the active execution plan. Keep durable evidence, source notes, and long historical reasoning in `NOTES.md`; keep completed release and implementation history in `CHANGELOG.md`; keep completed detail here only when it affects current decisions.
 
@@ -24,6 +24,32 @@ This file is the active execution plan. Keep durable evidence, source notes, and
 - Current operational follow-ups from 2026-06-20 health sweep: remove or expire stale `ingestion_runs` rows stuck in `running`; group/de-duplicate the Archive "latest" summary rows by territory before display; monitor D1 growth after the database reached roughly 935 MB; keep archive/count aggregations on materialized summaries rather than live full-table scans; continue moving user search paths away from the container where practical; and make the trusted container-runtime Worker host configurable instead of hardcoding the current `dalaque.workers.dev` value.
 - Current test baseline: Python tests, deterministic service/geocoding/parser tests, route smoke coverage, Playwright desktop/mobile Chromium coverage, and production-shaped UI regression fixtures.
 - Previous-outage accumulation is working in D1. On 2026-06-30 production had `18,236` resolved outage events and `146,109` folded outage sightings; all resolved outage events had centroids. Geographic archive bins were current through `bispoly:20260630193015:30`, but archive-bin completeness still needs a cleanup/audit pass.
+- Public-announcement target: aim for a soft `r/quebec` beta announcement soon-ish, after a narrow readiness pass confirms production reliability, user-facing data caveats, and address/geolocation privacy language.
+
+## Near-Term Public Announcement Readiness
+
+Goal: make `pannes.ca` credible to share publicly with `r/quebec` as a beta public-interest prototype without overstating data completeness or creating avoidable operational/privacy risk.
+
+Current assessment:
+
+- Traffic is not the blocker. Cloudflare request analytics in early July 2026 showed modest real usage mixed with scanner/bot noise, including a July 3 spike dominated by automated requests.
+- The site is close enough for a soft announcement, but should not be posted as a definitive outage-history service.
+- The launch framing should be humble and explicit: observed/retained outage evidence, current/planned Hydro-Québec feed context, published disclosure material where available, and clear limits.
+
+Pre-announcement checklist:
+
+1. Triage recent production `500` responses by route, user-agent, and country; fix user-facing causes or document why they are scanner-only/noise.
+2. Add or sharpen public data-limit copy so users cannot miss that previous-outage results are retained observations, not complete official Hydro-Québec address history.
+3. Add a minimal privacy/geolocation statement before posting publicly: address searches, browser geolocation, server logs, local storage/service worker cache, cookies if any, and contact route.
+4. Re-run production QA on desktop and mobile for homepage, representative searches in several Quebec regions, current-location flow, language switching, layer toggles, console errors, and map/search regressions.
+5. Confirm private/debug/collection/internal endpoints still return non-public responses and obvious scanner probes stay cheap.
+6. Check subreddit rules/sidebar while logged in before posting, especially self-promotion and source/format expectations.
+7. Draft the announcement as a beta feedback request, not a product launch or official Hydro-Québec replacement.
+
+Near-term scope decision:
+
+- Pull the minimal privacy/data-caveat work forward from `0.4.x` if it is needed for the `r/quebec` announcement.
+- Keep deeper public API, notification, structured-data, and machine-readable readiness work in the existing `0.3.x`/`0.4.x` roadmap unless the announcement uncovers a concrete need.
 
 ## Cost Containment Plan
 

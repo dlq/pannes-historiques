@@ -15,6 +15,13 @@ repos:
         pass_filenames: false
         files: \.py$
 
+      - id: module-boundaries
+        name: module boundaries
+        entry: uv run python scripts/check_module_boundaries.py
+        language: system
+        pass_filenames: false
+        files: ^(app|src|scripts/check_module_boundaries\.py|tests/test_module_boundaries\.py)
+
       - id: djlint-format
         name: djlint format
         entry: uv run djlint app/templates --reformat
