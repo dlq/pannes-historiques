@@ -11,6 +11,7 @@
 {% set previous_heading_key = "previous_seen_before_here_heading" if previous_mode == "seen_before_here" else "previous_recent_archive_heading" %}
 {% set previous_empty_key = "previous_outages_empty" if previous_mode == "seen_before_here" else "previous_recent_archive_empty" %}
 {% set previous_local_summary = context_payload.previousLocalSummary if context_payload.previousLocalSummary is defined else none %}
+{% set previous_scope_text = (t(lang, "previous_scope_label") ~ " · " ~ (previous_radius_km | int) ~ " km") if previous_mode == "seen_before_here" and previous_radius_km else none %}
 {% set disclosures = context_payload.matches | selectattr("kind", "equalto", "disclosure") | list %}
 {% set regional_context = context_payload.matches | selectattr("kind", "equalto", "regional_metric") | list %}
 {% set published_context = disclosures + regional_context %}
@@ -53,6 +54,12 @@
           type="button"
           aria-label="{{ t(lang, 'layer_info_open') }} {{ label_text }}"
           data-layer-info="{{ layer }}">{{ ph_icon('help', 'ph-toggle-icon') }}</button>
+{%- endmacro %}
+{% macro section_heading(label_text, scope_text=none) -%}
+  <div class="ph-context-heading-stack">
+    <h3 class="text-sm font-semibold leading-tight text-[#223654]">{{ label_text }}</h3>
+    {% if scope_text %}<span class="ph-layer-scope-pill">{{ scope_text }}</span>{% endif %}
+  </div>
 {%- endmacro %}
 {% macro local_answer_card(summary) -%}
   {% if summary %}
@@ -114,7 +121,7 @@
            aria-label="{{ t(lang, 'current_outages') }}"
            {% if previous_mode != "seen_before_here" %}open{% endif %}>
     <summary class="ph-context-section-summary">
-      <h3 class="text-sm font-semibold leading-tight text-[#223654]">{{ t(lang, "current_layer_heading") }}</h3>
+      {{ section_heading(t(lang, "current_layer_heading") ) }}
       {{ layer_count(current_outages | length, "map", t(lang, "areas") ) }}
       {{ layer_info_button("current", t(lang, "current_layer_heading") ) }}
       <span class="ph-layer-toggle-spacer" aria-hidden="true"></span>
@@ -156,7 +163,7 @@
            data-layer-state="{{ 'on' if 'planned' in loaded_layers else 'off' }}"
            aria-label="{{ t(lang, 'planned_panel') }}">
     <summary class="ph-context-section-summary">
-      <h3 class="text-sm font-semibold leading-tight text-[#223654]">{{ t(lang, "planned_layer_heading") }}</h3>
+      {{ section_heading(t(lang, "planned_layer_heading") ) }}
       {% if 'planned' in loaded_layers %}
         {{ layer_count(planned_outages | length, "calendar", t(lang, "rows") ) }}
       {% else %}
@@ -213,10 +220,7 @@
            aria-label="{{ t(lang, 'previous_outages_legend') }}"
            {% if previous_mode == "seen_before_here" %}open{% endif %}>
     <summary class="ph-context-section-summary">
-      <h3 class="text-sm font-semibold leading-tight text-[#223654]">{{ t(lang, previous_heading_key) }}</h3>
-      {% if previous_mode == "seen_before_here" and previous_radius_km %}
-        <span class="ph-layer-scope-pill">{{ t(lang, "previous_scope_label") }} · {{ previous_radius_km | int }} km</span>
-      {% endif %}
+      {{ section_heading(t(lang, previous_heading_key) , previous_scope_text) }}
       {% if 'previous' in loaded_layers %}
         {% if previous_mode != "recent_archive" %}
           {{ layer_count(previous_sidebar_outages | length, "archive", t(lang, "rows") ) }}
@@ -275,7 +279,7 @@
            data-layer-state="{{ 'on' if 'published' in loaded_layers else 'off' }}"
            aria-label="{{ t(lang, 'disclosure') }}">
     <summary class="ph-context-section-summary">
-      <h3 class="text-sm font-semibold leading-tight text-[#223654]">{{ t(lang, "disclosure") }}</h3>
+      {{ section_heading(t(lang, "disclosure") ) }}
       {% if 'published' in loaded_layers %}
         {{ layer_count(published_context | length, "file-search", t(lang, "rows") ) }}
       {% else %}

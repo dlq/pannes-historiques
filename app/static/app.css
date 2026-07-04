@@ -788,6 +788,17 @@ textarea {
   list-style: none;
 }
 
+.ph-context-heading-stack {
+  display: grid;
+  min-width: 0;
+  gap: 0.1875rem;
+  margin-right: auto;
+}
+
+.ph-context-heading-stack h3 {
+  min-width: 0;
+}
+
 .ph-layer-toggle,
 .ph-layer-info-button,
 .ph-layer-toggle-spacer {
@@ -2135,16 +2146,16 @@ textarea {
     bottom: calc(0.75rem + var(--ph-safe-bottom));
     display: flex;
     max-height: none;
-    height: var(--ph-mobile-panel-height, min(42dvh, 22rem));
+    height: var(--ph-mobile-panel-height, min(48dvh, 24rem));
     min-height: 12rem;
     overflow: hidden;
     flex-direction: column;
-    background: rgba(255, 255, 255, 0.74);
+    background: rgba(255, 255, 255, 0.9);
     backdrop-filter: blur(3px);
   }
 
   .ph-results-panel:has(.ph-search-context-list) {
-    height: var(--ph-mobile-panel-height, min(52dvh, 28rem));
+    height: var(--ph-mobile-panel-height, min(68dvh, 36rem));
   }
 
   .ph-app.ph-has-results .ph-results-panel:not(:has(.ph-map-context-list)) {
@@ -2153,13 +2164,13 @@ textarea {
   }
 
   .leaflet-bottom {
-    bottom: calc(var(--ph-mobile-panel-height, min(42dvh, 22rem)) + 1rem + var(--ph-safe-bottom));
+    bottom: calc(var(--ph-mobile-panel-height, min(48dvh, 24rem)) + 1rem + var(--ph-safe-bottom));
   }
 
   .ph-panel-drawer-handle {
     display: grid;
     flex: 0 0 auto;
-    height: 1.25rem;
+    height: 1.5rem;
     cursor: ns-resize;
     touch-action: none;
     place-items: center;
@@ -2182,6 +2193,36 @@ textarea {
     min-height: 0;
     overflow-y: auto;
     scroll-padding-top: 0.5rem;
+  }
+
+  .ph-results-panel:has(.ph-search-context-list) .ph-result-sections {
+    gap: 0.375rem;
+    padding: 0.375rem 0.5rem 0.5rem;
+  }
+
+  .ph-results-panel:has(.ph-search-context-list) .ph-local-answer-card {
+    order: 0;
+  }
+
+  .ph-results-panel:has(.ph-search-context-list) #ph-context-previous {
+    order: 1;
+  }
+
+  .ph-results-panel:has(.ph-search-context-list) #ph-context-previous[open] {
+    flex: 0 0 min(22rem, calc(100% - 5.75rem));
+    min-height: 17rem;
+  }
+
+  .ph-results-panel:has(.ph-search-context-list) #ph-context-current {
+    order: 2;
+  }
+
+  .ph-results-panel:has(.ph-search-context-list) #ph-context-planned {
+    order: 3;
+  }
+
+  .ph-results-panel:has(.ph-search-context-list) #ph-context-disclosure {
+    order: 4;
   }
 
   .ph-results-panel:has(.ph-map-context-list) .ph-context-section {
@@ -2211,6 +2252,74 @@ textarea {
     min-height: 0;
     max-height: none;
     overflow-y: auto;
+  }
+
+  .ph-results-panel:has(.ph-search-context-list) .ph-local-answer-card {
+    gap: 0.125rem;
+    border-radius: 0.4375rem;
+    padding: 0.5rem 0.625rem;
+  }
+
+  .ph-results-panel:has(.ph-search-context-list) .ph-local-answer-title {
+    font-size: 0.625rem;
+    letter-spacing: 0.1em;
+  }
+
+  .ph-results-panel:has(.ph-search-context-list) .ph-local-answer-body {
+    font-size: 0.75rem;
+    line-height: 1.25;
+  }
+
+  .ph-results-panel:has(.ph-search-context-list) .ph-local-answer-meta {
+    display: none;
+  }
+
+  .ph-results-panel:has(.ph-map-context-list) .ph-context-section-summary {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto auto;
+    gap: 0.1875rem 0.375rem;
+    min-height: 2rem;
+    align-items: center;
+  }
+
+  .ph-results-panel:has(.ph-map-context-list) .ph-context-heading-stack {
+    gap: 0.125rem;
+    margin-right: 0;
+  }
+
+  .ph-results-panel:has(.ph-map-context-list) .ph-context-heading-stack h3 {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .ph-results-panel:has(.ph-map-context-list) .ph-layer-scope-pill {
+    width: fit-content;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .ph-results-panel:has(.ph-map-context-list) .ph-layer-count {
+    min-width: 2.25rem;
+  }
+
+  .ph-results-panel:has(.ph-map-context-list) .ph-layer-toggle,
+  .ph-results-panel:has(.ph-map-context-list) .ph-layer-toggle-spacer {
+    width: 1.75rem;
+  }
+
+  .ph-results-panel:has(.ph-map-context-list) .ph-layer-toggle-label {
+    display: none;
+  }
+
+  .ph-results-panel:has(.ph-search-context-list) .ph-context-column-labels {
+    display: none;
+  }
+
+  .ph-results-panel:has(.ph-search-context-list) .ph-context-row,
+  .ph-results-panel:has(.ph-search-context-list) .ph-context-summary-row {
+    min-height: 2.625rem;
+    padding-block: 0.375rem;
   }
 
   .ph-results-panel.is-expanded:has(.ph-map-context-list) .ph-result-sections {

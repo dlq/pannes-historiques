@@ -225,6 +225,7 @@ export function attachMobilePanelDrawer() {
   if (!panel) return;
 
   let handle = panel.querySelector(".ph-panel-drawer-handle");
+  const createdHandle = !handle;
   if (!handle) {
     handle = document.createElement("button");
     handle.type = "button";
@@ -259,10 +260,15 @@ export function attachMobilePanelDrawer() {
     );
   };
 
+  const mobilePanelDefaultHeight = () => {
+    const hasSearchContext = !!panel.querySelector(".ph-search-context-list");
+    return window.innerHeight * (hasSearchContext ? 0.68 : 0.48);
+  };
+
   const clampHeight = (value) => {
     const min = mobilePanelMinHeight();
     const topbar = document.querySelector(".ph-topbar")?.getBoundingClientRect().height || 100;
-    const visibleMapBand = Math.max(144, window.innerHeight * 0.22);
+    const visibleMapBand = Math.max(104, window.innerHeight * 0.14);
     const max = Math.max(min, window.innerHeight - topbar - visibleMapBand);
     return Math.min(Math.max(value, min), max);
   };
@@ -312,11 +318,18 @@ export function attachMobilePanelDrawer() {
     }
     const current = panel.getBoundingClientRect().height;
     const target =
-      current < window.innerHeight * 0.48 ? window.innerHeight * 0.62 : window.innerHeight * 0.36;
+      current < window.innerHeight * 0.56 ? window.innerHeight * 0.76 : window.innerHeight * 0.44;
     const nextHeight = clampHeight(target);
     document.documentElement.style.setProperty("--ph-mobile-panel-height", `${nextHeight}px`);
     syncDrawerState(nextHeight);
   });
+
+  if (createdHandle && window.matchMedia("(max-width: 767px)").matches) {
+    const nextHeight = clampHeight(mobilePanelDefaultHeight());
+    document.documentElement.style.setProperty("--ph-mobile-panel-height", `${nextHeight}px`);
+    syncDrawerState(nextHeight);
+    return;
+  }
 
   syncDrawerState(panel.getBoundingClientRect().height);
 }
@@ -424,7 +437,8 @@ export function attachLocationSearch() {
           if (window.htmx) window.htmx.process(results);
           attachMapFocusCards();
           if (input) {
-            input.value = `${currentLocationPrefix} (${position.coords.latitude.toFixed(5)}, ${position.coords.longitude.toFixed(5)})`;
+            input.value = currentLocationPrefix;
+            input.title = `${position.coords.latitude.toFixed(5)}, ${position.coords.longitude.toFixed(5)}`;
             searchForm
               ?.querySelector('[name="latitude"]')
               ?.setAttribute("value", String(position.coords.latitude));
