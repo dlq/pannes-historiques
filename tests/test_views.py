@@ -113,11 +113,13 @@ def test_result_context_summarizes_local_previous_evidence_for_address():
 
     assert context["map_payload"]["previousLocalSummary"] == {
         "title": "Local stability evidence",
-        "body": (
-            "Retained nearby outage records: 2 within 5 km. Higher counts mean the "
-            "local archive has seen more interruptions nearby."
-        ),
+        "body": "2 retained outages within 5 km. More rows mean more interruptions observed near here.",
         "meta": "All retained records within 5 km shown",
+        "caveat": "This is not an official complete Hydro-Quebec address history.",
+        "source": "Source: retained captures of the public Hydro-Quebec feed.",
+        "latestLabel": "Most recent: 2026-02-01",
+        "nearestLabel": "Nearest: 0.1 km",
+        "bandLabel": "0-1 km: 2 · 1-3 km: 0 · 3-5 km: 0",
         "count": 2,
         "limit": 24,
         "radiusKm": "5",

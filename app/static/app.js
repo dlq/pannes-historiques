@@ -2,6 +2,7 @@ import { DaiDetailPanel } from "./detail-panels.js?v=20260613modules";
 import { OutageMap } from "./outage-map.js?v=20260613modules";
 import {
   attachAddressAutocomplete,
+  attachComparisonTray,
   attachLocationSearch,
   attachMapFocusCards,
   attachSearchRouting,
@@ -26,6 +27,7 @@ if (!customElements.get("outage-map")) {
 function bindPageInteractions() {
   syncLanguageForm();
   attachAddressAutocomplete();
+  attachComparisonTray();
   attachLocationSearch();
   attachSearchRouting();
   attachMapFocusCards();

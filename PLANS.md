@@ -1,7 +1,7 @@
 # Plan: Hydro-Québec Outage History App
 
 Date: 2026-04-25
-Last updated: 2026-07-04
+Last updated: 2026-07-05
 
 This file is the active execution plan. Keep durable evidence, source notes, and long historical reasoning in `NOTES.md`; keep completed release and implementation history in `CHANGELOG.md`; keep completed detail here only when it affects current decisions.
 
@@ -10,7 +10,7 @@ This file is the active execution plan. Keep durable evidence, source notes, and
 - Current deployed release: `v0.3.1` frontend/web-quality foundation.
 - Current production deployment: Worker version `6c95e2bf-9f6a-4bb1-a32a-74fb5526d8fa`; container image `pannes-historiques-pannescontainer:6c95e2bf`.
 - Current release in progress: none; next release slice is `v0.3.2` public-read architecture unless production observations require a narrower hotfix first.
-- Current frontend state: the `codex/frontend-stability-summary` slice is deployed and merged, and `b85599b` refines the map-focus behavior. Address/local previous-outage evidence remains the default address-search section, optional layer controls use explicit Show/Hide actions, shared-geometry rows highlight together, latest archive rows are compact/focusable map rows, and operational row selection recenters/highlights the map without opening the DAI detail panel.
+- Current frontend state: the `codex/frontend-stability-summary` slice is deployed and merged, and `b85599b` refines the map-focus behavior. Address/local previous-outage evidence remains the default address-search section, optional layer controls use explicit Show/Hide actions, shared-geometry rows highlight together, latest archive rows are compact/focusable map rows, and operational row selection recenters/highlights the map without opening the DAI detail panel. Current unreleased local code further improves mobile address-search usability with a richer local answer card, Current/Planned nearby summaries, compact zero-history states, and a browser-local comparison tray.
 - Current product shape: map-first address/current-location lookup with server-rendered Flask/Jinja fragments, HTMX, Leaflet, decomposed vanilla JavaScript ES modules, icon-backed sidebar/detail rows, local previous-outage evidence, municipal archive bins, and a Cloudflare Workers + Containers production deployment.
 - Production data plane: D1/R2-backed durable ingestion for current feed rows, previous-outage rows, raw Hydro-Québec payloads, disclosure metadata, and runtime map-context layers.
 - Container role: still renders the Flask/Jinja shell and keeps a baked-in SQLite snapshot for local-compatible/container fallback paths.
@@ -338,6 +338,11 @@ Before handing off code changes:
 
 ## Current Risks And Open Questions
 
+- Mobile user-story verification still needs a focused follow-up after the July 5 local-answer/mobile-sheet work. Proven locally on a 390px viewport: typed-address comparison, local previous-history answer, Current/Planned local-vs-Quebec summaries, zero-history explanation, no horizontal overflow, and the comparison tray. Still to prove:
+  - Story 7 current-location flow on a real or simulated phone: confirm the browser geolocation path, address/coordinate confirmation, and first visible answer state.
+  - Story 8 researcher/source-detail flow: inspect previous/archive/disclosure detail panels on mobile, including source links, selected-row-to-map feedback, and dense-source readability.
+  - Story 9 returning-user freshness flow: add or expose feed freshness/latest-capture metadata clearly enough that a saved URL tells users whether the evidence changed.
+  - Story 10 accessibility-first flow: run a practical keyboard/screen-reader pass for mobile and desktop, including focus order, live-region/status updates, Show/Hide state wording, and detail-panel announcements.
 - Runtime/ops cleanup: D1 still has one stale `ingestion_runs` record from `2026-06-19T15:37:19Z` marked `running` despite later successful scheduled runs; add a timeout/cleanup path so abandoned runs do not confuse health checks.
 - Archive summary correctness: the main municipal archive territory list is grouped, but the "latest" archive summary can repeat the same territory/time when several outage polygons map to the same territory; group these latest rows by territory/time before display.
 - Archive bin completeness: on 2026-06-30 production had `136,575` archived `bispoly` outage polygons, `136,472` polygons with at least one geographic bin, and `136,003` polygons with a primary bin. The latest feed version was properly caught up (`31/31` latest polygons had primary bins and the backfill cursor matched `bispoly:20260630193015:30`), but the full archive still had `103` polygons with no bin and `572` without a primary bin. Add an audit/cleanup path that classifies these as expected boundary/out-of-territory cases versus assignment failures, repairs real misses, and records a cheap completeness metric in the operational status output.

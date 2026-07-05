@@ -143,6 +143,13 @@ export function renderContextRow(item, labels = {}) {
   row.setAttribute("role", "button");
   row.setAttribute("tabindex", "0");
   row.setAttribute("data-map-focus", JSON.stringify(focusPayloadForItem(item)));
+  if (item.kind === "previous_outage") {
+    const parts = formatPreviousTimeParts(item.startTime, labels);
+    row.setAttribute(
+      "aria-label",
+      `${label(labels, "row_label_date", "Date")}: ${parts.date}; ${label(labels, "row_label_time", "Time")}: ${parts.time || label(labels, "unknown", "Unknown")}; ${label(labels, "row_label_customers", "Customers")}: ${item.customersAffected || 0}`,
+    );
+  }
 
   const isPublishedContext = item.kind === "disclosure" || item.kind === "regional_metric";
   const left = document.createElement("div");
@@ -386,6 +393,19 @@ export function previousLocalSummary(payload = {}, labels = {}) {
       ),
       values,
     ),
+    caveat: label(
+      labels,
+      "local_reliability_summary_caveat",
+      "This is not an official complete Hydro-Quebec address history.",
+    ),
+    source: label(
+      labels,
+      "local_reliability_summary_source",
+      "Source: retained captures of the public Hydro-Quebec feed.",
+    ),
+    latestLabel: "",
+    nearestLabel: "",
+    bandLabel: "",
     count,
     limit,
     radiusKm,
@@ -515,6 +535,12 @@ export function attachMapLayerToggles() {
       existing?.remove();
       return;
     }
+    const compareButton = existing?.querySelector("[data-compare-add]");
+    const compareTray = existing?.querySelector("[data-compare-tray]");
+    if (compareButton) {
+      compareButton.dataset.compareCount = String(summary.count ?? 0);
+      compareButton.dataset.compareRadius = summary.radiusKm || "5";
+    }
     const card = existing || document.createElement("section");
     card.className = "ph-local-answer-card";
     card.setAttribute("aria-label", summary.title);
@@ -525,11 +551,91 @@ export function attachMapLayerToggles() {
     const body = document.createElement("p");
     body.className = "ph-local-answer-body";
     body.textContent = summary.body;
+    const facts = document.createElement("div");
+    facts.className = "ph-local-answer-facts";
+    facts.setAttribute("aria-label", label(labels, "summary", "Summary"));
+    for (const value of [summary.latestLabel, summary.nearestLabel, summary.bandLabel]) {
+      if (!value) continue;
+      const item = document.createElement("span");
+      item.textContent = value;
+      facts.append(item);
+    }
+    const caveat = document.createElement("p");
+    caveat.className = "ph-local-answer-caveat";
+    caveat.textContent = summary.caveat || "";
     const meta = document.createElement("p");
     meta.className = "ph-local-answer-meta";
     meta.textContent = summary.meta;
-    card.replaceChildren(title, body, meta);
+    const source = document.createElement("p");
+    source.className = "ph-local-answer-source";
+    source.textContent = summary.source || "";
+    card.replaceChildren(
+      title,
+      body,
+      ...(facts.children.length ? [facts] : []),
+      ...(caveat.textContent ? [caveat] : []),
+      meta,
+      ...(source.textContent ? [source] : []),
+      ...(compareButton ? [compareButton] : []),
+      ...(compareTray ? [compareTray] : []),
+    );
     if (!existing) section.before(card);
+  };
+
+  const setSectionScope = (section, text) => {
+    const heading = section?.querySelector(".ph-context-heading-stack h3");
+    if (!heading) return;
+    section.querySelector(".ph-context-heading-stack .ph-layer-scope-pill")?.remove();
+    if (!text) return;
+    const scope = document.createElement("span");
+    scope.className = "ph-layer-scope-pill";
+    scope.textContent = text;
+    heading.after(scope);
+  };
+
+  const localLayerSummary = (layer, payload = {}, labels = {}) => {
+    const summary = payload.layerSummaries?.[layer];
+    if (summary) return summary;
+    if (!payload.previousRadiusM || !["current", "planned"].includes(layer)) return null;
+    const matches = mapLayerMatchesForPayload(layer, payload.matches || [], payload);
+    const radiusKm = formatRadiusKm(payload.previousRadiusM);
+    const count = matches.filter(
+      (item) => item.distanceM != null && Number(item.distanceM) <= Number(payload.previousRadiusM),
+    ).length;
+    return {
+      count,
+      total: matches.length,
+      radiusKm,
+      header: formatTemplate(
+        label(labels, "local_layer_summary_header", "Near here: {count} within {radius_km} km"),
+        { count, radius_km: radiusKm },
+      ),
+      body: formatTemplate(
+        label(
+          labels,
+          count === 0 ? "local_layer_summary_empty" : "local_layer_summary_body",
+          count === 0 ? "No items found near this address." : "{count} item(s) near this address.",
+        ),
+        { count, radius_km: radiusKm },
+      ),
+      province: formatTemplate(label(labels, "province_layer_summary", "Quebec: {total}"), {
+        total: matches.length,
+      }),
+    };
+  };
+
+  const renderSectionAnswer = (rows, summary) => {
+    if (!rows || !summary) return;
+    rows.querySelector(".ph-section-answer")?.remove();
+    const answer = document.createElement("p");
+    answer.className = "ph-section-answer";
+    answer.append(document.createTextNode(summary.body));
+    if (summary.province) {
+      const province = document.createElement("span");
+      province.textContent = summary.province;
+      answer.append(province);
+    }
+    rows.prepend(answer);
   };
 
   const setPreviousMode = (section, payload, labels) => {
@@ -705,6 +811,10 @@ export function attachMapLayerToggles() {
 
   const renderLayerRows = (section, rows, layer, matches, labels, payload = {}) => {
     setPreviousMode(section, payload, labels);
+    const layerSummary = localLayerSummary(layer, payload, labels);
+    if (layerSummary && ["current", "planned"].includes(layer)) {
+      setSectionScope(section, layerSummary.header);
+    }
     const displayMatches = displayRowsForLayer(layer, matches, payload);
     const rendersArchiveSummary = shouldRenderPreviousArchiveSummary(layer, payload);
     rows.innerHTML = "";
@@ -726,8 +836,15 @@ export function attachMapLayerToggles() {
       hydrateTimeLabels(rows);
       setLayerCount(section, displayMatches.length, layerIconName(layer), layerNoun(layer, labels));
     }
+    if (layerSummary && ["current", "planned"].includes(layer)) {
+      renderSectionAnswer(rows, layerSummary);
+    }
     if (!rendersArchiveSummary && !displayMatches.length) {
-      rows.innerHTML = `<p class="ph-context-empty">${document.documentElement.lang === "fr" ? "Aucune donnée pour cette couche." : "No data for this layer."}</p>`;
+      const previousSummary =
+        layer === "previous" && section.dataset.previousMode === "seen_before_here"
+          ? previousLocalSummary(payload, toggleLabels())
+          : null;
+      rows.innerHTML = `<p class="ph-context-empty">${layerSummary?.body || previousSummary?.body || (document.documentElement.lang === "fr" ? "Aucune donnée pour cette couche." : "No data for this layer.")}</p>`;
     }
     section.dataset.layerLoaded = "true";
     section._layerMatches = matches;

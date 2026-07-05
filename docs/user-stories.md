@@ -4,6 +4,23 @@ Date: 2026-06-17
 
 This file captures practical user stories for focusing the next pannes.ca work. These are not implementation tasks by themselves. They are decision scenarios that should drive UI, copy, data, and test choices.
 
+## Current Implementation Status
+
+As of the July 5 mobile/local-answer slice, the current codebase has:
+
+- a local stability answer card for address searches with count, radius, most recent retained record, nearest retained record, distance-band counts, and source/caveat copy;
+- a mobile sheet that opens address searches with the local answer and `Seen Before Here` before broader layer context;
+- local Current and Planned summary pills that distinguish nearby records within 5 km from Quebec-wide layer counts;
+- a small browser-local comparison tray for comparing retained nearby outage counts across searched addresses;
+- improved zero-history mobile states that explain what `0` means without leaving a large blank panel.
+
+Still not fully proven:
+
+- current-location search on a real or simulated phone;
+- mobile source/detail-panel inspection for researcher workflows;
+- saved-URL freshness/change detection;
+- a practical keyboard/screen-reader pass.
+
 ## Baseline Scenario: Four-Address Reliability Test
 
 Prompt:
@@ -27,7 +44,7 @@ What the app should help answer:
 
 Current product lesson:
 
-- The app is becoming useful for relative stability comparison, but the next slice should make the interpretation more explicit: count, radius, time coverage, comparison baseline, and confidence caveat should be easier to read without manually interpreting rows.
+- The app is now useful for first-pass relative stability comparison on typed addresses, but the next slice should make freshness, archive coverage, source provenance, and confidence caveats more explicit. It should also prove current-location and accessibility flows, not only typed-address screenshots.
 
 ## Story 1: Home Seeker Comparing Neighbourhoods
 
@@ -54,7 +71,7 @@ Success looks like:
 
 Next product gap:
 
-- Add a comparison-friendly local metric and coverage caveat. Avoid declaring an address reliable or unreliable without enough context.
+- Expand the comparison tray into a more durable comparison workflow if users need it, and add clearer archive-window/freshness context. Avoid declaring an address reliable or unreliable without enough context.
 
 ## Story 2: Resident Checking If Power Problems Are Local Today
 
@@ -78,7 +95,7 @@ Success looks like:
 
 Next product gap:
 
-- Add a local current-outage summary separate from province-wide current context.
+- The local-vs-Quebec summary now exists for address searches. Next, add nearest-distance/status wording for Current so a resident can tell whether a row is close enough to matter without opening every row.
 
 ## Story 3: Household Planning Around Scheduled Interruptions
 
@@ -102,7 +119,7 @@ Success looks like:
 
 Next product gap:
 
-- Consider a local planned-work summary, and avoid showing province-wide planned counts as if they answer the address question.
+- The local-vs-Quebec Planned summary now exists for address searches. Next, strengthen row-to-map selection and distance/context cues so nearby planned work is visibly connected to the searched address.
 
 ## Story 4: Repeat-Outage Pattern Finder
 
@@ -126,7 +143,7 @@ Success looks like:
 
 Next product gap:
 
-- Add a compact distribution cue: nearest distance, most recent date, and perhaps a count by distance band.
+- Compact distribution cues now exist in the local answer. Next, add archive-window/freshness metadata and make row-to-map/detail selection more obvious on mobile.
 
 ## Story 5: Regional Context Seeker
 
@@ -150,7 +167,7 @@ Success looks like:
 
 Next product gap:
 
-- Strengthen provenance and scale language: local record, municipal/territory archive, regional disclosure, and province-wide current feed should not blur together.
+- Continue strengthening provenance and scale language in detail panels: local retained feed record, municipal/territory archive bin, regional disclosure, and province-wide current feed should not blur together.
 
 ## Story 6: Skeptical User Checking Trust And Source Limits
 
@@ -174,7 +191,7 @@ Success looks like:
 
 Next product gap:
 
-- Add confidence and coverage language to the top-level local answer, not only to layer help popovers.
+- The top-level local answer now includes a restrained caveat and source language. Next, add explicit archive-window/freshness metadata and validate that source/detail panels remain understandable on mobile.
 
 ## Story 7: Mobile User Standing At A Property
 
@@ -198,7 +215,7 @@ Success looks like:
 
 Next product gap:
 
-- Keep testing long-address clipping, bottom-sheet height, and selected-row/detail behavior on iPhone-sized screens.
+- Typed-address mobile searches now open to the local answer and local history. Still prove current-location search on a real or simulated phone, including permission handling, coordinate/address confirmation, long-address clipping, and selected-row/detail behavior.
 
 ## Story 8: Local Journalist Or Researcher Looking For Examples
 
@@ -221,7 +238,7 @@ Success looks like:
 
 Next product gap:
 
-- Improve detail panels and source links for previous/archive and disclosure evidence.
+- Improve and verify mobile detail panels and source links for previous/archive and disclosure evidence; this was not fully proven in the July 5 mobile pass.
 
 ## Story 9: Returning User Checking Whether Things Changed
 
@@ -274,9 +291,8 @@ Next product gap:
 
 The strongest next slices suggested by these stories are:
 
-1. Local answer confidence and freshness: add archive-window, latest-capture, and restrained confidence language to the local stability card.
-2. Local-vs-province separation: distinguish nearby Current and Planned evidence from province-wide context after an address search.
-3. Comparison-ready local metrics: make four-address comparison easier by keeping the local count, radius, and coverage language consistent across searches.
-4. Map/sidebar connection: improve row, shape, and detail-panel selection feedback so users can see why a listed record matters.
-5. Mobile answer-first review: verify that an iPhone user sees the local answer and not a province-wide list first.
-
+1. Freshness and confidence: add archive-window, latest-capture, feed freshness, and clearer confidence language to the local stability card and Current/Planned summaries.
+2. Current-location proof: verify the current-location path on a phone-sized viewport, including permissions, address/coordinate confirmation, and first visible answer state.
+3. Research/source-detail proof: improve and test mobile detail panels, source links, selected-row-to-map feedback, and dense disclosure/archive readability.
+4. Accessibility proof: run a practical keyboard/screen-reader pass for panel state, Show/Hide wording, row selection, live-region/status updates, and detail-panel announcements.
+5. Comparison workflow refinement: decide whether the local comparison tray should remain a lightweight local-storage helper or become a more explicit multi-address comparison view.

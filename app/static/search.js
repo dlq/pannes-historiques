@@ -111,6 +111,88 @@ export function hydrateTimeLabels(root = document) {
   }
 }
 
+export function attachComparisonTray() {
+  if (document.documentElement.dataset.compareTrayBound === "1") return;
+  document.documentElement.dataset.compareTrayBound = "1";
+  const storageKey = "pannesComparedAddresses";
+  const lang = document.documentElement.lang || "fr";
+  const labels =
+    lang === "fr"
+      ? { empty: "Aucune adresse comparée.", clear: "Effacer", suffix: "dans" }
+      : { empty: "No compared addresses yet.", clear: "Clear", suffix: "within" };
+
+  const readItems = () => {
+    try {
+      const parsed = JSON.parse(window.localStorage.getItem(storageKey) || "[]");
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (_error) {
+      return [];
+    }
+  };
+
+  const writeItems = (items) => {
+    try {
+      window.localStorage.setItem(storageKey, JSON.stringify(items.slice(0, 6)));
+    } catch (_error) {
+      // Comparison is an optional local convenience; storage failures should not block search.
+    }
+  };
+
+  const render = () => {
+    const tray = document.querySelector("[data-compare-tray]");
+    if (!tray) return;
+    const items = readItems();
+    tray.hidden = items.length === 0;
+    if (!items.length) {
+      tray.replaceChildren();
+      return;
+    }
+    const list = document.createElement("div");
+    list.className = "ph-compare-list";
+    for (const item of items) {
+      const row = document.createElement("div");
+      row.className = "ph-compare-row";
+      const address = document.createElement("span");
+      address.className = "ph-compare-address";
+      address.textContent = item.address;
+      const count = document.createElement("span");
+      count.className = "ph-compare-count";
+      count.textContent = `${item.count} / ${item.radiusKm} km`;
+      row.append(address, count);
+      list.append(row);
+    }
+    const clear = document.createElement("button");
+    clear.type = "button";
+    clear.className = "ph-compare-clear";
+    clear.textContent = labels.clear;
+    clear.addEventListener("click", () => {
+      writeItems([]);
+      render();
+    });
+    tray.replaceChildren(list, clear);
+  };
+
+  document.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-compare-add]");
+    if (!button) return;
+    event.preventDefault();
+    const address =
+      button.dataset.compareAddress ||
+      document.querySelector("#address-input")?.value ||
+      window.location.search;
+    const next = {
+      address,
+      count: Number(button.dataset.compareCount || 0),
+      radiusKm: button.dataset.compareRadius || "5",
+    };
+    const existing = readItems().filter((item) => item.address !== next.address);
+    writeItems([next, ...existing]);
+    render();
+  });
+
+  render();
+}
+
 export function attachAddressAutocomplete() {
   const input = document.querySelector("#address-input");
   const panel = document.querySelector("#address-suggestions");
@@ -262,13 +344,13 @@ export function attachMobilePanelDrawer() {
 
   const mobilePanelDefaultHeight = () => {
     const hasSearchContext = !!panel.querySelector(".ph-search-context-list");
-    return window.innerHeight * (hasSearchContext ? 0.68 : 0.48);
+    return window.innerHeight * (hasSearchContext ? 0.78 : 0.48);
   };
 
   const clampHeight = (value) => {
     const min = mobilePanelMinHeight();
     const topbar = document.querySelector(".ph-topbar")?.getBoundingClientRect().height || 100;
-    const visibleMapBand = Math.max(104, window.innerHeight * 0.14);
+    const visibleMapBand = Math.max(48, window.innerHeight * 0.08);
     const max = Math.max(min, window.innerHeight - topbar - visibleMapBand);
     return Math.min(Math.max(value, min), max);
   };
@@ -318,7 +400,7 @@ export function attachMobilePanelDrawer() {
     }
     const current = panel.getBoundingClientRect().height;
     const target =
-      current < window.innerHeight * 0.56 ? window.innerHeight * 0.76 : window.innerHeight * 0.44;
+      current < window.innerHeight * 0.64 ? window.innerHeight * 0.86 : window.innerHeight * 0.52;
     const nextHeight = clampHeight(target);
     document.documentElement.style.setProperty("--ph-mobile-panel-height", `${nextHeight}px`);
     syncDrawerState(nextHeight);

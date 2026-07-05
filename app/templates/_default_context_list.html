@@ -12,6 +12,9 @@
 {% set previous_empty_key = "previous_outages_empty" if previous_mode == "seen_before_here" else "previous_recent_archive_empty" %}
 {% set previous_local_summary = context_payload.previousLocalSummary if context_payload.previousLocalSummary is defined else none %}
 {% set previous_scope_text = (t(lang, "previous_scope_label") ~ " · " ~ (previous_radius_km | int) ~ " km") if previous_mode == "seen_before_here" and previous_radius_km else none %}
+{% set layer_summaries = context_payload.layerSummaries if context_payload.layerSummaries is defined else {} %}
+{% set current_summary = layer_summaries.current if layer_summaries.current is defined else none %}
+{% set planned_summary = layer_summaries.planned if layer_summaries.planned is defined else none %}
 {% set disclosures = context_payload.matches | selectattr("kind", "equalto", "disclosure") | list %}
 {% set regional_context = context_payload.matches | selectattr("kind", "equalto", "regional_metric") | list %}
 {% set published_context = disclosures + regional_context %}
@@ -66,7 +69,23 @@
     <section class="ph-local-answer-card" aria-label="{{ summary.title }}">
       <p class="ph-local-answer-title">{{ summary.title }}</p>
       <p class="ph-local-answer-body">{{ summary.body }}</p>
+      {% if summary.latestLabel or summary.nearestLabel or summary.bandLabel %}
+        <div class="ph-local-answer-facts" aria-label="{{ t(lang, 'summary') }}">
+          {% if summary.latestLabel %}<span>{{ summary.latestLabel }}</span>{% endif %}
+          {% if summary.nearestLabel %}<span>{{ summary.nearestLabel }}</span>{% endif %}
+          {% if summary.bandLabel %}<span>{{ summary.bandLabel }}</span>{% endif %}
+        </div>
+      {% endif %}
+      {% if summary.caveat %}<p class="ph-local-answer-caveat">{{ summary.caveat }}</p>{% endif %}
       <p class="ph-local-answer-meta">{{ summary.meta }}</p>
+      {% if summary.source %}<p class="ph-local-answer-source">{{ summary.source }}</p>{% endif %}
+      <button class="ph-compare-add"
+              type="button"
+              data-compare-add
+              data-compare-address="{{ display_address if display_address is defined else '' }}"
+              data-compare-count="{{ summary.count }}"
+              data-compare-radius="{{ summary.radiusKm }}">{{ t(lang, "compare_add") }}</button>
+      <div class="ph-compare-tray" data-compare-tray hidden></div>
     </section>
   {% endif %}
 {%- endmacro %}
@@ -121,12 +140,17 @@
            aria-label="{{ t(lang, 'current_outages') }}"
            {% if previous_mode != "seen_before_here" %}open{% endif %}>
     <summary class="ph-context-section-summary">
-      {{ section_heading(t(lang, "current_layer_heading") ) }}
+      {{ section_heading(t(lang, "current_layer_heading") , current_summary.header if current_summary else none) }}
       {{ layer_count(current_outages | length, "map", t(lang, "areas") ) }}
       {{ layer_info_button("current", t(lang, "current_layer_heading") ) }}
       <span class="ph-layer-toggle-spacer" aria-hidden="true"></span>
     </summary>
     <div class="ph-context-rows">
+      {% if current_summary %}
+        <p class="ph-section-answer">
+          {{ current_summary.body }} <span>{{ current_summary.province }}</span>
+        </p>
+      {% endif %}
       {% if current_outages %}
         {{ row_labels(t(lang, "row_label_age") , t(lang, "row_label_status") , t(lang, "row_label_customers") , "ph-context-column-labels--current") }}
       {% endif %}
@@ -153,7 +177,9 @@
           {{ count_pill(item.customersAffected or 0, "users", t(lang, "clients") , "bg-[#f8e69a]") }}
         </article>
       {% endfor %}
-      {% if not current_outages %}<p class="ph-context-empty">{{ t(lang, "outage_archive_empty") }}</p>{% endif %}
+      {% if not current_outages %}
+        <p class="ph-context-empty">{{ current_summary.body if current_summary else t(lang, "map_empty") }}</p>
+      {% endif %}
     </div>
   </details>
   <details id="ph-context-planned"
@@ -163,7 +189,7 @@
            data-layer-state="{{ 'on' if 'planned' in loaded_layers else 'off' }}"
            aria-label="{{ t(lang, 'planned_panel') }}">
     <summary class="ph-context-section-summary">
-      {{ section_heading(t(lang, "planned_layer_heading") ) }}
+      {{ section_heading(t(lang, "planned_layer_heading") , planned_summary.header if planned_summary else none) }}
       {% if 'planned' in loaded_layers %}
         {{ layer_count(planned_outages | length, "calendar", t(lang, "rows") ) }}
       {% else %}
@@ -173,6 +199,11 @@
       {{ layer_toggle_button("planned", "planned_layer_heading", "planned" in loaded_layers) }}
     </summary>
     <div class="ph-context-rows">
+      {% if planned_summary %}
+        <p class="ph-section-answer">
+          {{ planned_summary.body }} <span>{{ planned_summary.province }}</span>
+        </p>
+      {% endif %}
       {% if planned_outages %}
         {{ row_labels(t(lang, "row_label_window") , t(lang, "row_label_duration") , t(lang, "row_label_customers") , "ph-context-column-labels--planned") }}
       {% endif %}
@@ -206,7 +237,7 @@
       {% endfor %}
       {% if not planned_outages %}
         <p class="ph-context-empty">
-          {{ t(lang, "map_layer_enable_prompt") if 'planned' not in loaded_layers else t(lang, "planned_empty") }}
+          {{ t(lang, "map_layer_enable_prompt") if 'planned' not in loaded_layers else planned_summary.body if planned_summary else t(lang, "planned_empty") }}
         </p>
       {% endif %}
     </div>
@@ -253,6 +284,7 @@
           <article class="ph-context-row ph-match-row"
                    role="button"
                    tabindex="0"
+                   aria-label="{{ (t(lang, 'row_label_date') ~ ': ' ~ (item.startTime[:10] if item.startTime else t(lang, 'unknown')) ~ ', ' ~ t(lang, 'row_label_time') ~ ': ' ~ (item.startTime[11:16] if item.startTime else t(lang, 'unknown')) ~ ', ' ~ t(lang, 'row_label_customers') ~ ': ' ~ (item.customersAffected or 0)) }}"
                    data-map-focus='{{ {"kind": "previous_outage", "lat": item.lat, "lon": item.lon, "label": item.label, "startTime": item.startTime, "customersAffected": item.customersAffected, "distanceM": item.distanceM} | tojson }}'>
             <div class="min-w-0 flex-1">
               <div class="ph-row-pill-group"
@@ -267,7 +299,7 @@
       {% endif %}
       {% if not previous_sidebar_outages and not previous_archive_summary %}
         <p class="ph-context-empty">
-          {{ t(lang, "map_layer_enable_prompt") if 'previous' not in loaded_layers else t(lang, previous_empty_key) }}
+          {{ t(lang, "map_layer_enable_prompt") if 'previous' not in loaded_layers else previous_local_summary.body if previous_local_summary else t(lang, previous_empty_key) }}
         </p>
       {% endif %}
     </div>

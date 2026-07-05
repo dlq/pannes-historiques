@@ -6,6 +6,26 @@ Keep active execution state in `PLANS.md` and source/evidence research in `NOTES
 
 ## [Unreleased]
 
+### Added
+
+- Added a mobile-first local stability answer card for address searches with retained-record count, most recent retained record, nearest retained record, distance-band counts, source/caveat copy, and a local comparison tray.
+- Added local Current and Planned summaries that distinguish nearby records within the fixed 5 km address radius from broader Quebec-wide layer counts.
+
+### Changed
+
+- Reworked the mobile search-result sheet so address searches open with the local answer and `Seen Before Here` evidence before broader layer context.
+- Improved empty local-history states so zero-result addresses explain what `0` means and do not reserve a large blank list area on mobile.
+
+### Fixed
+
+- Preserved the local comparison controls when lazy-loaded previous-history data refreshes the local answer card.
+- Kept comparison-tray counts synchronized with the refreshed local previous-history summary instead of the initial server placeholder.
+
+### Verified
+
+- Local verification passed `uv run pytest tests/test_views.py -q`, `node --test tests/side-panel-archive.test.js`, Ruff, djLint, Biome, `git diff --check`, and Playwright mobile screenshot checks at a 390px viewport.
+- Mobile screenshots verified typed-address comparison, local previous-history answer, Current/Planned local-vs-Quebec summaries, zero-history explanation, no horizontal overflow, and the comparison tray.
+
 ## [v0.3.1] - 2026-07-02
 
 ### Added

@@ -173,7 +173,19 @@ def default_map_payload(
 
 def _map_labels(lang: str) -> dict[str, str]:
     def map_label(key: str) -> str:
-        if key in {"local_reliability_summary_body", "local_reliability_summary_meta"}:
+        template_labels = {
+            "local_layer_summary_body",
+            "local_layer_summary_empty",
+            "local_layer_summary_header",
+            "local_reliability_bands",
+            "local_reliability_latest",
+            "local_reliability_nearest",
+            "local_reliability_summary_body",
+            "local_reliability_summary_empty",
+            "local_reliability_summary_meta",
+            "province_layer_summary",
+        }
+        if key in template_labels:
             return STRINGS[choose_language(lang)].get(key, key)
         return t(lang, key)
 
@@ -224,9 +236,19 @@ def _map_labels(lang: str) -> dict[str, str]:
             "layer_info_published_provenance",
             "layer_info_published_title",
             "local_reliability_summary_body",
+            "local_reliability_summary_caveat",
+            "local_reliability_summary_empty",
             "local_reliability_summary_meta",
+            "local_reliability_summary_source",
             "local_reliability_summary_title",
+            "local_reliability_bands",
+            "local_reliability_latest",
+            "local_reliability_nearest",
+            "local_layer_summary_body",
+            "local_layer_summary_empty",
+            "local_layer_summary_header",
             "nearby_match",
+            "province_layer_summary",
             "map_unavailable",
             "outage",
             "outages",
@@ -272,11 +294,13 @@ def _map_labels(lang: str) -> dict[str, str]:
 
 def build_map_payload(lang: str, result: Any, display_address: str) -> dict[str, Any]:
     reference = (result.geocode["latitude"], result.geocode["longitude"])
-    current_items = [
+    operational_items = [
         _operational_map_item(lang, item, reference)
         for item in result.current_map_layers
         if item["centroid_lat"] is not None and item["centroid_lon"] is not None
     ]
+    current_items = [item for item in operational_items if item["kind"] == "outage"]
+    planned_items = [item for item in operational_items if item["kind"] == "planned"]
     previous_items = [
         _previous_operational_map_item(lang, item, reference)
         for item in result.previous_map_layers
@@ -300,7 +324,7 @@ def build_map_payload(lang: str, result: Any, display_address: str) -> dict[str,
         nearest_limit=PREVIOUS_NEAREST_LIMIT,
     )
     matches = (
-        _sort_by_distance(current_items)
+        _sort_by_distance(operational_items)
         + previous_sidebar_matches
         + [
             _regional_metric_map_item(lang, item)
@@ -323,6 +347,10 @@ def build_map_payload(lang: str, result: Any, display_address: str) -> dict[str,
         "previousNearestLimit": PREVIOUS_NEAREST_LIMIT,
         "previousLocalSummary": previous_local_summary,
         "previousSidebarMatches": previous_sidebar_matches,
+        "layerSummaries": {
+            "current": _local_layer_summary(lang, current_items, radius_m=result.radius_m),
+            "planned": _local_layer_summary(lang, planned_items, radius_m=result.radius_m),
+        },
     }
 
 
@@ -346,6 +374,64 @@ def _format_radius_km(radius_m: int | float | None) -> str:
     return str(int(radius_km)) if radius_km.is_integer() else f"{radius_km:.1f}"
 
 
+def _format_distance_km(distance_m: int | float | None) -> str:
+    if distance_m is None:
+        return ""
+    distance_km = float(distance_m) / 1000
+    if distance_km < 1:
+        return f"{distance_km:.1f}"
+    return str(int(distance_km)) if distance_km.is_integer() else f"{distance_km:.1f}"
+
+
+def _format_previous_date(value: str | None) -> str:
+    if not value:
+        return ""
+    return value[:10]
+
+
+def _distance_band_counts(items: list[dict[str, Any]]) -> dict[str, int]:
+    bands = {"under1": 0, "oneTo3": 0, "threeTo5": 0}
+    for item in items:
+        distance = item.get("distanceM")
+        if distance is None:
+            continue
+        if distance <= 1000:
+            bands["under1"] += 1
+        elif distance <= 3000:
+            bands["oneTo3"] += 1
+        elif distance <= FIXED_RADIUS_M:
+            bands["threeTo5"] += 1
+    return bands
+
+
+def _local_layer_summary(
+    lang: str,
+    items: list[dict[str, Any]],
+    *,
+    radius_m: int | float | None,
+) -> dict[str, Any]:
+    radius_km = _format_radius_km(radius_m)
+    local_items = [
+        item
+        for item in items
+        if item.get("distanceM") is not None and item["distanceM"] <= (radius_m or FIXED_RADIUS_M)
+    ]
+    count = len(local_items)
+    total = len(items)
+    return {
+        "count": count,
+        "total": total,
+        "radiusKm": radius_km,
+        "header": t(lang, "local_layer_summary_header", count=count, radius_km=radius_km),
+        "body": (
+            t(lang, "local_layer_summary_empty", radius_km=radius_km)
+            if count == 0
+            else t(lang, "local_layer_summary_body", count=count, radius_km=radius_km)
+        ),
+        "province": t(lang, "province_layer_summary", total=total),
+    }
+
+
 def _previous_local_summary(
     lang: str,
     previous_sidebar_matches: list[dict[str, Any]],
@@ -356,11 +442,29 @@ def _previous_local_summary(
     count = len(previous_sidebar_matches)
     limit = nearest_limit
     radius_km = _format_radius_km(radius_m)
+    sorted_by_time = sorted(
+        [item for item in previous_sidebar_matches if item.get("startTime")],
+        key=lambda item: item["startTime"],
+        reverse=True,
+    )
+    nearest = next(
+        (
+            item
+            for item in _sort_by_distance(previous_sidebar_matches)
+            if item.get("distanceM") is not None
+        ),
+        None,
+    )
+    latest_date = (
+        _format_previous_date(sorted_by_time[0].get("startTime")) if sorted_by_time else ""
+    )
+    nearest_km = _format_distance_km(nearest.get("distanceM")) if nearest else ""
+    bands = _distance_band_counts(previous_sidebar_matches)
     return {
         "title": t(lang, "local_reliability_summary_title"),
         "body": t(
             lang,
-            "local_reliability_summary_body",
+            "local_reliability_summary_empty" if count == 0 else "local_reliability_summary_body",
             count=count,
             radius_km=radius_km,
         ),
@@ -370,6 +474,19 @@ def _previous_local_summary(
             count=count,
             limit=limit,
             radius_km=radius_km,
+        ),
+        "caveat": t(lang, "local_reliability_summary_caveat"),
+        "source": t(lang, "local_reliability_summary_source"),
+        "latestLabel": t(lang, "local_reliability_latest", date=latest_date) if latest_date else "",
+        "nearestLabel": t(lang, "local_reliability_nearest", distance_km=nearest_km)
+        if nearest_km
+        else "",
+        "bandLabel": t(
+            lang,
+            "local_reliability_bands",
+            under1=bands["under1"],
+            one_to3=bands["oneTo3"],
+            three_to5=bands["threeTo5"],
         ),
         "count": count,
         "limit": limit,

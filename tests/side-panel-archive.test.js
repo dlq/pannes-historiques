@@ -190,12 +190,21 @@ test("builds local stability summary copy from previous layer payloads", () => {
         local_reliability_summary_body:
           "Retained nearby outage records: {count} within {radius_km} km. Higher counts mean the local archive has seen more interruptions nearby.",
         local_reliability_summary_meta: "All retained records within {radius_km} km shown",
+        local_reliability_summary_caveat:
+          "This is not an official complete Hydro-Quebec address history.",
+        local_reliability_summary_source:
+          "Source: retained captures of the public Hydro-Quebec feed.",
       },
     ),
     {
       title: "Local stability evidence",
       body: "Retained nearby outage records: 2 within 5 km. Higher counts mean the local archive has seen more interruptions nearby.",
       meta: "All retained records within 5 km shown",
+      caveat: "This is not an official complete Hydro-Quebec address history.",
+      source: "Source: retained captures of the public Hydro-Quebec feed.",
+      latestLabel: "",
+      nearestLabel: "",
+      bandLabel: "",
       count: 2,
       limit: 24,
       radiusKm: "5",

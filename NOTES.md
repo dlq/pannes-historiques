@@ -1,7 +1,44 @@
 # Research: Hydro-Québec Historic Outage Data
 
 Date: 2026-04-25
-Last updated: 2026-06-17
+Last updated: 2026-07-05
+
+## Local mobile verification: unreleased mobile answer slice, 2026-07-05
+
+Local app checked on a 390 x 844 mobile viewport with Playwright/Chromium.
+
+Screenshots saved under `/tmp` during the run:
+
+- `/tmp/pannes-mobile-ux-20260705f/01-after-fix.png`
+- `/tmp/pannes-mobile-ux-20260705g/compare-fixed.png`
+- `/tmp/pannes-mobile-ux-20260705h/gaspe-zero-fixed.png`
+
+Verified locally:
+
+- Typed address searches open with a local stability answer card and `Déjà vues ici` / `Seen Before Here` before broader layer context.
+- The local answer card shows retained-record count, 5 km radius, most recent retained record, nearest retained record, distance-band counts, and restrained source/caveat language.
+- Current and Planned sections show nearby-within-5-km summaries separately from Quebec-wide layer counts.
+- Zero-history locations explain the `0` result and no longer reserve a large blank previous-history panel on mobile.
+- The comparison tray stores searched addresses in browser local storage and displays refreshed retained-record counts for compared addresses.
+- Captured mobile states had no horizontal overflow.
+
+Verification commands from the implementation pass:
+
+- `uv run pytest tests/test_views.py -q`
+- `node --test tests/side-panel-archive.test.js`
+- `uv run ruff check . --fix`
+- `uv run ruff format .`
+- `uv run djlint app/templates --lint`
+- `npm run format`
+- `npm run check`
+- `git diff --check`
+
+Still not fully proven:
+
+- current-location search on a real or simulated phone;
+- mobile source/detail-panel inspection for researcher workflows;
+- saved-URL freshness/change detection;
+- practical keyboard/screen-reader behavior for panel state, row selection, and detail-panel announcements.
 
 ## Production UI/UX audit: pannes.ca, 2026-06-17
 

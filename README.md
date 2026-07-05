@@ -13,7 +13,8 @@ Hydro-Quebec outage history prototype built from the `PLANS.md` direction.
   - map-first desktop panel and mobile bottom sheet
   - current, planned, previous/archive, and disclosure sections with icon-backed rows
   - local previous-outage evidence for searched addresses, including the `Seen Before Here` mode
-  - a merged frontend-stability slice with an address-level local stability evidence card, explicit local/province scope labels, visible row labels, and row/polygon detail feedback
+  - an address-level local stability evidence card with retained-record count, nearest/most-recent retained records, distance-band counts, coverage/source caveat, and comparison support
+  - explicit local/province scope labels for Current and Planned results after address searches, plus visible row labels and row/polygon detail feedback
 - Historical disclosure and map context
   - access-to-information disclosure source registry plus XLSX and supported PDF extraction
   - DAI region outlines from OSM/Nominatim/Overpass with conservative fallback areas
@@ -65,6 +66,7 @@ Current deployment status:
 - Public smoke check target for 2026-07-02 release: `/healthz`, `/`, `/service-worker.js`, `/robots.txt`, `/sitemap.xml`, `/search-map`, and current/previous/planned map layers return `200`
 - The `0.3.1` release adds web-quality fundamentals: local CSS utility coverage instead of the Tailwind CDN script, canonical/social metadata, `robots.txt`, `sitemap.xml`, version-aware static caching, a refreshed service-worker marker, and risk-based parser coverage.
 - Production includes the local stability answer card, outage-location favicon/app icon, explicit Show/Hide layer controls, municipal archive materialization, archive map-focus row refinements, and the container runtime authentication fix.
+- Unreleased local changes further improve mobile address-search usability with a stronger local answer card, Current/Planned nearby summaries, compact zero-history states, and a local comparison tray. These are documented in `CHANGELOG.md` under `[Unreleased]` and are not yet described as deployed.
 
 ```bash
 npx wrangler deploy
@@ -171,8 +173,11 @@ falling back to local SQLite-derived layers. Previous outages without polygon ge
 as centroid markers instead of older outage polygons.
 
 For searched addresses, previous local evidence is capped to the nearest retained outage records
-within the fixed 5 km search radius. On the current frontend feature branch, that evidence is also
-summarized in a plain-language local stability card before the layer accordions.
+within the fixed 5 km search radius. The current code summarizes that evidence in a plain-language
+local stability card before the layer accordions, including retained-record count, nearest retained
+record, most recent retained record, distance-band counts, and restrained source/coverage caveats.
+The mobile sheet keeps this local answer ahead of broader layer context and can store a small
+client-side comparison list in browser local storage.
 
 For the regional summary layer, `Montréal` is treated as the administrative region used by the DAI
 tables, not only the municipal City of Montréal, so its background area includes island
