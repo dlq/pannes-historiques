@@ -61,12 +61,12 @@ Production is currently served at `pannes.ca` with Cloudflare Workers + Containe
 Current deployment status:
 
 - Current code version: `0.3.1`
-- Latest deployed release: `v0.3.1`
+- Latest deployed release: `v0.3.1` plus the July 5 mobile local-answer follow-up
+- Latest production deployment: Worker version `abd82fd9-3cdd-4a5a-a68c-e5989e75c4b8`; container image `pannes-historiques-pannescontainer:abd82fd9`
 - Public service-worker marker for this release: `pannes-historiques-v0.3.1-web-quality-foundation`
-- Public smoke check target for 2026-07-02 release: `/healthz`, `/`, `/service-worker.js`, `/robots.txt`, `/sitemap.xml`, `/search-map`, and current/previous/planned map layers return `200`
+- Public smoke check target for 2026-07-05 deploy: `/healthz`, `/`, and a representative French address search return `200`; deployed HTML contains the local answer card and comparison control
 - The `0.3.1` release adds web-quality fundamentals: local CSS utility coverage instead of the Tailwind CDN script, canonical/social metadata, `robots.txt`, `sitemap.xml`, version-aware static caching, a refreshed service-worker marker, and risk-based parser coverage.
-- Production includes the local stability answer card, outage-location favicon/app icon, explicit Show/Hide layer controls, municipal archive materialization, archive map-focus row refinements, and the container runtime authentication fix.
-- Unreleased local changes further improve mobile address-search usability with a stronger local answer card, Current/Planned nearby summaries, compact zero-history states, and a local comparison tray. These are documented in `CHANGELOG.md` under `[Unreleased]` and are not yet described as deployed.
+- Production includes the local stability answer card, Current/Planned nearby summaries, compact zero-history states, local comparison tray, outage-location favicon/app icon, explicit Show/Hide layer controls, municipal archive materialization, archive map-focus row refinements, and the container runtime authentication fix.
 
 ```bash
 npx wrangler deploy

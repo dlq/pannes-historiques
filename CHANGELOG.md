@@ -25,6 +25,8 @@ Keep active execution state in `PLANS.md` and source/evidence research in `NOTES
 
 - Local verification passed `uv run pytest tests/test_views.py -q`, `node --test tests/side-panel-archive.test.js`, Ruff, djLint, Biome, `git diff --check`, and Playwright mobile screenshot checks at a 390px viewport.
 - Mobile screenshots verified typed-address comparison, local previous-history answer, Current/Planned local-vs-Quebec summaries, zero-history explanation, no horizontal overflow, and the comparison tray.
+- Deployed to production on 2026-07-05 with Worker version `abd82fd9-3cdd-4a5a-a68c-e5989e75c4b8` and container image `pannes-historiques-pannescontainer:abd82fd9`.
+- Post-deploy smoke checks returned `200` for `/healthz`, `/`, and a representative French address search; deployed HTML contained the local answer card and comparison control.
 
 ## [v0.3.1] - 2026-07-02
 
