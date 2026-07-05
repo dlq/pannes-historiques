@@ -62,7 +62,7 @@ Current deployment status:
 
 - Current code version: `0.3.1`
 - Latest deployed release: `v0.3.1` plus the July 5 mobile local-answer follow-up
-- Latest production deployment: Worker version `abd82fd9-3cdd-4a5a-a68c-e5989e75c4b8`; container image `pannes-historiques-pannescontainer:abd82fd9`
+- Latest production deployment: Worker version `3faf2203-ea92-492e-9764-c1b538722716`; container image `pannes-historiques-pannescontainer:3faf2203`
 - Public service-worker marker for this release: `pannes-historiques-v0.3.1-web-quality-foundation`
 - Public smoke check target for 2026-07-05 deploy: `/healthz`, `/`, and a representative French address search return `200`; deployed HTML contains the local answer card and comparison control
 - The `0.3.1` release adds web-quality fundamentals: local CSS utility coverage instead of the Tailwind CDN script, canonical/social metadata, `robots.txt`, `sitemap.xml`, version-aware static caching, a refreshed service-worker marker, and risk-based parser coverage.

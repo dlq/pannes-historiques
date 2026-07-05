@@ -8,7 +8,7 @@ This file is the active execution plan. Keep durable evidence, source notes, and
 ## Current State
 
 - Current deployed release: `v0.3.1` frontend/web-quality foundation plus the July 5 mobile local-answer follow-up.
-- Current production deployment: Worker version `abd82fd9-3cdd-4a5a-a68c-e5989e75c4b8`; container image `pannes-historiques-pannescontainer:abd82fd9`.
+- Current production deployment: Worker version `3faf2203-ea92-492e-9764-c1b538722716`; container image `pannes-historiques-pannescontainer:3faf2203`.
 - Current release in progress: none; next release slice is `v0.3.2` public-read architecture unless production observations require a narrower hotfix first.
 - Current frontend state: the `codex/frontend-stability-summary` slice is deployed and merged, and `b85599b` refines the map-focus behavior. Address/local previous-outage evidence remains the default address-search section, optional layer controls use explicit Show/Hide actions, shared-geometry rows highlight together, latest archive rows are compact/focusable map rows, and operational row selection recenters/highlights the map without opening the DAI detail panel. The July 5 deployed follow-up improves mobile address-search usability with a richer local answer card, Current/Planned nearby summaries, compact zero-history states, and a browser-local comparison tray.
 - Current product shape: map-first address/current-location lookup with server-rendered Flask/Jinja fragments, HTMX, Leaflet, decomposed vanilla JavaScript ES modules, icon-backed sidebar/detail rows, local previous-outage evidence, municipal archive bins, and a Cloudflare Workers + Containers production deployment.
