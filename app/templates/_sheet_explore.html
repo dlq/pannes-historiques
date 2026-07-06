@@ -1,8 +1,4 @@
-{% macro ph_icon(name, class_name="") -%}
-  <svg class="ph-icon {{ class_name }}" aria-hidden="true" focusable="false">
-    <use href="{{ url_for('static', filename='icons.svg', v=static_version) }}#ph-icon-{{ name }}"></use>
-  </svg>
-{%- endmacro %}
+{% from "_macros.html" import ph_icon %}
 {% if sheet.mode == "address" %}
   <header class="ph-sheet-header">
     <button class="ph-round-button"
@@ -22,13 +18,12 @@
   {% include "_sheet_search.html" %}
 {% endif %}
 <div class="ph-segmented"
-     role="tablist"
+     role="group"
      aria-label="{{ t(lang, 'sources') }}">
   {% for segment in ["current", "planned", "archive", "context"] %}
     <button class="ph-segment {{ 'is-active' if sheet.domain == segment else '' }}"
             type="button"
-            role="tab"
-            aria-selected="{{ 'true' if sheet.domain == segment else 'false' }}"
+            aria-pressed="{{ 'true' if sheet.domain == segment else 'false' }}"
             data-domain-link="{{ segment }}">{{ t(lang, "segment_" ~ segment) }}</button>
   {% endfor %}
 </div>

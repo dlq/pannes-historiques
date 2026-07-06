@@ -5,12 +5,10 @@ import {
   extendBoundsWithGeometry,
   itemRenderKey,
   radiusCirclePolygon,
-} from "./map-utils.js?v=20260706a";
-import { escapeHtml, label } from "./ui-format.js?v=20260706a";
+} from "./map-utils.js?v=20260706x";
+import { escapeHtml, label } from "./ui-format.js?v=20260706x";
 
 const LIBERTY_STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
-
-export { DOMAIN_COLORS, contextLayerForKind };
 
 const LAYER_SOURCE_BY_KEY = {
   current: "ph-current",
@@ -77,7 +75,7 @@ export class OutageMap extends HTMLElement {
     map.dragRotate.disable();
     map.touchZoomRotate.disableRotation();
 
-    const itemsByFeatureKey = new Map();
+    const itemsByFeatureKeyByLayer = new Map();
     let focusItems = [];
     let activeMapFocus = null;
     const featuresByLayerKey = new Map();
@@ -155,9 +153,9 @@ export class OutageMap extends HTMLElement {
       );
     };
 
-    const featureForItem = (item) => {
+    const featureForItem = (layerKey, item) => {
       const key = item.geometryKey || itemRenderKey(item);
-      itemsByFeatureKey.set(key, item);
+      itemsByFeatureKeyByLayer.get(layerKey).set(key, item);
       const kindLayer = contextLayerForKind(item.kind);
       const properties = {
         __key: key,
@@ -193,10 +191,11 @@ export class OutageMap extends HTMLElement {
 
     const rebuildLayerFeatures = (layerKey) => {
       const features = [];
+      itemsByFeatureKeyByLayer.set(layerKey, new Map());
       for (const item of focusItems) {
         if (contextLayerForKind(item.kind) !== layerKey) continue;
         if (item.deferGeometry && !item.geometry && item.lat == null) continue;
-        const feature = featureForItem(item);
+        const feature = featureForItem(layerKey, item);
         if (feature) features.push(feature);
       }
       featuresByLayerKey.set(layerKey, features);
@@ -582,7 +581,9 @@ export class OutageMap extends HTMLElement {
         map.on("click", layerId, (event) => {
           const feature = event.features?.[0];
           if (!feature) return;
-          const item = itemsByFeatureKey.get(feature.properties.__key);
+          const item = itemsByFeatureKeyByLayer
+            .get(feature.properties.layerKey)
+            ?.get(feature.properties.__key);
           if (!item) return;
           event.preventDefault?.();
           setSelection(feature.properties.__key);

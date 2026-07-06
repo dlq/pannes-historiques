@@ -1,8 +1,4 @@
-{% macro dc_icon(name, class_name="") -%}
-  <svg class="ph-icon {{ class_name }}" aria-hidden="true" focusable="false">
-    <use href="{{ url_for('static', filename='icons.svg', v=static_version) }}#ph-icon-{{ name }}"></use>
-  </svg>
-{%- endmacro %}
+{% from "_macros.html" import ph_icon %}
 <div class="ph-domain-summary">
   <p class="ph-domain-summary-title">
     <span class="ph-dot ph-dot--current" aria-hidden="true"></span>{{ sheet.body.summary }}

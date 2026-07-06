@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from typing import Any
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from .i18n import t
 from .views import (
@@ -64,9 +65,10 @@ WEEKDAYS = {
 def _parse_feed_time(value: str | None) -> datetime | None:
     if not value:
         return None
-    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M"):
+    cleaned = value.replace("T", " ")
+    for fmt, size in (("%Y-%m-%d %H:%M:%S", 19), ("%Y-%m-%d %H:%M", 16)):
         try:
-            return datetime.strptime(value[: len("2026-01-01 00:00:00")].replace("T", " "), fmt)
+            return datetime.strptime(cleaned[:size], fmt)
         except ValueError:
             continue
     return None
@@ -77,7 +79,7 @@ def _format_clock(lang: str, moment: datetime) -> str:
         if moment.minute:
             return f"{moment.hour} h {moment.minute:02d}"
         return f"{moment.hour} h"
-    return moment.strftime("%-H:%M") if hasattr(moment, "strftime") else str(moment)
+    return f"{moment.hour}:{moment.minute:02d}"
 
 
 def _format_day_month(lang: str, moment: datetime) -> str:
@@ -142,8 +144,16 @@ def _local_items(items: list[dict[str, Any]], radius_m: int) -> list[dict[str, A
     ]
 
 
+def _quebec_now() -> datetime:
+    try:
+        return datetime.now(ZoneInfo("America/Montreal")).replace(tzinfo=None)
+    except ZoneInfoNotFoundError:
+        return datetime.now(UTC).replace(tzinfo=None)
+
+
 def _monthly_buckets(lang: str, items: list[dict[str, Any]], months: int) -> list[dict[str, Any]]:
-    now = datetime.now(UTC).replace(tzinfo=None)
+    # Feed timestamps are Quebec local time; bucket by the same clock.
+    now = _quebec_now()
     keys: list[tuple[int, int]] = []
     year, month = now.year, now.month
     for _ in range(months):

@@ -1,8 +1,4 @@
-{% macro ov_icon(name, class_name="") -%}
-  <svg class="ph-icon {{ class_name }}" aria-hidden="true" focusable="false">
-    <use href="{{ url_for('static', filename='icons.svg', v=static_version) }}#ph-icon-{{ name }}"></use>
-  </svg>
-{%- endmacro %}
+{% from "_macros.html" import ph_icon %}
 <header class="ph-sheet-header">
   <div class="ph-sheet-header-text">
     <h2 class="ph-sheet-title">{{ sheet.display_address }}</h2>
@@ -11,24 +7,24 @@
   <button class="ph-round-button"
           type="button"
           data-action="clear-search"
-          aria-label="{{ t(lang, 'sheet_close_search') }}">{{ ov_icon("x") }}</button>
+          aria-label="{{ t(lang, 'sheet_close_search') }}">{{ ph_icon("x") }}</button>
 </header>
 <div class="ph-status-lines">
   <button class="ph-status-line" type="button" data-domain-link="current">
-    <span class="ph-status-icon ph-status-icon--{{ sheet.current_line.state }}">{{ ov_icon("zap" if sheet.current_line.state == "alert" else "check") }}</span>
+    <span class="ph-status-icon ph-status-icon--{{ sheet.current_line.state }}">{{ ph_icon("zap" if sheet.current_line.state == "alert" else "check") }}</span>
     <span class="ph-status-text">
       <span class="ph-status-title">{{ sheet.current_line.title }}</span>
       {% if sheet.current_line.subtitle %}<span class="ph-status-sub">{{ sheet.current_line.subtitle }}</span>{% endif %}
     </span>
-    {{ ov_icon('chevron-right', 'ph-status-chevron') }}
+    {{ ph_icon('chevron-right', 'ph-status-chevron') }}
   </button>
   <button class="ph-status-line" type="button" data-domain-link="planned">
-    <span class="ph-status-icon ph-status-icon--{{ 'planned' if sheet.planned_line.state == 'planned' else 'ok' }}">{{ ov_icon("calendar") }}</span>
+    <span class="ph-status-icon ph-status-icon--{{ 'planned' if sheet.planned_line.state == 'planned' else 'ok' }}">{{ ph_icon("calendar") }}</span>
     <span class="ph-status-text">
       <span class="ph-status-title">{{ sheet.planned_line.title }}</span>
       {% if sheet.planned_line.subtitle %}<span class="ph-status-sub">{{ sheet.planned_line.subtitle }}</span>{% endif %}
     </span>
-    {{ ov_icon('chevron-right', 'ph-status-chevron') }}
+    {{ ph_icon('chevron-right', 'ph-status-chevron') }}
   </button>
 </div>
 <section class="ph-hero-card"
@@ -38,7 +34,7 @@
     <button class="ph-hero-info"
             type="button"
             data-layer-info="previous"
-            aria-label="{{ t(lang, 'layer_info_open') }}">{{ ov_icon("info") }}</button>
+            aria-label="{{ t(lang, 'layer_info_open') }}">{{ ph_icon("info") }}</button>
   </div>
   <p class="ph-hero-number-row">
     <span class="ph-hero-number">{{ sheet.history.count }}</span>
@@ -78,11 +74,11 @@
 <div class="ph-compare-tray" data-compare-tray hidden></div>
 <div class="ph-overview-context-link">
   <button class="ph-status-line" type="button" data-domain-link="context">
-    <span class="ph-status-icon ph-status-icon--context">{{ ov_icon("file-search") }}</span>
+    <span class="ph-status-icon ph-status-icon--context">{{ ph_icon("file-search") }}</span>
     <span class="ph-status-text">
       <span class="ph-status-title">{{ t(lang, "segment_context") }}</span>
       <span class="ph-status-sub">{{ t(lang, "disclosure") }}</span>
     </span>
-    {{ ov_icon('chevron-right', 'ph-status-chevron') }}
+    {{ ph_icon('chevron-right', 'ph-status-chevron') }}
   </button>
 </div>

@@ -69,3 +69,21 @@ test("itemRenderKey distinguishes overlapping events", () => {
   assert.notEqual(itemRenderKey(base), itemRenderKey(other));
   assert.equal(itemRenderKey(base), itemRenderKey({ ...base }));
 });
+
+test("internal module imports share one version token", async () => {
+  const { readdir, readFile } = await import("node:fs/promises");
+  const staticDir = new URL("../app/static/", import.meta.url);
+  const tokens = new Set();
+  for (const name of await readdir(staticDir)) {
+    if (!name.endsWith(".js")) continue;
+    const source = await readFile(new URL(name, staticDir), "utf8");
+    for (const match of source.matchAll(/from "\.\/[a-z-]+\.js\?v=([0-9a-z-]+)"/g)) {
+      tokens.add(match[1]);
+    }
+  }
+  assert.equal(
+    tokens.size,
+    1,
+    `internal import tokens diverged: ${[...tokens].join(", ")} — bump them together`,
+  );
+});

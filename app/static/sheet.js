@@ -1,10 +1,10 @@
-import { contextLayerForKind } from "./map-utils.js?v=20260706a";
+import { contextLayerForKind } from "./map-utils.js?v=20260706x";
 import {
   attachAddressAutocomplete,
   attachComparisonTray,
   hydrateTimeLabels,
   updateSearchUrl,
-} from "./search.js?v=20260706a";
+} from "./search.js?v=20260706x";
 import {
   escapeHtml,
   formatDistanceKm,
@@ -12,9 +12,12 @@ import {
   formatPreviousTimeParts,
   hasDistanceValue,
   label,
-} from "./ui-format.js?v=20260706a";
+} from "./ui-format.js?v=20260706x";
 
 const DETENTS = ["peek", "half", "full"];
+// The sheet height transition in app.css runs 280ms; wait slightly longer
+// before measuring insets or moving the camera.
+const SHEET_SETTLE_MS = 320;
 const LAYER_KEYS = ["current", "planned", "previous", "published"];
 
 let mapLabels = {};
@@ -53,12 +56,12 @@ function announceSheetInsetChange() {
   document.dispatchEvent(new CustomEvent("sheet-inset-change"));
 }
 
-export function setDetent(name) {
+function setDetent(name) {
   const sheet = sheetElement();
   if (!sheet || !DETENTS.includes(name)) return;
   sheet.dataset.detent = name;
   sheet.style.height = "";
-  window.setTimeout(announceSheetInsetChange, 300);
+  window.setTimeout(announceSheetInsetChange, SHEET_SETTLE_MS);
 }
 
 function currentDetent() {
@@ -145,8 +148,6 @@ function readBootState() {
     sheetState.domain = content.dataset.domain || sheetState.domain;
     sheetState.scope = content.dataset.scope || sheetState.scope;
   }
-  const bootMapScript = document.querySelector("script[data-map-update]");
-  if (bootMapScript) bootMapScript.dataset.applied = "1";
   const mapElement = document.querySelector("outage-map");
   if (mapElement) {
     try {
@@ -194,7 +195,7 @@ function applyMapUpdate(root) {
         },
       }),
     );
-  }, 320);
+  }, SHEET_SETTLE_MS);
 }
 
 function closeDetailCards() {

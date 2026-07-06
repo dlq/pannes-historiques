@@ -70,7 +70,6 @@ def create_app(settings: Settings | None = None) -> Flask:
     app.jinja_env.globals["t"] = t
     static_root = Path(app.static_folder or "")
     app.jinja_env.globals["static_version"] = static_asset_version(static_root)
-    initial_map_layers = {CURRENT_MAP_LAYER_SCOPE}
 
     def map_layer_scope(value: str | None) -> set[str]:
         return {
@@ -424,6 +423,9 @@ def create_app(settings: Settings | None = None) -> Flask:
         response.headers["Cache-Control"] = "no-cache"
         return response
 
+    # POST /search and /search-location predate the /sheet fragment route and
+    # stay as compatibility aliases for clients loaded before a deploy; both
+    # return the current overview fragment.
     @app.post("/search")
     def search():
         lang = choose_language(request.form.get("lang"))
@@ -435,25 +437,6 @@ def create_app(settings: Settings | None = None) -> Flask:
             return render_template(
                 "_sheet.html", lang=lang, sheet=sheet_context, sheet_is_boot=False
             )
-
-    @app.get("/search-map")
-    def search_map():
-        lang = choose_language(request.args.get("lang"))
-        with current_timer().step("search_map.service"):
-            result = service.search(
-                query=request.args.get("q", ""),
-                language=lang,
-                radius_m=FIXED_RADIUS_M,
-                days=FIXED_DAYS,
-                include_planned=FIXED_INCLUDE_PLANNED,
-                include_map_layers=True,
-                record_history=False,
-                map_layer_scopes=initial_map_layers,
-            )
-        with current_timer().step("search_map.result_context"):
-            context = result_context(lang, result, include_map_payload=True)
-        with current_timer().step("search_map.render_template"):
-            return render_template("_map_panel.html", **context)
 
     @app.get("/debug/timing/search")
     def debug_timing_search():
@@ -598,29 +581,6 @@ def create_app(settings: Settings | None = None) -> Flask:
             return render_template(
                 "_sheet.html", lang=lang, sheet=sheet_context, sheet_is_boot=False
             )
-
-    @app.get("/search-location-map")
-    def search_location_map():
-        lang = choose_language(request.args.get("lang"))
-        with current_timer().step("search_location_map.service"):
-            result = service.search_location(
-                latitude=float(request.args.get("latitude") or "0"),
-                longitude=float(request.args.get("longitude") or "0"),
-                accuracy_m=float(request.args["accuracy_m"])
-                if request.args.get("accuracy_m")
-                else None,
-                language=lang,
-                radius_m=FIXED_RADIUS_M,
-                days=FIXED_DAYS,
-                include_planned=FIXED_INCLUDE_PLANNED,
-                include_map_layers=True,
-                record_history=False,
-                map_layer_scopes=initial_map_layers,
-            )
-        with current_timer().step("search_location_map.result_context"):
-            context = result_context(lang, result, include_map_payload=True)
-        with current_timer().step("search_location_map.render_template"):
-            return render_template("_map_panel.html", **context)
 
     @app.get("/autocomplete")
     def autocomplete():

@@ -1,4 +1,4 @@
-import { formatRelativeTime } from "./ui-format.js?v=20260706a";
+import { formatRelativeTime } from "./ui-format.js?v=20260706x";
 
 let autocompleteTimer = null;
 
@@ -37,11 +37,6 @@ export function updateSearchUrl(params = {}) {
   }
   if (params.accuracy) url.searchParams.set("accuracy_m", params.accuracy);
   window.history.pushState({ pannesSearch: true }, "", url);
-}
-
-export function isCurrentLocationText(value = "") {
-  const normalized = value.toLowerCase();
-  return normalized.startsWith("current location") || normalized.startsWith("position actuelle");
 }
 
 export function hydrateTimeLabels(root = document) {

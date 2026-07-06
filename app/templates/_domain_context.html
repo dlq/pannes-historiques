@@ -1,8 +1,4 @@
-{% macro dx_icon(name, class_name="") -%}
-  <svg class="ph-icon {{ class_name }}" aria-hidden="true" focusable="false">
-    <use href="{{ url_for('static', filename='icons.svg', v=static_version) }}#ph-icon-{{ name }}"></use>
-  </svg>
-{%- endmacro %}
+{% from "_macros.html" import ph_icon %}
 <p class="ph-context-intro">{{ sheet.body.intro }}</p>
 {% if sheet.body.rows %}
   <ul class="ph-row-list" data-domain-rows="context">
@@ -11,7 +7,7 @@
         <button class="ph-row"
                 type="button"
                 data-map-focus='{{ row.focus | tojson }}'>
-          <span class="ph-doc-tile ph-doc-tile--{{ row.kind }}" aria-hidden="true">{{ dx_icon("map" if row.kind == "regional_metric" else "file-search") }}</span>
+          <span class="ph-doc-tile ph-doc-tile--{{ row.kind }}" aria-hidden="true">{{ ph_icon("map" if row.kind == "regional_metric" else "file-search") }}</span>
           <span class="ph-row-main">
             <span class="ph-row-title">{{ row.title }}</span>
             {% if row.subtitle %}<span class="ph-row-sub">{{ row.subtitle }}</span>{% endif %}

@@ -24,25 +24,6 @@ export function hasDistanceValue(value) {
   return Number.isFinite(Number(value));
 }
 
-export function detailFactList(facts) {
-  const visibleFacts = facts.filter(
-    ([, value]) => value !== null && value !== undefined && value !== "",
-  );
-  if (!visibleFacts.length) return "";
-  return `<dl class="mt-3 grid gap-x-5 gap-y-2 border-y border-[#d7dde6]/70 py-3 text-sm sm:grid-cols-2">
-    ${visibleFacts
-      .map(
-        ([factLabel, value]) => `
-          <div class="flex min-w-0 items-baseline justify-between gap-3 sm:block">
-            <dt class="text-[#6b778a]">${escapeHtml(factLabel)}</dt>
-            <dd class="min-w-0 truncate font-medium text-[#223654] sm:mt-0.5">${escapeHtml(value)}</dd>
-          </div>
-        `,
-      )
-      .join("")}
-  </dl>`;
-}
-
 export function formatDuration(seconds, labels = {}) {
   if (!Number.isFinite(seconds) || seconds <= 0) return label(labels, "unknown", "unknown");
   const hours = seconds / 3600;
@@ -50,21 +31,14 @@ export function formatDuration(seconds, labels = {}) {
   return `${(hours / 24).toFixed(1)} d`;
 }
 
-export function formatDateTimeCell(value, labels = {}) {
-  if (!value) return label(labels, "unknown", "unknown");
-  const [date, rawTime = ""] = String(value).replace("T", " ").split(" ");
-  const time = rawTime ? rawTime.slice(0, 5) : "";
-  return `<span class="block font-semibold text-[#223654]">${escapeHtml(date)}</span>${time ? `<span class="block text-[#4e5662]">${escapeHtml(time)}</span>` : ""}`;
-}
-
-export function formatShortDateTime(value, labels = {}) {
+function formatShortDateTime(value, labels = {}) {
   if (!value) return label(labels, "unknown", "unknown");
   const [date, rawTime = ""] = String(value).replace("T", " ").split(" ");
   const time = rawTime ? rawTime.slice(0, 5) : "";
   return time ? `${date} ${time}` : date;
 }
 
-export function shortDateTimeParts(value, labels = {}) {
+function shortDateTimeParts(value, labels = {}) {
   if (!value) return { date: label(labels, "unknown", "unknown"), time: "" };
   const [date, rawTime = ""] = String(value).replace("T", " ").split(" ");
   return { date, time: rawTime ? rawTime.slice(0, 5) : "" };
@@ -194,31 +168,4 @@ export function localizeCause(cause) {
     Végétation: "Vegetation",
   };
   return causes[cause] || cause;
-}
-
-export function fetchJson(url, options = {}) {
-  if (typeof fetch === "function") {
-    return fetch(url, options).then((response) => {
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      return response.json();
-    });
-  }
-  return new Promise((resolve, reject) => {
-    const request = new XMLHttpRequest();
-    request.open("GET", url);
-    request.setRequestHeader("Accept", options.headers?.Accept || "application/json");
-    request.onload = () => {
-      if (request.status < 200 || request.status >= 300) {
-        reject(new Error(`HTTP ${request.status}`));
-        return;
-      }
-      try {
-        resolve(JSON.parse(request.responseText));
-      } catch (error) {
-        reject(error);
-      }
-    };
-    request.onerror = () => reject(new Error("Network request failed"));
-    request.send();
-  });
 }
