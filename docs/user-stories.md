@@ -6,20 +6,23 @@ This file captures practical user stories for focusing the next pannes.ca work. 
 
 ## Current Implementation Status
 
-As of the July 5 mobile/local-answer slice, the current codebase has:
+As of the `v0.4.0` sheet/MapLibre redesign (deployed 2026-07-06), the current codebase has:
 
-- a local stability answer card for address searches with count, radius, most recent retained record, nearest retained record, distance-band counts, and source/caveat copy;
-- a mobile sheet that opens address searches with the local answer and `Seen Before Here` before broader layer context;
-- local Current and Planned summary pills that distinguish nearby records within 5 km from Quebec-wide layer counts;
-- a small browser-local comparison tray for comparing retained nearby outage counts across searched addresses;
-- improved zero-history mobile states that explain what `0` means without leaving a large blank panel.
+- one full-bleed MapLibre map with a detent-based sheet (mobile) / floating panel (desktop) and search inside the sheet;
+- a segmented `En cours / Planifiées / Archive / Contexte` control that drives both sheet content and the visible map layer;
+- an address-mode overview answer stack: current/planned status lines with nearest-distance and next-window wording, a 14-month local-history hero chart, and doorways into domain views scoped by a `5 km / Québec` toggle;
+- in-sheet detail cards with honest per-kind wording (estimated restoration for current, observed start/end/duration for archive, customers-to-be-affected for planned);
+- an archive report leading with named territory bins (production) plus day-grouped latest rows, all caps labeled;
+- a provenance card ("À propos de ces données") reachable from the hero info button and the explore footer, with GitHub and contact links;
+- a browser-local comparison tray, and error/sequencing hardening on sheet navigation.
 
 Still not fully proven:
 
-- current-location search on a real or simulated phone;
-- mobile source/detail-panel inspection for researcher workflows;
+- current-location search on a real phone (simulated geolocation is covered by e2e);
 - saved-URL freshness/change detection;
-- a practical keyboard/screen-reader pass.
+- a practical keyboard/screen-reader pass (segmented control now uses `aria-pressed`; a full audit remains).
+
+Story 1's comparison workflow, Story 6's provenance affordance, and Story 4's history visualization are now first-class; Stories 2/3 gained nearest-distance and next-window wording in the overview.
 
 ## Baseline Scenario: Four-Address Reliability Test
 

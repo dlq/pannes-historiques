@@ -4,7 +4,7 @@ Pannes Historiques is a Flask application deployed behind a Cloudflare Worker an
 
 ## Request Flow
 
-- Public page requests (`/`, `/search`, `/search-map`) enter the Worker and are forwarded to the Flask container.
+- Public page requests (`/`, `/about`, `GET /sheet`, and the POST `/search`/`/search-location` compat aliases) enter the Worker and are forwarded to the Flask container.
 - Public read APIs under `/api/durable/hydro`, `/api/durable/nearby`, and `/api/durable/history-nearby` are served directly by the Worker from D1/R2.
 - Private runtime APIs under `/api/durable/runtime/*` are Worker endpoints used by the container. They require `X-Pannes-Operation-Token`.
 - Private operational paths (`/internal/*`, `/cron/*`, `/collect*`, `/debug/*`) are blocked at the Worker edge unless they are reached through scheduled/internal flows.

@@ -60,13 +60,12 @@ Production is currently served at `pannes.ca` with Cloudflare Workers + Containe
 
 Current deployment status:
 
-- Current code version: `0.3.1`
-- Latest deployed release: `v0.3.1` plus the July 5 mobile local-answer follow-up
-- Latest production deployment: Worker version `3faf2203-ea92-492e-9764-c1b538722716`; container image `pannes-historiques-pannescontainer:3faf2203`
-- Public service-worker marker for this release: `pannes-historiques-v0.3.1-web-quality-foundation`
-- Public smoke check target for 2026-07-05 deploy: `/healthz`, `/`, and a representative French address search return `200`; deployed HTML contains the local answer card and comparison control
-- The `0.3.1` release adds web-quality fundamentals: local CSS utility coverage instead of the Tailwind CDN script, canonical/social metadata, `robots.txt`, `sitemap.xml`, version-aware static caching, a refreshed service-worker marker, and risk-based parser coverage.
-- Production includes the local stability answer card, Current/Planned nearby summaries, compact zero-history states, local comparison tray, outage-location favicon/app icon, explicit Show/Hide layer controls, municipal archive materialization, archive map-focus row refinements, and the container runtime authentication fix.
+- Current code version: `0.4.0`
+- Latest deployed release: `v0.4.0`, the sheet/MapLibre interface redesign (2026-07-06)
+- Latest production deployment: Worker version `1f2b6dc1-8f48-4354-be76-e65e339e3711`; container image `pannes-historiques-pannescontainer:1f2b6dc1`
+- Public service-worker marker for this release: `pannes-historiques-v0.4.0-sheet-maplibre`
+- Public smoke check target for the 2026-07-06 deploy: `/healthz`, `/`, a representative French address search, `/sheet?domain=archive`, and `/about` return `200`; deployed HTML contains the sheet shell, MapLibre assets, and the overview hero card; private endpoints return `404`
+- The `v0.4.0` release replaces Leaflet with vendored MapLibre GL JS + the OpenFreeMap Liberty style and rebuilds the interface as one full-bleed map plus a single sheet: segmented domain control, address-mode overview answer stack, scoped domain views, in-sheet detail cards, provenance card, and restyled About/offline pages. It also removes the HTMX and Google Fonts dependencies.
 
 ```bash
 npx wrangler deploy
@@ -164,7 +163,8 @@ colored region or blue DAI area to populate the scrollable details panel with th
 and metrics. Live/API-derived outage and planned interruption geometries are drawn after DAI areas so
 their smaller, more granular shapes remain visible on top.
 
-Search result cards are rendered first and map overlays are lazy-loaded through `/search-map`.
+Sheet fragments are served through `GET /sheet`; each fragment embeds the map data for its domain,
+so the persistent MapLibre element updates without a page reload.
 Regional and DAI/disclosure context geometries are served through `/map-context-geometries` and the
 precomputed static assets in `app/static/regional_metric_geometries.json` and
 `app/static/disclosure_geometries.json`. In production, current outages, planned interruptions, and
