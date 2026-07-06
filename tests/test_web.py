@@ -14,7 +14,7 @@ def test_index_includes_pwa_metadata(app_client):
 
     assert response.status_code == 200
     assert "viewport-fit=cover" in html
-    assert '<meta name="theme-color" content="#223654">' in html
+    assert '<meta name="theme-color" content="#ffffff">' in html
     assert '<meta name="apple-mobile-web-app-capable" content="yes">' in html
     assert 'href="/static/manifest.webmanifest"' in html
     assert 'href="/static/app-icon-180.png"' in html
