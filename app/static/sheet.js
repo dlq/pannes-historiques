@@ -357,9 +357,9 @@ function operationalDetailHtml(item) {
     isPlanned ? "Customers to be affected" : "Customers affected",
     item.customersAffected != null ? String(item.customersAffected) : "",
   );
-  // Planned-notice status codes are not the documented crew statuses;
-  // leave them out until their meaning is verified (see NOTES.md).
-  if (!isPlanned) {
+  // Status is live-feed information: planned-notice codes are unverified
+  // (see NOTES.md) and a resolved archive record has no current status.
+  if (isCurrent) {
     pushFact("detail_last_status", "Last seen status", item.statusLabel || "");
   }
   const distanceLine = hasDistanceValue(item.distanceM)

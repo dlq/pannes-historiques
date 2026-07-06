@@ -16,8 +16,12 @@
             <button class="ph-row"
                     type="button"
                     data-map-focus='{{ row.focus | tojson }}'>
+              <span class="ph-date-tile ph-date-tile--archive" aria-hidden="true">
+                <span class="ph-date-tile-day">{{ row.tile.day }}</span>
+                <span class="ph-date-tile-month">{{ row.tile.month }}</span>
+              </span>
               <span class="ph-row-main">
-                <span class="ph-row-title">{{ row.dateLabel }}</span>
+                <span class="ph-row-title">{{ row.startTime[11:16] }}</span>
                 <span class="ph-row-sub">
                   {%- if row.distanceKm %}{{ row.distanceKm }} km
                   {% endif -%}
@@ -81,9 +85,12 @@
           <button class="ph-row"
                   type="button"
                   data-map-focus='{{ row.focus | tojson }}'>
+            <span class="ph-date-tile ph-date-tile--archive" aria-hidden="true">
+              <span class="ph-date-tile-day">{{ row.tile.day }}</span>
+              <span class="ph-date-tile-month">{{ row.tile.month }}</span>
+            </span>
             <span class="ph-row-main">
-              <span class="ph-row-title">{{ row.dateLabel }}</span>
-              <span class="ph-row-sub">{{ row.startTime[11:16] }}</span>
+              <span class="ph-row-title">{{ row.startTime[11:16] }}</span>
             </span>
             <span class="ph-row-metric">
               <span class="ph-row-metric-value">{{ row.customers }}</span>

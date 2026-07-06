@@ -646,6 +646,18 @@ button {
   font-size: 0.68rem;
 }
 
+.ph-date-tile--archive {
+  background: var(--ph-archive-soft);
+}
+
+.ph-date-tile--archive .ph-date-tile-day {
+  color: var(--ph-archive-deep);
+}
+
+.ph-date-tile--archive .ph-date-tile-month {
+  color: var(--ph-archive);
+}
+
 .ph-doc-tile {
   display: flex;
   align-items: center;

@@ -5,7 +5,7 @@ import {
   reloadOnHistoryNavigation,
   restoreSearchInputFromUrl,
 } from "./search.js?v=20260706a";
-import { initSheet } from "./sheet.js?v=20260706e";
+import { initSheet } from "./sheet.js?v=20260706f";
 
 if (!customElements.get("dai-detail-panel")) {
   customElements.define("dai-detail-panel", DaiDetailPanel);

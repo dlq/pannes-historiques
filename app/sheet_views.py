@@ -225,6 +225,16 @@ def _planned_groups(
     return [groups[key] for key in sorted(groups)]
 
 
+def _date_tile(lang: str, value: str | None) -> dict[str, str]:
+    moment = _parse_feed_time(value)
+    if moment is None:
+        return {"day": "?", "month": ""}
+    return {
+        "day": str(moment.day),
+        "month": MONTHS_SHORT[lang if lang in MONTHS_SHORT else "fr"][moment.month - 1],
+    }
+
+
 def _previous_rows(
     lang: str, items: list[dict[str, Any]], *, with_distance: bool
 ) -> list[dict[str, Any]]:
@@ -254,6 +264,7 @@ def _previous_rows(
                 "kind": "previous_outage",
                 "startTime": item.get("startTime") or "",
                 "dateLabel": _format_date_label(lang, item.get("startTime")),
+                "tile": _date_tile(lang, item.get("startTime")),
                 "statusLabel": item.get("statusLabel") or "",
                 "customers": _format_customers(item.get("customersAffected")),
                 "distanceKm": _format_distance_km(item.get("distanceM")) if with_distance else "",
@@ -386,6 +397,7 @@ def explore_sheet_context(
             "latest": [
                 {
                     "dateLabel": _format_date_label(lang, item.get("startTime")),
+                    "tile": _date_tile(lang, item.get("startTime")),
                     "startTime": item.get("startTime") or "",
                     "customers": _format_customers(item.get("customersAffected")),
                     "focus": {
