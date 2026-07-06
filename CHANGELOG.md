@@ -27,6 +27,12 @@ Keep active execution state in `PLANS.md` and source/evidence research in `NOTES
 
 - Dead-code sweep: removed the orphaned `map-layer-data`/`map-layer-toggle` handlers, unused planned-schedule formatters, five leftover header CSS selectors, and 118 unused i18n keys per language; the map-label payload shipped to the client shrank from ~110 strings to the 35 actually read. Restored the provenance affordance as an in-sheet card (the old info button had been left inert). Added unit tests for archive day-grouping and address-scoped domains (sheet_views to 92%) and e2e coverage for the disclosure detail card, comparison tray, and provenance card; the e2e disclosure fixture now carries a name-shaped area label matching real data.
 
+### Verified
+
+- Release verification on `main` passed `uv run pytest -q` (124), `node --test` suites, `uv run pre-commit run --all-files`, `npx playwright test` (38, desktop + mobile Chromium), and `npx wrangler deploy --dry-run`.
+- Deployed to production on 2026-07-06 with Worker version `1f2b6dc1-8f48-4354-be76-e65e339e3711` and container image `pannes-historiques-pannescontainer:1f2b6dc1`; tagged `v0.4.0` and pushed with `main`.
+- Post-deploy smoke checks: `/healthz` 200; `/` 200 serving the sheet shell and MapLibre assets; representative French address search 200 (~11 s cold on the fresh container, ~1.9 s warm) containing the overview hero card; `/sheet?domain=archive` 200 (~1.5 s) listing real territory bins (Montréal, Laval, Québec, …); `/about` 200 in the new style; `/service-worker.js` advertising `pannes-historiques-v0.4.0-sheet-maplibre`; `/collect`, `/cron/hydro`, `/debug/timing/search`, `/api/durable/status`, and `/internal/disclosures/export` all 404.
+
 ### Known follow-ups
 
 - Explore-mode `Contexte` and `Planifiées` fragments embed large map payloads (up to ~700 KB); slim the match payloads or move them to on-demand endpoints during the public-read architecture slice.
