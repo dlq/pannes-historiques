@@ -1,11 +1,11 @@
-import { DaiDetailPanel } from "./detail-panels.js?v=20260706x";
-import { OutageMap } from "./outage-map.js?v=20260706x";
+import { DaiDetailPanel } from "./detail-panels.js?v=20260707a";
+import { OutageMap } from "./outage-map.js?v=20260707a";
 import {
   registerServiceWorker,
   reloadOnHistoryNavigation,
   restoreSearchInputFromUrl,
-} from "./search.js?v=20260706x";
-import { initSheet } from "./sheet.js?v=20260706x";
+} from "./search.js?v=20260707a";
+import { initSheet } from "./sheet.js?v=20260707a";
 
 if (!customElements.get("dai-detail-panel")) {
   customElements.define("dai-detail-panel", DaiDetailPanel);

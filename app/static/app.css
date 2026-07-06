@@ -542,6 +542,34 @@ button {
   background: var(--ph-archive);
 }
 
+.ph-dot--context {
+  background: var(--ph-context);
+}
+
+.ph-provenance-item {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  margin: 12px 0 0;
+  color: var(--ph-ink-2);
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+.ph-provenance-item .ph-dot {
+  flex-shrink: 0;
+  margin-top: 6px;
+}
+
+.ph-provenance-link {
+  color: var(--ph-accent);
+  text-decoration: none;
+}
+
+.ph-provenance-link:hover {
+  text-decoration: underline;
+}
+
 .ph-group-heading {
   margin: 14px 0 2px;
   color: var(--ph-ink-3);
@@ -1020,6 +1048,24 @@ button {
   padding: 10px 0 4px;
   border-top: 1px solid var(--ph-hairline);
   text-align: center;
+}
+
+.ph-sheet-footer {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+}
+
+.ph-sheet-footer-link {
+  padding: 0;
+  background: none;
+  border: 0;
+  color: var(--ph-ink-3);
+  font-size: 0.78rem;
+}
+
+.ph-sheet-footer-link:hover {
+  text-decoration: underline;
 }
 
 .ph-sheet-footer a {

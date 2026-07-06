@@ -5,8 +5,8 @@ import {
   extendBoundsWithGeometry,
   itemRenderKey,
   radiusCirclePolygon,
-} from "./map-utils.js?v=20260706x";
-import { escapeHtml, label } from "./ui-format.js?v=20260706x";
+} from "./map-utils.js?v=20260707a";
+import { escapeHtml, label } from "./ui-format.js?v=20260707a";
 
 const LIBERTY_STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
 

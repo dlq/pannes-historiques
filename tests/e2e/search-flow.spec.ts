@@ -72,8 +72,8 @@ test("address search opens the overview answer stack", async ({ page }) => {
   await runSearch(page);
   await expect(page).toHaveURL(/lang=en/);
   await expect(page).toHaveURL(/q=5220\+Rue\+Jeanne-Mance|q=5220%20Rue%20Jeanne-Mance/);
-  await expect(page.locator(".ph-sheet-title")).toContainText("5220");
-  await expect(page.locator(".ph-sheet-subtitle").first()).toContainText("5 km");
+  await expect(page.locator("#sheet-body .ph-sheet-title")).toContainText("5220");
+  await expect(page.locator("#sheet-body .ph-sheet-subtitle").first()).toContainText("5 km");
   await expect(page.locator(".ph-status-line")).toHaveCount(3);
   await expect(page.locator(".ph-hero-card")).toBeVisible();
   await expect(page.locator(".ph-hero-number")).toHaveText(/\d+/);
@@ -113,6 +113,25 @@ test("segmented control switches explore domains and map layers", async ({ page 
 });
 
 
+
+
+test("provenance card opens from the explore footer and the hero info button", async ({
+  page,
+}) => {
+  await page.goto("/?lang=en");
+  await expect(page.locator("#sheet-provenance")).toBeHidden();
+
+  await page.locator('.ph-sheet-footer-link[data-layer-info]').click();
+  await expect(page.locator("#sheet-provenance")).toBeVisible();
+  await expect(page.locator("#sheet-provenance .ph-sheet-title")).toHaveText("About this data");
+  await expect(page.locator("#sheet-provenance .ph-provenance-item")).toHaveCount(3);
+  await expect(
+    page.locator('#sheet-provenance a[href="mailto:contact@pannes.ca"]'),
+  ).toBeVisible();
+  await expect(page.locator('#sheet-provenance a[href*="github"]')).toBeVisible();
+  await page.locator("#sheet-provenance [data-detail-close]").click();
+  await expect(page.locator("#sheet-provenance")).toBeHidden();
+});
 
 test("failed sheet fetches show an error and recover", async ({ page }) => {
   await page.goto("/?lang=en");

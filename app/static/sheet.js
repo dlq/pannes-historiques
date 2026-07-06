@@ -1,10 +1,10 @@
-import { contextLayerForKind } from "./map-utils.js?v=20260706x";
+import { contextLayerForKind } from "./map-utils.js?v=20260707a";
 import {
   attachAddressAutocomplete,
   attachComparisonTray,
   hydrateTimeLabels,
   updateSearchUrl,
-} from "./search.js?v=20260706x";
+} from "./search.js?v=20260707a";
 import {
   escapeHtml,
   formatDistanceKm,
@@ -12,7 +12,7 @@ import {
   formatPreviousTimeParts,
   hasDistanceValue,
   label,
-} from "./ui-format.js?v=20260706x";
+} from "./ui-format.js?v=20260707a";
 
 const DETENTS = ["peek", "half", "full"];
 // The sheet height transition in app.css runs 280ms; wait slightly longer
@@ -204,6 +204,8 @@ function closeDetailCards() {
     detail.hidden = true;
     detail.innerHTML = "";
   }
+  const provenance = document.querySelector("#sheet-provenance");
+  if (provenance) provenance.hidden = true;
   const panel = detailPanel();
   if (panel && typeof panel.renderEmpty === "function") panel.renderEmpty();
 }
@@ -437,6 +439,17 @@ function bindGlobalHandlers() {
     const detailClose = event.target.closest("[data-detail-close]");
     if (detailClose) {
       closeDetailCards();
+      return;
+    }
+    const layerInfo = event.target.closest("[data-layer-info]");
+    if (layerInfo) {
+      event.preventDefault();
+      const provenance = document.querySelector("#sheet-provenance");
+      if (provenance) {
+        provenance.hidden = false;
+        provenance.scrollTop = 0;
+        if (isMobileLayout() && currentDetent() === "peek") setDetent("half");
+      }
       return;
     }
     const domainLink = event.target.closest("[data-domain-link]");

@@ -22,7 +22,7 @@ test("current location search opens the overview with coordinates in the URL", a
   await expect(page).toHaveURL(/lat=45\.5186/);
   await expect(page).toHaveURL(/lon=-73\.6027/);
   await expect(page).not.toHaveURL(/[?&]q=/);
-  await expect(page.locator(".ph-sheet-title")).toBeVisible();
+  await expect(page.locator("#sheet-body .ph-sheet-title")).toBeVisible();
 
   await page.reload();
   await expect(page.locator('.ph-sheet-content[data-domain="overview"]')).toBeVisible();
@@ -93,7 +93,7 @@ test("mobile address search keeps the sheet at half with the answer visible", as
   await sheetResponse;
 
   await expect(page.locator(".ph-sheet")).toHaveAttribute("data-detent", "half");
-  await expect(page.locator(".ph-sheet-title")).toBeVisible();
+  await expect(page.locator("#sheet-body .ph-sheet-title")).toBeVisible();
   await expect(page.locator(".ph-status-line").first()).toBeVisible();
 
   const sheetTop = await page

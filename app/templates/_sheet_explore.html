@@ -60,6 +60,7 @@
 </div>
 {% if sheet.mode != "address" %}
   <footer class="ph-sheet-footer">
+    <button class="ph-sheet-footer-link" type="button" data-layer-info="all">{{ t(lang, "provenance_title") }}</button>
     <a href="{{ url_for('about', lang=lang) }}">{{ t(lang, "about_link") }}</a>
   </footer>
 {% endif %}
