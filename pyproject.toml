@@ -51,4 +51,4 @@ testpaths = ["tests"]
 include = ["app*"]
 
 [tool.setuptools.package-data]
-app = ["static/*", "templates/*.html"]
+app = ["static/*", "static/vendor/maplibre/*", "templates/*.html"]

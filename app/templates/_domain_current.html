@@ -1,0 +1,37 @@
+{% macro dc_icon(name, class_name="") -%}
+  <svg class="ph-icon {{ class_name }}" aria-hidden="true" focusable="false">
+    <use href="{{ url_for('static', filename='icons.svg', v=static_version) }}#ph-icon-{{ name }}"></use>
+  </svg>
+{%- endmacro %}
+<div class="ph-domain-summary">
+  <p class="ph-domain-summary-title">
+    <span class="ph-dot ph-dot--current" aria-hidden="true"></span>{{ sheet.body.summary }}
+  </p>
+  {% if sheet.body.customers %}<p class="ph-domain-summary-sub">{{ sheet.body.customers }}</p>{% endif %}
+</div>
+{% if sheet.body.rows %}
+  <ul class="ph-row-list" data-domain-rows="current">
+    {% for row in sheet.body.rows %}
+      <li>
+        <button class="ph-row"
+                type="button"
+                data-map-focus='{{ row.focus | tojson }}'>
+          <span class="ph-row-main">
+            <span class="ph-row-title" data-relative-time="{{ row.startTime }}">{{ row.startTime[:16] }}</span>
+            <span class="ph-row-sub">
+              {%- if row.distanceKm %}{{ row.distanceKm }} km ·
+              {% endif -%}
+              {{ row.statusLabel }}
+            </span>
+          </span>
+          <span class="ph-row-metric">
+            <span class="ph-row-metric-value">{{ row.customers }}</span>
+            <span class="ph-row-metric-label">{{ t(lang, "clients") }}</span>
+          </span>
+        </button>
+      </li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <p class="ph-empty">{{ sheet.body.empty }}</p>
+{% endif %}

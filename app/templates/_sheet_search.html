@@ -1,0 +1,25 @@
+<form id="search-form"
+      class="ph-sheet-search"
+      method="get"
+      action="{{ url_for('index') }}"
+      data-sheet-search>
+  <input type="hidden" name="lang" value="{{ lang }}">
+  <label class="ph-search-field">
+    <span class="sr-only">{{ t(lang, "search_label") }}</span>
+    <svg class="ph-icon ph-search-icon" aria-hidden="true" focusable="false">
+      <use href="{{ url_for('static', filename='icons.svg', v=static_version) }}#ph-icon-search"></use>
+    </svg>
+    <input id="address-input"
+           name="q"
+           value="{{ initial_query if initial_query is defined else '' }}"
+           autocomplete="off"
+           data-autocomplete-url="{{ url_for('autocomplete') }}"
+           data-lang="{{ lang }}"
+           placeholder="{{ t(lang, 'sheet_search_placeholder') }}">
+  </label>
+  <a class="ph-lang-button"
+     href="{{ url_for('index', lang='en' if lang == 'fr' else 'fr') }}"
+     data-lang-switch
+     aria-label="{{ t(lang, 'language') }}">{{ "EN" if lang == "fr" else "FR" }}</a>
+</form>
+<div id="address-suggestions" class="ph-suggestions hidden"></div>

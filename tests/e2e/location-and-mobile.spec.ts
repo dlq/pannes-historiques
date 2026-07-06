@@ -5,128 +5,99 @@ test.use({
   permissions: ["geolocation"],
 });
 
-test("current location search renders deterministic results", async ({ page }) => {
+test("current location search opens the overview with coordinates in the URL", async ({
+  page,
+}) => {
   await page.goto("/?lang=en");
   const locationButton = page.getByRole("button", { name: "Use current location" });
   await expect(locationButton.locator("svg")).toHaveCount(1);
 
+  const sheetResponse = page.waitForResponse(
+    (response) => response.url().includes("/sheet") && response.url().includes("lat="),
+  );
   await locationButton.click();
+  await sheetResponse;
 
-  await expect(
-    page.getByRole("heading", { name: "Current" }),
-  ).toBeVisible();
+  await expect(page.locator('.ph-sheet-content[data-domain="overview"]')).toBeVisible();
   await expect(page).toHaveURL(/lat=45\.5186/);
   await expect(page).toHaveURL(/lon=-73\.6027/);
   await expect(page).not.toHaveURL(/[?&]q=/);
-  await expect(page.locator("#address-input")).toHaveValue(/Current location/);
-  await expect(page.locator("outage-map")).toBeVisible();
+  await expect(page.locator(".ph-sheet-title")).toBeVisible();
 
   await page.reload();
-  await expect(
-    page.getByRole("heading", { name: "Current" }),
-  ).toBeVisible();
-  await expect(page.locator("#address-input")).toHaveValue(/Current location/);
-
-  await page.getByRole("button", { name: "fr" }).click();
-  await expect(page).toHaveURL(/lang=fr/);
-  await expect(page).toHaveURL(/lat=45\.5186/);
-  await expect(page).toHaveURL(/lon=-73\.6027/);
-  await expect(page).not.toHaveURL(/[?&]q=/);
-  await expect(
-    page.getByRole("heading", { name: "Actuelles" }),
-  ).toBeVisible();
-  const frenchLocationButton = page.getByRole("button", {
-    name: "Utiliser ma position actuelle",
-  });
-  await expect(frenchLocationButton.locator("svg")).toHaveCount(1);
-  await expect(frenchLocationButton.locator(".ph-button-spinner")).toHaveCount(0);
+  await expect(page.locator('.ph-sheet-content[data-domain="overview"]')).toBeVisible();
+  await expect(page.locator(".ph-hero-card")).toBeVisible();
 });
 
-test("mobile default context panel is visible and resizable", async ({ page }) => {
+test("mobile sheet starts at peek and expands through detents", async ({ page }) => {
   await page.goto("/?lang=en");
   const viewport = page.viewportSize();
-  const panel = page.locator("#results");
-  const handle = page.locator(".ph-panel-drawer-handle");
+  const sheet = page.locator(".ph-sheet");
+  const grabber = page.locator(".ph-sheet-grabber");
 
-  await expect(
-    page.getByRole("heading", { name: "Current" }),
-  ).toBeVisible();
+  await expect(page.locator(".ph-segmented")).toBeVisible();
 
   if ((viewport?.width || 0) >= 768) {
-    await expect(handle).toBeHidden();
+    await expect(grabber).toBeHidden();
     return;
   }
 
-  await expect(handle).toBeVisible();
-  await expect(page.locator(".ph-default-context-list")).toBeVisible();
-  await expect(page.locator(".ph-context-switcher")).toHaveCount(0);
-  const initialHeight = await panel.evaluate((node) => node.getBoundingClientRect().height);
-  const box = await handle.boundingBox();
+  await expect(grabber).toBeVisible();
+  await expect(sheet).toHaveAttribute("data-detent", "peek");
+  const initialHeight = await sheet.evaluate((node) => node.getBoundingClientRect().height);
+
+  await grabber.click();
+  await expect(sheet).toHaveAttribute("data-detent", "half");
+  await expect
+    .poll(() => sheet.evaluate((node) => node.getBoundingClientRect().height))
+    .toBeGreaterThan(initialHeight + 80);
+
+  const box = await grabber.boundingBox();
   expect(box).not.toBeNull();
-  if (!box) return;
+  if (!box || !viewport) return;
 
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   await page.mouse.down();
-  await page.mouse.move(box.x + box.width / 2, box.y - 120);
+  await page.mouse.move(box.x + box.width / 2, viewport.height * 0.1, { steps: 8 });
   await page.mouse.up();
-
-  await expect
-    .poll(() => panel.evaluate((node) => node.getBoundingClientRect().height))
-    .toBeGreaterThan(initialHeight + 40);
-
-  await expect(panel).toHaveClass(/is-expanded/);
-  await expect
-    .poll(() =>
-      panel.evaluate((node) => {
-        const panelTop = node.getBoundingClientRect().top;
-        const topbarBottom =
-          document.querySelector(".ph-topbar")?.getBoundingClientRect().bottom || 0;
-        return panelTop - topbarBottom;
-      }),
-    )
-    .toBeGreaterThan(120);
-
-  await expect
-    .poll(() =>
-      panel.evaluate((node) => {
-        const panelRect = node.getBoundingClientRect();
-        const currentSummary = node.querySelector("#ph-context-current summary")?.getBoundingClientRect();
-        if (!currentSummary) return false;
-        return currentSummary.top >= panelRect.top && currentSummary.bottom <= panelRect.bottom;
-      }),
-    )
-    .toBe(true);
+  await expect(sheet).toHaveAttribute("data-detent", "full");
 });
 
-test("mobile current map row focuses without a redundant detail sheet", async ({ page }) => {
+test("mobile row selection keeps the map visible at half detent", async ({ page }) => {
   await page.goto("/?lang=en");
   const viewport = page.viewportSize();
   if ((viewport?.width || 0) >= 768) return;
 
-  const firstContextRow = page.locator("[data-map-focus]").first();
-  await expect(firstContextRow).toBeVisible();
-  await firstContextRow.click();
+  const sheet = page.locator(".ph-sheet");
+  await page.locator(".ph-sheet-grabber").click();
+  await page.locator(".ph-sheet-grabber").click();
+  await expect(sheet).toHaveAttribute("data-detent", "full");
 
-  const detailPanel = page.locator("dai-detail-panel");
-  await expect(detailPanel).toBeHidden();
-  await expect(firstContextRow).toHaveClass(/is-map-selected/);
-  await expect(firstContextRow).toHaveAttribute("aria-pressed", "true");
+  const firstRow = page.locator("[data-map-focus]").first();
+  await firstRow.click();
+  await expect(firstRow).toHaveClass(/is-map-selected/);
+  await expect(sheet).toHaveAttribute("data-detent", "half");
+  await expect(page.locator("outage-map")).toHaveAttribute("data-active-focus-kind", "outage");
 });
 
-test("mobile search centers the address without left-rail compensation", async ({ page }) => {
+test("mobile address search keeps the sheet at half with the answer visible", async ({ page }) => {
   await page.goto("/?lang=en");
   const viewport = page.viewportSize();
   if ((viewport?.width || 0) >= 768) return;
 
   await page.locator("#address-input").fill("5220 Rue Jeanne-Mance");
-  await page.getByRole("button", { name: "Search" }).click();
-  await expect(page.locator(".leaflet-marker-icon").first()).toBeVisible();
+  const sheetResponse = page.waitForResponse((response) =>
+    response.url().includes("domain=overview"),
+  );
+  await page.locator("#address-input").press("Enter");
+  await sheetResponse;
 
-  const markerBox = await page.locator(".leaflet-marker-icon").first().boundingBox();
-  expect(markerBox).not.toBeNull();
-  if (!markerBox || !viewport) return;
+  await expect(page.locator(".ph-sheet")).toHaveAttribute("data-detent", "half");
+  await expect(page.locator(".ph-sheet-title")).toBeVisible();
+  await expect(page.locator(".ph-status-line").first()).toBeVisible();
 
-  const markerCenterX = markerBox.x + markerBox.width / 2;
-  expect(markerCenterX).toBeGreaterThan(viewport.width * 0.35);
-  expect(markerCenterX).toBeLessThan(viewport.width * 0.65);
+  const sheetTop = await page
+    .locator(".ph-sheet")
+    .evaluate((node) => node.getBoundingClientRect().top);
+  expect(sheetTop).toBeGreaterThan((viewport?.height || 0) * 0.3);
 });

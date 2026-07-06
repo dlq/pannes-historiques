@@ -174,6 +174,7 @@ def default_map_payload(
 def _map_labels(lang: str) -> dict[str, str]:
     def map_label(key: str) -> str:
         template_labels = {
+            "detail_distance",
             "local_layer_summary_body",
             "local_layer_summary_empty",
             "local_layer_summary_header",
@@ -201,6 +202,14 @@ def _map_labels(lang: str) -> dict[str, str]:
             "cumulative_disclosed_duration",
             "current_outages",
             "customers",
+            "detail_close",
+            "detail_customers",
+            "detail_distance",
+            "detail_duration_observed",
+            "detail_end_observed",
+            "detail_last_status",
+            "detail_source_feed",
+            "detail_start_observed",
             "dai_source",
             "dai_sources",
             "distance",

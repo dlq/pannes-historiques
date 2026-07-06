@@ -9,10 +9,18 @@ Pannes Historiques is a Flask application deployed behind a Cloudflare Worker an
 - Private runtime APIs under `/api/durable/runtime/*` are Worker endpoints used by the container. They require `X-Pannes-Operation-Token`.
 - Private operational paths (`/internal/*`, `/cron/*`, `/collect*`, `/debug/*`) are blocked at the Worker edge unless they are reached through scheduled/internal flows.
 
+## Browser Interface
+
+The interface is one full-bleed MapLibre GL map (OpenFreeMap Liberty vector style, vendored `maplibre-gl` under `app/static/vendor/maplibre/`) plus a single sheet: a bottom sheet with peek/half/full detents on mobile, a floating left panel on desktop. The search field lives in the sheet. A four-way segmented control (`current`, `planned`, `archive`, `context`) selects the active domain; the sheet content and the visible map layer always match, each domain with its own semantic color (red current, amber planned, violet archive, teal published context).
+
+- Explore mode (no address): the segmented control is the root navigation; each domain renders a purpose-built fragment (sorted current rows, date-grouped planned schedule, archive report with time windows, disclosure document list).
+- Address mode: the root is an overview answer stack (current/planned status lines, local-history hero card with a 14-month chart, comparison entry). Domain views are pushed pages with a back control and a `5 km / Québec` scope toggle. Detail cards open inside the sheet at half detent so the focused map geometry stays visible.
+- `GET /sheet` returns any sheet fragment; each fragment embeds a JSON map update that `sheet.js` fans out to the persistent `<outage-map>` element via `map-layer-items` / `map-address` events. `/` renders the shell with the initial fragment and map payload inline.
+
 ## Runtime Ownership
 
-- `app/` owns Flask routes, search orchestration, Jinja rendering, local SQLite fallback paths, and Python collectors.
-- `app/static/` owns browser behavior as plain ES modules.
+- `app/` owns Flask routes, search orchestration, Jinja rendering, local SQLite fallback paths, and Python collectors. `app/sheet_views.py` builds the sheet fragment contexts.
+- `app/static/` owns browser behavior as plain ES modules: `sheet.js` (detents, domain navigation, detail cards), `outage-map.js` (MapLibre element), `map-utils.js` (pure helpers), `search.js` (autocomplete, comparison tray, history), `detail-panels.js` (disclosure/regional detail rendering).
 - `src/worker.js` owns Worker fetch/scheduled entrypoints and D1/R2 runtime behavior.
 - `src/container.js` owns Cloudflare Container configuration.
 - `src/worker-routing.js` owns top-level Worker path classification.

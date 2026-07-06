@@ -1,0 +1,35 @@
+<div class="ph-domain-summary">
+  <p class="ph-domain-summary-title">
+    <span class="ph-dot ph-dot--planned" aria-hidden="true"></span>{{ sheet.body.summary }}
+  </p>
+  {% if sheet.body.customers %}<p class="ph-domain-summary-sub">{{ sheet.body.customers }}</p>{% endif %}
+</div>
+{% if sheet.body.groups %}
+  {% for group in sheet.body.groups %}
+    <p class="ph-group-heading">{{ group.heading }}</p>
+    <ul class="ph-row-list" data-domain-rows="planned">
+      {% for row in group.rows %}
+        <li>
+          <button class="ph-row"
+                  type="button"
+                  data-map-focus='{{ row.focus | tojson }}'>
+            <span class="ph-date-tile" aria-hidden="true">
+              <span class="ph-date-tile-day">{{ row.tileDay }}</span>
+              <span class="ph-date-tile-month">{{ row.tileMonth }}</span>
+            </span>
+            <span class="ph-row-main">
+              <span class="ph-row-title">{{ row.window }}</span>
+              {% if row.distanceKm %}<span class="ph-row-sub">{{ row.distanceKm }} km</span>{% endif %}
+            </span>
+            <span class="ph-row-metric">
+              <span class="ph-row-metric-value">{{ row.customers }}</span>
+              <span class="ph-row-metric-label">{{ t(lang, "clients") }}</span>
+            </span>
+          </button>
+        </li>
+      {% endfor %}
+    </ul>
+  {% endfor %}
+{% else %}
+  <p class="ph-empty">{{ sheet.body.empty }}</p>
+{% endif %}

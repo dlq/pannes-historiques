@@ -21,7 +21,16 @@ from .services import (
     PUBLISHED_MAP_LAYER_SCOPE,
     AppService,
 )
+from .sheet_views import (
+    EXPLORE_DOMAINS,
+    SHEET_DOMAINS,
+    address_domain_sheet_context,
+    explore_sheet_context,
+    overview_sheet_context,
+)
 from .views import (
+    DEFAULT_MAP_CENTER,
+    DEFAULT_MAP_ZOOM,
     FIXED_DAYS,
     FIXED_INCLUDE_PLANNED,
     FIXED_RADIUS_M,
@@ -83,6 +92,112 @@ def create_app(settings: Settings | None = None) -> Flask:
         if scope == PLANNED_MAP_LAYER_SCOPE:
             return [item for item in layers if item.get("outage_kind") == "planned"]
         return [item for item in layers if item.get("outage_kind") == "outage"]
+
+    address_search_scopes = frozenset(
+        {CURRENT_MAP_LAYER_SCOPE, PLANNED_MAP_LAYER_SCOPE, PREVIOUS_MAP_LAYER_SCOPE}
+    )
+
+    def explore_sheet(lang: str, domain: str) -> dict:
+        if domain == "planned":
+            return explore_sheet_context(
+                lang,
+                "planned",
+                planned_layers=operational_layers_for_scope(PLANNED_MAP_LAYER_SCOPE),
+            )
+        if domain == "archive":
+            archive_summary = service.previous_operational_archive_summary()
+            previous_layers = (
+                []
+                if archive_summary.get("mode") == "municipal_archive"
+                else service._previous_operational_map_layers()
+            )
+            return explore_sheet_context(
+                lang,
+                "archive",
+                previous_layers=previous_layers,
+                archive_summary=archive_summary,
+            )
+        if domain == "context":
+            return explore_sheet_context(
+                lang,
+                "context",
+                regional_layers=service._regional_metric_map_layers(),
+                disclosure_layers=service._disclosure_map_layers(),
+            )
+        return explore_sheet_context(
+            lang, "current", current_layers=operational_layers_for_scope(CURRENT_MAP_LAYER_SCOPE)
+        )
+
+    def address_search_result(lang, query, latitude, longitude, accuracy_m):
+        if query:
+            return service.search(
+                query=query,
+                language=lang,
+                radius_m=FIXED_RADIUS_M,
+                days=FIXED_DAYS,
+                include_planned=FIXED_INCLUDE_PLANNED,
+                include_map_layers=True,
+                record_history=False,
+                map_layer_scopes=address_search_scopes,
+            )
+        return service.search_location(
+            latitude=latitude,
+            longitude=longitude,
+            accuracy_m=accuracy_m,
+            language=lang,
+            radius_m=FIXED_RADIUS_M,
+            days=FIXED_DAYS,
+            include_planned=FIXED_INCLUDE_PLANNED,
+            include_map_layers=True,
+            record_history=False,
+            map_layer_scopes=address_search_scopes,
+        )
+
+    def sheet_error_context(lang: str, result) -> dict:
+        context = result_context(lang, result, include_map_payload=False)
+        return {
+            "mode": "explore",
+            "domain": "current",
+            "scope": "province",
+            "error_message": context["error_message"],
+            "map_update": None,
+            "map_labels": {},
+        }
+
+    def address_sheet(lang, domain, scope, query, latitude, longitude, accuracy_m) -> dict:
+        result = address_search_result(lang, query, latitude, longitude, accuracy_m)
+        if result.error:
+            return sheet_error_context(lang, result)
+        context = result_context(lang, result, include_map_payload=False)
+        display_address = context["display_address"]
+        if domain == "overview":
+            return overview_sheet_context(lang, result, display_address)
+        if domain == "context" or scope == "province":
+            return address_domain_sheet_context(
+                lang,
+                domain,
+                result,
+                display_address,
+                scope="province",
+                explore_context=explore_sheet(lang, domain),
+            )
+        return address_domain_sheet_context(lang, domain, result, display_address, scope="local")
+
+    def initial_map_payload(sheet_context: dict, lang: str) -> dict:
+        map_update = sheet_context.get("map_update") or {}
+        center = map_update.get("center") or DEFAULT_MAP_CENTER
+        has_address = bool(map_update.get("radiusM"))
+        return {
+            "center": center,
+            "zoom": map_update.get("zoom") or DEFAULT_MAP_ZOOM,
+            "labels": sheet_context.get("map_labels") or {},
+            "contextGeometryUrl": "/map-context-geometries",
+            "matches": map_update.get("matches") or [],
+            "radiusM": map_update.get("radiusM"),
+            "addressLabel": map_update.get("addressLabel") or "",
+            "showAddressMarker": has_address,
+            "showEmptyNotice": False,
+        }
 
     def not_found_response():
         return jsonify({"error": "not found"}), 404
@@ -156,22 +271,41 @@ def create_app(settings: Settings | None = None) -> Flask:
             reset_current_timer(token)
             g.perf_token = None
 
+    def sheet_request_params():
+        source = request.values
+        lang = choose_language(source.get("lang"))
+        domain = source.get("domain", "")
+        scope = source.get("scope", "local")
+        if scope not in {"local", "province"}:
+            scope = "local"
+        query = source.get("q", "")
+        latitude = parse_optional_float(source.get("lat") or source.get("latitude"))
+        longitude = parse_optional_float(source.get("lon") or source.get("longitude"))
+        accuracy_m = parse_optional_float(source.get("accuracy_m"))
+        has_address = bool(query) or (latitude is not None and longitude is not None)
+        if domain not in SHEET_DOMAINS:
+            domain = "overview" if has_address else "current"
+        if not has_address and domain == "overview":
+            domain = "current"
+        return lang, domain, scope, query, latitude, longitude, accuracy_m, has_address
+
+    def build_sheet_context(
+        lang, domain, scope, query, latitude, longitude, accuracy_m, has_address
+    ):
+        if has_address:
+            with current_timer().step("sheet.address"):
+                return address_sheet(lang, domain, scope, query, latitude, longitude, accuracy_m)
+        if domain not in EXPLORE_DOMAINS:
+            domain = "current"
+        with current_timer().step("sheet.explore"):
+            return explore_sheet(lang, domain)
+
     @app.get("/")
     def index():
-        lang = choose_language(request.args.get("lang"))
-        query = request.args.get("q", "")
-        latitude = parse_optional_float(request.args.get("lat"))
-        longitude = parse_optional_float(request.args.get("lon"))
-        accuracy_m = parse_optional_float(request.args.get("accuracy_m"))
-        radius_m = FIXED_RADIUS_M
-        days = FIXED_DAYS
-        include_planned = FIXED_INCLUDE_PLANNED
-        default_map = None
-        search_context = None
+        lang, domain, scope, query, latitude, longitude, accuracy_m, has_address = (
+            sheet_request_params()
+        )
         initial_query = query
-        initial_latitude = ""
-        initial_longitude = ""
-        initial_accuracy_m = ""
         canonical_query = {"lang": lang}
         if query:
             canonical_query["q"] = query
@@ -181,63 +315,41 @@ def create_app(settings: Settings | None = None) -> Flask:
             if accuracy_m is not None:
                 canonical_query["accuracy_m"] = f"{accuracy_m:g}"
         canonical_url = absolute_public_url(settings, "/", canonical_query)
-
-        if query:
-            with current_timer().step("index.search"):
-                result = service.search(
-                    query=query,
-                    language=lang,
-                    radius_m=radius_m,
-                    days=days,
-                    include_planned=include_planned,
-                    include_map_layers=True,
-                    record_history=False,
-                    map_layer_scopes=initial_map_layers,
-                )
-            with current_timer().step("index.result_context"):
-                search_context = result_context(lang, result)
-        elif latitude is not None and longitude is not None:
-            with current_timer().step("index.search_location"):
-                result = service.search_location(
-                    latitude=latitude,
-                    longitude=longitude,
-                    accuracy_m=accuracy_m,
-                    language=lang,
-                    radius_m=radius_m,
-                    days=days,
-                    include_planned=include_planned,
-                    include_map_layers=True,
-                    record_history=False,
-                    map_layer_scopes=initial_map_layers,
-                )
-            with current_timer().step("index.result_context"):
-                search_context = result_context(lang, result)
+        sheet_context = build_sheet_context(
+            lang, domain, scope, query, latitude, longitude, accuracy_m, has_address
+        )
+        if not query and latitude is not None and longitude is not None:
             initial_query = f"{t(lang, 'current_location')} ({latitude:.5f}, {longitude:.5f})"
-            initial_latitude = str(latitude)
-            initial_longitude = str(longitude)
-            initial_accuracy_m = "" if accuracy_m is None else str(accuracy_m)
-        else:
-            with current_timer().step("index.default_map_layers"):
-                default_map = default_map_payload(
-                    lang,
-                    current_map_layers=operational_layers_for_scope(CURRENT_MAP_LAYER_SCOPE),
-                )
 
         with current_timer().step("index.render_template"):
             return render_template(
                 "index.html",
-                initial_accuracy_m=initial_accuracy_m,
-                initial_latitude=initial_latitude,
-                initial_longitude=initial_longitude,
-                initial_query=initial_query,
                 lang=lang,
-                default_map_payload=default_map,
-                result_context=search_context,
+                initial_query=initial_query,
+                initial_latitude="" if latitude is None else str(latitude),
+                initial_longitude="" if longitude is None else str(longitude),
+                initial_accuracy_m="" if accuracy_m is None else str(accuracy_m),
+                sheet=sheet_context,
+                sheet_is_boot=True,
+                initial_map=initial_map_payload(sheet_context, lang),
                 settings=settings,
                 page_description=t(lang, "page_description"),
                 canonical_url=canonical_url,
                 social_title=t(lang, "app_title"),
                 social_description=t(lang, "page_description"),
+            )
+
+    @app.get("/sheet")
+    def sheet():
+        lang, domain, scope, query, latitude, longitude, accuracy_m, has_address = (
+            sheet_request_params()
+        )
+        sheet_context = build_sheet_context(
+            lang, domain, scope, query, latitude, longitude, accuracy_m, has_address
+        )
+        with current_timer().step("sheet.render_template"):
+            return render_template(
+                "_sheet.html", lang=lang, sheet=sheet_context, sheet_is_boot=False
             )
 
     @app.get("/about")
@@ -315,21 +427,14 @@ def create_app(settings: Settings | None = None) -> Flask:
     @app.post("/search")
     def search():
         lang = choose_language(request.form.get("lang"))
-        with current_timer().step("search.service"):
-            result = service.search(
-                query=request.form.get("q", ""),
-                language=lang,
-                radius_m=FIXED_RADIUS_M,
-                days=FIXED_DAYS,
-                include_planned=FIXED_INCLUDE_PLANNED,
-                include_map_layers=True,
-                record_history=False,
-                map_layer_scopes=initial_map_layers,
+        with current_timer().step("search.sheet"):
+            sheet_context = address_sheet(
+                lang, "overview", "local", request.form.get("q", ""), None, None, None
             )
-        with current_timer().step("search.result_context"):
-            context = result_context(lang, result, include_map_payload=True)
         with current_timer().step("search.render_template"):
-            return render_template("_results.html", **context)
+            return render_template(
+                "_sheet.html", lang=lang, sheet=sheet_context, sheet_is_boot=False
+            )
 
     @app.get("/search-map")
     def search_map():
@@ -479,25 +584,20 @@ def create_app(settings: Settings | None = None) -> Flask:
     @app.post("/search-location")
     def search_location():
         lang = choose_language(request.form.get("lang"))
-        with current_timer().step("search_location.service"):
-            result = service.search_location(
-                latitude=float(request.form.get("latitude") or "0"),
-                longitude=float(request.form.get("longitude") or "0"),
-                accuracy_m=float(request.form["accuracy_m"])
-                if request.form.get("accuracy_m")
-                else None,
-                language=lang,
-                radius_m=FIXED_RADIUS_M,
-                days=FIXED_DAYS,
-                include_planned=FIXED_INCLUDE_PLANNED,
-                include_map_layers=True,
-                record_history=False,
-                map_layer_scopes=initial_map_layers,
+        with current_timer().step("search_location.sheet"):
+            sheet_context = address_sheet(
+                lang,
+                "overview",
+                "local",
+                "",
+                float(request.form.get("latitude") or "0"),
+                float(request.form.get("longitude") or "0"),
+                float(request.form["accuracy_m"]) if request.form.get("accuracy_m") else None,
             )
-        with current_timer().step("search_location.result_context"):
-            context = result_context(lang, result, include_map_payload=True)
         with current_timer().step("search_location.render_template"):
-            return render_template("_results.html", **context)
+            return render_template(
+                "_sheet.html", lang=lang, sheet=sheet_context, sheet_is_boot=False
+            )
 
     @app.get("/search-location-map")
     def search_location_map():

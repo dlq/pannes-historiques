@@ -1,0 +1,88 @@
+{% macro ov_icon(name, class_name="") -%}
+  <svg class="ph-icon {{ class_name }}" aria-hidden="true" focusable="false">
+    <use href="{{ url_for('static', filename='icons.svg', v=static_version) }}#ph-icon-{{ name }}"></use>
+  </svg>
+{%- endmacro %}
+<header class="ph-sheet-header">
+  <div class="ph-sheet-header-text">
+    <h2 class="ph-sheet-title">{{ sheet.display_address }}</h2>
+    <p class="ph-sheet-subtitle">{{ sheet.radius_label }}</p>
+  </div>
+  <button class="ph-round-button"
+          type="button"
+          data-action="clear-search"
+          aria-label="{{ t(lang, 'sheet_close_search') }}">{{ ov_icon("x") }}</button>
+</header>
+<div class="ph-status-lines">
+  <button class="ph-status-line" type="button" data-domain-link="current">
+    <span class="ph-status-icon ph-status-icon--{{ sheet.current_line.state }}">{{ ov_icon("zap" if sheet.current_line.state == "alert" else "check") }}</span>
+    <span class="ph-status-text">
+      <span class="ph-status-title">{{ sheet.current_line.title }}</span>
+      {% if sheet.current_line.subtitle %}<span class="ph-status-sub">{{ sheet.current_line.subtitle }}</span>{% endif %}
+    </span>
+    {{ ov_icon('chevron-right', 'ph-status-chevron') }}
+  </button>
+  <button class="ph-status-line" type="button" data-domain-link="planned">
+    <span class="ph-status-icon ph-status-icon--{{ 'planned' if sheet.planned_line.state == 'planned' else 'ok' }}">{{ ov_icon("calendar") }}</span>
+    <span class="ph-status-text">
+      <span class="ph-status-title">{{ sheet.planned_line.title }}</span>
+      {% if sheet.planned_line.subtitle %}<span class="ph-status-sub">{{ sheet.planned_line.subtitle }}</span>{% endif %}
+    </span>
+    {{ ov_icon('chevron-right', 'ph-status-chevron') }}
+  </button>
+</div>
+<section class="ph-hero-card"
+         aria-label="{{ t(lang, 'history_local_title') }}">
+  <div class="ph-hero-label-row">
+    <span class="ph-hero-label">{{ t(lang, 'history_local_title') }}</span>
+    <button class="ph-hero-info"
+            type="button"
+            data-layer-info="previous"
+            aria-label="{{ t(lang, 'layer_info_open') }}">{{ ov_icon("info") }}</button>
+  </div>
+  <p class="ph-hero-number-row">
+    <span class="ph-hero-number">{{ sheet.history.count }}</span>
+    <span class="ph-hero-sub">{{ sheet.history.heroSub }}</span>
+  </p>
+  {% if sheet.history.count > 0 %}
+    <div class="ph-hero-chart"
+         role="img"
+         aria-label="{{ sheet.history.heroSub }}">
+      {% for bucket in sheet.history.buckets %}
+        <span class="ph-hero-bar {{ 'is-zero' if bucket.count == 0 else '' }}"
+              style="height: {{ (4 + (bucket.count / sheet.history.maxBucket) * 32) | round(1) if sheet.history.maxBucket else 4 }}px"
+              title="{{ bucket.label }}: {{ bucket.count }}"></span>
+      {% endfor %}
+    </div>
+    <div class="ph-hero-axis">
+      <span>{{ sheet.history.bucketStartLabel }}</span>
+      <span>{{ sheet.history.bucketEndLabel }}</span>
+    </div>
+    {% if sheet.history.facts %}<p class="ph-hero-facts">{{ sheet.history.facts }}</p>{% endif %}
+  {% else %}
+    <p class="ph-hero-empty">{{ sheet.history.emptyBody }}</p>
+  {% endif %}
+  <p class="ph-hero-caveat">{{ sheet.history.caveat }}</p>
+</section>
+<div class="ph-overview-actions">
+  <button class="ph-action-button ph-action-button--primary"
+          type="button"
+          data-domain-link="archive">{{ sheet.history.viewAllLabel }}</button>
+  <button class="ph-action-button"
+          type="button"
+          data-compare-add
+          data-compare-address="{{ sheet.display_address }}"
+          data-compare-count="{{ sheet.history.count }}"
+          data-compare-radius="5">{{ t(lang, "compare_button") }}</button>
+</div>
+<div class="ph-compare-tray" data-compare-tray hidden></div>
+<div class="ph-overview-context-link">
+  <button class="ph-status-line" type="button" data-domain-link="context">
+    <span class="ph-status-icon ph-status-icon--context">{{ ov_icon("file-search") }}</span>
+    <span class="ph-status-text">
+      <span class="ph-status-title">{{ t(lang, "segment_context") }}</span>
+      <span class="ph-status-sub">{{ t(lang, "disclosure") }}</span>
+    </span>
+    {{ ov_icon('chevron-right', 'ph-status-chevron') }}
+  </button>
+</div>

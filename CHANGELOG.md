@@ -8,6 +8,28 @@ Keep active execution state in `PLANS.md` and source/evidence research in `NOTES
 
 ### Added
 
+- Rebuilt the interface around a map-first shell: one full-bleed map plus a single bottom sheet (peek/half/full detents on mobile, floating panel on desktop) with the search field inside the sheet.
+- Added a four-way segmented domain control (`En cours`, `Planifiées`, `Archive`, `Contexte`) that drives both sheet content and the visible map layer; each domain has a purpose-built server-rendered view (place-first current rows, date-grouped planned schedule with calendar tiles, archive report with 24 h/7 j/30 j/1 an windows and largest-event callout, disclosure documents as a regional-context list).
+- Added the address-mode overview answer stack: current and planned status lines with nearest-distance/next-window wording, a local-history hero card with a 14-month bar chart, doorways into scoped domain views with a `5 km / Québec` scope toggle and back-to-overview navigation, and detail cards (observed start/end/duration, customers, last status, source note) that open at half detent so the highlighted geometry stays visible.
+- Added `/sheet` fragment route, `app/sheet_views.py` context builders with unit tests, `app/static/sheet.js` (detents, domain navigation, detail cards), and `app/static/map-utils.js` with node tests.
+
+### Changed
+
+- Replaced Leaflet with vendored MapLibre GL JS 5.24 using the OpenFreeMap Liberty vector base style; domain layers render as GeoJSON sources with semantic colors (red current, amber planned, violet archive, teal published context) plus an address pin and dashed 5 km radius ring.
+- Removed the fixed navy header, HTMX/unpkg dependency, accordion sections, eye-icon Show/Hide toggles, and icon-only count pills; language switching moved to a compact control beside the search field and preserves the active search.
+- Re-pointed `/search` and `/search-location` to return the new sheet fragment; deleted `_default_context_list.html`, `_results.html`, `_result_cards.html`, `_map_placeholder.html`, `side-panel.js`, and `map-layers.js`; service-worker cache marker moved to `pannes-historiques-v0.4.0-sheet-maplibre` (release number to confirm at tag time).
+- Rewrote Playwright desktop/mobile specs for the sheet shell (28 passing), replaced the side-panel node test with `map-utils.test.js`, and updated web-route tests.
+
+### Known follow-ups
+
+- Explore-mode `Contexte` and `Planifiées` fragments embed large map payloads (up to ~700 KB); slim the match payloads or move them to on-demand endpoints during the public-read architecture slice.
+- Place names for current/planned rows need a municipality-code lookup asset; rows currently lead with time/window.
+- Language control is only visible in explore mode; the About page keeps the previous header styling.
+
+## [2026-07-05 mobile local-answer follow-up] (deployed)
+
+### Added
+
 - Added a mobile-first local stability answer card for address searches with retained-record count, most recent retained record, nearest retained record, distance-band counts, source/caveat copy, and a local comparison tray.
 - Added local Current and Planned summaries that distinguish nearby records within the fixed 5 km address radius from broader Quebec-wide layer counts.
 

@@ -55,4 +55,23 @@
   <symbol id="ph-icon-zap" viewBox="0 0 24 24">
     <path d="M13 2 4 14h8l-1 8 9-12h-8l1-8Z" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
   </symbol>
+  <symbol id="ph-icon-search" viewBox="0 0 24 24">
+    <path d="m21 21-4.35-4.35M18.5 11.5a7 7 0 1 1-14 0 7 7 0 0 1 14 0Z" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+  </symbol>
+  <symbol id="ph-icon-check" viewBox="0 0 24 24">
+    <path d="m4.5 12.5 5 5 10-11" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+  </symbol>
+  <symbol id="ph-icon-chevron-left" viewBox="0 0 24 24">
+    <path d="M14.5 5.5 8 12l6.5 6.5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+  </symbol>
+  <symbol id="ph-icon-chevron-right" viewBox="0 0 24 24">
+    <path d="M9.5 5.5 16 12l-6.5 6.5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+  </symbol>
+  <symbol id="ph-icon-locate" viewBox="0 0 24 24">
+    <path d="M12 19a7 7 0 1 0 0-14 7 7 0 0 0 0 14ZM12 2v3M12 19v3M2 12h3M19 12h3" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+    <path d="M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" fill="currentColor" stroke="none"/>
+  </symbol>
+  <symbol id="ph-icon-info" viewBox="0 0 24 24">
+    <path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20ZM12 11v6M12 7.5v.5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+  </symbol>
 </svg>

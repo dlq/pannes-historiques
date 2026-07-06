@@ -6,19 +6,19 @@ Hydro-Quebec outage history prototype built from the `PLANS.md` direction.
 
 - Local server app
   - Flask app factory with Jinja templates, static assets, and bilingual server-rendered UI
-  - HTMX search flow plus plain Web Components for the map shell and detail panels
+  - a `/sheet` fragment route driven by a small vanilla `sheet.js` controller (no HTMX) plus plain Web Components for the map and detail panels
   - SQLite persistence plus raw Hydro-Quebec snapshot archival on local disk
   - Hydro feed parsing, address normalization, cached geocoding, spatial matching, and first-pass resolved-event deduplication
-- Address and sidebar UI
-  - map-first desktop panel and mobile bottom sheet
-  - current, planned, previous/archive, and disclosure sections with icon-backed rows
-  - local previous-outage evidence for searched addresses, including the `Seen Before Here` mode
-  - an address-level local stability evidence card with retained-record count, nearest/most-recent retained records, distance-band counts, coverage/source caveat, and comparison support
-  - explicit local/province scope labels for Current and Planned results after address searches, plus visible row labels and row/polygon detail feedback
+- Map-first sheet interface
+  - one full-bleed MapLibre GL map (vendored `maplibre-gl`, OpenFreeMap Liberty vector style) with semantic domain colors: red current, amber planned, violet archive, teal published context
+  - a single sheet with peek/half/full detents on mobile and a floating panel on desktop; the search field lives in the sheet
+  - a segmented `En cours / Planifiées / Archive / Contexte` control that drives both the sheet content and the visible map layer
+  - explore-mode domain views: sorted current rows, a date-grouped planned schedule with calendar tiles, an archive report with 24 h/7 j/30 j/1 an windows, and a disclosure-document list framed as regional context
+  - address-mode overview answer stack: current/planned status lines with nearest-distance and next-window wording, a local-history hero card with a 14-month chart, a `5 km / Québec` scope toggle on pushed domain views, in-sheet detail cards, and a browser-local comparison tray
 - Historical disclosure and map context
   - access-to-information disclosure source registry plus XLSX and supported PDF extraction
   - DAI region outlines from OSM/Nominatim/Overpass with conservative fallback areas
-  - always-on disclosure context, lazy Leaflet loading, and simplified geometry assets for regional and local overlays
+  - always-on disclosure context and simplified geometry assets for regional and local overlays
 - Municipal archive bins
   - D1 schema and Worker runtime endpoints for derived municipal/TNO/Indigenous-territory previous-outage archive bins
   - pure geometry helpers and tests for territory assignment and display simplification

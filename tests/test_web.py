@@ -153,12 +153,12 @@ def test_service_worker_route_has_root_scope(app_client):
     assert response.status_code == 200
     assert response.headers["Service-Worker-Allowed"] == "/"
     assert response.headers["Cache-Control"] == "no-cache"
-    assert b"pannes-historiques-v0.3.1-web-quality-foundation" in response.data
+    assert b"pannes-historiques-v0.4.0-sheet-maplibre" in response.data
     assert b"/static/app-icon-180.png" in response.data
     assert b"/static/icons.svg" in response.data
-    assert b"/static/map-layers.js" in response.data
-    assert b"/static/vendor/leaflet/leaflet.js" in response.data
-    assert b"/static/vendor/leaflet/leaflet.css" in response.data
+    assert b"/static/sheet.js" in response.data
+    assert b"/static/vendor/maplibre/maplibre-gl.js" in response.data
+    assert b"/static/vendor/maplibre/maplibre-gl.css" in response.data
     assert b"/static/ui-format.js" in response.data
     assert b"/static/offline.html" in response.data
 
@@ -180,7 +180,7 @@ def test_index_location_url_uses_coordinates(app_client):
 
     assert response.status_code == 200
     html = response.get_data(as_text=True)
-    assert "Current location (45.50000, -73.56000)" in html
+    assert 'data-mode="address"' in html
     call = app_client.application.testing_stub_service.search_location_calls[-1]
     assert call["latitude"] == 45.5
     assert call["longitude"] == -73.56

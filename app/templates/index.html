@@ -31,181 +31,46 @@
           href="{{ url_for('static', filename='app-icon-180.png') }}">
     <link rel="manifest"
           href="{{ url_for('static', filename='manifest.webmanifest') }}">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&amp;display=swap">
-    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
-    <link rel="stylesheet"
-          href="{{ url_for('static', filename='vendor/leaflet/leaflet.css', v=static_version) }}">
+          href="{{ url_for('static', filename='vendor/maplibre/maplibre-gl.css', v=static_version) }}">
     <link rel="stylesheet"
           href="{{ url_for('static', filename='app.css', v=static_version) }}">
-    <script src="{{ url_for('static', filename='vendor/leaflet/leaflet.js', v=static_version) }}"></script>
+    <script src="{{ url_for('static', filename='vendor/maplibre/maplibre-gl.js', v=static_version) }}"
+            defer></script>
     <script type="module"
             src="{{ url_for('static', filename='app.js', v=static_version) }}"></script>
   </head>
-  <body class="ph-app">
-    <div class="ph-topbar">
-      <div class="ph-topbar-inner px-3 py-2 text-xs sm:px-4">
-        <span class="ph-brand-mark">{{ t(lang, 'brand_title') }}</span>
-        <form id="search-form"
-              class="ph-header-search"
-              hx-post="{{ url_for('search') }}"
-              hx-target="#results"
-              hx-swap="innerHTML"
-              hx-indicator="#search-loading">
-          <input type="hidden" name="lang" value="{{ lang }}">
-          <input type="hidden" name="latitude" value="{{ initial_latitude }}">
-          <input type="hidden" name="longitude" value="{{ initial_longitude }}">
-          <input type="hidden" name="accuracy_m" value="{{ initial_accuracy_m }}">
-          <label class="block min-w-0">
-            <span class="sr-only">{{ t(lang, "search_label") }}</span>
-            <div class="relative">
-              <input id="address-input"
-                     name="q"
-                     value="{{ initial_query }}"
-                     required
-                     autocomplete="off"
-                     data-autocomplete-url="{{ url_for('autocomplete') }}"
-                     data-lang="{{ lang }}"
-                     placeholder="{{ t(lang, 'search_placeholder') }}"
-                     class="ph-header-address-input">
-              <div id="address-suggestions"
-                   class="absolute left-0 right-0 top-full z-20 mt-2 hidden rounded-md border border-[#c5cad2] bg-white p-2 shadow-xl">
-              </div>
-            </div>
-          </label>
-          <button class="ph-header-search-button"
-                  aria-label="{{ t(lang, 'search_button') }}">
-            <svg class="ph-header-icon"
-                 xmlns="http://www.w3.org/2000/svg"
-                 fill="none"
-                 viewBox="0 0 24 24"
-                 stroke-width="2"
-                 stroke="currentColor"
-                 aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-4.35-4.35m1.85-5.15a7 7 0 1 1-14 0 7 7 0 0 1 14 0Z" />
-            </svg>
-            <span class="sr-only">{{ t(lang, 'search_button') }}</span>
-          </button>
-          <button id="location-search-button"
-                  type="button"
-                  aria-label="{{ t(lang, 'use_current_location') }}"
-                  data-location-url="{{ url_for('search_location') }}"
-                  data-current-location-label="{{ t(lang, 'current_location') }}"
-                  data-location-unavailable-label="{{ t(lang, 'location_unavailable') }}"
-                  data-location-denied-label="{{ t(lang, 'location_denied') }}"
-                  data-location-timeout-label="{{ t(lang, 'location_timeout') }}"
-                  data-locating-label="{{ t(lang, 'locating') }}"
-                  class="ph-current-location-button">
-            <svg class="ph-header-icon"
-                 xmlns="http://www.w3.org/2000/svg"
-                 fill="none"
-                 viewBox="0 0 24 24"
-                 stroke-width="2"
-                 stroke="currentColor"
-                 aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-              <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.14-7.5 11.25-7.5 11.25S4.5 17.64 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
-            </svg>
-            <span class="sr-only">{{ t(lang, 'use_current_location') }}</span>
-          </button>
-        </form>
-        <form id="language-form"
-              class="ph-language-form flex shrink-0 items-center"
-              method="get"
-              action="{{ url_for('index') }}">
-          <a href="{{ url_for('about', lang=lang) }}" class="ph-about-link">{{ t(lang, "about_link") }}</a>
-          <div class="flex">
-            <button name="lang"
-                    value="fr"
-                    class="ph-language-button rounded-l-sm {{ 'is-active' if lang == 'fr' else '' }}">fr</button>
-            <button name="lang"
-                    value="en"
-                    class="ph-language-button rounded-r-sm border-l-0 {{ 'is-active' if lang == 'en' else '' }}">
-              en
-            </button>
-          </div>
-          <input type="hidden" name="q" value="{{ initial_query }}" data-sync="q">
-          <input type="hidden"
-                 name="lat"
-                 value="{{ initial_latitude }}"
-                 data-sync="latitude">
-          <input type="hidden"
-                 name="lon"
-                 value="{{ initial_longitude }}"
-                 data-sync="longitude">
-          <input type="hidden"
-                 name="accuracy_m"
-                 value="{{ initial_accuracy_m }}"
-                 data-sync="accuracy_m">
-        </form>
-      </div>
+  <body class="ph-app" data-mode="{{ sheet.mode }}">
+    <a class="sr-only ph-skip-link" href="#sheet-body">{{ t(lang, "search_label") }}</a>
+    <outage-map id="ph-map" class="ph-map" data-map='{{ initial_map | tojson }}'></outage-map>
+    <a class="ph-brand-chip" href="{{ url_for('index', lang=lang) }}">pannes.ca</a>
+    <div class="ph-map-controls">
+      <button id="location-search-button"
+              type="button"
+              class="ph-map-control-button"
+              aria-label="{{ t(lang, 'map_locate_label') }}"
+              data-location-url="{{ url_for('search_location') }}"
+              data-current-location-label="{{ t(lang, 'current_location') }}"
+              data-location-unavailable-label="{{ t(lang, 'location_unavailable') }}"
+              data-location-denied-label="{{ t(lang, 'location_denied') }}"
+              data-location-timeout-label="{{ t(lang, 'location_timeout') }}"
+              data-locating-label="{{ t(lang, 'locating') }}">
+        <svg class="ph-icon" aria-hidden="true" focusable="false">
+          <use href="{{ url_for('static', filename='icons.svg', v=static_version) }}#ph-icon-locate"></use>
+        </svg>
+      </button>
     </div>
-    <div id="map-surface-content" class="ph-map-stage">
-      {% if result_context and not result_context.result.error %}
-        {% with lang=result_context.lang,
-          map_payload=result_context.map_payload,
-          lazy_map_url=result_context.lazy_map_url %}
-          {% if map_payload %}
-            {% include "_map_panel.html" %}
-          {% elif lazy_map_url %}
-            {% include "_map_placeholder.html" %}
-          {% endif %}
-        {% endwith %}
-      {% else %}
-        {% with map_payload=default_map_payload %}
-          {% include "_map_panel.html" %}
-        {% endwith %}
-      {% endif %}
-    </div>
-    <main class="ph-shell">
-      <div class="ph-side-rail">
-        <section id="search-loading"
-                 class="ph-search-loading htmx-indicator rounded-lg border border-[#c5cad2] bg-[#f1f1f2] p-5 text-[#223654]">
-          <div class="flex items-center gap-3">
-            <span class="h-4 w-4 animate-spin rounded-full border-2 border-[#c5cad2] border-t-[#095797]"></span>
-            <div>
-              <p class="text-sm font-semibold">{{ t(lang, "loading_results") }}</p>
-              <p class="mt-1 text-sm text-[#4e5662]">{{ t(lang, "loading_results_body") }}</p>
-            </div>
-          </div>
-        </section>
-        <section id="results" class="ph-results-panel rounded-lg">
-          {% if result_context %}
-            {% if result_context.result.error %}
-              <div class="rounded-lg border border-[#cb381f] bg-[#ffdbd6] p-6 text-[#692519]">
-                {{ result_context.error_message }}
-              </div>
-            {% else %}
-              {% with display_address=result_context.display_address,
-                context_map_payload=result_context.map_payload,
-                context_variant="search",
-                include_focus_geometry=result_context.include_focus_geometry,
-                lang=result_context.lang,
-                result=result_context.result %}
-                {% include "_default_context_list.html" %}
-              {% endwith %}
-            {% endif %}
-          {% else %}
-            {% include "_default_context_list.html" %}
-          {% endif %}
-        </section>
-      </div>
-      <dai-detail-panel class="ph-dai-detail-panel rounded-lg shadow-lg" title-label="{{ t(lang, 'disclosure') }}" empty-label="{{ t(lang, 'disclosure_empty') }}" hidden></dai-detail-panel>
-      <footer class="ph-footer mt-8 border-t border-[#c5cad2] px-2 py-5 text-sm text-[#4e5662]">
-        <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <span>{{ t(lang, "footer_note") }}</span>
-          <span class="ph-footer-links">
-            <a href="{{ url_for('about', lang=lang) }}"
-               class="font-medium text-[#095797] underline-offset-4 hover:underline">{{ t(lang, "about_link") }}</a>
-            <a href="{{ settings.app_repo_url }}"
-               target="_blank"
-               rel="noreferrer"
-               class="font-medium text-[#095797] underline-offset-4 hover:underline">{{ t(lang, "footer_source") }}</a>
-          </span>
-        </div>
-      </footer>
-    </main>
+    <section class="ph-sheet"
+             data-detent="{{ 'half' if sheet.mode == 'address' else 'peek' }}"
+             aria-label="{{ t(lang, 'brand_title') }}">
+      <button class="ph-sheet-grabber"
+              type="button"
+              aria-label="{{ t(lang, 'sheet_grabber_label') }}">
+        <span class="ph-sheet-grabber-bar" aria-hidden="true"></span>
+      </button>
+      <div id="sheet-body" class="ph-sheet-body" tabindex="-1">{% include "_sheet.html" %}</div>
+      <div id="sheet-detail" class="ph-sheet-detail" hidden></div>
+      <dai-detail-panel class="ph-dai-detail-panel" title-label="{{ t(lang, 'disclosure') }}" empty-label="{{ t(lang, 'disclosure_empty') }}" hidden></dai-detail-panel>
+    </section>
   </body>
 </html>

@@ -1,0 +1,101 @@
+{% if sheet.body.rows is defined %}
+  <div class="ph-domain-summary">
+    <p class="ph-domain-summary-title">
+      <span class="ph-dot ph-dot--archive" aria-hidden="true"></span>{{ sheet.body.summary }}
+    </p>
+  </div>
+  {% if sheet.body.rows %}
+    <ul class="ph-row-list" data-domain-rows="archive">
+      {% for row in sheet.body.rows %}
+        {% if row.isHeading %}
+          <li class="ph-group-heading-item">
+            <p class="ph-group-heading">{{ row.heading }}</p>
+          </li>
+        {% else %}
+          <li>
+            <button class="ph-row"
+                    type="button"
+                    data-map-focus='{{ row.focus | tojson }}'>
+              <span class="ph-row-main">
+                <span class="ph-row-title">{{ row.dateLabel }}</span>
+                <span class="ph-row-sub">
+                  {%- if row.distanceKm %}{{ row.distanceKm }} km
+                  {% endif -%}
+                  {%- if row.eventCount and row.eventCount > 1 %} · {{ row.eventCount }} {{ t(lang, "previous_archive_events") }}
+                  {% endif -%}
+                </span>
+              </span>
+              <span class="ph-row-metric">
+                <span class="ph-row-metric-value">{{ row.customers }}</span>
+                <span class="ph-row-metric-label">{{ t(lang, "clients") }}</span>
+              </span>
+            </button>
+          </li>
+        {% endif %}
+      {% endfor %}
+    </ul>
+    <p class="ph-caveat">{{ t(lang, "history_caveat") }}</p>
+  {% else %}
+    <p class="ph-empty">{{ sheet.body.empty }}</p>
+  {% endif %}
+{% else %}
+  <h2 class="ph-domain-title">{{ t(lang, "archive_report_title") }}</h2>
+  {% if sheet.body.windows %}
+    <div class="ph-window-grid">
+      {% for window in sheet.body.windows %}
+        <div class="ph-window-cell">
+          <p class="ph-window-label">{{ window.label }}</p>
+          <p class="ph-window-value">{{ window.areas }}</p>
+          <p class="ph-window-sub">{{ t(lang, "archive_report_customers", customers=window.customers) }}</p>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+  {% if sheet.body.largestLabel %}<p class="ph-callout">{{ sheet.body.largestLabel }}</p>{% endif %}
+  {% if sheet.body.territories %}
+    <p class="ph-group-heading">{{ t(lang, "archive_territories_heading") }}</p>
+    <ul class="ph-row-list" data-domain-rows="archive">
+      {% for item in sheet.body.territories %}
+        <li>
+          <button class="ph-row"
+                  type="button"
+                  data-map-focus='{{ {"kind": "previous_outage", "geometryKey": item.geometryKey or item.territoryId, "lat": item.centroidLat, "lon": item.centroidLon, "label": item.territoryName, "startTime": item.latestStartTime, "customersAffected": item.customersAffected} | tojson }}'>
+            <span class="ph-row-main">
+              <span class="ph-row-title">{{ item.territoryName or t(lang, "unknown") }}</span>
+              <span class="ph-row-sub">{{ item.customersAffected or 0 }} {{ t(lang, "clients") }}</span>
+            </span>
+            <span class="ph-row-metric">
+              <span class="ph-row-metric-value">{{ item.eventCount or 0 }}</span>
+              <span class="ph-row-metric-label">{{ t(lang, "previous_archive_events") }}</span>
+            </span>
+          </button>
+        </li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+  {% if sheet.body.latest %}
+    <p class="ph-group-heading">{{ t(lang, "archive_latest_heading") }}</p>
+    <ul class="ph-row-list" data-domain-rows="archive">
+      {% for row in sheet.body.latest %}
+        <li>
+          <button class="ph-row"
+                  type="button"
+                  data-map-focus='{{ row.focus | tojson }}'>
+            <span class="ph-row-main">
+              <span class="ph-row-title">{{ row.dateLabel }}</span>
+              <span class="ph-row-sub">{{ row.startTime[11:16] }}</span>
+            </span>
+            <span class="ph-row-metric">
+              <span class="ph-row-metric-value">{{ row.customers }}</span>
+              <span class="ph-row-metric-label">{{ t(lang, "clients") }}</span>
+            </span>
+          </button>
+        </li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+  {% if not sheet.body.windows and not sheet.body.latest and not sheet.body.territories %}
+    <p class="ph-empty">{{ sheet.body.empty }}</p>
+  {% endif %}
+  <p class="ph-caveat">{{ t(lang, "history_caveat") }}</p>
+{% endif %}

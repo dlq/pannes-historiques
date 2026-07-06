@@ -1,0 +1,18 @@
+{% set sheet_is_boot = sheet_is_boot if sheet_is_boot is defined else false %}
+<div class="ph-sheet-content"
+     data-mode="{{ sheet.mode }}"
+     data-domain="{{ sheet.domain }}"
+     data-scope="{{ sheet.scope }}"
+     {% if sheet_is_boot %}data-boot="1"{% endif %}>
+  {% if sheet.map_update and not sheet_is_boot %}
+    <script type="application/json" data-map-update>{{ sheet.map_update | tojson }}</script>
+  {% endif %}
+  {% if sheet.error_message %}
+    <div class="ph-sheet-error" role="alert">{{ sheet.error_message }}</div>
+    {% include "_sheet_search.html" %}
+  {% elif sheet.mode == "address" and sheet.domain == "overview" %}
+    {% include "_sheet_overview.html" %}
+  {% else %}
+    {% include "_sheet_explore.html" %}
+  {% endif %}
+</div>

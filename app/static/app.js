@@ -1,20 +1,11 @@
-import { DaiDetailPanel } from "./detail-panels.js?v=20260613modules";
-import { OutageMap } from "./outage-map.js?v=20260613modules";
+import { DaiDetailPanel } from "./detail-panels.js?v=20260705sheet4";
+import { OutageMap } from "./outage-map.js?v=20260705maplibre4";
 import {
-  attachAddressAutocomplete,
-  attachComparisonTray,
-  attachLocationSearch,
-  attachMapFocusCards,
-  attachSearchRouting,
-  hydrateTimeLabels,
   registerServiceWorker,
   reloadOnHistoryNavigation,
   restoreSearchInputFromUrl,
-  showSearchLoading,
-  syncLanguageForm,
-  updateShellState,
-} from "./search.js?v=20260613modules";
-import { attachMapLayerToggles } from "./side-panel.js?v=20260614previous-totals";
+} from "./search.js?v=20260705sheet4";
+import { initSheet } from "./sheet.js?v=20260705sheet4";
 
 if (!customElements.get("dai-detail-panel")) {
   customElements.define("dai-detail-panel", DaiDetailPanel);
@@ -24,28 +15,15 @@ if (!customElements.get("outage-map")) {
   customElements.define("outage-map", OutageMap);
 }
 
-function bindPageInteractions() {
-  syncLanguageForm();
-  attachAddressAutocomplete();
-  attachComparisonTray();
-  attachLocationSearch();
-  attachSearchRouting();
-  attachMapFocusCards();
-  attachMapLayerToggles();
-  hydrateTimeLabels();
-  updateShellState();
-}
-
-document.addEventListener("DOMContentLoaded", () => {
+function boot() {
   registerServiceWorker();
   reloadOnHistoryNavigation();
   restoreSearchInputFromUrl();
-  bindPageInteractions();
-  showSearchLoading(false);
-  document.body.addEventListener("input", syncLanguageForm);
-  document.body.addEventListener("change", syncLanguageForm);
-});
+  initSheet();
+}
 
-document.body.addEventListener("htmx:afterSwap", () => {
-  bindPageInteractions();
-});
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", boot);
+} else {
+  boot();
+}
