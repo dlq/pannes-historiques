@@ -4,7 +4,7 @@ All notable completed release and implementation history for the Hydro-Quebec Ou
 
 Keep active execution state in `PLANS.md` and source/evidence research in `NOTES.md`.
 
-## [Unreleased]
+## [v0.4.0] - 2026-07-06
 
 ### Added
 
@@ -17,7 +17,7 @@ Keep active execution state in `PLANS.md` and source/evidence research in `NOTES
 
 - Replaced Leaflet with vendored MapLibre GL JS 5.24 using the OpenFreeMap Liberty vector base style; domain layers render as GeoJSON sources with semantic colors (red current, amber planned, violet archive, teal published context) plus an address pin and dashed 5 km radius ring.
 - Removed the fixed navy header, HTMX/unpkg dependency, accordion sections, eye-icon Show/Hide toggles, and icon-only count pills; language switching moved to a compact control beside the search field and preserves the active search.
-- Re-pointed `/search` and `/search-location` to return the new sheet fragment; deleted `_default_context_list.html`, `_results.html`, `_result_cards.html`, `_map_placeholder.html`, `side-panel.js`, and `map-layers.js`; service-worker cache marker moved to `pannes-historiques-v0.4.0-sheet-maplibre` (release number to confirm at tag time).
+- Re-pointed `/search` and `/search-location` to return the new sheet fragment; deleted `_default_context_list.html`, `_results.html`, `_result_cards.html`, `_map_placeholder.html`, `side-panel.js`, and `map-layers.js`; service-worker cache marker moved to `pannes-historiques-v0.4.0-sheet-maplibre`.
 - Rewrote Playwright desktop/mobile specs for the sheet shell (28 passing), replaced the side-panel node test with `map-utils.test.js`, and updated web-route tests.
 
 ### Fixed (post-review pass)
