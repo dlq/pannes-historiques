@@ -23,11 +23,6 @@
   --ph-context-deep: #0f6e56;
   --ph-ok: #3b6d11;
   --ph-ok-soft: #eaf3de;
-  --ph-blue-dark: #223654;
-  --ph-blue: #095797;
-  --ph-blue-pale: #dae6f0;
-  --ph-gray-pale: #f1f1f2;
-  --ph-gray: #c5cad2;
   --ph-sheet-radius: 18px;
   --ph-sheet-peek: 196px;
 }
@@ -76,32 +71,6 @@ button {
 
 .hidden {
   display: none;
-}
-
-.flex {
-  display: flex;
-}
-
-.items-center {
-  align-items: center;
-}
-
-.shrink-0 {
-  flex-shrink: 0;
-}
-
-.rounded-l-sm {
-  border-top-left-radius: 0.125rem;
-  border-bottom-left-radius: 0.125rem;
-}
-
-.rounded-r-sm {
-  border-top-right-radius: 0.125rem;
-  border-bottom-right-radius: 0.125rem;
-}
-
-.border-l-0 {
-  border-left-width: 0;
 }
 
 .ph-icon {
