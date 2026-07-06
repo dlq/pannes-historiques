@@ -1,4 +1,4 @@
-import { DaiDetailPanel } from "./detail-panels.js?v=20260706a";
+import { DaiDetailPanel } from "./detail-panels.js?v=20260706j";
 import { OutageMap } from "./outage-map.js?v=20260706h";
 import {
   registerServiceWorker,
