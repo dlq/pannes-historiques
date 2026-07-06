@@ -2,6 +2,7 @@
 
 - When starting new implementation work in this project, prefer using a dedicated Git worktree and branch for each separate Codex chat or parallel task.
 - Keep one active coding task per worktree. Do not make unrelated edits in another chat's worktree.
+- Do not use the `codex/` branch prefix for new branches unless the user explicitly asks for it. Use short task names such as `finish-0.3.1` or `archive-sidebar-rows`.
 - Read-only investigation, short questions, and reviews can use the existing checkout when no file edits are needed.
 - Before editing files, check `git status --short` and preserve unrelated user or chat changes.
 
