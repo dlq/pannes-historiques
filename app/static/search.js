@@ -1,4 +1,4 @@
-import { formatRelativeTime } from "./ui-format.js?v=20260705sheet";
+import { formatRelativeTime } from "./ui-format.js?v=20260706a";
 
 let autocompleteTimer = null;
 

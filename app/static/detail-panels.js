@@ -1,4 +1,4 @@
-import { iconNameForStatus, phIconMarkup } from "./icons.js?v=20260613modules";
+import { iconNameForStatus, phIconMarkup } from "./icons.js?v=20260706a";
 import {
   escapeHtml,
   formatDistanceKm,
@@ -9,7 +9,7 @@ import {
   hasDistanceValue,
   label,
   localizeCause,
-} from "./ui-format.js?v=20260608compact";
+} from "./ui-format.js?v=20260706a";
 
 const DETAIL_EXTRACTED_ROW_LIMIT = 80;
 

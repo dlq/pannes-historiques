@@ -5,8 +5,8 @@ import {
   extendBoundsWithGeometry,
   itemRenderKey,
   radiusCirclePolygon,
-} from "./map-utils.js?v=20260705maplibre4";
-import { escapeHtml, label } from "./ui-format.js?v=20260705maplibre4";
+} from "./map-utils.js?v=20260706a";
+import { escapeHtml, label } from "./ui-format.js?v=20260706a";
 
 const LIBERTY_STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
 
@@ -28,10 +28,40 @@ export class OutageMap extends HTMLElement {
     const labels = data.labels || {};
     const detailPanel = document.querySelector("dai-detail-panel");
     if (detailPanel) detailPanel.labels = labels;
-    if (!window.maplibregl) {
+    const showUnavailableMessage = () => {
       root.innerHTML = `<div class="ph-map-visual-center">${escapeHtml(
         label(labels, "map_unavailable", "The map could not load. Reload the page to try again."),
       )}</div>`;
+    };
+    if (!window.maplibregl) {
+      // The vendored MapLibre script can still be downloading (or have failed)
+      // on a cold first load; wait for it instead of rendering a dead map.
+      const loader = document.querySelector('script[src*="maplibre-gl"]');
+      if (loader && this.dataset.mapLibreWaited !== "1") {
+        this.dataset.mapLibreWaited = "1";
+        let settled = false;
+        const retry = () => {
+          if (settled || !this.isConnected) return;
+          settled = true;
+          if (window.maplibregl) {
+            this.connectedCallback();
+          } else {
+            showUnavailableMessage();
+          }
+        };
+        loader.addEventListener("load", retry, { once: true });
+        loader.addEventListener(
+          "error",
+          () => {
+            settled = true;
+            showUnavailableMessage();
+          },
+          { once: true },
+        );
+        window.setTimeout(retry, 8000);
+        return;
+      }
+      showUnavailableMessage();
       return;
     }
     const center = data.center || [46.8, -71.2];
