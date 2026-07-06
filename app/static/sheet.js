@@ -10,7 +10,6 @@ import {
   formatDistanceKm,
   formatDuration,
   formatPreviousTimeParts,
-  formatRelativeTime,
   hasDistanceValue,
   label,
 } from "./ui-format.js?v=20260706a";
@@ -316,8 +315,15 @@ function operationalDetailHtml(item) {
         `<span class="ph-detail-fact-value">${escapeHtml(value)}</span></li>`,
     );
   };
-  const startLabelKey = isPlanned ? "start" : "detail_start_observed";
-  const endLabelKey = isPlanned ? "end" : "detail_end_observed";
+  // A current outage's "end" is Hydro-Quebec's estimated restoration time,
+  // not an observation; only archive records get the "observed" framing.
+  const isCurrent = item.kind === "outage";
+  const startLabelKey = isCurrent || isPlanned ? "start" : "detail_start_observed";
+  const endLabelKey = isPlanned
+    ? "end"
+    : isCurrent
+      ? "detail_estimated_restore"
+      : "detail_end_observed";
   pushFact(
     startLabelKey,
     "Start",
@@ -326,22 +332,25 @@ function operationalDetailHtml(item) {
   if (item.endTime) {
     pushFact(
       endLabelKey,
-      "End",
+      isCurrent ? "Estimated restoration" : "End",
       endParts.time ? `${endParts.date} · ${endParts.time}` : endParts.date,
     );
   }
-  if (item.startTime && item.endTime) {
+  if (!isCurrent && item.startTime && item.endTime) {
     const durationSeconds = (new Date(item.endTime) - new Date(item.startTime)) / 1000;
     if (Number.isFinite(durationSeconds) && durationSeconds > 0) {
       pushFact(
-        "detail_duration_observed",
-        "Observed duration",
+        isPlanned ? "duration" : "detail_duration_observed",
+        "Duration",
         `≈ ${formatDuration(durationSeconds, mapLabels)}`,
       );
     }
   }
-  if (!item.endTime && !isPlanned && item.startTime) {
-    pushFact("row_label_age", "Age", formatRelativeTime(item.startTime, mapLabels));
+  if (isCurrent && item.startTime) {
+    const ageSeconds = (Date.now() - new Date(item.startTime)) / 1000;
+    if (Number.isFinite(ageSeconds) && ageSeconds > 0) {
+      pushFact("detail_age", "Ongoing for", `≈ ${formatDuration(ageSeconds, mapLabels)}`);
+    }
   }
   pushFact(
     "detail_customers",

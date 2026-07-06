@@ -276,6 +276,8 @@ STRINGS: dict[str, dict[str, str]] = {
         "sort_toggle_label": "Trier les pannes",
         "sort_by_customers": "Clients",
         "sort_by_recent": "Récentes",
+        "detail_estimated_restore": "Rétablissement estimé",
+        "detail_age": "Depuis",
     },
     "en": {
         "brand_title": "Outage History",
@@ -547,6 +549,8 @@ STRINGS: dict[str, dict[str, str]] = {
         "sort_toggle_label": "Sort outages",
         "sort_by_customers": "Customers",
         "sort_by_recent": "Newest",
+        "detail_estimated_restore": "Estimated restoration",
+        "detail_age": "Ongoing for",
     },
 }
 
