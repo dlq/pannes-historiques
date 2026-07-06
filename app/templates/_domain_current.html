@@ -10,7 +10,21 @@
   {% if sheet.body.customers %}<p class="ph-domain-summary-sub">{{ sheet.body.customers }}</p>{% endif %}
 </div>
 {% if sheet.body.rows %}
-  <ul class="ph-row-list" data-domain-rows="current">
+  <div class="ph-sort-row">
+    <div class="ph-scope-toggle"
+         role="group"
+         aria-label="{{ t(lang, 'sort_toggle_label') }}">
+      <button class="ph-scope-button is-active"
+              type="button"
+              data-sort-option="clients"
+              aria-pressed="true">{{ t(lang, "sort_by_customers") }}</button>
+      <button class="ph-scope-button"
+              type="button"
+              data-sort-option="recent"
+              aria-pressed="false">{{ t(lang, "sort_by_recent") }}</button>
+    </div>
+  </div>
+  <ul class="ph-row-list" data-domain-rows="current" data-sortable-rows>
     {% for row in sheet.body.rows %}
       <li>
         <button class="ph-row"

@@ -408,7 +408,13 @@ button {
   font-weight: 600;
 }
 
-/* Scope toggle */
+/* Scope and sort toggles */
+
+.ph-sort-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
 
 .ph-scope-row {
   display: flex;

@@ -273,6 +273,9 @@ STRINGS: dict[str, dict[str, str]] = {
         "detail_source_feed": "Capture du flux public Hydro-Québec, conservée par pannes.ca.",
         "detail_distance": "À {distance_km} km de votre adresse",
         "detail_close": "Fermer le détail",
+        "sort_toggle_label": "Trier les pannes",
+        "sort_by_customers": "Clients",
+        "sort_by_recent": "Récentes",
     },
     "en": {
         "brand_title": "Outage History",
@@ -541,6 +544,9 @@ STRINGS: dict[str, dict[str, str]] = {
         "detail_source_feed": "Captured from the public Hydro-Quebec feed, retained by pannes.ca.",
         "detail_distance": "{distance_km} km from your address",
         "detail_close": "Close the detail",
+        "sort_toggle_label": "Sort outages",
+        "sort_by_customers": "Customers",
+        "sort_by_recent": "Newest",
     },
 }
 

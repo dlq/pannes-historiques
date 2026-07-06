@@ -27,6 +27,7 @@ const sheetState = {
   lat: "",
   lon: "",
   accuracy: "",
+  rowSort: "clients",
 };
 
 function sheetElement() {
@@ -207,6 +208,41 @@ function closeDetailCards() {
   if (panel && typeof panel.renderEmpty === "function") panel.renderEmpty();
 }
 
+function rowSortValues(item) {
+  let payload = {};
+  try {
+    payload = JSON.parse(
+      item.querySelector("[data-map-focus]")?.getAttribute("data-map-focus") || "{}",
+    );
+  } catch (_error) {
+    payload = {};
+  }
+  return {
+    customers: Number(payload.customersAffected) || 0,
+    startTime: payload.startTime || "",
+  };
+}
+
+function applyRowSort(option) {
+  const list = sheetBody()?.querySelector("[data-sortable-rows]");
+  if (!list) return;
+  const items = [...list.children];
+  items.sort((left, right) => {
+    const a = rowSortValues(left);
+    const b = rowSortValues(right);
+    if (option === "recent") {
+      return a.startTime < b.startTime ? 1 : a.startTime > b.startTime ? -1 : 0;
+    }
+    return b.customers - a.customers;
+  });
+  list.append(...items);
+  for (const button of sheetBody()?.querySelectorAll("[data-sort-option]") || []) {
+    const active = button.dataset.sortOption === option;
+    button.classList.toggle("is-active", active);
+    button.setAttribute("aria-pressed", active ? "true" : "false");
+  }
+}
+
 function bindSheetContent() {
   const body = sheetBody();
   if (!body) return;
@@ -218,6 +254,9 @@ function bindSheetContent() {
     sheetState.domain = content.dataset.domain || sheetState.domain;
     sheetState.scope = content.dataset.scope || sheetState.scope;
     document.body.dataset.mode = content.dataset.mode || "explore";
+  }
+  if (sheetState.rowSort && sheetState.rowSort !== "clients") {
+    applyRowSort(sheetState.rowSort);
   }
 }
 
@@ -372,6 +411,13 @@ function bindGlobalHandlers() {
     if (scopeLink) {
       event.preventDefault();
       fetchSheet({ scope: scopeLink.dataset.scopeLink });
+      return;
+    }
+    const sortOption = event.target.closest("[data-sort-option]");
+    if (sortOption) {
+      event.preventDefault();
+      sheetState.rowSort = sortOption.dataset.sortOption || "clients";
+      applyRowSort(sheetState.rowSort);
       return;
     }
     const clearButton = event.target.closest('[data-action="clear-search"]');

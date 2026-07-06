@@ -112,6 +112,34 @@ test("segmented control switches explore domains and map layers", async ({ page 
   await expect(page.locator('[data-domain-rows="context"] .ph-row').first()).toBeVisible();
 });
 
+
+test("current rows sort by customers or recency", async ({ page }) => {
+  await page.goto("/?lang=en");
+  await expect(page.locator('[data-sortable-rows] .ph-row').first()).toBeVisible();
+
+  const readMetrics = () =>
+    page
+      .locator('[data-sortable-rows] .ph-row-metric-value')
+      .allTextContents()
+      .then((values) => values.map((value) => Number(value.replace(/\s/g, ""))));
+  const metricsByClients = await readMetrics();
+  const sortedDescending = [...metricsByClients].sort((a, b) => b - a);
+  expect(metricsByClients).toEqual(sortedDescending);
+
+  await page.locator('[data-sort-option="recent"]').click();
+  await expect(page.locator('[data-sort-option="recent"]')).toHaveClass(/is-active/);
+  const startTimes = await page
+    .locator('[data-sortable-rows] [data-map-focus]')
+    .evaluateAll((rows) =>
+      rows.map((row) => JSON.parse(row.getAttribute("data-map-focus") || "{}").startTime || ""),
+    );
+  const newestFirst = [...startTimes].sort().reverse();
+  expect(startTimes).toEqual(newestFirst);
+
+  await page.locator('[data-sort-option="clients"]').click();
+  expect(await readMetrics()).toEqual(sortedDescending);
+});
+
 test("overview doorway opens the local archive with scope toggle", async ({ page }) => {
   await runSearch(page);
 
