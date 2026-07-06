@@ -1,4 +1,4 @@
-import { escapeHtml } from "./ui-format.js?v=20260707a";
+import { escapeHtml } from "./ui-format.js?v=20260707b";
 
 const ICON_SPRITE_URL = "/static/icons.svg?v=20260615info";
 const DETAIL_EXTRACTED_ROW_LIMIT = 80;

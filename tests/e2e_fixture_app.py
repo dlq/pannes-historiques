@@ -184,7 +184,7 @@ def _disclosure_layers() -> list[dict[str, object]]:
             "centroid_lat": 45.5146,
             "centroid_lon": -73.6108,
             "geometry_geojson": _polygon(-73.6172, 45.5102, -73.6042, 45.5184),
-            "municipality_code": "2466023",
+            "municipality_code": "Outremont",
             "record_count": 4,
             "start_min": "2022-01-12 05:10:00",
             "start_max": "2025-09-03 18:22:00",

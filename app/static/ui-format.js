@@ -59,21 +59,6 @@ function compactDuration(ms, lang = "en") {
   return lang === "fr" ? `${days} j` : `${days} d`;
 }
 
-function compactScheduleDuration(ms, lang = "en") {
-  const minutes = Math.max(1, Math.round(Math.abs(ms) / 60000));
-  if (minutes < 60) return `${minutes} min`;
-  const hours = Math.round(minutes / 60);
-  if (hours < 24) return `${hours} h`;
-  const days = Math.floor(hours / 24);
-  const remainingHours = hours % 24;
-  if (!remainingHours) return lang === "fr" ? `${days} j` : `${days} d`;
-  return lang === "fr" ? `${days} j ${remainingHours} h` : `${days} d ${remainingHours} h`;
-}
-
-function dateKey(date) {
-  return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
-}
-
 function monthDay(date, lang) {
   return new Intl.DateTimeFormat(lang === "fr" ? "fr-CA" : "en-US", {
     day: "numeric",
@@ -107,36 +92,6 @@ export function formatRelativeTime(value, labels = {}, now = new Date()) {
   const duration = compactDuration(delta, lang);
   if (delta < 0) return lang === "fr" ? `il y a ${duration}` : `${duration} ago`;
   return lang === "fr" ? `dans ${duration}` : `in ${duration}`;
-}
-
-export function formatPlannedScheduleParts(startValue, endValue, labels = {}) {
-  const start = parseLocalDateTime(startValue);
-  const end = parseLocalDateTime(endValue);
-  if (!start) {
-    const fallback = formatShortDateTime(startValue, labels);
-    return { schedule: fallback, date: fallback, window: "", duration: "" };
-  }
-  const lang = document.documentElement.lang || "en";
-  const duration =
-    end && end > start ? compactScheduleDuration(end.getTime() - start.getTime(), lang) : "";
-  if (end && dateKey(start) !== dateKey(end)) {
-    const schedule = `${monthDay(start, lang)} ${timeLabel(start)} → ${monthDay(end, lang)} ${timeLabel(end)}`;
-    return {
-      schedule,
-      date: schedule,
-      window: "",
-      duration,
-    };
-  }
-  const schedule = end
-    ? `${monthDay(start, lang)} ${timeLabel(start)}-${timeLabel(end)}`
-    : `${monthDay(start, lang)} ${timeLabel(start)}`;
-  return {
-    schedule,
-    date: schedule,
-    window: "",
-    duration,
-  };
 }
 
 export function formatPreviousTimeParts(value, labels = {}) {

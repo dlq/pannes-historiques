@@ -5,8 +5,8 @@ import {
   extendBoundsWithGeometry,
   itemRenderKey,
   radiusCirclePolygon,
-} from "./map-utils.js?v=20260707a";
-import { escapeHtml, label } from "./ui-format.js?v=20260707a";
+} from "./map-utils.js?v=20260707b";
+import { escapeHtml, label } from "./ui-format.js?v=20260707b";
 
 const LIBERTY_STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
 
@@ -202,18 +202,12 @@ export class OutageMap extends HTMLElement {
       setSourceData(layerKey);
     };
 
-    const updateLayerItems = (layerKey, matches, { render = true } = {}) => {
+    const updateLayerItems = (layerKey, matches) => {
       focusItems = [
         ...focusItems.filter((item) => contextLayerForKind(item.kind) !== layerKey),
         ...(matches || []),
       ];
-      if (render) rebuildLayerFeatures(layerKey);
-    };
-
-    const removeLayer = (layerKey) => {
-      focusItems = focusItems.filter((item) => contextLayerForKind(item.kind) !== layerKey);
-      featuresByLayerKey.set(layerKey, []);
-      setSourceData(layerKey);
+      rebuildLayerFeatures(layerKey);
     };
 
     const setSelection = (key) => {
@@ -644,16 +638,6 @@ export class OutageMap extends HTMLElement {
       updateLayerItems(layer, matches || []);
       fetchDeferredGeometries(matches || []);
     };
-    this.handleMapLayerData = (event) => {
-      const { layer, matches } = event.detail || {};
-      if (!layer) return;
-      updateLayerItems(layer, matches || [], { render: false });
-    };
-    this.handleMapLayerToggle = (event) => {
-      const { layer, enabled } = event.detail || {};
-      if (!layer) return;
-      if (!enabled) removeLayer(layer);
-    };
     this.handleMapAddress = (event) => {
       const detail = event.detail || {};
       whenStyleReady(() => {
@@ -692,8 +676,6 @@ export class OutageMap extends HTMLElement {
     };
     document.addEventListener("map-address", this.handleMapAddress);
     document.addEventListener("map-layer-items", this.handleMapLayerItems);
-    document.addEventListener("map-layer-data", this.handleMapLayerData);
-    document.addEventListener("map-layer-toggle", this.handleMapLayerToggle);
     document.addEventListener("sheet-inset-change", this.handleSheetInsetChange);
 
     if ("ResizeObserver" in window) {
@@ -709,10 +691,6 @@ export class OutageMap extends HTMLElement {
     if (this.handleMapAddress) document.removeEventListener("map-address", this.handleMapAddress);
     if (this.handleMapLayerItems)
       document.removeEventListener("map-layer-items", this.handleMapLayerItems);
-    if (this.handleMapLayerData)
-      document.removeEventListener("map-layer-data", this.handleMapLayerData);
-    if (this.handleMapLayerToggle)
-      document.removeEventListener("map-layer-toggle", this.handleMapLayerToggle);
     if (this.handleSheetInsetChange)
       document.removeEventListener("sheet-inset-change", this.handleSheetInsetChange);
     if (this.resizeObserver) this.resizeObserver.disconnect();

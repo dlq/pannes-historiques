@@ -25,6 +25,8 @@ Keep active execution state in `PLANS.md` and source/evidence research in `NOTES
 - Added `map-utils.js` to the service-worker precache (offline module graph was broken without it), labeled the explore current/planned row caps, and sequenced `/sheet` fetches so a slower response can no longer overwrite a newer view; failures now roll back state and show a localized error banner.
 - Coherence sweep: one shared version token for internal module imports (guarded by a node test), icon macros consolidated into `_macros.html`, orphaned templates and the `/search-map`/`/search-location-map` routes removed, dead exports pruned, Quebec-local month buckets, per-layer map click registry, and `aria-pressed` semantics on the segmented control.
 
+- Dead-code sweep: removed the orphaned `map-layer-data`/`map-layer-toggle` handlers, unused planned-schedule formatters, five leftover header CSS selectors, and 118 unused i18n keys per language; the map-label payload shipped to the client shrank from ~110 strings to the 35 actually read. Restored the provenance affordance as an in-sheet card (the old info button had been left inert). Added unit tests for archive day-grouping and address-scoped domains (sheet_views to 92%) and e2e coverage for the disclosure detail card, comparison tray, and provenance card; the e2e disclosure fixture now carries a name-shaped area label matching real data.
+
 ### Known follow-ups
 
 - Explore-mode `Contexte` and `Planifiées` fragments embed large map payloads (up to ~700 KB); slim the match payloads or move them to on-demand endpoints during the public-read architecture slice.

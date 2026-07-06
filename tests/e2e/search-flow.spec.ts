@@ -115,6 +115,48 @@ test("segmented control switches explore domains and map layers", async ({ page 
 
 
 
+
+test("context document rows open the restyled disclosure card", async ({ page }) => {
+  await page.goto("/?lang=en");
+
+  const contextResponse = page.waitForResponse((response) =>
+    response.url().includes("domain=context"),
+  );
+  await page.locator('.ph-segment[data-domain-link="context"]').click();
+  await contextResponse;
+
+  const documentRow = page
+    .locator('[data-domain-rows="context"] .ph-row')
+    .filter({ hasText: "Outremont" })
+    .first();
+  await documentRow.click();
+
+  const panel = page.locator("dai-detail-panel");
+  await expect(panel).toBeVisible();
+  await expect(panel.locator(".ph-sheet-title")).toHaveText("Outremont");
+  await expect(panel.locator(".ph-detail-facts li").first()).toBeVisible();
+  await expect(panel.locator(".ph-group-heading").first()).toContainText("Top causes");
+  await panel.locator("[data-dai-detail-close]").click();
+  await expect(panel).toBeHidden();
+});
+
+test("comparison tray stores and clears compared addresses", async ({ page }) => {
+  await runSearch(page);
+
+  await page.locator("[data-compare-add]").click();
+  const tray = page.locator("[data-compare-tray]");
+  await expect(tray).toBeVisible();
+  await expect(tray.locator(".ph-compare-row")).toHaveCount(1);
+  await expect(tray.locator(".ph-compare-address")).toContainText("5220");
+
+  await page.reload();
+  await expect(page.locator("[data-compare-tray]")).toBeVisible();
+  await expect(page.locator(".ph-compare-row")).toHaveCount(1);
+
+  await page.locator(".ph-compare-clear").click();
+  await expect(page.locator("[data-compare-tray]")).toBeHidden();
+});
+
 test("provenance card opens from the explore footer and the hero info button", async ({
   page,
 }) => {

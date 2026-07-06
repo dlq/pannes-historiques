@@ -150,3 +150,70 @@ def test_overview_context_builds_answer_stack():
     assert context["history"]["maxBucket"] == 1
     assert context["map_update"]["radiusM"] == 5000
     assert context["map_update"]["center"] == [45.5186, -73.6027]
+
+
+def test_latest_archive_groups_split_by_day():
+    from app.sheet_views import _latest_archive_groups
+
+    groups = _latest_archive_groups(
+        "en",
+        [
+            {"startTime": "2026-07-05 23:18:00", "customersAffected": 8},
+            {"startTime": "2026-07-05 09:02:00", "customersAffected": 12},
+            {"startTime": "2026-07-04 22:10:00", "customersAffected": 3},
+            {"startTime": None, "customersAffected": 1},
+        ],
+    )
+    assert [group["heading"] for group in groups] == [
+        "Sunday Jul 5",
+        "Saturday Jul 4",
+        "Unknown",
+    ]
+    assert len(groups[0]["rows"]) == 2
+    assert groups[0]["rows"][0]["tile"] == {"day": "5", "month": "Jul"}
+
+
+def test_address_domain_current_scopes_to_radius():
+    from app.sheet_views import address_domain_sheet_context
+
+    result = _fake_result(_recent(2))
+    context = address_domain_sheet_context("fr", "current", result, "5220 rue Jeanne-Mance")
+    assert context["mode"] == "address"
+    assert context["scope"] == "local"
+    rows = context["body"]["rows"]
+    assert len(rows) == 1
+    assert rows[0]["distanceKm"] != ""
+    assert all(item["kind"] == "outage" for item in context["map_update"]["matches"])
+
+
+def test_address_domain_archive_groups_local_rows():
+    from app.sheet_views import address_domain_sheet_context
+
+    result = _fake_result(_recent(2))
+    context = address_domain_sheet_context("fr", "archive", result, "5220 rue Jeanne-Mance")
+    rows = [row for row in context["body"]["rows"] if not row["isHeading"]]
+    headings = [row for row in context["body"]["rows"] if row["isHeading"]]
+    assert len(rows) == 1
+    assert len(headings) == 1
+    assert rows[0]["tile"]["day"]
+    assert "pannes conservées" in context["body"]["summary"] or "1" in context["body"]["summary"]
+
+
+def test_address_domain_province_scope_reuses_explore_context():
+    from app.sheet_views import address_domain_sheet_context
+
+    result = _fake_result(_recent(2))
+    explore = {
+        "mode": "explore",
+        "domain": "planned",
+        "scope": "province",
+        "body": {},
+        "map_update": None,
+        "map_labels": {},
+    }
+    context = address_domain_sheet_context(
+        "fr", "planned", result, "5220 rue Jeanne-Mance", scope="province", explore_context=explore
+    )
+    assert context["mode"] == "address"
+    assert context["scope"] == "province"
+    assert context["display_address"] == "5220 rue Jeanne-Mance"
