@@ -20,6 +20,11 @@ Keep active execution state in `PLANS.md` and source/evidence research in `NOTES
 - Re-pointed `/search` and `/search-location` to return the new sheet fragment; deleted `_default_context_list.html`, `_results.html`, `_result_cards.html`, `_map_placeholder.html`, `side-panel.js`, and `map-layers.js`; service-worker cache marker moved to `pannes-historiques-v0.4.0-sheet-maplibre` (release number to confirm at tag time).
 - Rewrote Playwright desktop/mobile specs for the sheet shell (28 passing), replaced the side-panel node test with `map-utils.test.js`, and updated web-route tests.
 
+### Fixed (post-review pass)
+
+- Added `map-utils.js` to the service-worker precache (offline module graph was broken without it), labeled the explore current/planned row caps, and sequenced `/sheet` fetches so a slower response can no longer overwrite a newer view; failures now roll back state and show a localized error banner.
+- Coherence sweep: one shared version token for internal module imports (guarded by a node test), icon macros consolidated into `_macros.html`, orphaned templates and the `/search-map`/`/search-location-map` routes removed, dead exports pruned, Quebec-local month buckets, per-layer map click registry, and `aria-pressed` semantics on the segmented control.
+
 ### Known follow-ups
 
 - Explore-mode `Contexte` and `Planifiées` fragments embed large map payloads (up to ~700 KB); slim the match payloads or move them to on-demand endpoints during the public-read architecture slice.
