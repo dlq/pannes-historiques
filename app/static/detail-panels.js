@@ -104,10 +104,13 @@ export class DaiDetailPanel extends HTMLElement {
   connectedCallback() {
     if (this.dataset.closeBound !== "1") {
       this.dataset.closeBound = "1";
-      this.addEventListener("click", (event) => {
+      const handleClose = (event) => {
         if (!event.target.closest("[data-dai-detail-close]")) return;
+        event.preventDefault();
         this.renderEmpty();
-      });
+      };
+      this.addEventListener("click", handleClose);
+      this.addEventListener("pointerup", handleClose);
     }
     this.renderEmpty();
   }

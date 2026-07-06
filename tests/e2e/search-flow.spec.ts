@@ -45,7 +45,7 @@ test("app exposes installable web app metadata", async ({ page, request }) => {
     "href",
     "/static/manifest.webmanifest",
   );
-  await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute("content", "#223654");
+  await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute("content", "#ffffff");
   await expect(page.locator('meta[name="apple-mobile-web-app-capable"]')).toHaveAttribute(
     "content",
     "yes",
@@ -302,7 +302,7 @@ test("archive rows select on the map and open a detail card", async ({ page }) =
   await expect(page.locator("#sheet-detail .ph-detail-facts li").first()).toBeVisible();
   await expect(page.locator("#sheet-detail .ph-detail-source-note")).toContainText("pannes.ca");
 
-  await page.locator("#sheet-detail [data-detail-close]").first().click();
+  await page.locator("#sheet-detail [data-detail-close]").last().click();
   await expect(page.locator("#sheet-detail")).toBeHidden();
 });
 
@@ -311,10 +311,12 @@ test("browser history reloads canonical search URL state", async ({ page }) => {
   await expect(page).toHaveURL(/q=5220\+Rue\+Jeanne-Mance|q=5220%20Rue%20Jeanne-Mance/);
 
   await page.goBack();
+  await page.waitForLoadState("networkidle");
   await expect(page).toHaveURL(/\/\?lang=en$/);
   await expect(page.locator('.ph-sheet-content[data-mode="explore"]')).toBeVisible();
 
   await page.goForward();
+  await page.waitForLoadState("networkidle");
   await expect(page).toHaveURL(/q=5220\+Rue\+Jeanne-Mance|q=5220%20Rue%20Jeanne-Mance/);
   await expect(page.locator('.ph-sheet-content[data-domain="overview"]')).toBeVisible();
 });

@@ -1,6 +1,7 @@
 # User Stories For Next Product Slices
 
 Date: 2026-06-17
+Last reviewed: 2026-07-06
 
 This file captures practical user stories for focusing the next pannes.ca work. These are not implementation tasks by themselves. They are decision scenarios that should drive UI, copy, data, and test choices.
 
@@ -98,7 +99,7 @@ Success looks like:
 
 Next product gap:
 
-- The local-vs-Quebec summary now exists for address searches. Next, add nearest-distance/status wording for Current so a resident can tell whether a row is close enough to matter without opening every row.
+- The local-vs-Quebec summary and nearest-current wording now exist for address searches. Next, add feed freshness and clearer selected-row feedback so a resident can tell how current the evidence is and whether a listed row is close enough to matter.
 
 ## Story 3: Household Planning Around Scheduled Interruptions
 
@@ -140,7 +141,7 @@ The app should answer:
 
 Success looks like:
 
-- `Seen Before Here` is the default local-history panel for address searches.
+- The address overview leads with a local-history answer, and the Archive pushed view shows the nearby retained records behind it.
 - The map shows retained nearby records without requiring the user to infer why they are listed.
 - The app avoids confusing `nearest records shown` with `all records within 5 km`.
 
@@ -212,13 +213,13 @@ The app should answer:
 
 Success looks like:
 
-- The mobile sheet opens to the local answer and `Seen Before Here` rather than a long province-wide list.
+- The mobile sheet opens to the address overview and local-history answer rather than a long province-wide list.
 - The address field remains readable enough to confirm the target.
 - Map pins, selected rows, and details feel connected.
 
 Next product gap:
 
-- Typed-address mobile searches now open to the local answer and local history. Still prove current-location search on a real or simulated phone, including permission handling, coordinate/address confirmation, long-address clipping, and selected-row/detail behavior.
+- Typed-address mobile searches now open to the address overview and local-history evidence. Still prove current-location search on a real phone or a controlled mobile-browser simulation, including permission handling, coordinate/address confirmation, long-address clipping, and selected-row/detail behavior.
 
 ## Story 8: Local Journalist Or Researcher Looking For Examples
 
@@ -241,7 +242,7 @@ Success looks like:
 
 Next product gap:
 
-- Improve and verify mobile detail panels and source links for previous/archive and disclosure evidence; this was not fully proven in the July 5 mobile pass.
+- Improve and verify mobile detail panels and source links for previous/archive and disclosure evidence in the `v0.4.0` sheet, especially dense disclosure/context states.
 
 ## Story 9: Returning User Checking Whether Things Changed
 
@@ -268,7 +269,7 @@ Next product gap:
 
 ## Story 10: Accessibility-First Keyboard User
 
-As a keyboard or screen-reader user, I want to understand and operate the same map/sidebar evidence without relying on visual icon inference.
+As a keyboard or screen-reader user, I want to understand and operate the same map/sheet evidence without relying on visual icon inference.
 
 Test query:
 
@@ -276,19 +277,19 @@ Test query:
 
 The app should answer:
 
-- What panels exist?
-- Which panels are shown on the map?
+- What sheet views and domains exist?
+- Which domain is active on the map?
 - Which row is selected, and what detail did it open?
 
 Success looks like:
 
-- Show/Hide buttons describe the action and state clearly.
-- Column labels are present in the expanded panel content.
+- The segmented control exposes the active domain state clearly.
+- Sheet navigation, scope toggles, row buttons, and detail cards have understandable labels and focus order.
 - Focus states, selected states, and detail-panel changes are announced or discoverable.
 
 Next product gap:
 
-- Continue the practical WCAG pass with live-region status, focus order, and screen-reader checks.
+- Continue the practical WCAG pass with live-region status, focus order, sheet detent behavior, and screen-reader checks.
 
 ## Next Slice Candidates
 
@@ -297,5 +298,5 @@ The strongest next slices suggested by these stories are:
 1. Freshness and confidence: add archive-window, latest-capture, feed freshness, and clearer confidence language to the local stability card and Current/Planned summaries.
 2. Current-location proof: verify the current-location path on a phone-sized viewport, including permissions, address/coordinate confirmation, and first visible answer state.
 3. Research/source-detail proof: improve and test mobile detail panels, source links, selected-row-to-map feedback, and dense disclosure/archive readability.
-4. Accessibility proof: run a practical keyboard/screen-reader pass for panel state, Show/Hide wording, row selection, live-region/status updates, and detail-panel announcements.
+4. Accessibility proof: run a practical keyboard/screen-reader pass for sheet state, segmented-control wording, row selection, live-region/status updates, and detail-panel announcements.
 5. Comparison workflow refinement: decide whether the local comparison tray should remain a lightweight local-storage helper or become a more explicit multi-address comparison view.

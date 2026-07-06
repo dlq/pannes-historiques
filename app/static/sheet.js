@@ -435,12 +435,17 @@ function showOperationalDetail(item) {
 }
 
 function bindGlobalHandlers() {
-  document.body.addEventListener("click", (event) => {
+  const handleDetailClose = (event) => {
     const detailClose = event.target.closest("[data-detail-close]");
     if (detailClose) {
+      event.preventDefault();
       closeDetailCards();
-      return;
     }
+  };
+  document.body.addEventListener("click", handleDetailClose);
+  document.body.addEventListener("pointerup", handleDetailClose);
+
+  document.body.addEventListener("click", (event) => {
     const layerInfo = event.target.closest("[data-layer-info]");
     if (layerInfo) {
       event.preventDefault();

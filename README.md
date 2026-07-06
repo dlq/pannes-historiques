@@ -62,6 +62,7 @@ Current deployment status:
 
 - Current code version: `0.4.0`
 - Latest deployed release: `v0.4.0`, the sheet/MapLibre interface redesign (2026-07-06)
+- Current `main`: post-`v0.4.0` documentation/repository-maintenance baseline; merged auxiliary `codex/*` branches and local worktrees have been cleaned up
 - Latest production deployment: Worker version `1f2b6dc1-8f48-4354-be76-e65e339e3711`; container image `pannes-historiques-pannescontainer:1f2b6dc1`
 - Public service-worker marker for this release: `pannes-historiques-v0.4.0-sheet-maplibre`
 - Public smoke check target for the 2026-07-06 deploy: `/healthz`, `/`, a representative French address search, `/sheet?domain=archive`, and `/about` return `200`; deployed HTML contains the sheet shell, MapLibre assets, and the overview hero card; private endpoints return `404`
@@ -109,6 +110,8 @@ uv run python server.py collect
 ```
 
 This stores raw files under `data/raw/hydro_quebec/` and ingests normalized records into `data/app.db`.
+The `data/` directory is local/generated runtime state and is ignored by git except for
+`data/README.md`; do not commit local SQLite snapshots or raw source downloads.
 
 ## Collect published access-to-information disclosures
 
@@ -174,7 +177,7 @@ as centroid markers instead of older outage polygons.
 
 For searched addresses, previous local evidence is capped to the nearest retained outage records
 within the fixed 5 km search radius. The current code summarizes that evidence in a plain-language
-local stability card before the layer accordions, including retained-record count, nearest retained
+local stability card before the pushed domain views, including retained-record count, nearest retained
 record, most recent retained record, distance-band counts, and restrained source/coverage caveats.
 The mobile sheet keeps this local answer ahead of broader layer context and can store a small
 client-side comparison list in browser local storage.

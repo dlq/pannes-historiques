@@ -1,9 +1,24 @@
 # Research: Hydro-Québec Historic Outage Data
 
 Date: 2026-04-25
-Last updated: 2026-07-05
+Last updated: 2026-07-06
 
-## Local mobile verification: unreleased mobile answer slice, 2026-07-05
+## Current repository and release state, 2026-07-06
+
+Observed facts:
+
+- `v0.4.0` is the latest tagged release and marks the sheet/MapLibre interface redesign.
+- Production was deployed on 2026-07-06 with Worker version `1f2b6dc1-8f48-4354-be76-e65e339e3711` and container image `pannes-historiques-pannescontainer:1f2b6dc1`.
+- Current `main` is clean and synced with `origin/main` at `698c7f3` (`Remove Claude config and clarify branch names`).
+- The merged auxiliary `codex/*` worktrees/branches were cleaned up after confirming they had no commits ahead of `main`; only `main` remains locally and on `origin`.
+- The current browser interface is MapLibre plus a single sheet. Older Leaflet/sidebar/accordion/HTMX notes below are retained as historical evidence, not as the current UI state.
+
+Current follow-up evidence:
+
+- `PLANS.md` now treats `v0.4.0` as the current released baseline and current `main` as the next implementation starting point.
+- The remaining product-proof gaps are current-location behavior on a real phone or controlled mobile simulation, mobile source/detail readability for dense archive/disclosure states, saved-URL freshness/change indicators, and a practical keyboard/screen-reader pass for the sheet UI.
+
+## Local mobile verification: deployed mobile answer slice, 2026-07-05
 
 Local app checked on a 390 x 844 mobile viewport with Playwright/Chromium.
 
@@ -104,7 +119,7 @@ Most useful product improvements suggested by the audit, with implementation sta
 5. Add map/detail feedback on row and polygon selection.
 6. Remove the zero-size current-layer toggle from the visible controls.
 
-These items were implemented in `codex/frontend-stability-summary`.
+These items were implemented in the merged frontend-stability slice and later superseded by the `v0.4.0` sheet/MapLibre redesign.
 
 Remaining follow-up:
 
@@ -796,7 +811,7 @@ Findings:
   - parsing too much disclosure/context JSON
   - geocoding or D1/API round trips
   - rendering a modest number of polygons/markers
-- For the current production map scale recorded earlier, a trimmed `/search-map` response had roughly 56 map items and about 155 KB of HTML. Leaflet should be fine at that scale; switching to deck.gl would add integration complexity without a clear speed win.
+- For the then-current production map scale recorded earlier, a trimmed `/search-map` response had roughly 56 map items and about 155 KB of HTML. Leaflet was fine at that scale; switching to deck.gl would have added integration complexity without a clear speed win.
 - deck.gl becomes more interesting for the planned regional dashboard if we move from a handful of address/search overlays to province-wide analytical layers:
   - choropleths by region/MRC/municipality
   - dense current + historical outage point clouds
@@ -806,7 +821,7 @@ Findings:
   - visual comparisons between current, planned, previous, and disclosure layers
 - The cleanest open-source stack for that future is probably MapLibre + deck.gl, not Leaflet + deck.gl. deck.gl can be used with Leaflet through `@deck.gl-community/leaflet`, but that module is community maintained and explicitly warns that it may not have timely maintainers. For a core production renderer, MapLibre + deck.gl is a better-supported path.
 - A middle path is possible:
-  - keep Leaflet for the address-first search map
+  - keep Leaflet for the address-first search map at that stage
   - build a separate experimental analytical/regional map route with MapLibre + deck.gl
   - feed that route precomputed D1/R2-backed region/MRC aggregates or vector/PMTiles-style payloads
   - compare browser render time, payload size, mobile behavior, and interaction quality before replacing the existing Leaflet map

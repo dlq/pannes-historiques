@@ -1,9 +1,13 @@
 __pycache__/
 *.pyc
+.pytest_cache/
+.ruff_cache/
+.coverage
+.coverage.*
 data/
 !data/
 data/*
-!data/app.db.gz
+!data/README.md
 .DS_Store
 .venv/
 .uv-cache/

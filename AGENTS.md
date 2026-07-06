@@ -22,6 +22,14 @@
 - Prefer `uv run pre-commit run --all-files` when changes span multiple file types.
 - For UI/interface changes, start the local app and use browser inspection/screenshots at desktop and mobile viewport sizes before handoff. Check for responsive layout issues, overlapping text, broken interactions, console errors, and map/search regressions.
 
+## Module Boundaries
+
+- Keep Flask/runtime code under `app/` independent from `scripts/`, `src/`, and `tests/`.
+- Keep browser modules under `app/static/` importing only other `app/static/` modules through relative imports.
+- Keep Worker modules under `src/` importing only other `src/` modules through relative imports; package imports are allowed.
+- Tests and maintenance scripts may depend on production modules, but production modules must not depend back on tests or scripts.
+- If a boundary needs to change, update `docs/architecture.md`, `scripts/check_module_boundaries.py`, and the focused boundary tests in the same patch.
+
 ## Data And Runtime
 
 - Preserve raw source data and provenance. Prefer deriving new tables, views, or assets from archived raw inputs instead of overwriting or hand-editing source data.

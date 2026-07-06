@@ -19,5 +19,6 @@ test("classifies durable public and runtime endpoints explicitly", () => {
 
 test("falls back to the container for app routes", () => {
   assert.equal(workerRouteForPath("/"), "container");
-  assert.equal(workerRouteForPath("/search-map"), "container");
+  assert.equal(workerRouteForPath("/sheet"), "container");
+  assert.equal(workerRouteForPath("/about"), "container");
 });

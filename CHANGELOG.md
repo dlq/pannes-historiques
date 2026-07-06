@@ -4,6 +4,14 @@ All notable completed release and implementation history for the Hydro-Quebec Ou
 
 Keep active execution state in `PLANS.md` and source/evidence research in `NOTES.md`.
 
+## [Unreleased]
+
+### Changed
+
+- Removed the stale Claude launch configuration and clarified in `AGENTS.md` that future task branches should not use the `codex/` prefix unless explicitly requested.
+- Cleaned up merged auxiliary worktrees and `codex/*` branches after confirming they had no commits ahead of `main`.
+- Updated Markdown project status so `README.md`, `PLANS.md`, `NOTES.md`, and user stories treat `v0.4.0` as the current released baseline and current `main` as the next implementation starting point.
+
 ## [v0.4.0] - 2026-07-06
 
 ### Added

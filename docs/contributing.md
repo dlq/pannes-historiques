@@ -19,6 +19,7 @@ uv run python server.py serve
 
 - Check `git status --short`.
 - Use a dedicated worktree/branch for implementation work.
+- Do not use the `codex/` branch prefix for new branches unless that is explicitly requested; prefer short task names.
 - Keep durable technical findings in `NOTES.md`.
 - Keep execution state, release decisions, and next steps in `PLANS.md`.
 

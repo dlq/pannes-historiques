@@ -9,9 +9,9 @@ This file is the active execution plan. Keep durable evidence, source notes, and
 
 - Current deployed release: `v0.4.0`, the sheet/MapLibre interface redesign (deployed 2026-07-06).
 - Current production deployment: Worker version `1f2b6dc1-8f48-4354-be76-e65e339e3711`; container image `pannes-historiques-pannescontainer:1f2b6dc1`.
-- Current release in progress: none; `v0.4.0` is tagged, deployed, and smoke-checked. It replaces Leaflet with vendored MapLibre GL JS + the OpenFreeMap Liberty vector style, replaces the header/accordion UI with one full-bleed map plus a detent-based bottom sheet (mobile) / floating panel (desktop), adds the four-domain segmented control (`En cours`/`Planifiées`/`Archive`/`Contexte`), the address-mode overview answer stack with 14-month history chart, scoped domain views with a `5 km / Québec` toggle, in-sheet detail cards, and removes the HTMX/unpkg dependency. After this merges, the next slice remains `v0.3.2` public-read architecture — with the added motivation that explore-mode `/sheet` fragments for `Contexte`/`Planifiées` embed large map payloads (up to ~700 KB) that should become slim Worker/D1-backed responses.
-- Current frontend state: the `codex/frontend-stability-summary` slice is deployed and merged, and `b85599b` refines the map-focus behavior. Address/local previous-outage evidence remains the default address-search section, optional layer controls use explicit Show/Hide actions, shared-geometry rows highlight together, latest archive rows are compact/focusable map rows, and operational row selection recenters/highlights the map without opening the DAI detail panel. The July 5 deployed follow-up improves mobile address-search usability with a richer local answer card, Current/Planned nearby summaries, compact zero-history states, and a browser-local comparison tray.
-- Current product shape (redesign branch): one full-bleed MapLibre GL map with the OpenFreeMap Liberty style, a single sheet with peek/half/full detents on mobile and a floating panel on desktop, search inside the sheet, a segmented domain control driving both sheet content and map layer, server-rendered Flask/Jinja `/sheet` fragments fetched by a small vanilla `sheet.js` controller (no HTMX), semantic domain colors (red current, amber planned, violet archive, teal published context), the address overview answer stack, and in-sheet detail cards. This is what production now serves.
+- Current release in progress: none; `v0.4.0` is tagged, deployed, smoke-checked, and recorded in `CHANGELOG.md`.
+- Current repository state: `main` is the post-`v0.4.0` documentation/repository-maintenance baseline. The merged `codex/*` branches and auxiliary `.worktrees/` directories have been removed locally and from `origin`; only `main` remains.
+- Current frontend state: production serves one full-bleed MapLibre GL map with the OpenFreeMap Liberty vector style plus a single sheet: peek/half/full detents on mobile and a floating panel on desktop. Search lives inside the sheet. A segmented control (`En cours`/`Planifiées`/`Archive`/`Contexte`) drives both sheet content and visible map domain. Address mode opens to an overview answer stack with current/planned status lines, a 14-month local-history chart, scoped domain views with a `5 km / Québec` toggle, in-sheet detail cards, a provenance card, and a browser-local comparison tray. The old Leaflet/HTMX/header/accordion/sidebar/show-hide model is no longer the current interface.
 - Production data plane: D1/R2-backed durable ingestion for current feed rows, previous-outage rows, raw Hydro-Québec payloads, disclosure metadata, and runtime map-context layers.
 - Container role: still renders the Flask/Jinja shell and keeps a baked-in SQLite snapshot for local-compatible/container fallback paths.
 - Important architecture caveat: runtime writes inside the container are ephemeral; durable production state belongs in D1/R2 or another durable store.
@@ -19,8 +19,8 @@ This file is the active execution plan. Keep durable evidence, source notes, and
 - User-facing URL contract: clean root URL with `lang`, `q`, or current-location coordinate parameters; obsolete public `radius_m`, `days`, and `include_planned` parameters were removed from the main interface.
 - Debug, collection, cron, internal export/file, direct durable-status, and durable runtime endpoints are private by default; production returns `404` unless the expected debug flag, Worker block, scheduled header, internal header, or operation token is present.
 - Current release marker: service worker cache name `pannes-historiques-v0.4.0-sheet-maplibre`.
-- Latest public smoke check for the 2026-07-05 deploy passed for `/healthz`, `/`, and a representative French address search at `/?lang=fr&q=5220%20Rue%20Jeanne-Mance%2C%20Montr%C3%A9al%2C%20QC`; deployed HTML contained the local answer card and comparison control.
-- Current `main` is the `v0.3.1` frontend/web-quality foundation baseline plus the deployed July 5 mobile local-answer follow-up; it remains the baseline for upcoming `0.3.x` work.
+- Latest public smoke check for the 2026-07-06 `v0.4.0` deploy passed for `/healthz`, `/`, a representative French address search, `/sheet?domain=archive`, `/about`, and `/service-worker.js`; private/debug/collection endpoints returned `404`.
+- Current `main` is the post-`v0.4.0` cleanup baseline. The next implementation slice should start from current `main`.
 - Current operational follow-ups from 2026-06-20 health sweep: remove or expire stale `ingestion_runs` rows stuck in `running`; group/de-duplicate the Archive "latest" summary rows by territory before display; monitor D1 growth after the database reached roughly 935 MB; keep archive/count aggregations on materialized summaries rather than live full-table scans; continue moving user search paths away from the container where practical; and make the trusted container-runtime Worker host configurable instead of hardcoding the current `dalaque.workers.dev` value.
 - Current test baseline: Python tests, deterministic service/geocoding/parser tests, route smoke coverage, Playwright desktop/mobile Chromium coverage, and production-shaped UI regression fixtures.
 - Previous-outage accumulation is working in D1. On 2026-06-30 production had `18,236` resolved outage events and `146,109` folded outage sightings; all resolved outage events had centroids. Geographic archive bins were current through `bispoly:20260630193015:30`, but archive-bin completeness still needs a cleanup/audit pass.
@@ -74,7 +74,7 @@ Execution plan:
 1. Public route/runtime audit.
    - Classify production routes as `edge-safe`, `container-needed`, or `internal-only`.
    - Add response headers or `Server-Timing` markers such as `x-pannes-runtime: worker` and `x-pannes-runtime: container` so production smoke tests can prove whether a browser path touched the container.
-   - Include `/`, `/search-map`, static assets, current/planned/archive/disclosure layer endpoints, language switching, address search, and current-location search.
+   - Include `/`, `/sheet`, static assets, current/planned/archive/disclosure layer endpoints, language switching, address search, and current-location search.
 2. Cost health endpoint and monthly evidence.
    - Add a private `/api/ops/cost-health` or equivalent operational check reporting container live-instance state, last container wake, last cron run, D1 size, R2 approximate storage/object counts where available, latest ingestion status, and archive-bin materialization status.
    - Add a monthly bill/usage review checklist that compares Durable Object duration, container memory/vCPU/disk usage, D1 storage, D1 row reads/writes, and R2 storage/operations against the target posture.
@@ -125,9 +125,9 @@ Complete.
 
 Candidate work after the map-first UI is stable:
 
-- move more production reads off container SQLite/static assets toward D1-backed or R2-backed paths
+- move more production reads off the Flask/container path toward Worker/D1/R2-backed paths
 - reduce initial/lazy map payload size with on-demand geometry endpoints, simplified assets, or R2-backed context payloads
-- evaluate a no-label basemap plus Quebec-only label overlay as a pragmatic custom-map-style step before a full vector-tile migration; keep Leaflet if possible, add curated and zoom-gated Quebec place labels, and avoid showing non-Quebec city labels baked into raster tiles
+- evaluate a custom MapLibre style or label-overlay strategy for Quebec-first labels; the current OpenFreeMap Liberty style is useful but still includes non-Quebec labels inherited from the basemap
 - contain Cloudflare runtime cost by moving ordinary user-facing traffic off the Cloudflare Container path toward Worker/static/D1/R2 responses, leaving the Python container only for bounded internal parser/batch work where Python is actually needed
 - expose the gathered historical outage/disclosure data through a deliberate API, including clear public/private boundaries, rate limits, data freshness metadata, and stable query shapes
 - broaden province/region analytics and `Bilan par région`-style views
@@ -146,6 +146,7 @@ Planned slice order:
 - `v0.3.2`: public-read architecture. Move ordinary user-facing shell/search/map reads away from the Cloudflare Container where practical, using Worker/static/D1/R2 paths while keeping the Python container for bounded parser/batch work.
 - `v0.3.3`: historical-data API. Define stable public/private route boundaries, freshness metadata, rate limits, and query shapes for accumulated outage/disclosure data.
 - `v0.3.4`: analytical map/product expansion. Revisit Quebec-only labels, regional/municipal archive views, `Bilan par région`-style summaries, and saved-area notification feasibility.
+- `v0.4.0`: sheet/MapLibre interface redesign. Replaced Leaflet/HTMX/sidebar accordions with a MapLibre map shell plus one sheet, address overview answer stack, segmented domain views, scoped local/province views, in-sheet detail/provenance cards, and updated desktop/mobile Playwright coverage. Complete, tagged, deployed, and smoke-checked on 2026-07-06.
 
 ### `0.4.x`: Public Maturity And Machine-Readable Readiness
 
@@ -158,6 +159,9 @@ Candidate work after core UI and production architecture are more settled:
 - revisit observability and incident-response practices once production usage warrants it
 
 ## Completed Release Slice: `v0.3.1` Frontend/Web-Quality Foundation
+
+This section is retained as historical release evidence. The authoritative current release,
+repository, frontend, and production state is the status block at the top of this file.
 
 Goal: build on the `v0.3.0` architecture-transition baseline with a focused frontend/web-quality slice.
 
@@ -317,7 +321,7 @@ Before handing off code changes:
 - Python: `uv run ruff check . --fix` and `uv run ruff format .`
 - Templates: `uv run djlint app/templates --reformat` and `uv run djlint app/templates --lint`
 - Static JS/CSS: `npm run format` and `npm run check`
-- Cloudflare static-asset performance checks: use cold and warm `curl -fsS -w` probes for `/static/app.css`, `/static/app.js`, each first-party ES module, `/static/icons.svg`, `/service-worker.js`, `/static/manifest.webmanifest`, Noto Sans font files, and Leaflet assets; record HTTP status, `cf-cache-status`, `cache-control`, `etag`, `content-encoding`, transfer size, TTFB, and total time; repeat with a cache-busting query and without one; compare browser DevTools waterfalls and Cloudflare Observatory/Lighthouse results before deciding whether a bundler or different asset strategy is justified.
+- Cloudflare static-asset performance checks: use cold and warm `curl -fsS -w` probes for `/static/app.css`, `/static/app.js`, each first-party ES module, `/static/icons.svg`, `/service-worker.js`, `/static/manifest.webmanifest`, Noto Sans font files, and vendored MapLibre assets; record HTTP status, `cf-cache-status`, `cache-control`, `etag`, `content-encoding`, transfer size, TTFB, and total time; repeat with a cache-busting query and without one; compare browser DevTools waterfalls and Cloudflare Observatory/Lighthouse results before deciding whether a bundler or different asset strategy is justified.
 - Broad changes: prefer `uv run pre-commit run --all-files`
 - UI changes: run the local app and inspect desktop and mobile browser states
 
@@ -338,23 +342,23 @@ Before handing off code changes:
 
 ## Current Risks And Open Questions
 
-- Mobile user-story verification still needs a focused follow-up after the July 5 local-answer/mobile-sheet work. Proven locally on a 390px viewport: typed-address comparison, local previous-history answer, Current/Planned local-vs-Quebec summaries, zero-history explanation, no horizontal overflow, and the comparison tray. Still to prove:
+- Mobile user-story verification still needs a focused follow-up after the `v0.4.0` sheet/MapLibre redesign. Proven in release verification: desktop/mobile Chromium sheet-shell e2e coverage, typed-address overview rendering, comparison tray, provenance card, and disclosure detail coverage. Still to prove:
   - Story 7 current-location flow on a real or simulated phone: confirm the browser geolocation path, address/coordinate confirmation, and first visible answer state.
   - Story 8 researcher/source-detail flow: inspect previous/archive/disclosure detail panels on mobile, including source links, selected-row-to-map feedback, and dense-source readability.
   - Story 9 returning-user freshness flow: add or expose feed freshness/latest-capture metadata clearly enough that a saved URL tells users whether the evidence changed.
-  - Story 10 accessibility-first flow: run a practical keyboard/screen-reader pass for mobile and desktop, including focus order, live-region/status updates, Show/Hide state wording, and detail-panel announcements.
+  - Story 10 accessibility-first flow: run a practical keyboard/screen-reader pass for mobile and desktop, including focus order, live-region/status updates, segmented-control state wording, sheet detents, and detail-panel announcements.
 - Runtime/ops cleanup: D1 still has one stale `ingestion_runs` record from `2026-06-19T15:37:19Z` marked `running` despite later successful scheduled runs; add a timeout/cleanup path so abandoned runs do not confuse health checks.
 - Archive summary correctness: the main municipal archive territory list is grouped, but the "latest" archive summary can repeat the same territory/time when several outage polygons map to the same territory; group these latest rows by territory/time before display.
 - Archive bin completeness: on 2026-06-30 production had `136,575` archived `bispoly` outage polygons, `136,472` polygons with at least one geographic bin, and `136,003` polygons with a primary bin. The latest feed version was properly caught up (`31/31` latest polygons had primary bins and the backfill cursor matched `bispoly:20260630193015:30`), but the full archive still had `103` polygons with no bin and `572` without a primary bin. Add an audit/cleanup path that classifies these as expected boundary/out-of-territory cases versus assignment failures, repairs real misses, and records a cheap completeness metric in the operational status output.
 - D1 growth and query cost: production D1 was about 935 MB on 2026-06-20, and ad hoc full-bin aggregate checks read over 115k rows; monitor growth, consider retention/rollup policy, and keep user-facing archive summaries materialized.
 - Runtime host configuration: the trusted container-runtime proxy check currently depends on the Cloudflare worker host `dalaque.workers.dev`; make this configurable before changing the workers.dev subdomain again.
 - Search architecture: representative search is fixed and under roughly one second when warm, but it still depends on the container path; keep moving ordinary search/render reads toward Worker/static/D1/R2 paths in `0.3.x`.
-- The desktop side panel is more coherent, and `b85599b` keeps operational row focus from opening the DAI detail panel. Disclosure/regional detail panels can still make dense states feel crowded, so use production observations before widening the panel again by default.
+- The desktop floating sheet is more coherent than the old side panel, but disclosure/regional detail panels can still make dense states feel crowded; use production observations before widening the panel again by default.
 - Accessibility still needs a dedicated W3C/WCAG pass beyond the current keyboard/focus regression checks; keep this as practical `0.2.x`/`0.3.x` follow-up depending on scope.
 - Cloudflare performance work now has two tracks: container/app response-time reduction already shipped in `v0.2.5`, while static asset/module waterfall measurement belongs to upcoming `0.3.x` evaluation before any bundler decision.
 - The first-party JS module split improves maintainability, but it increases native module requests; measure this on Cloudflare before assuming either native modules or bundling is better.
 - DAI/disclosure detail panels are data-rich and still visually fragile; keep checking for overlapping text, horizontal scrolling, and unreadable dense rows when deploying any frontend follow-up.
-- Current CARTO Voyager raster tiles bake city labels into image tiles; hiding only non-Quebec labels requires either no-label raster tiles plus a custom Quebec label overlay or a larger vector-tile/custom-style migration.
+- The current OpenFreeMap Liberty vector style still includes non-Quebec labels at some zoom levels; hiding them cleanly requires a custom MapLibre style or label-overlay strategy.
 - Do not speculate about Hydro-Québec one-letter status-code meanings unless source documentation or payload context verifies them.
 
 ## Plan Maintenance

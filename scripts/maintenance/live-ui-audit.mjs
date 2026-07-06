@@ -74,18 +74,18 @@ async function pageSnapshot(page) {
       const rect = element.getBoundingClientRect();
       return rect.width > 0 && rect.height > 0;
     };
-    const sidebar =
-      document.querySelector(".ph-context-panel") ||
-      document.querySelector(".context-panel") ||
-      document.querySelector("[data-context-panel]");
-    const map = document.querySelector("#map") || document.querySelector(".leaflet-container");
+    const sheet =
+      document.querySelector(".ph-sheet") ||
+      document.querySelector("[data-sheet]") ||
+      document.querySelector("[data-sheet-body]");
+    const map = document.querySelector("outage-map");
     const search =
       document.querySelector("input[type='search']") ||
       document.querySelector("input[name='q']") ||
       document.querySelector("input[placeholder]");
     const visibleTextNodes = [
       ...document.querySelectorAll(
-        "h1,h2,h3,button,a,.ph-row-pill,.ph-section-meta,.ph-context-section,.ph-detail-panel,.leaflet-control-zoom",
+        "h1,h2,h3,button,a,.ph-row-pill,.ph-section-meta,.ph-status-line,.ph-detail-panel,.ph-sheet",
       ),
     ]
       .filter(isVisible)
@@ -106,7 +106,7 @@ async function pageSnapshot(page) {
       url: location.href,
       viewport: { width: innerWidth, height: innerHeight },
       bodyText: document.body.innerText.trim().replace(/\s+/g, " ").slice(0, 5000),
-      sidebarRect: sidebar ? rectForElement(sidebar) : null,
+      sheetRect: sheet ? rectForElement(sheet) : null,
       mapRect: map ? rectForElement(map) : null,
       searchRect: search ? rectForElement(search) : null,
       visibleTextNodes,
@@ -137,7 +137,7 @@ async function openPage(viewportConfig, url, name) {
   });
   page.on("response", (response) => {
     const responseUrl = response.url();
-    if (responseUrl.includes("/map-layer") || responseUrl.includes("/search-map")) {
+    if (responseUrl.includes("/sheet") || responseUrl.includes("/api/durable/runtime/")) {
       responseSummaries.push({ url: responseUrl, status: response.status() });
     }
   });
@@ -164,7 +164,7 @@ for (const viewport of viewports) {
 }
 
 for (const address of addresses) {
-  const url = `https://pannes.ca/search-map?q=${encodeURIComponent(address.query)}&lang=en`;
+  const url = `https://pannes.ca/?q=${encodeURIComponent(address.query)}&lang=en`;
   results.addresses[address.key] = {
     label: address.label,
     desktop: await openPage(viewports[0], url, `pannes-address-${address.key}-desktop`),
