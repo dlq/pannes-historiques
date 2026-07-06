@@ -140,6 +140,39 @@ test("current rows sort by customers or recency", async ({ page }) => {
   expect(await readMetrics()).toEqual(sortedDescending);
 });
 
+
+test("archive territory rows outline the area on the map", async ({ page }) => {
+  await page.goto("/?lang=en");
+
+  const archiveResponse = page.waitForResponse((response) =>
+    response.url().includes("domain=archive"),
+  );
+  await page.locator('.ph-segment[data-domain-link="archive"]').click();
+  await archiveResponse;
+
+  const montrealRow = page
+    .locator('[data-domain-rows="archive"] .ph-row')
+    .filter({ hasText: "Montréal" })
+    .first();
+  await expect(montrealRow).toBeVisible();
+  await expect(montrealRow.locator(".ph-row-metric-value")).toHaveText("42");
+  await expect(montrealRow).toContainText("up to 1 200 customers");
+  await montrealRow.click();
+
+  await expect(page.locator("outage-map")).toHaveAttribute(
+    "data-active-focus-label",
+    "Montréal",
+  );
+  await expect
+    .poll(() =>
+      page.locator("outage-map").evaluate((mapElement) => {
+        const source = mapElement.map?.getSource("ph-focus");
+        return source?.serialize?.().data?.features?.length ?? 0;
+      }),
+    )
+    .toBeGreaterThan(0);
+});
+
 test("overview doorway opens the local archive with scope toggle", async ({ page }) => {
   await runSearch(page);
 

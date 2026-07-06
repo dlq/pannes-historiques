@@ -225,6 +225,17 @@ export class OutageMap extends HTMLElement {
       });
     };
 
+    const setFocusGeometry = (geometry) => {
+      whenStyleReady(() => {
+        const source = map.getSource("ph-focus");
+        if (!source) return;
+        source.setData({
+          type: "FeatureCollection",
+          features: geometry ? [{ type: "Feature", properties: {}, geometry }] : [],
+        });
+      });
+    };
+
     const itemMatchesFocus = (detail, item) => {
       if (detail.kind && item.kind && detail.kind !== item.kind) return false;
       if (detail.geometryKey && item.geometryKey) return detail.geometryKey === item.geometryKey;
@@ -265,6 +276,7 @@ export class OutageMap extends HTMLElement {
       setSelection(matchedItem.geometryKey || itemRenderKey(matchedItem));
       map.resize();
       const geometry = matchedItem.geometry || detail.geometry;
+      setFocusGeometry(geometry || null);
       if (geometry) {
         const bounds = [];
         extendBoundsWithGeometry(bounds, geometry);
@@ -341,6 +353,10 @@ export class OutageMap extends HTMLElement {
         data: { type: "FeatureCollection", features: [] },
       });
       map.addSource("ph-address", {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
+      });
+      map.addSource("ph-focus", {
         type: "geojson",
         data: { type: "FeatureCollection", features: [] },
       });
@@ -476,6 +492,20 @@ export class OutageMap extends HTMLElement {
         paint: { "line-color": "#1b1b1f", "line-width": 2.4 },
       });
       map.addLayer({
+        id: "ph-focus-fill",
+        type: "fill",
+        source: "ph-focus",
+        filter: ["==", ["geometry-type"], "Polygon"],
+        paint: { "fill-color": "#1b1b1f", "fill-opacity": 0.05 },
+      });
+      map.addLayer({
+        id: "ph-focus-line",
+        type: "line",
+        source: "ph-focus",
+        filter: ["==", ["geometry-type"], "Polygon"],
+        paint: { "line-color": "#1b1b1f", "line-width": 2.2 },
+      });
+      map.addLayer({
         id: "ph-radius-line",
         type: "line",
         source: "ph-address",
@@ -607,6 +637,9 @@ export class OutageMap extends HTMLElement {
     this.handleMapLayerItems = (event) => {
       const { layer, matches } = event.detail || {};
       if (!layer) return;
+      activeMapFocus = null;
+      setFocusGeometry(null);
+      setSelection(null);
       updateLayerItems(layer, matches || []);
       fetchDeferredGeometries(matches || []);
     };
@@ -625,8 +658,6 @@ export class OutageMap extends HTMLElement {
       whenStyleReady(() => {
         const source = map.getSource("ph-address");
         if (!source) return;
-        activeMapFocus = null;
-        setSelection(null);
         if (!detail.center) {
           source.setData({ type: "FeatureCollection", features: [] });
           return;

@@ -255,6 +255,7 @@ def _territory_rows(lang: str, territories: list[dict[str, Any]]) -> list[dict[s
                 "focus": {
                     "kind": "previous_outage",
                     "geometryKey": item.get("geometryKey") or item.get("territoryId"),
+                    "geometry": item.get("geometry"),
                     "lat": item.get("centroidLat"),
                     "lon": item.get("centroidLon"),
                     "label": title,
