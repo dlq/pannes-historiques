@@ -113,6 +113,26 @@ test("segmented control switches explore domains and map layers", async ({ page 
 });
 
 
+
+test("failed sheet fetches show an error and recover", async ({ page }) => {
+  await page.goto("/?lang=en");
+  await expect(page.locator(".ph-segment.is-active")).toHaveText("Live");
+
+  await page.route("**/sheet**", (route) => route.abort());
+  await page.locator('.ph-segment[data-domain-link="planned"]').click();
+  await expect(page.locator(".ph-sheet-error")).toBeVisible();
+  await expect(page.locator(".ph-sheet-error")).toContainText("could not load");
+  await expect(page.locator(".ph-segment.is-active")).toHaveText("Live");
+
+  await page.unroute("**/sheet**");
+  const plannedResponse = page.waitForResponse((response) =>
+    response.url().includes("domain=planned"),
+  );
+  await page.locator('.ph-segment[data-domain-link="planned"]').click();
+  await plannedResponse;
+  await expect(page.locator('.ph-sheet-content[data-domain="planned"]')).toBeVisible();
+});
+
 test("current rows sort by customers or recency", async ({ page }) => {
   await page.goto("/?lang=en");
   await expect(page.locator('[data-sortable-rows] .ph-row').first()).toBeVisible();

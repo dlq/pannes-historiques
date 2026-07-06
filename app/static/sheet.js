@@ -259,11 +259,32 @@ function bindSheetContent() {
   }
 }
 
+function showSheetError() {
+  const body = sheetBody();
+  if (!body) return;
+  body.querySelector(".ph-sheet-error")?.remove();
+  const error = document.createElement("div");
+  error.className = "ph-sheet-error";
+  error.setAttribute("role", "alert");
+  error.textContent = label(
+    mapLabels,
+    "sheet_load_error",
+    "The content could not load. Try again.",
+  );
+  body.prepend(error);
+  if (isMobileLayout() && currentDetent() === "peek") setDetent("half");
+}
+
+let sheetFetchSequence = 0;
+
 export async function fetchSheet(updates = {}, { pushUrl = true } = {}) {
+  const previousState = { ...sheetState };
   Object.assign(sheetState, updates);
   const sheet = sheetElement();
   const body = sheetBody();
   if (!sheet || !body) return;
+  const requestId = ++sheetFetchSequence;
+  const isCurrentRequest = () => requestId === sheetFetchSequence;
   closeDetailCards();
   sheet.classList.add("is-loading");
   const url = new URL("/sheet", window.location.origin);
@@ -280,7 +301,9 @@ export async function fetchSheet(updates = {}, { pushUrl = true } = {}) {
   try {
     const response = await fetch(url, { headers: { Accept: "text/html" } });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    body.innerHTML = await response.text();
+    const html = await response.text();
+    if (!isCurrentRequest()) return;
+    body.innerHTML = html;
     bindSheetContent();
     if (isMobileLayout() && hasAddress() && currentDetent() !== "half") {
       setDetent("half");
@@ -297,9 +320,11 @@ export async function fetchSheet(updates = {}, { pushUrl = true } = {}) {
       });
     }
   } catch (_error) {
-    // Keep the previous sheet content on transient errors.
+    if (!isCurrentRequest()) return;
+    Object.assign(sheetState, previousState);
+    showSheetError();
   } finally {
-    sheet.classList.remove("is-loading");
+    if (isCurrentRequest()) sheet.classList.remove("is-loading");
   }
 }
 
@@ -516,18 +541,7 @@ function attachLocationSearch() {
   if (!button || button.dataset.locationBound === "1") return;
   button.dataset.locationBound = "1";
   const originalHtml = button.innerHTML;
-  const showError = (message) => {
-    const body = sheetBody();
-    if (!body) return;
-    const existing = body.querySelector(".ph-sheet-error");
-    if (existing) existing.remove();
-    const error = document.createElement("div");
-    error.className = "ph-sheet-error";
-    error.setAttribute("role", "alert");
-    error.textContent = message;
-    body.prepend(error);
-    if (isMobileLayout() && currentDetent() === "peek") setDetent("half");
-  };
+  const showError = (message) => showSheetError(message);
   button.addEventListener("click", () => {
     if (!("geolocation" in navigator)) {
       showError(button.dataset.locationUnavailableLabel || "Location unavailable.");

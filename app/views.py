@@ -214,6 +214,7 @@ def _map_labels(lang: str) -> dict[str, str]:
             "detail_source_feed",
             "duration",
             "detail_start_observed",
+            "sheet_load_error",
             "dai_source",
             "dai_sources",
             "distance",
