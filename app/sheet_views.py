@@ -225,6 +225,47 @@ def _planned_groups(
     return [groups[key] for key in sorted(groups)]
 
 
+def _territory_rows(lang: str, territories: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    ordered = sorted(
+        territories,
+        key=lambda item: (
+            -(item.get("eventCount") or 0),
+            -(item.get("customersAffected") or 0),
+        ),
+    )
+    rows = []
+    for item in ordered[:50]:
+        title = item.get("territoryName") or t(
+            lang, "archive_area_code", code=item.get("municipalityCode") or "?"
+        )
+        sub_parts = [
+            item.get("designation") or "",
+            t(
+                lang,
+                "archive_max_clients",
+                customers=_format_customers(item.get("customersAffected")),
+            ),
+            _format_date_label(lang, item.get("latestStartTime")),
+        ]
+        rows.append(
+            {
+                "title": title,
+                "sub": " · ".join(part for part in sub_parts if part),
+                "count": item.get("eventCount") or 0,
+                "focus": {
+                    "kind": "previous_outage",
+                    "geometryKey": item.get("geometryKey") or item.get("territoryId"),
+                    "lat": item.get("centroidLat"),
+                    "lon": item.get("centroidLon"),
+                    "label": title,
+                    "startTime": item.get("latestStartTime"),
+                    "customersAffected": item.get("customersAffected"),
+                },
+            }
+        )
+    return rows
+
+
 def _latest_archive_groups(lang: str, items: list[dict[str, Any]]) -> list[dict[str, Any]]:
     groups: list[dict[str, Any]] = []
     current_key = None
@@ -425,7 +466,8 @@ def explore_sheet_context(
             )
             if largest
             else "",
-            "territories": (summary.get("territories") or [])[:12],
+            "territoryRows": _territory_rows(lang, summary.get("territories") or []),
+            "territoryNote": t(lang, "archive_bins_note") if summary.get("territories") else "",
             "latestGroups": _latest_archive_groups(lang, (summary.get("latest") or [])[:20]),
             "latestCount": len((summary.get("latest") or [])[:20]),
             "latestNote": t(

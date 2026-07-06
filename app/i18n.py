@@ -280,6 +280,10 @@ STRINGS: dict[str, dict[str, str]] = {
         "detail_age": "Depuis",
         "detail_customers_planned": "Clients visés",
         "archive_latest_note": "Les {count} plus récentes de la dernière année.",
+        "archive_area_code": "Secteur {code}",
+        "archive_bins_note": "Territoires avec pannes conservées durant la dernière année, triés par nombre de pannes (50 au maximum).",
+        "archive_max_clients": "jusqu'à {customers} clients",
+        "outages_metric": "pannes",
     },
     "en": {
         "brand_title": "Outage History",
@@ -555,6 +559,10 @@ STRINGS: dict[str, dict[str, str]] = {
         "detail_age": "Ongoing for",
         "detail_customers_planned": "Customers to be affected",
         "archive_latest_note": "The {count} most recent from the past year.",
+        "archive_area_code": "Area {code}",
+        "archive_bins_note": "Territories with retained outages from the past year, sorted by outage count (up to 50 shown).",
+        "archive_max_clients": "up to {customers} customers",
+        "outages_metric": "outages",
     },
 }
 
