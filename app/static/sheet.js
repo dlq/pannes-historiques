@@ -353,11 +353,15 @@ function operationalDetailHtml(item) {
     }
   }
   pushFact(
-    "detail_customers",
-    "Customers affected",
+    isPlanned ? "detail_customers_planned" : "detail_customers",
+    isPlanned ? "Customers to be affected" : "Customers affected",
     item.customersAffected != null ? String(item.customersAffected) : "",
   );
-  pushFact("detail_last_status", "Last seen status", item.statusLabel || "");
+  // Planned-notice status codes are not the documented crew statuses;
+  // leave them out until their meaning is verified (see NOTES.md).
+  if (!isPlanned) {
+    pushFact("detail_last_status", "Last seen status", item.statusLabel || "");
+  }
   const distanceLine = hasDistanceValue(item.distanceM)
     ? label(mapLabels, "detail_distance", "{distance_km} km from your address").replace(
         "{distance_km}",
