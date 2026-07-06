@@ -10,6 +10,7 @@
   {% if sheet.body.customers %}<p class="ph-domain-summary-sub">{{ sheet.body.customers }}</p>{% endif %}
 </div>
 {% if sheet.body.rows %}
+  {% if sheet.body.rowsNote %}<p class="ph-caveat ph-caveat--tight">{{ sheet.body.rowsNote }}</p>{% endif %}
   <div class="ph-sort-row">
     <div class="ph-scope-toggle"
          role="group"

@@ -5,6 +5,7 @@
   {% if sheet.body.customers %}<p class="ph-domain-summary-sub">{{ sheet.body.customers }}</p>{% endif %}
 </div>
 {% if sheet.body.groups %}
+  {% if sheet.body.rowsNote %}<p class="ph-caveat ph-caveat--tight">{{ sheet.body.rowsNote }}</p>{% endif %}
   {% for group in sheet.body.groups %}
     <p class="ph-group-heading">{{ group.heading }}</p>
     <ul class="ph-row-list" data-domain-rows="planned">

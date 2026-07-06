@@ -153,6 +153,44 @@ class StubService:
             )
         return layers
 
+    def previous_operational_archive_summary(self):
+        return {
+            "windows": [
+                {"key": "previous_archive_last_24h", "areas": 2, "totalCustomers": 51},
+                {"key": "previous_archive_last_7d", "areas": 5, "totalCustomers": 320},
+                {"key": "previous_archive_last_30d", "areas": 9, "totalCustomers": 941},
+                {"key": "previous_archive_last_1y", "areas": 30, "totalCustomers": 4200},
+            ],
+            "largest": {
+                "key": "previous_archive_largest",
+                "startTime": "2026-05-05 08:00:00",
+                "customersAffected": 5241,
+            },
+            "latest": [
+                {
+                    "key": "previous_archive_latest",
+                    "startTime": "2026-07-05 23:18:00",
+                    "customersAffected": 8,
+                    "centroidLat": 45.5,
+                    "centroidLon": -73.6,
+                }
+            ],
+            "territories": [
+                {
+                    "territoryId": "municipality:66023",
+                    "territoryName": "Montréal",
+                    "designation": "Municipalité",
+                    "eventCount": 42,
+                    "customersAffected": 1200,
+                    "latestStartTime": "2026-06-14 14:06:00",
+                    "geometryKey": "municipal_archive:municipality:66023",
+                    "centroidLat": 45.52,
+                    "centroidLon": -73.6,
+                    "geometry": None,
+                }
+            ],
+        }
+
     def _previous_operational_map_layers(self, limit: int = 36):
         return [
             {

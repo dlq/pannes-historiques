@@ -5,6 +5,7 @@ const APP_SHELL_URLS = [
   "/static/detail-panels.js",
   "/static/icons.svg",
   "/static/icons.js",
+  "/static/map-utils.js",
   "/static/outage-map.js",
   "/static/search.js",
   "/static/sheet.js",

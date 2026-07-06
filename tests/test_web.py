@@ -469,3 +469,54 @@ def test_internal_raw_snapshot_returns_404_when_missing(app_client):
     )
 
     assert response.status_code == 404
+
+
+def test_sheet_explore_domains_render(app_client):
+    for domain, marker in [
+        ("current", 'data-domain="current"'),
+        ("planned", 'data-domain="planned"'),
+        ("archive", 'data-domain="archive"'),
+        ("context", 'data-domain="context"'),
+    ]:
+        response = app_client.get(f"/sheet?lang=en&domain={domain}")
+        assert response.status_code == 200
+        html = response.get_data(as_text=True)
+        assert marker in html
+        assert 'data-mode="explore"' in html
+        assert "data-map-update" in html
+
+
+def test_sheet_archive_lists_territory_bins(app_client):
+    response = app_client.get("/sheet?lang=en&domain=archive")
+    html = response.get_data(as_text=True)
+    assert "Montréal" in html
+    assert "Observed outage report" in html
+
+
+def test_sheet_with_address_renders_overview(app_client):
+    response = app_client.get("/sheet?lang=en&domain=overview&q=5220+Rue+Jeanne-Mance")
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert 'data-mode="address"' in html
+    assert 'data-domain="overview"' in html
+    assert "ph-hero-card" in html
+    call = app_client.application.testing_stub_service.search_calls[-1]
+    assert call["radius_m"] == 5000
+    assert call["record_history"] is False
+
+
+def test_sheet_unknown_domain_falls_back(app_client):
+    response = app_client.get("/sheet?lang=en&domain=bogus")
+    assert response.status_code == 200
+    assert 'data-domain="current"' in response.get_data(as_text=True)
+
+    with_address = app_client.get("/sheet?lang=en&domain=bogus&q=5220+Rue+Jeanne-Mance")
+    assert with_address.status_code == 200
+    assert 'data-domain="overview"' in with_address.get_data(as_text=True)
+
+
+def test_index_boot_sheet_omits_duplicate_map_payload(app_client):
+    response = app_client.get("/?lang=en")
+    html = response.get_data(as_text=True)
+    assert 'data-boot="1"' in html
+    assert "data-map-update" not in html

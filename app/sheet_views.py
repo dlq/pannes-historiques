@@ -225,6 +225,12 @@ def _planned_groups(
     return [groups[key] for key in sorted(groups)]
 
 
+def _rows_shown_note(lang: str, shown: int, total: int) -> str:
+    if shown >= total:
+        return ""
+    return t(lang, "rows_shown_note", count=shown, total=total)
+
+
 def _territory_rows(lang: str, territories: list[dict[str, Any]]) -> list[dict[str, Any]]:
     ordered = sorted(
         territories,
@@ -422,21 +428,26 @@ def explore_sheet_context(
         payload = default_map_payload(lang, current_map_layers=current_layers or [])
         items = [item for item in payload["matches"] if item["kind"] == "outage"]
         total_customers = sum(int(item.get("customersAffected") or 0) for item in items)
+        rows = _current_rows(lang, items, with_distance=False)
         body = {
             "summary": t(lang, "explore_current_summary", count=len(items)),
             "customers": t(
                 lang, "explore_current_customers", customers=_format_customers(total_customers)
             ),
-            "rows": _current_rows(lang, items, with_distance=False),
+            "rows": rows,
+            "rowsNote": _rows_shown_note(lang, len(rows), len(items)),
             "empty": t(lang, "domain_current_empty"),
         }
     elif domain == "planned":
         payload = default_map_payload(lang, current_map_layers=planned_layers or [])
         items = [item for item in payload["matches"] if item["kind"] == "planned"]
+        groups = _planned_groups(lang, items, with_distance=False)
+        shown = sum(len(group["rows"]) for group in groups)
         body = {
             "summary": t(lang, "explore_planned_summary", count=len(items)),
             "customers": t(lang, "explore_planned_window"),
-            "groups": _planned_groups(lang, items, with_distance=False),
+            "groups": groups,
+            "rowsNote": _rows_shown_note(lang, shown, len(items)),
             "empty": t(lang, "domain_planned_empty"),
         }
     elif domain == "archive":
