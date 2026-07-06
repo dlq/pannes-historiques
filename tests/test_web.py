@@ -14,7 +14,7 @@ def test_index_includes_pwa_metadata(app_client):
 
     assert response.status_code == 200
     assert "viewport-fit=cover" in html
-    assert '<meta name="theme-color" content="#223654">' in html
+    assert '<meta name="theme-color" content="#ffffff">' in html
     assert '<meta name="apple-mobile-web-app-capable" content="yes">' in html
     assert 'href="/static/manifest.webmanifest"' in html
     assert 'href="/static/app-icon-180.png"' in html
@@ -153,12 +153,12 @@ def test_service_worker_route_has_root_scope(app_client):
     assert response.status_code == 200
     assert response.headers["Service-Worker-Allowed"] == "/"
     assert response.headers["Cache-Control"] == "no-cache"
-    assert b"pannes-historiques-v0.3.1-web-quality-foundation" in response.data
+    assert b"pannes-historiques-v0.4.0-sheet-maplibre" in response.data
     assert b"/static/app-icon-180.png" in response.data
     assert b"/static/icons.svg" in response.data
-    assert b"/static/map-layers.js" in response.data
-    assert b"/static/vendor/leaflet/leaflet.js" in response.data
-    assert b"/static/vendor/leaflet/leaflet.css" in response.data
+    assert b"/static/sheet.js" in response.data
+    assert b"/static/vendor/maplibre/maplibre-gl.js" in response.data
+    assert b"/static/vendor/maplibre/maplibre-gl.css" in response.data
     assert b"/static/ui-format.js" in response.data
     assert b"/static/offline.html" in response.data
 
@@ -180,7 +180,7 @@ def test_index_location_url_uses_coordinates(app_client):
 
     assert response.status_code == 200
     html = response.get_data(as_text=True)
-    assert "Current location (45.50000, -73.56000)" in html
+    assert 'data-mode="address"' in html
     call = app_client.application.testing_stub_service.search_location_calls[-1]
     assert call["latitude"] == 45.5
     assert call["longitude"] == -73.56
@@ -197,32 +197,6 @@ def test_index_query_url_is_read_only(app_client):
 
     assert response.status_code == 200
     call = app_client.application.testing_stub_service.search_calls[-1]
-    assert call["radius_m"] == 5000
-    assert call["days"] == 1825
-    assert call["include_planned"] is True
-    assert call["include_map_layers"] is True
-    assert call["record_history"] is False
-
-
-def test_search_map_route_uses_fixed_defaults(app_client):
-    response = app_client.get("/search-map?q=5220%20Rue%20Jeanne-Mance&lang=en")
-
-    assert response.status_code == 200
-    call = app_client.application.testing_stub_service.search_calls[-1]
-    assert call["radius_m"] == 5000
-    assert call["days"] == 1825
-    assert call["include_planned"] is True
-    assert call["include_map_layers"] is True
-    assert call["record_history"] is False
-
-
-def test_search_location_map_route_uses_fixed_defaults(app_client):
-    response = app_client.get(
-        "/search-location-map?latitude=45.5&longitude=-73.56&accuracy_m=20&lang=en"
-    )
-
-    assert response.status_code == 200
-    call = app_client.application.testing_stub_service.search_location_calls[-1]
     assert call["radius_m"] == 5000
     assert call["days"] == 1825
     assert call["include_planned"] is True
@@ -469,3 +443,54 @@ def test_internal_raw_snapshot_returns_404_when_missing(app_client):
     )
 
     assert response.status_code == 404
+
+
+def test_sheet_explore_domains_render(app_client):
+    for domain, marker in [
+        ("current", 'data-domain="current"'),
+        ("planned", 'data-domain="planned"'),
+        ("archive", 'data-domain="archive"'),
+        ("context", 'data-domain="context"'),
+    ]:
+        response = app_client.get(f"/sheet?lang=en&domain={domain}")
+        assert response.status_code == 200
+        html = response.get_data(as_text=True)
+        assert marker in html
+        assert 'data-mode="explore"' in html
+        assert "data-map-update" in html
+
+
+def test_sheet_archive_lists_territory_bins(app_client):
+    response = app_client.get("/sheet?lang=en&domain=archive")
+    html = response.get_data(as_text=True)
+    assert "Montréal" in html
+    assert "Observed outage report" in html
+
+
+def test_sheet_with_address_renders_overview(app_client):
+    response = app_client.get("/sheet?lang=en&domain=overview&q=5220+Rue+Jeanne-Mance")
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert 'data-mode="address"' in html
+    assert 'data-domain="overview"' in html
+    assert "ph-hero-card" in html
+    call = app_client.application.testing_stub_service.search_calls[-1]
+    assert call["radius_m"] == 5000
+    assert call["record_history"] is False
+
+
+def test_sheet_unknown_domain_falls_back(app_client):
+    response = app_client.get("/sheet?lang=en&domain=bogus")
+    assert response.status_code == 200
+    assert 'data-domain="current"' in response.get_data(as_text=True)
+
+    with_address = app_client.get("/sheet?lang=en&domain=bogus&q=5220+Rue+Jeanne-Mance")
+    assert with_address.status_code == 200
+    assert 'data-domain="overview"' in with_address.get_data(as_text=True)
+
+
+def test_index_boot_sheet_omits_duplicate_map_payload(app_client):
+    response = app_client.get("/?lang=en")
+    html = response.get_data(as_text=True)
+    assert 'data-boot="1"' in html
+    assert "data-map-update" not in html

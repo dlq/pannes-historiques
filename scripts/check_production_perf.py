@@ -9,7 +9,7 @@ from dataclasses import asdict, dataclass
 
 DEFAULT_ENDPOINTS = [
     ("/", "home"),
-    ("/search-map?q=5220%20Rue%20Jeanne-Mance&lang=en", "search_map"),
+    ("/sheet?domain=overview&q=5220%20Rue%20Jeanne-Mance&lang=en", "sheet_overview"),
     ("/api/durable/status", "durable_status"),
     ("/api/durable/runtime/operational-map-layers?include_planned=1", "runtime_operational"),
     ("/api/durable/runtime/previous-map-layers?limit=48", "runtime_previous"),

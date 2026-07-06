@@ -1564,6 +1564,7 @@ class AppService:
                 "customersAffected": row["customers_affected"],
                 "centroidLat": row["centroid_lat"],
                 "centroidLon": row["centroid_lon"],
+                "municipalityCode": row["municipality_code"],
             }
         return self._previous_archive_summary_from_items(
             list(deduped.values()), cutoff_24h, cutoff_7d, cutoff_30d, cutoff_1y
@@ -1595,7 +1596,45 @@ class AppService:
         last_1y = [item for item in items if start_time(item) >= cutoff_1y]
         latest = sorted(last_1y, key=start_time, reverse=True)[:20]
         largest = max(last_1y, key=customer_count, default=None)
+        bins: dict[str, dict[str, Any]] = {}
+        for item in last_1y:
+            code = str(item.get("municipalityCode") or item.get("municipality_code") or "")
+            if not code:
+                continue
+            entry = bins.setdefault(
+                code,
+                {
+                    "territoryId": f"municipality:{code}",
+                    "territoryName": None,
+                    "municipalityCode": code,
+                    "eventCount": 0,
+                    "customersAffected": 0,
+                    "latestStartTime": "",
+                    "_latSum": 0.0,
+                    "_lonSum": 0.0,
+                    "_points": 0,
+                },
+            )
+            entry["eventCount"] += 1
+            entry["customersAffected"] = max(entry["customersAffected"], customer_count(item))
+            entry["latestStartTime"] = max(entry["latestStartTime"], start_time(item))
+            lat = item.get("centroidLat", item.get("centroid_lat"))
+            lon = item.get("centroidLon", item.get("centroid_lon"))
+            if lat is not None and lon is not None:
+                entry["_latSum"] += float(lat)
+                entry["_lonSum"] += float(lon)
+                entry["_points"] += 1
+        territories = []
+        for entry in bins.values():
+            points = entry.pop("_points")
+            lat_sum = entry.pop("_latSum")
+            lon_sum = entry.pop("_lonSum")
+            entry["centroidLat"] = lat_sum / points if points else None
+            entry["centroidLon"] = lon_sum / points if points else None
+            territories.append(entry)
+        territories.sort(key=lambda entry: (-entry["eventCount"], -entry["customersAffected"]))
         return {
+            "territories": territories[:50],
             "windows": [
                 window("previous_archive_last_24h", cutoff_24h),
                 window("previous_archive_last_7d", cutoff_7d),

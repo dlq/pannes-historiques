@@ -1,0 +1,113 @@
+{% if sheet.body.rows is defined %}
+  <div class="ph-domain-summary">
+    <p class="ph-domain-summary-title">
+      <span class="ph-dot ph-dot--archive" aria-hidden="true"></span>{{ sheet.body.summary }}
+    </p>
+  </div>
+  {% if sheet.body.rows %}
+    <ul class="ph-row-list" data-domain-rows="archive">
+      {% for row in sheet.body.rows %}
+        {% if row.isHeading %}
+          <li class="ph-group-heading-item">
+            <p class="ph-group-heading">{{ row.heading }}</p>
+          </li>
+        {% else %}
+          <li>
+            <button class="ph-row"
+                    type="button"
+                    data-map-focus='{{ row.focus | tojson }}'>
+              <span class="ph-date-tile ph-date-tile--archive" aria-hidden="true">
+                <span class="ph-date-tile-day">{{ row.tile.day }}</span>
+                <span class="ph-date-tile-month">{{ row.tile.month }}</span>
+              </span>
+              <span class="ph-row-main">
+                <span class="ph-row-title">{{ row.startTime[11:16] }}</span>
+                <span class="ph-row-sub">
+                  {%- if row.distanceKm %}{{ row.distanceKm }} km
+                  {% endif -%}
+                  {%- if row.eventCount and row.eventCount > 1 %} · {{ row.eventCount }} {{ t(lang, "previous_archive_events") }}
+                  {% endif -%}
+                </span>
+              </span>
+              <span class="ph-row-metric">
+                <span class="ph-row-metric-value">{{ row.customers }}</span>
+                <span class="ph-row-metric-label">{{ t(lang, "clients") }}</span>
+              </span>
+            </button>
+          </li>
+        {% endif %}
+      {% endfor %}
+    </ul>
+    <p class="ph-caveat">{{ t(lang, "history_caveat") }}</p>
+  {% else %}
+    <p class="ph-empty">{{ sheet.body.empty }}</p>
+  {% endif %}
+{% else %}
+  <h2 class="ph-domain-title">{{ t(lang, "archive_report_title") }}</h2>
+  {% if sheet.body.windows %}
+    <div class="ph-window-grid">
+      {% for window in sheet.body.windows %}
+        <div class="ph-window-cell">
+          <p class="ph-window-label">{{ window.label }}</p>
+          <p class="ph-window-value">{{ window.areas }}</p>
+          <p class="ph-window-sub">{{ t(lang, "archive_report_customers", customers=window.customers) }}</p>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+  {% if sheet.body.largestLabel %}<p class="ph-callout">{{ sheet.body.largestLabel }}</p>{% endif %}
+  {% if sheet.body.territoryRows %}
+    <p class="ph-group-heading">{{ t(lang, "archive_territories_heading") }}</p>
+    {% if sheet.body.territoryNote %}<p class="ph-caveat ph-caveat--tight">{{ sheet.body.territoryNote }}</p>{% endif %}
+    <ul class="ph-row-list" data-domain-rows="archive">
+      {% for row in sheet.body.territoryRows %}
+        <li>
+          <button class="ph-row"
+                  type="button"
+                  data-map-focus='{{ row.focus | tojson }}'>
+            <span class="ph-row-main">
+              <span class="ph-row-title">{{ row.title }}</span>
+              {% if row.sub %}<span class="ph-row-sub">{{ row.sub }}</span>{% endif %}
+            </span>
+            <span class="ph-row-metric">
+              <span class="ph-row-metric-value">{{ row.count }}</span>
+              <span class="ph-row-metric-label">{{ t(lang, "outages_metric") }}</span>
+            </span>
+          </button>
+        </li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+  {% if sheet.body.latestGroups %}
+    <p class="ph-group-heading">{{ t(lang, "archive_latest_heading") }}</p>
+    {% if sheet.body.latestNote %}<p class="ph-caveat ph-caveat--tight">{{ sheet.body.latestNote }}</p>{% endif %}
+    {% for group in sheet.body.latestGroups %}
+      <p class="ph-group-heading ph-group-heading--day">{{ group.heading }}</p>
+      <ul class="ph-row-list" data-domain-rows="archive">
+        {% for row in group.rows %}
+          <li>
+            <button class="ph-row"
+                    type="button"
+                    data-map-focus='{{ row.focus | tojson }}'>
+              <span class="ph-date-tile ph-date-tile--archive" aria-hidden="true">
+                <span class="ph-date-tile-day">{{ row.tile.day }}</span>
+                <span class="ph-date-tile-month">{{ row.tile.month }}</span>
+              </span>
+              <span class="ph-row-main">
+                <span class="ph-row-title">{{ row.startTime[11:16] }}</span>
+              </span>
+              <span class="ph-row-metric">
+                <span class="ph-row-metric-value">{{ row.customers }}</span>
+                <span class="ph-row-metric-label">{{ t(lang, "clients") }}</span>
+              </span>
+            </button>
+          </li>
+        {% endfor %}
+      </ul>
+    {% endfor %}
+  {% endif %}
+  {% if not sheet.body.windows and not sheet.body.latestGroups and not sheet.body.territoryRows %}
+    <p class="ph-empty">{{ sheet.body.empty }}</p>
+  {% endif %}
+  <p class="ph-caveat">{{ t(lang, "history_caveat") }}</p>
+{% endif %}

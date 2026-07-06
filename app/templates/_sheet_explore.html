@@ -1,0 +1,66 @@
+{% from "_macros.html" import ph_icon %}
+{% if sheet.mode == "address" %}
+  <header class="ph-sheet-header">
+    <button class="ph-round-button"
+            type="button"
+            data-domain-link="overview"
+            aria-label="{{ t(lang, 'sheet_back_overview') }}">{{ ph_icon("chevron-left") }}</button>
+    <div class="ph-sheet-header-text">
+      <h2 class="ph-sheet-title">{{ sheet.display_address }}</h2>
+      <p class="ph-sheet-subtitle">{{ t(lang, "sheet_back_overview") }}</p>
+    </div>
+    <button class="ph-round-button"
+            type="button"
+            data-action="clear-search"
+            aria-label="{{ t(lang, 'sheet_close_search') }}">{{ ph_icon("x") }}</button>
+  </header>
+{% else %}
+  {% include "_sheet_search.html" %}
+{% endif %}
+<div class="ph-segmented"
+     role="group"
+     aria-label="{{ t(lang, 'sources') }}">
+  {% for segment in ["current", "planned", "archive", "context"] %}
+    <button class="ph-segment {{ 'is-active' if sheet.domain == segment else '' }}"
+            type="button"
+            aria-pressed="{{ 'true' if sheet.domain == segment else 'false' }}"
+            data-domain-link="{{ segment }}">{{ t(lang, "segment_" ~ segment) }}</button>
+  {% endfor %}
+</div>
+{% if sheet.mode == "address" and sheet.domain != "context" %}
+  <div class="ph-scope-row">
+    <div class="ph-scope-toggle"
+         role="group"
+         aria-label="{{ t(lang, 'scope_toggle_label') }}">
+      <button class="ph-scope-button {{ 'is-active' if sheet.scope == 'local' else '' }}"
+              type="button"
+              data-scope-link="local"
+              aria-pressed="{{ 'true' if sheet.scope == 'local' else 'false' }}">
+        {{ t(lang, "scope_local_label") }}
+      </button>
+      <button class="ph-scope-button {{ 'is-active' if sheet.scope == 'province' else '' }}"
+              type="button"
+              data-scope-link="province"
+              aria-pressed="{{ 'true' if sheet.scope == 'province' else 'false' }}">
+        {{ t(lang, "scope_province_label") }}
+      </button>
+    </div>
+  </div>
+{% endif %}
+<div class="ph-domain-body">
+  {% if sheet.domain == "current" %}
+    {% include "_domain_current.html" %}
+  {% elif sheet.domain == "planned" %}
+    {% include "_domain_planned.html" %}
+  {% elif sheet.domain == "archive" %}
+    {% include "_domain_archive.html" %}
+  {% elif sheet.domain == "context" %}
+    {% include "_domain_context.html" %}
+  {% endif %}
+</div>
+{% if sheet.mode != "address" %}
+  <footer class="ph-sheet-footer">
+    <button class="ph-sheet-footer-link" type="button" data-layer-info="all">{{ t(lang, "provenance_title") }}</button>
+    <a href="{{ url_for('about', lang=lang) }}">{{ t(lang, "about_link") }}</a>
+  </footer>
+{% endif %}

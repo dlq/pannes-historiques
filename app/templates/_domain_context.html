@@ -1,0 +1,27 @@
+{% from "_macros.html" import ph_icon %}
+<p class="ph-context-intro">{{ sheet.body.intro }}</p>
+{% if sheet.body.rows %}
+  <ul class="ph-row-list" data-domain-rows="context">
+    {% for row in sheet.body.rows %}
+      <li>
+        <button class="ph-row"
+                type="button"
+                data-map-focus='{{ row.focus | tojson }}'>
+          <span class="ph-doc-tile ph-doc-tile--{{ row.kind }}" aria-hidden="true">{{ ph_icon("map" if row.kind == "regional_metric" else "file-search") }}</span>
+          <span class="ph-row-main">
+            <span class="ph-row-title">{{ row.title }}</span>
+            {% if row.subtitle %}<span class="ph-row-sub">{{ row.subtitle }}</span>{% endif %}
+          </span>
+          {% if row.count is not none %}
+            <span class="ph-row-metric">
+              <span class="ph-row-metric-value">{{ row.count }}</span>
+              <span class="ph-row-metric-label">{{ row.countLabel }}</span>
+            </span>
+          {% endif %}
+        </button>
+      </li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <p class="ph-empty">{{ sheet.body.empty }}</p>
+{% endif %}

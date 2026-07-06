@@ -1,0 +1,48 @@
+{% from "_macros.html" import ph_icon %}
+<div class="ph-domain-summary">
+  <p class="ph-domain-summary-title">
+    <span class="ph-dot ph-dot--current" aria-hidden="true"></span>{{ sheet.body.summary }}
+  </p>
+  {% if sheet.body.customers %}<p class="ph-domain-summary-sub">{{ sheet.body.customers }}</p>{% endif %}
+</div>
+{% if sheet.body.rows %}
+  {% if sheet.body.rowsNote %}<p class="ph-caveat ph-caveat--tight">{{ sheet.body.rowsNote }}</p>{% endif %}
+  <div class="ph-sort-row">
+    <div class="ph-scope-toggle"
+         role="group"
+         aria-label="{{ t(lang, 'sort_toggle_label') }}">
+      <button class="ph-scope-button is-active"
+              type="button"
+              data-sort-option="clients"
+              aria-pressed="true">{{ t(lang, "sort_by_customers") }}</button>
+      <button class="ph-scope-button"
+              type="button"
+              data-sort-option="recent"
+              aria-pressed="false">{{ t(lang, "sort_by_recent") }}</button>
+    </div>
+  </div>
+  <ul class="ph-row-list" data-domain-rows="current" data-sortable-rows>
+    {% for row in sheet.body.rows %}
+      <li>
+        <button class="ph-row"
+                type="button"
+                data-map-focus='{{ row.focus | tojson }}'>
+          <span class="ph-row-main">
+            <span class="ph-row-title" data-relative-time="{{ row.startTime }}">{{ row.startTime[:16] }}</span>
+            <span class="ph-row-sub">
+              {%- if row.distanceKm %}{{ row.distanceKm }} km ·
+              {% endif -%}
+              {{ row.statusLabel }}
+            </span>
+          </span>
+          <span class="ph-row-metric">
+            <span class="ph-row-metric-value">{{ row.customers }}</span>
+            <span class="ph-row-metric-label">{{ t(lang, "clients") }}</span>
+          </span>
+        </button>
+      </li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <p class="ph-empty">{{ sheet.body.empty }}</p>
+{% endif %}
