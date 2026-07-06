@@ -225,6 +225,38 @@ def _planned_groups(
     return [groups[key] for key in sorted(groups)]
 
 
+def _latest_archive_groups(lang: str, items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    groups: list[dict[str, Any]] = []
+    current_key = None
+    weekdays = WEEKDAYS[lang if lang in WEEKDAYS else "fr"]
+    for item in items:
+        moment = _parse_feed_time(item.get("startTime"))
+        day_key = moment.date() if moment else None
+        if day_key != current_key or not groups:
+            current_key = day_key
+            heading = (
+                f"{weekdays[moment.weekday()]} {_format_day_month(lang, moment)}"
+                if moment
+                else t(lang, "unknown")
+            )
+            groups.append({"heading": heading, "rows": []})
+        groups[-1]["rows"].append(
+            {
+                "tile": _date_tile(lang, item.get("startTime")),
+                "startTime": item.get("startTime") or "",
+                "customers": _format_customers(item.get("customersAffected")),
+                "focus": {
+                    "kind": "previous_outage",
+                    "lat": item.get("centroidLat"),
+                    "lon": item.get("centroidLon"),
+                    "startTime": item.get("startTime"),
+                    "customersAffected": item.get("customersAffected"),
+                },
+            }
+        )
+    return groups
+
+
 def _date_tile(lang: str, value: str | None) -> dict[str, str]:
     moment = _parse_feed_time(value)
     if moment is None:
@@ -394,22 +426,15 @@ def explore_sheet_context(
             if largest
             else "",
             "territories": (summary.get("territories") or [])[:12],
-            "latest": [
-                {
-                    "dateLabel": _format_date_label(lang, item.get("startTime")),
-                    "tile": _date_tile(lang, item.get("startTime")),
-                    "startTime": item.get("startTime") or "",
-                    "customers": _format_customers(item.get("customersAffected")),
-                    "focus": {
-                        "kind": "previous_outage",
-                        "lat": item.get("centroidLat"),
-                        "lon": item.get("centroidLon"),
-                        "startTime": item.get("startTime"),
-                        "customersAffected": item.get("customersAffected"),
-                    },
-                }
-                for item in (summary.get("latest") or [])[:20]
-            ],
+            "latestGroups": _latest_archive_groups(lang, (summary.get("latest") or [])[:20]),
+            "latestCount": len((summary.get("latest") or [])[:20]),
+            "latestNote": t(
+                lang,
+                "archive_latest_note",
+                count=len((summary.get("latest") or [])[:20]),
+            )
+            if summary.get("latest")
+            else "",
             "empty": t(lang, "domain_archive_empty"),
         }
     elif domain == "context":

@@ -279,6 +279,7 @@ STRINGS: dict[str, dict[str, str]] = {
         "detail_estimated_restore": "Rétablissement estimé",
         "detail_age": "Depuis",
         "detail_customers_planned": "Clients visés",
+        "archive_latest_note": "Les {count} plus récentes de la dernière année.",
     },
     "en": {
         "brand_title": "Outage History",
@@ -553,6 +554,7 @@ STRINGS: dict[str, dict[str, str]] = {
         "detail_estimated_restore": "Estimated restoration",
         "detail_age": "Ongoing for",
         "detail_customers_planned": "Customers to be affected",
+        "archive_latest_note": "The {count} most recent from the past year.",
     },
 }
 
