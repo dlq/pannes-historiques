@@ -4,13 +4,36 @@ All notable completed release and implementation history for the Hydro-Quebec Ou
 
 Keep active execution state in `PLANS.md` and source/evidence research in `NOTES.md`.
 
-## [Unreleased]
+## [v0.4.1] - 2026-07-08
 
 ### Changed
 
-- Removed the stale Claude launch configuration and clarified in `AGENTS.md` that future task branches should not use the `codex/` prefix unless explicitly requested.
+- Pluralized every count-bearing UI string (dropped the literal `(s)`): a shared `(s)`-marker resolver in `t()` fixes singular/plural at `count == 1` across both languages, including the strings a follow-up review flagged (`local_reliability_summary_body`, `history_view_all`, `archive_latest_note`).
+- Localized decimals for French: distances and durations now use a comma separator (`1,5 km`, `≈ 5,8 h`) on both the server and the client, while English keeps the period.
+- Unified the month abbreviation so client-rendered dates match the server (`juil`, not `juill`); replaced the client `Intl` month formatting with the shared `MONTHS_SHORT` table.
+- Labelled address-scoped Current/Planned summaries `à moins de N km` instead of `au Québec`, since the counts are local.
+- Dropped planned interruptions whose scheduled window has already ended, so the Planned list leads with upcoming work instead of weeks-old notices.
+- Domain-tinted the selected sheet row (red/amber/violet/teal) instead of always violet; faded the address radius fill so street detail stays legible; clamped the province-wide boot view to a Québec envelope.
+- Let the desktop floating panel hug its content height instead of always filling the viewport.
+
+### Fixed
+
+- Suppressed the misleading Hydro-code territory names ("Secteur 1000") that appeared on the Archive tab during a container cold start: when the durable D1 archive summary is unavailable, the local fallback now omits the code-named territory breakdown and the degraded result is not cached, so the next request recovers the real municipality names and fresh windows from D1.
+- Silenced MapLibre `styleimagemissing` console warnings from the Liberty style.
+
+### Accessibility
+
+- Enlarged the segmented control, scope, and round buttons toward comfortable touch targets and added `:focus-visible` outlines to every sheet control.
+
+### Verified
+
+- `uv run pytest -q`: 132 passed, including new regression tests for pluralization, the French decimal separator, planned staleness, the address-scope label, and the degraded (non-cached) archive fallback.
+- `npm run check` and Playwright desktop + mobile: passed. Browser-verified at 375 px and 1380 px.
+
+### Housekeeping
+
+- Removed the stale Claude launch configuration and clarified in `AGENTS.md` that future task branches should not use the `codex/` prefix unless explicitly requested; noted that a `pyproject.toml` version/dependency change must re-run `uv lock` so CI's `uv sync --locked` stays green.
 - Cleaned up merged auxiliary worktrees and `codex/*` branches after confirming they had no commits ahead of `main`.
-- Updated Markdown project status so `README.md`, `PLANS.md`, `NOTES.md`, and user stories treat `v0.4.0` as the current released baseline and current `main` as the next implementation starting point.
 
 ## [v0.4.0] - 2026-07-06
 

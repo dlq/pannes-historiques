@@ -402,6 +402,7 @@ class AppService:
         *,
         ttl_seconds: int | None = None,
         cache_none: bool = True,
+        should_cache=None,
     ):
         now = time.monotonic()
         cached = self._context_cache.get(key)
@@ -417,6 +418,8 @@ class AppService:
             with current_timer().step(f"context_cache.{key}.build"):
                 value = factory()
                 if value is None and not cache_none:
+                    return value
+                if should_cache is not None and not should_cache(value):
                     return value
                 self._context_cache[key] = {
                     "expires_at": None if ttl_seconds is None else now + max(ttl_seconds, 0),
@@ -1474,6 +1477,9 @@ class AppService:
             "previous_operational_archive_summary",
             self._build_previous_operational_archive_summary,
             ttl_seconds=self.settings.durable_context_cache_ttl_seconds,
+            # A degraded (durable-unavailable) fallback must not be cached, so a
+            # single cold-start miss can't pin stale/code-named data for the TTL.
+            should_cache=lambda summary: not (summary or {}).get("degraded"),
         )
 
     def _build_previous_operational_archive_summary(self) -> dict[str, Any]:
@@ -1482,7 +1488,8 @@ class AppService:
         cutoff_7d = (now - timedelta(days=7)).strftime("%Y-%m-%d %H:%M:%S")
         cutoff_30d = (now - timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
         cutoff_1y = (now - timedelta(days=365)).strftime("%Y-%m-%d %H:%M:%S")
-        if self.settings.durable_runtime_url:
+        durable_expected = bool(self.settings.durable_runtime_url)
+        if durable_expected:
             payload = self._durable_runtime_get("previous-archive-summary")
             if payload:
                 summary = {
@@ -1566,9 +1573,18 @@ class AppService:
                 "centroidLon": row["centroid_lon"],
                 "municipalityCode": row["municipality_code"],
             }
-        return self._previous_archive_summary_from_items(
+        summary = self._previous_archive_summary_from_items(
             list(deduped.values()), cutoff_24h, cutoff_7d, cutoff_30d, cutoff_1y
         )
+        if durable_expected:
+            # In production the named territory breakdown comes from D1 via the
+            # durable runtime. If that call failed we are on the baked SQLite
+            # snapshot, whose only territory identity is the Hydro area code
+            # ("Secteur 1000"). Suppress those rather than show codes, and flag
+            # the result so it is not cached — the next request retries durable.
+            summary["territories"] = []
+            summary["degraded"] = True
+        return summary
 
     @staticmethod
     def _previous_archive_summary_from_items(

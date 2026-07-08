@@ -6,9 +6,11 @@ from typing import Any
 SUPPORTED_LANGUAGES = ("fr", "en")
 
 # Plural markers in strings look like "panne(s)" / "planifiée(s)". When a
-# ``count`` kwarg is supplied, ``t`` resolves every "(...)" group to singular
-# (count == 1, drop the group) or plural (otherwise, keep the inner text).
-_PLURAL_MARKER = re.compile(r"\(([^)]*)\)")
+# ``count`` kwarg is supplied, ``t`` resolves each marker to singular (count
+# == 1, drop it) or plural (otherwise, keep the inner text). The pattern only
+# matches short letter runs so ordinary parentheticals like "(up to 50 shown)"
+# are never mistaken for a marker.
+_PLURAL_MARKER = re.compile(r"\(([A-Za-zÀ-ÿ]{0,3})\)")
 
 
 STRINGS: dict[str, dict[str, str]] = {
@@ -37,7 +39,7 @@ STRINGS: dict[str, dict[str, str]] = {
         "previous_archive_events": "événements",
         "regional_colour_legend": "Poids régional des pannes",
         "local_reliability_summary_title": "Indice local",
-        "local_reliability_summary_body": "{count} pannes conservées dans {radius_km} km. Plus de lignes = plus d'interruptions observées près d'ici.",
+        "local_reliability_summary_body": "{count} panne(s) conservée(s) dans {radius_km} km. Plus de lignes = plus d'interruptions observées près d'ici.",
         "local_reliability_summary_empty": "0 panne conservée dans {radius_km} km. Cela veut dire que l'archive actuelle n'a pas retenu de panne près d'ici.",
         "local_reliability_summary_meta": "Tous les enregistrements conservés dans {radius_km} km sont affichés",
         "local_reliability_summary_caveat": "Ce n'est pas un historique officiel complet de Hydro-Québec.",
@@ -145,7 +147,7 @@ STRINGS: dict[str, dict[str, str]] = {
         "history_nearest_fact": "La plus proche à {distance_km} km",
         "history_latest_fact": "la plus récente le {date}",
         "history_caveat": "Observations pannes.ca — pas l'historique officiel d'Hydro-Québec.",
-        "history_view_all": "Voir les {count} pannes",
+        "history_view_all": "Voir {count} panne(s)",
         "history_view_zero": "Voir l'archive",
         "history_empty_body": "0 panne conservée dans {radius_km} km : l'archive actuelle n'a rien retenu près d'ici. Cela ne prouve pas l'absence de pannes.",
         "compare_button": "Comparer",
@@ -167,7 +169,7 @@ STRINGS: dict[str, dict[str, str]] = {
         "detail_estimated_restore": "Rétablissement estimé",
         "detail_age": "Depuis",
         "detail_customers_planned": "Clients visés",
-        "archive_latest_note": "Les {count} plus récentes de la dernière année.",
+        "archive_latest_note": "{count} plus récente(s) de la dernière année.",
         "rows_shown_note": "{count} lignes affichées sur {total}.",
         "sheet_load_error": "Le contenu n'a pas pu être chargé. Réessayez.",
         "provenance_title": "À propos de ces données",
@@ -205,7 +207,7 @@ STRINGS: dict[str, dict[str, str]] = {
         "previous_archive_events": "events",
         "regional_colour_legend": "Regional outage burden",
         "local_reliability_summary_title": "Local stability evidence",
-        "local_reliability_summary_body": "{count} retained outages within {radius_km} km. More rows mean more interruptions observed near here.",
+        "local_reliability_summary_body": "{count} retained outage(s) within {radius_km} km. More rows mean more interruptions observed near here.",
         "local_reliability_summary_empty": "0 retained outages within {radius_km} km. This means the current archive has not retained nearby outages here.",
         "local_reliability_summary_meta": "All retained records within {radius_km} km shown",
         "local_reliability_summary_caveat": "This is not an official complete Hydro-Quebec address history.",
@@ -313,7 +315,7 @@ STRINGS: dict[str, dict[str, str]] = {
         "history_nearest_fact": "Nearest at {distance_km} km",
         "history_latest_fact": "most recent on {date}",
         "history_caveat": "pannes.ca observations — not Hydro-Quebec's official history.",
-        "history_view_all": "View the {count} outages",
+        "history_view_all": "View {count} outage(s)",
         "history_view_zero": "View the archive",
         "history_empty_body": "0 outages retained within {radius_km} km: the current archive kept nothing near here. That does not prove there were no outages.",
         "compare_button": "Compare",

@@ -936,3 +936,42 @@ def test_planned_map_layers_use_peak_clients_for_reused_area(service_factory):
     assert layers[0]["event_count"] == 2
     assert layers[0]["customers_affected"] == 125
     assert [event["customers_affected"] for event in layers[0]["recent_events"]] == [61, 125]
+
+
+def test_archive_summary_degrades_without_caching(tmp_path):
+    """When durable is configured but unreachable, the local fallback must not
+    show Hydro-code territory names, and the degraded result must not be cached."""
+    from app.config import Settings
+    from app.services import AppService
+
+    settings = Settings(
+        db_path=tmp_path / "app.db",
+        data_dir=tmp_path,
+        raw_dir=tmp_path / "raw",
+        # Port 1 is unreachable → durable call fails fast → local fallback.
+        durable_runtime_url="http://127.0.0.1:1/api/durable/runtime",
+    )
+    service = AppService(settings)
+    summary = service.previous_operational_archive_summary()
+    assert summary["degraded"] is True
+    assert summary["territories"] == []
+    # Degraded results are not cached: the key stays absent so the next request
+    # retries the durable path instead of serving stale/degraded data.
+    assert "previous_operational_archive_summary" not in service._context_cache
+
+
+def test_cached_context_should_cache_predicate(tmp_path):
+    from app.config import Settings
+    from app.services import AppService
+
+    settings = Settings(db_path=tmp_path / "app.db", data_dir=tmp_path, raw_dir=tmp_path / "raw")
+    service = AppService(settings)
+    calls = {"n": 0}
+
+    def factory():
+        calls["n"] += 1
+        return {"degraded": True}
+
+    service._cached_context("k", factory, should_cache=lambda v: not v["degraded"])
+    service._cached_context("k", factory, should_cache=lambda v: not v["degraded"])
+    assert calls["n"] == 2  # never cached, so factory ran both times

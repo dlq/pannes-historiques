@@ -268,3 +268,30 @@ def test_address_current_domain_uses_local_scope_label():
     context = address_domain_sheet_context("fr", "current", result, "5220 Rue Jeanne-Mance")
     assert "à moins de 5 km" in context["body"]["summary"]
     assert "au Québec" not in context["body"]["summary"]
+
+
+def test_pluralization_of_review_flagged_strings():
+    from app.i18n import t
+
+    assert t("fr", "history_view_all", count=1) == "Voir 1 panne"
+    assert t("fr", "history_view_all", count=12) == "Voir 12 pannes"
+    assert t("en", "history_view_all", count=1) == "View 1 outage"
+    assert t("fr", "local_reliability_summary_body", count=1, radius_km="5").startswith(
+        "1 panne conservée"
+    )
+    assert t("en", "local_reliability_summary_body", count=1, radius_km="5").startswith(
+        "1 retained outage "
+    )
+    assert t("fr", "archive_latest_note", count=1).startswith("1 plus récente")
+    assert t("fr", "archive_latest_note", count=20).startswith("20 plus récentes")
+
+
+def test_non_marker_parentheticals_survive_count():
+    from app.i18n import t
+
+    # archive_bins_note carries a real "(up to 50 shown)" aside; passing count
+    # must not corrupt it even though the plural mechanism is active elsewhere.
+    text = t("en", "archive_bins_note", count=1)
+    assert "(up to 50 shown)" in text
+    text_fr = t("fr", "archive_bins_note", count=1)
+    assert "(50 au maximum)" in text_fr
