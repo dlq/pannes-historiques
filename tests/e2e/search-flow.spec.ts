@@ -354,3 +354,79 @@ test("language switch preserves the current query", async ({ page }) => {
   await expect(page).toHaveURL(/lang=fr/);
   await expect(page.locator(".ph-segment.is-active")).toHaveText("En cours");
 });
+
+test("regional context rows open the regional metric card", async ({ page }) => {
+  await page.goto("/?lang=en");
+
+  const contextResponse = page.waitForResponse((response) =>
+    response.url().includes("domain=context"),
+  );
+  await page.locator('.ph-segment[data-domain-link="context"]').click();
+  await contextResponse;
+
+  const regionRow = page
+    .locator('[data-domain-rows="context"] .ph-row')
+    .filter({ hasText: "Montreal" })
+    .first();
+  await regionRow.click();
+
+  const panel = page.locator("dai-detail-panel");
+  await expect(panel).toBeVisible();
+  await expect(panel.locator(".ph-sheet-title")).toHaveText("Montreal");
+  await expect(panel.locator(".ph-detail-facts")).toContainText("184");
+  await expect(panel.locator(".ph-detail-facts")).toContainText("DAI source");
+  await panel.locator("[data-dai-detail-close]").click();
+  await expect(panel).toBeHidden();
+});
+
+test("planned rows open a detail card with future-facing wording", async ({ page }) => {
+  await page.goto("/?lang=en");
+
+  const plannedResponse = page.waitForResponse((response) =>
+    response.url().includes("domain=planned"),
+  );
+  await page.locator('.ph-segment[data-domain-link="planned"]').click();
+  await plannedResponse;
+
+  const firstRow = page.locator('[data-domain-rows="planned"] .ph-row').first();
+  await firstRow.click();
+  await expect(page.locator("outage-map")).toHaveAttribute("data-active-focus-kind", "planned");
+
+  const detail = page.locator("#sheet-detail");
+  await expect(detail).toBeVisible();
+  // Planned notices are future events: they describe customers to be affected
+  // and never show a live crew status.
+  await expect(detail.locator(".ph-detail-facts")).toContainText("Customers to be affected");
+  await expect(detail.locator(".ph-detail-facts")).not.toContainText("Last seen status");
+
+  await detail.locator("[data-detail-close]").last().click();
+  await expect(detail).toBeHidden();
+});
+
+test("current doorway opens the local scoped view and detail card", async ({ page }) => {
+  await runSearch(page);
+
+  const currentResponse = page.waitForResponse((response) =>
+    response.url().includes("domain=current"),
+  );
+  await page.locator('.ph-status-line[data-domain-link="current"]').first().click();
+  await currentResponse;
+
+  await expect(page.locator('.ph-sheet-content[data-domain="current"]')).toBeVisible();
+  // Address-scoped Current is labelled by radius, not "in Quebec".
+  await expect(page.locator(".ph-domain-summary-title")).toContainText("within 5 km");
+  const scopeLocal = page.locator('[data-scope-link="local"]');
+  await expect(scopeLocal).toHaveText("5 km");
+  await expect(scopeLocal).toHaveClass(/is-active/);
+
+  const firstRow = page.locator('[data-domain-rows="current"] .ph-row').first();
+  await firstRow.click();
+  await expect(page.locator("outage-map")).toHaveAttribute("data-active-focus-kind", "outage");
+
+  const detail = page.locator("#sheet-detail");
+  await expect(detail).toBeVisible();
+  // A live outage shows its last-seen status (fixture outages are ongoing).
+  await expect(detail.locator(".ph-detail-facts")).toContainText("Last seen status");
+  await detail.locator("[data-detail-close]").last().click();
+  await expect(detail).toBeHidden();
+});

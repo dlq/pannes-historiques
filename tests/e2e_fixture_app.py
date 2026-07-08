@@ -1,8 +1,19 @@
 from __future__ import annotations
 
+from datetime import datetime, timedelta
+
 from app.addressing import NormalizedAddress
 from app.config import Settings
 from app.services import SearchResult
+
+
+def _upcoming(days: int, hour: int) -> str:
+    # Planned interruptions are future events; keep the fixture ahead of "now"
+    # so the staleness filter (which drops ended windows) retains them.
+    moment = (datetime.now() + timedelta(days=days)).replace(
+        hour=hour, minute=0, second=0, microsecond=0
+    )
+    return moment.strftime("%Y-%m-%d %H:%M:%S")
 
 
 def _polygon(min_lon: float, min_lat: float, max_lon: float, max_lat: float) -> dict[str, object]:
@@ -87,8 +98,8 @@ def _planned_matches() -> list[dict[str, object]]:
             "centroid_lat": 45.5201,
             "centroid_lon": -73.6002,
             "geometry_geojson": _polygon(-73.6013, 45.5194, -73.5995, 45.5209),
-            "start_time": "2026-05-12 08:00:00",
-            "end_time": "2026-05-12 12:00:00",
+            "start_time": _upcoming(2, 8),
+            "end_time": _upcoming(2, 12),
             "customers_affected": 16,
             "distance_m": 305,
             "status": "A",
@@ -104,8 +115,8 @@ def _planned_matches() -> list[dict[str, object]]:
             "centroid_lat": 45.5203,
             "centroid_lon": -73.6004,
             "geometry_geojson": _polygon(-73.6013, 45.5194, -73.5995, 45.5209),
-            "start_time": "2026-05-13 09:00:00",
-            "end_time": "2026-05-13 11:00:00",
+            "start_time": _upcoming(3, 9),
+            "end_time": _upcoming(3, 11),
             "customers_affected": 22,
             "distance_m": 315,
             "status": "A",
