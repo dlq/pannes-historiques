@@ -7,9 +7,11 @@ This file is the active execution plan. Keep durable evidence, source notes, and
 
 ## Current State
 
-- Current deployed release: `v0.4.0`, the sheet/MapLibre interface redesign (deployed 2026-07-06).
-- Current production deployment: Worker version `1f2b6dc1-8f48-4354-be76-e65e339e3711`; container image `pannes-historiques-pannescontainer:1f2b6dc1`.
-- Current release in progress: none; `v0.4.0` is tagged, deployed, smoke-checked, and recorded in `CHANGELOG.md`.
+- Current deployed release: `v0.4.1`, UI/UX-review polish plus the archive cold-start hardening (deployed 2026-07-08).
+- Current production deployment: Worker version `0438a124-064d-412e-9d75-9140fd19e791`; container image `pannes-historiques-pannescontainer:0438a124`.
+- Current release in progress: none; `v0.4.1` is deployed, smoke-checked, and recorded in `CHANGELOG.md`.
+- P1.1/P1.3 resolved for `v0.4.1`: the production D1 municipal archive is healthy (1,341 admin territories, all named, zero null-name primary bins; 24 h archive window live). The "Secteur 1000"/"24 h: 0" seen in the 2026-07-08 review were a container cold-start artifact — the baked SQLite fallback bins by Hydro area code and its degraded result was cached for the 120 s TTL. `v0.4.1` suppresses the code-named territory breakdown and skips caching when the durable D1 summary is expected but unavailable, so the tab recovers real names/fresh windows on the next request. The public durable endpoint `GET /api/durable/runtime/previous-archive-summary` returns named, fresh data directly.
+- Open follow-up (unchanged): the trusted container-runtime proxy check in `src/runtime-policy.js` still hardcodes `cf-worker === "dalaque.workers.dev"`; the container archive path currently authenticates via the operation token / the endpoint being un-gated, but the hardcoded host should still be made configurable.
 - Current repository state: `main` is the post-`v0.4.0` documentation/repository-maintenance baseline. The merged `codex/*` branches and auxiliary `.worktrees/` directories have been removed locally and from `origin`; only `main` remains.
 - Current frontend state: production serves one full-bleed MapLibre GL map with the OpenFreeMap Liberty vector style plus a single sheet: peek/half/full detents on mobile and a floating panel on desktop. Search lives inside the sheet. A segmented control (`En cours`/`Planifiées`/`Archive`/`Contexte`) drives both sheet content and visible map domain. Address mode opens to an overview answer stack with current/planned status lines, a 14-month local-history chart, scoped domain views with a `5 km / Québec` toggle, in-sheet detail cards, a provenance card, and a browser-local comparison tray. The old Leaflet/HTMX/header/accordion/sidebar/show-hide model is no longer the current interface.
 - Production data plane: D1/R2-backed durable ingestion for current feed rows, previous-outage rows, raw Hydro-Québec payloads, disclosure metadata, and runtime map-context layers.
