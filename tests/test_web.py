@@ -20,6 +20,14 @@ def test_index_includes_pwa_metadata(app_client):
     assert 'href="/static/app-icon-180.png"' in html
 
 
+def test_index_includes_hidden_app_heading(app_client):
+    response = app_client.get("/?lang=en")
+    html = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert '<h1 class="sr-only">Outage History map</h1>' in html
+
+
 def test_index_includes_web_quality_metadata_and_no_tailwind_cdn(app_client):
     response = app_client.get("/?lang=en")
     html = response.get_data(as_text=True)

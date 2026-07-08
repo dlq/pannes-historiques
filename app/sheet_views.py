@@ -212,6 +212,7 @@ def _current_rows(
             "statusLabel": item.get("statusLabel") or t(lang, "unknown"),
             "status": item.get("status") or "",
             "customers": _format_customers(item.get("customersAffected")),
+            "customersLabel": t(lang, "clients"),
             "distanceKm": _format_distance_km(item.get("distanceM"), lang) if with_distance else "",
             "focus": _focus_payload(item),
         }
@@ -246,6 +247,7 @@ def _planned_groups(
                 "kind": "planned",
                 "window": _format_window(lang, item.get("startTime"), item.get("endTime")),
                 "customers": _format_customers(item.get("customersAffected")),
+                "customersLabel": t(lang, "clients"),
                 "distanceKm": _format_distance_km(item.get("distanceM"), lang)
                 if with_distance
                 else "",
@@ -379,6 +381,7 @@ def _previous_rows(
                 "tile": _date_tile(lang, item.get("startTime")),
                 "statusLabel": item.get("statusLabel") or "",
                 "customers": _format_customers(item.get("customersAffected")),
+                "customersLabel": t(lang, "clients"),
                 "distanceKm": _format_distance_km(item.get("distanceM"), lang)
                 if with_distance
                 else "",
@@ -390,6 +393,16 @@ def _previous_rows(
 
 
 def _context_rows(lang: str, items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    def source_type_label(item: dict[str, Any]) -> str:
+        raw = str(item.get("precisionLabel") or item.get("matchType") or "").lower()
+        if item.get("kind") == "regional_metric" or "administrative_region" in raw:
+            return t(lang, "context_source_region")
+        if "borough" in raw:
+            return t(lang, "context_source_borough")
+        if "municipality" in raw:
+            return t(lang, "context_source_municipality")
+        return t(lang, "context_source_sector")
+
     rows = []
     for item in items:
         if item.get("kind") == "regional_metric":
@@ -402,7 +415,12 @@ def _context_rows(lang: str, items: list[dict[str, Any]]) -> list[dict[str, Any]
                 {
                     "kind": "regional_metric",
                     "title": item.get("label") or t(lang, "unknown"),
-                    "subtitle": item.get("periodLabel") or "",
+                    "sourceTypeLabel": source_type_label(item),
+                    "subtitle": " · ".join(
+                        part
+                        for part in [source_type_label(item), item.get("periodLabel") or ""]
+                        if part
+                    ),
                     "count": item.get("outageCount"),
                     "countLabel": t(lang, "outages"),
                     "focus": _focus_payload(item),
@@ -416,8 +434,9 @@ def _context_rows(lang: str, items: list[dict[str, Any]]) -> list[dict[str, Any]
                 {
                     "kind": "disclosure",
                     "title": item.get("label") or t(lang, "unknown"),
+                    "sourceTypeLabel": source_type_label(item),
                     "subtitle": " · ".join(
-                        part for part in [period, item.get("precisionLabel") or ""] if part
+                        part for part in [period, source_type_label(item)] if part
                     ),
                     "count": item.get("recordCount"),
                     "countLabel": t(lang, "rows"),

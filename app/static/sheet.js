@@ -461,7 +461,8 @@ function bindGlobalHandlers() {
     if (domainLink) {
       event.preventDefault();
       closeDetailCards();
-      fetchSheet({ domain: domainLink.dataset.domainLink });
+      const nextScope = domainLink.dataset.scopeLink || (hasAddress() ? "local" : sheetState.scope);
+      fetchSheet({ domain: domainLink.dataset.domainLink, scope: nextScope });
       return;
     }
     const scopeLink = event.target.closest("[data-scope-link]");

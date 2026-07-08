@@ -75,8 +75,16 @@ const COMPARE_STORAGE_KEY = "pannesComparedAddresses";
 function compareLabels() {
   const lang = document.documentElement.lang || "fr";
   return lang === "fr"
-    ? { empty: "Aucune adresse comparée.", clear: "Effacer" }
-    : { empty: "No compared addresses yet.", clear: "Clear" };
+    ? {
+        empty: "Aucune adresse comparée.",
+        clear: "Effacer",
+        addAnother: "Ajoutez une autre adresse pour comparer.",
+      }
+    : {
+        empty: "No compared addresses yet.",
+        clear: "Clear",
+        addAnother: "Add another address to compare.",
+      };
 }
 
 function readComparedItems() {
@@ -128,7 +136,17 @@ function renderComparisonTray() {
     writeComparedItems([]);
     renderComparisonTray();
   });
-  tray.replaceChildren(list, clear);
+  const hint = document.createElement("p");
+  hint.className = "ph-compare-hint";
+  hint.textContent = labels.addAnother;
+  tray.replaceChildren(list, hint, clear);
+}
+
+function suggestionAccessibleName(item) {
+  const primary = item.value || item.label || "";
+  const secondary = item.label || item.value || "";
+  if (secondary.startsWith(`${primary}, `)) return secondary;
+  return secondary && secondary !== primary ? `${primary}, ${secondary}` : primary;
 }
 
 export function attachAddressAutocomplete() {
@@ -157,6 +175,7 @@ export function attachAddressAutocomplete() {
       button.type = "button";
       button.dataset.addressValue = item.value || item.label || "";
       button.dataset.addressLabel = item.label || item.value || "";
+      button.setAttribute("aria-label", suggestionAccessibleName(item));
 
       const primary = document.createElement("span");
       primary.className = "ph-suggestion-primary";
@@ -165,6 +184,7 @@ export function attachAddressAutocomplete() {
       const secondary = document.createElement("span");
       secondary.className = "ph-suggestion-secondary";
       secondary.textContent = item.label || item.value || "";
+      secondary.setAttribute("aria-hidden", "true");
 
       button.append(primary, secondary);
       panel.appendChild(button);
