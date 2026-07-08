@@ -20,6 +20,14 @@ def test_index_includes_pwa_metadata(app_client):
     assert 'href="/static/app-icon-180.png"' in html
 
 
+def test_index_includes_hidden_app_heading(app_client):
+    response = app_client.get("/?lang=en")
+    html = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert '<h1 class="sr-only">Outage History map</h1>' in html
+
+
 def test_index_includes_web_quality_metadata_and_no_tailwind_cdn(app_client):
     response = app_client.get("/?lang=en")
     html = response.get_data(as_text=True)
@@ -153,7 +161,7 @@ def test_service_worker_route_has_root_scope(app_client):
     assert response.status_code == 200
     assert response.headers["Service-Worker-Allowed"] == "/"
     assert response.headers["Cache-Control"] == "no-cache"
-    assert b"pannes-historiques-v0.4.0-sheet-maplibre" in response.data
+    assert b"pannes-historiques-v0.4.0-ui-audit-fixes" in response.data
     assert b"/static/app-icon-180.png" in response.data
     assert b"/static/icons.svg" in response.data
     assert b"/static/sheet.js" in response.data

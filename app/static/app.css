@@ -858,6 +858,11 @@ button {
 
 .ph-hero-info {
   display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  margin: -6px -6px -6px 0;
   padding: 2px;
   background: none;
   border: 0;
@@ -1000,6 +1005,13 @@ button {
   font-size: 0.8rem;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
+}
+
+.ph-compare-hint {
+  margin: 7px 0 0;
+  color: var(--ph-ink-3);
+  font-size: 0.75rem;
+  line-height: 1.35;
 }
 
 .ph-compare-clear {

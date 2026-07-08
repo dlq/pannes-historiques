@@ -320,7 +320,7 @@ def test_context_geometry_payload_prefers_static_or_inline_geometry():
 def test_hydro_status_label_decodes_verified_codes_and_labels_unknown_codes():
     assert hydro_status_label("en", "A") == "Work assigned"
     assert hydro_status_label("en", "L") == "Crew at work"
-    assert hydro_status_label("en", "R") == "Crew en route"
+    assert hydro_status_label("en", "R") == "Crew on the way"
     assert hydro_status_label("fr", "A") == "Travaux assignés"
     assert hydro_status_label("en", "N") == "Not specified"
     assert hydro_status_label("fr", "N") == "Non précisé"

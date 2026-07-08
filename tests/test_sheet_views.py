@@ -3,6 +3,7 @@ from types import SimpleNamespace
 
 from app.sheet_views import (
     HISTORY_MONTHS,
+    _context_rows,
     _format_window,
     _monthly_buckets,
     _planned_groups,
@@ -94,6 +95,55 @@ def test_explore_current_context_sorts_rows_by_customers():
     rows = context["body"]["rows"]
     assert [row["customers"] for row in rows] == ["900", "10"]
     assert context["map_update"]["matches"]
+
+
+def test_english_current_rows_use_customers_and_plain_en_route_status():
+    context = explore_sheet_context(
+        "en",
+        "current",
+        current_layers=[
+            {
+                "outage_kind": "outage",
+                "match_type": "current_feed_map",
+                "centroid_lat": 45.5,
+                "centroid_lon": -73.6,
+                "customers_affected": 30,
+                "status": "R",
+                "start_time": "2026-07-05 10:00:00",
+            }
+        ],
+    )
+
+    row = context["body"]["rows"][0]
+    assert row["customersLabel"] == "customers"
+    assert row["statusLabel"] == "Crew on the way"
+
+
+def test_context_rows_use_plain_source_type_labels():
+    rows = _context_rows(
+        "en",
+        [
+            {
+                "kind": "regional_metric",
+                "label": "Montreal",
+                "matchType": "administrative_region_context",
+                "periodLabel": "2025",
+                "outageCount": 3530,
+            },
+            {
+                "kind": "disclosure",
+                "label": "Outremont",
+                "precisionLabel": "borough_context",
+                "recordCount": 389,
+                "startMin": "2023-01-01",
+                "startMax": "2025-12-31",
+            },
+        ],
+    )
+
+    assert rows[0]["sourceTypeLabel"] == "Region"
+    assert rows[1]["sourceTypeLabel"] == "Borough"
+    assert "borough_context" not in rows[1]["subtitle"]
 
 
 def _fake_result(previous_start: str) -> SimpleNamespace:

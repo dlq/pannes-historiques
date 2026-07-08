@@ -41,6 +41,7 @@
             src="{{ url_for('static', filename='app.js', v=static_version) }}"></script>
   </head>
   <body class="ph-app" data-mode="{{ sheet.mode }}">
+    <h1 class="sr-only">{{ t(lang, "app_h1") }}</h1>
     <a class="sr-only ph-skip-link" href="#sheet-body">{{ t(lang, "search_label") }}</a>
     <outage-map id="ph-map" class="ph-map" data-map='{{ initial_map | tojson }}'></outage-map>
     <a class="ph-brand-chip" href="{{ url_for('index', lang=lang) }}">pannes.ca</a>
