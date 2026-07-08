@@ -4,6 +4,30 @@ All notable completed release and implementation history for the Hydro-Quebec Ou
 
 Keep active execution state in `PLANS.md` and source/evidence research in `NOTES.md`.
 
+## [Unreleased]
+
+### Added
+
+- Added a hidden app-level heading for the sheet/map interface so the main application screen has a stable accessible page title.
+- Added standing tests for the UI-audit follow-ups: hidden app heading, concise autocomplete accessible names, comparison-tray guidance, local-scope preservation from address overview links, plain context source labels, and English customer/status wording.
+
+### Changed
+
+- Updated `PLANS.md` so the active roadmap starts from `v0.4.2` public beta readiness instead of a broad unsorted `0.4.x` bucket.
+- Split `0.4.x` into concrete slices: `v0.4.2` public beta readiness, `v0.4.3` runtime cost/public-read migration, `v0.4.4` archive health/D1 growth control, `v0.4.5` machine-readable public surface, and `v0.4.6` analytical/saved-area feasibility.
+- Added a concrete `0.5.x` train: `v0.5.0` historical data API contract, `v0.5.1` saved areas and notification pilot, `v0.5.2` regional analytics and research views, and `v0.5.3` source expansion and geocoder reliability.
+- Added an explicit `Beyond 0.5.x` parking lot; there is no concrete post-`0.5.x` release train yet.
+- Replaced stale completed-release narrative in `PLANS.md` with compact completed-train summaries and moved active risks/test strategy onto the new release slices.
+- Improved UI wording from the live-site review: English count labels now say "customers", status `R` now reads "Crew on the way", context rows show plain source types, and autocomplete suggestions avoid duplicated accessible names.
+- Added a comparison-tray hint explaining the next comparison step and increased the hero info button touch target.
+- Kept address overview domain links local by default and bumped static/service-worker cache markers for the UI-audit branch.
+
+### Verified
+
+- UI-audit implementation branch verification before merge: full Python suite, Node static tests, Ruff, djlint, Biome, pre-commit, and desktop/mobile browser QA passed.
+- Merged UI-audit result on `main` passed `uv run pytest` (135), `node --test tests/*.test.js` (31), and `uv run pre-commit run --all-files`.
+- Roadmap cleanup verification: `git diff --check` passed for `PLANS.md`.
+
 ## [v0.4.1] - 2026-07-08
 
 ### Changed
