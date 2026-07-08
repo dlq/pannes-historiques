@@ -2,6 +2,21 @@ export function label(labels, key, fallback) {
   return labels?.[key] || fallback;
 }
 
+// Kept in sync with MONTHS_SHORT in app/sheet_views.py so server-rendered and
+// client-rendered dates use one abbreviation set (e.g. "juil", not "juill").
+const MONTHS_SHORT = {
+  fr: ["janv", "févr", "mars", "avr", "mai", "juin", "juil", "août", "sept", "oct", "nov", "déc"],
+  en: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+};
+
+function monthsFor(lang) {
+  return MONTHS_SHORT[lang === "fr" ? "fr" : "en"];
+}
+
+function localizeDecimal(text, lang) {
+  return lang === "fr" ? text.replace(".", ",") : text;
+}
+
 export function escapeHtml(value) {
   return String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -16,7 +31,8 @@ export function formatDistanceKm(value, labels = {}) {
     return label(labels, "unknown", "unknown");
   const numberValue = Number(value);
   if (!Number.isFinite(numberValue)) return label(labels, "unknown", "unknown");
-  return `${(numberValue / 1000).toFixed(2)} km`;
+  const lang = document.documentElement.lang || "en";
+  return `${localizeDecimal((numberValue / 1000).toFixed(1), lang)} km`;
 }
 
 export function hasDistanceValue(value) {
@@ -26,9 +42,10 @@ export function hasDistanceValue(value) {
 
 export function formatDuration(seconds, labels = {}) {
   if (!Number.isFinite(seconds) || seconds <= 0) return label(labels, "unknown", "unknown");
+  const lang = document.documentElement.lang || "en";
   const hours = seconds / 3600;
-  if (hours < 24) return `${hours.toFixed(1)} h`;
-  return `${(hours / 24).toFixed(1)} d`;
+  if (hours < 24) return `${localizeDecimal(hours.toFixed(1), lang)} h`;
+  return `${localizeDecimal((hours / 24).toFixed(1), lang)} ${lang === "fr" ? "j" : "d"}`;
 }
 
 function formatShortDateTime(value, labels = {}) {
@@ -59,28 +76,14 @@ function compactDuration(ms, lang = "en") {
   return lang === "fr" ? `${days} j` : `${days} d`;
 }
 
-function monthDay(date, lang) {
-  return new Intl.DateTimeFormat(lang === "fr" ? "fr-CA" : "en-US", {
-    day: "numeric",
-    month: "short",
-  })
-    .format(date)
-    .replace(".", "");
-}
-
 function timeLabel(date) {
   return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
 }
 
 function archiveDateLabel(date, lang) {
-  return new Intl.DateTimeFormat(lang === "fr" ? "fr-CA" : "en-US", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  })
-    .format(date)
-    .replace(".", "")
-    .replace(",", "");
+  const month = monthsFor(lang)[date.getMonth()];
+  if (lang === "fr") return `${date.getDate()} ${month} ${date.getFullYear()}`;
+  return `${month} ${date.getDate()} ${date.getFullYear()}`;
 }
 
 export function formatRelativeTime(value, labels = {}, now = new Date()) {

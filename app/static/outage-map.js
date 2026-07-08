@@ -5,10 +5,21 @@ import {
   extendBoundsWithGeometry,
   itemRenderKey,
   radiusCirclePolygon,
-} from "./map-utils.js?v=20260707b";
-import { escapeHtml, label } from "./ui-format.js?v=20260707b";
+} from "./map-utils.js?v=20260707c";
+import { escapeHtml, label } from "./ui-format.js?v=20260707c";
 
 const LIBERTY_STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
+
+// Rough envelope of Québec, used to keep the province-wide boot view from
+// being pulled outside the province by a stray or mis-geocoded coordinate.
+const QUEBEC_BOUNDS = { minLon: -79.8, minLat: 44.9, maxLon: -57.0, maxLat: 62.6 };
+
+function clampToQuebec([lon, lat]) {
+  return [
+    Math.min(Math.max(lon, QUEBEC_BOUNDS.minLon), QUEBEC_BOUNDS.maxLon),
+    Math.min(Math.max(lat, QUEBEC_BOUNDS.minLat), QUEBEC_BOUNDS.maxLat),
+  ];
+}
 
 const LAYER_SOURCE_BY_KEY = {
   current: "ph-current",
@@ -74,6 +85,12 @@ export class OutageMap extends HTMLElement {
     map.touchPitch.disable();
     map.dragRotate.disable();
     map.touchZoomRotate.disableRotation();
+    // The Liberty style references icons we never render (bollards, ice rinks,
+    // etc.); satisfy them with a blank pixel so the console stays quiet.
+    map.on("styleimagemissing", (event) => {
+      if (map.hasImage(event.id)) return;
+      map.addImage(event.id, { width: 1, height: 1, data: new Uint8Array(4) });
+    });
 
     const itemsByFeatureKeyByLayer = new Map();
     let focusItems = [];
@@ -305,7 +322,7 @@ export class OutageMap extends HTMLElement {
           bounds.push([Number(item.lon), Number(item.lat)]);
         }
       }
-      return bounds;
+      return bounds.map(clampToQuebec);
     };
 
     const fitStartupExtent = () => {
@@ -515,7 +532,8 @@ export class OutageMap extends HTMLElement {
         type: "fill",
         source: "ph-address",
         filter: ["==", ["geometry-type"], "Polygon"],
-        paint: { "fill-color": DOMAIN_COLORS.address, "fill-opacity": 0.05 },
+        // Keep the ring subtle so street detail inside it stays legible.
+        paint: { "fill-color": DOMAIN_COLORS.address, "fill-opacity": 0.025 },
       });
       map.addLayer({
         id: "ph-address-halo",

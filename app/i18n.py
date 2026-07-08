@@ -1,8 +1,14 @@
 from __future__ import annotations
 
+import re
 from typing import Any
 
 SUPPORTED_LANGUAGES = ("fr", "en")
+
+# Plural markers in strings look like "panne(s)" / "planifiée(s)". When a
+# ``count`` kwarg is supplied, ``t`` resolves every "(...)" group to singular
+# (count == 1, drop the group) or plural (otherwise, keep the inner text).
+_PLURAL_MARKER = re.compile(r"\(([^)]*)\)")
 
 
 STRINGS: dict[str, dict[str, str]] = {
@@ -351,7 +357,19 @@ def choose_language(value: str | None) -> str:
     return "fr"
 
 
+def _resolve_plurals(text: str, count: int) -> str:
+    if count == 1:
+        return _PLURAL_MARKER.sub("", text)
+    return _PLURAL_MARKER.sub(r"\1", text)
+
+
 def t(lang: str, key: str, **kwargs: Any) -> str:
     language = choose_language(lang)
     template = STRINGS[language].get(key, key)
-    return template.format(**kwargs)
+    text = template.format(**kwargs)
+    if "count" in kwargs:
+        try:
+            text = _resolve_plurals(text, int(kwargs["count"]))
+        except (TypeError, ValueError):
+            pass
+    return text

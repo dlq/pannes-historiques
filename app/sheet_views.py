@@ -144,6 +144,26 @@ def _local_items(items: list[dict[str, Any]], radius_m: int) -> list[dict[str, A
     ]
 
 
+def _active_planned(
+    items: list[dict[str, Any]], now: datetime | None = None
+) -> list[dict[str, Any]]:
+    """Drop planned interruptions whose scheduled window has already ended.
+
+    The feed keeps notices after their window passes (and encodes postponed
+    ones under separate dates), so an unfiltered list shows weeks-old work
+    under a "coming days" heading. We keep anything without a parseable end
+    time — we can only confidently drop notices proven to be in the past.
+    """
+    reference = now or _quebec_now()
+    active = []
+    for item in items:
+        end = _parse_feed_time(item.get("endTime"))
+        if end is not None and end < reference:
+            continue
+        active.append(item)
+    return active
+
+
 def _quebec_now() -> datetime:
     try:
         return datetime.now(ZoneInfo("America/Montreal")).replace(tzinfo=None)
@@ -192,7 +212,7 @@ def _current_rows(
             "statusLabel": item.get("statusLabel") or t(lang, "unknown"),
             "status": item.get("status") or "",
             "customers": _format_customers(item.get("customersAffected")),
-            "distanceKm": _format_distance_km(item.get("distanceM")) if with_distance else "",
+            "distanceKm": _format_distance_km(item.get("distanceM"), lang) if with_distance else "",
             "focus": _focus_payload(item),
         }
         for item in rows[:EXPLORE_ROW_LIMIT]
@@ -226,7 +246,9 @@ def _planned_groups(
                 "kind": "planned",
                 "window": _format_window(lang, item.get("startTime"), item.get("endTime")),
                 "customers": _format_customers(item.get("customersAffected")),
-                "distanceKm": _format_distance_km(item.get("distanceM")) if with_distance else "",
+                "distanceKm": _format_distance_km(item.get("distanceM"), lang)
+                if with_distance
+                else "",
                 "tileDay": group["tileDay"],
                 "tileMonth": group["tileMonth"],
                 "focus": _focus_payload(item),
@@ -357,7 +379,9 @@ def _previous_rows(
                 "tile": _date_tile(lang, item.get("startTime")),
                 "statusLabel": item.get("statusLabel") or "",
                 "customers": _format_customers(item.get("customersAffected")),
-                "distanceKm": _format_distance_km(item.get("distanceM")) if with_distance else "",
+                "distanceKm": _format_distance_km(item.get("distanceM"), lang)
+                if with_distance
+                else "",
                 "eventCount": item.get("eventCount"),
                 "focus": _focus_payload(item),
             }
@@ -450,7 +474,8 @@ def explore_sheet_context(
         }
     elif domain == "planned":
         payload = default_map_payload(lang, current_map_layers=planned_layers or [])
-        items = [item for item in payload["matches"] if item["kind"] == "planned"]
+        items = _active_planned([item for item in payload["matches"] if item["kind"] == "planned"])
+        payload["matches"] = items
         groups = _planned_groups(lang, items, with_distance=False)
         shown = sum(len(group["rows"]) for group in groups)
         body = {
@@ -538,7 +563,7 @@ def overview_sheet_context(lang: str, result: Any, display_address: str) -> dict
     previous_items = payload.get("previousSidebarMatches") or []
 
     local_current = _local_items(current_items, radius_m)
-    local_planned = _local_items(planned_items, radius_m)
+    local_planned = _active_planned(_local_items(planned_items, radius_m))
     nearest_current = next(
         (item for item in _sort_by_distance(current_items) if item.get("distanceM") is not None),
         None,
@@ -569,7 +594,7 @@ def overview_sheet_context(lang: str, result: Any, display_address: str) -> dict
         "subtitle": t(
             lang,
             "overview_nearest_current",
-            distance_km=_format_distance_km(nearest_current.get("distanceM")),
+            distance_km=_format_distance_km(nearest_current.get("distanceM"), lang),
         )
         if nearest_current
         else t(lang, "overview_no_current_anywhere"),
@@ -593,7 +618,7 @@ def overview_sheet_context(lang: str, result: Any, display_address: str) -> dict
     history = {
         "count": len(previous_items),
         "months": HISTORY_MONTHS,
-        "heroSub": t(lang, "history_hero_sub", months=HISTORY_MONTHS),
+        "heroSub": t(lang, "history_hero_sub", months=HISTORY_MONTHS, count=len(previous_items)),
         "buckets": buckets,
         "maxBucket": max_bucket,
         "bucketStartLabel": buckets[0]["label"] if buckets else "",
@@ -604,7 +629,7 @@ def overview_sheet_context(lang: str, result: Any, display_address: str) -> dict
                 t(
                     lang,
                     "history_nearest_fact",
-                    distance_km=_format_distance_km(nearest_previous.get("distanceM")),
+                    distance_km=_format_distance_km(nearest_previous.get("distanceM"), lang),
                 )
                 if nearest_previous
                 else "",
@@ -666,18 +691,21 @@ def address_domain_sheet_context(
     payload = build_map_payload(lang, result, display_address)
     matches = payload["matches"]
     radius_m = result.radius_m or FIXED_RADIUS_M
+    radius_km = str(int(radius_m / 1000))
     if domain == "current":
         items = _local_items([item for item in matches if item["kind"] == "outage"], radius_m)
         body = {
-            "summary": t(lang, "explore_current_summary", count=len(items)),
+            "summary": t(lang, "overview_current_count", count=len(items), radius_km=radius_km),
             "customers": "",
             "rows": _current_rows(lang, items, with_distance=True),
             "empty": t(lang, "domain_current_empty"),
         }
     elif domain == "planned":
-        items = _local_items([item for item in matches if item["kind"] == "planned"], radius_m)
+        items = _active_planned(
+            _local_items([item for item in matches if item["kind"] == "planned"], radius_m)
+        )
         body = {
-            "summary": t(lang, "explore_planned_summary", count=len(items)),
+            "summary": t(lang, "overview_planned_count", count=len(items), radius_km=radius_km),
             "customers": "",
             "groups": _planned_groups(lang, items, with_distance=True),
             "empty": t(lang, "domain_planned_empty"),
@@ -700,15 +728,12 @@ def address_domain_sheet_context(
         }
     else:
         raise ValueError(f"unsupported address domain: {domain}")
-    scoped_matches = [
-        item
-        for item in matches
-        if (
-            (domain == "current" and item["kind"] == "outage")
-            or (domain == "planned" and item["kind"] == "planned")
-            or (domain == "archive" and item["kind"] == "previous_outage")
-        )
-    ]
+    if domain == "current":
+        scoped_matches = [item for item in matches if item["kind"] == "outage"]
+    elif domain == "planned":
+        scoped_matches = _active_planned([item for item in matches if item["kind"] == "planned"])
+    else:
+        scoped_matches = [item for item in matches if item["kind"] == "previous_outage"]
     center = payload.get("center")
     return {
         "mode": "address",

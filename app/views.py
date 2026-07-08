@@ -295,20 +295,26 @@ def _previous_sidebar_matches(
     ][:PREVIOUS_NEAREST_LIMIT]
 
 
-def _format_radius_km(radius_m: int | float | None) -> str:
+def _localize_decimal(text: str, lang: str) -> str:
+    return text.replace(".", ",") if lang == "fr" else text
+
+
+def _format_radius_km(radius_m: int | float | None, lang: str = "en") -> str:
     radius_km = float(radius_m or 0) / 1000
     if not radius_km:
         return "0"
-    return str(int(radius_km)) if radius_km.is_integer() else f"{radius_km:.1f}"
+    text = str(int(radius_km)) if radius_km.is_integer() else f"{radius_km:.1f}"
+    return _localize_decimal(text, lang)
 
 
-def _format_distance_km(distance_m: int | float | None) -> str:
+def _format_distance_km(distance_m: int | float | None, lang: str = "en") -> str:
     if distance_m is None:
         return ""
     distance_km = float(distance_m) / 1000
     if distance_km < 1:
-        return f"{distance_km:.1f}"
-    return str(int(distance_km)) if distance_km.is_integer() else f"{distance_km:.1f}"
+        return _localize_decimal(f"{distance_km:.1f}", lang)
+    text = str(int(distance_km)) if distance_km.is_integer() else f"{distance_km:.1f}"
+    return _localize_decimal(text, lang)
 
 
 def _format_previous_date(value: str | None) -> str:
@@ -338,7 +344,7 @@ def _local_layer_summary(
     *,
     radius_m: int | float | None,
 ) -> dict[str, Any]:
-    radius_km = _format_radius_km(radius_m)
+    radius_km = _format_radius_km(radius_m, lang)
     local_items = [
         item
         for item in items
@@ -369,7 +375,7 @@ def _previous_local_summary(
 ) -> dict[str, Any]:
     count = len(previous_sidebar_matches)
     limit = nearest_limit
-    radius_km = _format_radius_km(radius_m)
+    radius_km = _format_radius_km(radius_m, lang)
     sorted_by_time = sorted(
         [item for item in previous_sidebar_matches if item.get("startTime")],
         key=lambda item: item["startTime"],
@@ -386,7 +392,7 @@ def _previous_local_summary(
     latest_date = (
         _format_previous_date(sorted_by_time[0].get("startTime")) if sorted_by_time else ""
     )
-    nearest_km = _format_distance_km(nearest.get("distanceM")) if nearest else ""
+    nearest_km = _format_distance_km(nearest.get("distanceM"), lang) if nearest else ""
     bands = _distance_band_counts(previous_sidebar_matches)
     return {
         "title": t(lang, "local_reliability_summary_title"),

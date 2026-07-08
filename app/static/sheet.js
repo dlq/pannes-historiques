@@ -1,10 +1,10 @@
-import { contextLayerForKind } from "./map-utils.js?v=20260707b";
+import { contextLayerForKind } from "./map-utils.js?v=20260707c";
 import {
   attachAddressAutocomplete,
   attachComparisonTray,
   hydrateTimeLabels,
   updateSearchUrl,
-} from "./search.js?v=20260707b";
+} from "./search.js?v=20260707c";
 import {
   escapeHtml,
   formatDistanceKm,
@@ -12,7 +12,7 @@ import {
   formatPreviousTimeParts,
   hasDistanceValue,
   label,
-} from "./ui-format.js?v=20260707b";
+} from "./ui-format.js?v=20260707c";
 
 const DETENTS = ["peek", "half", "full"];
 // The sheet height transition in app.css runs 280ms; wait slightly longer

@@ -217,3 +217,54 @@ def test_address_domain_province_scope_reuses_explore_context():
     assert context["mode"] == "address"
     assert context["scope"] == "province"
     assert context["display_address"] == "5220 rue Jeanne-Mance"
+
+
+def test_active_planned_drops_ended_notices():
+    from app.sheet_views import _active_planned
+
+    now = datetime(2026, 7, 6, 12, 0, 0)
+    items = [
+        {"startTime": "2026-06-17 08:30:00", "endTime": "2026-06-17 11:30:00"},  # stale
+        {"startTime": "2026-07-09 08:30:00", "endTime": "2026-07-09 15:30:00"},  # future
+        {"startTime": "2026-07-06 08:00:00", "endTime": None},  # ongoing / unknown end
+    ]
+    active = _active_planned(items, now)
+    assert len(active) == 2
+    assert all(item.get("endTime") != "2026-06-17 11:30:00" for item in active)
+
+
+def test_pluralization_resolves_both_directions():
+    from app.i18n import t
+
+    assert t("fr", "explore_current_summary", count=1) == "1 panne en cours au Québec"
+    assert t("fr", "explore_current_summary", count=76) == "76 pannes en cours au Québec"
+    assert t("en", "explore_planned_summary", count=1) == "1 planned interruption"
+    assert t("en", "explore_planned_summary", count=3) == "3 planned interruptions"
+
+
+def test_french_decimal_separator():
+    from app.views import _format_distance_km, _format_radius_km
+
+    assert _format_distance_km(1500, "fr") == "1,5"
+    assert _format_distance_km(1500, "en") == "1.5"
+    assert _format_radius_km(4500, "fr") == "4,5"
+
+
+def test_address_current_domain_uses_local_scope_label():
+    from types import SimpleNamespace
+
+    from app.sheet_views import address_domain_sheet_context
+
+    result = SimpleNamespace(
+        radius_m=5000,
+        geocode={"latitude": 45.5186, "longitude": -73.6027},
+        normalized=SimpleNamespace(original="5220 Rue Jeanne-Mance"),
+        current_map_layers=[],
+        previous_map_layers=[],
+        previous_outage_groups=[],
+        disclosure_layers=[],
+        regional_metric_layers=[],
+    )
+    context = address_domain_sheet_context("fr", "current", result, "5220 Rue Jeanne-Mance")
+    assert "à moins de 5 km" in context["body"]["summary"]
+    assert "au Québec" not in context["body"]["summary"]
