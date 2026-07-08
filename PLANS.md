@@ -1,7 +1,7 @@
 # Plan: Hydro-Québec Outage History App
 
 Date: 2026-04-25
-Last updated: 2026-07-06
+Last updated: 2026-07-08
 
 This file is the active execution plan. Keep durable evidence, source notes, and long historical reasoning in `NOTES.md`; keep completed release and implementation history in `CHANGELOG.md`; keep completed detail here only when it affects current decisions.
 
@@ -23,7 +23,7 @@ This file is the active execution plan. Keep durable evidence, source notes, and
 - Current release marker: service worker cache name `pannes-historiques-v0.4.1-review-polish`.
 - Latest public smoke check for the 2026-07-06 `v0.4.0` deploy passed for `/healthz`, `/`, a representative French address search, `/sheet?domain=archive`, `/about`, and `/service-worker.js`; private/debug/collection endpoints returned `404`.
 - Current `main` is the post-`v0.4.0` cleanup baseline. The next implementation slice should start from current `main`.
-- Current operational follow-ups from 2026-06-20 health sweep: remove or expire stale `ingestion_runs` rows stuck in `running`; group/de-duplicate the Archive "latest" summary rows by territory before display; monitor D1 growth after the database reached roughly 935 MB; keep archive/count aggregations on materialized summaries rather than live full-table scans; continue moving user search paths away from the container where practical; and make the trusted container-runtime Worker host configurable instead of hardcoding the current `dalaque.workers.dev` value.
+- Current operational follow-ups from 2026-06-20 health sweep: remove or expire stale `ingestion_runs` rows stuck in `running`; group/de-duplicate the Archive "latest" summary rows by territory before display; monitor D1 growth (production D1 measured `1.35 GB` on 2026-07-08, up from `935 MB` on 2026-06-20 — the growth curve is steep enough that the retention/rollup policy under Cost Follow-up Thresholds should be scheduled this quarter rather than deferred); keep archive/count aggregations on materialized summaries rather than live full-table scans; continue moving user search paths away from the container where practical; and make the trusted container-runtime Worker host configurable instead of hardcoding the current `dalaque.workers.dev` value.
 - Current test baseline: Python tests, deterministic service/geocoding/parser tests, route smoke coverage, Playwright desktop/mobile Chromium coverage, and production-shaped UI regression fixtures.
 - Previous-outage accumulation is working in D1. On 2026-06-30 production had `18,236` resolved outage events and `146,109` folded outage sightings; all resolved outage events had centroids. Geographic archive bins were current through `bispoly:20260630193015:30`, but archive-bin completeness still needs a cleanup/audit pass.
 - Public-announcement target: aim for a soft `r/quebec` beta announcement soon-ish, after a narrow readiness pass confirms production reliability, user-facing data caveats, and address/geolocation privacy language.
@@ -344,7 +344,7 @@ Before handing off code changes:
 
 ## Current Risks And Open Questions
 
-- Mobile user-story verification still needs a focused follow-up after the `v0.4.0` sheet/MapLibre redesign. Proven in release verification: desktop/mobile Chromium sheet-shell e2e coverage, typed-address overview rendering, comparison tray, provenance card, and disclosure detail coverage. Still to prove:
+- Mobile user-story verification still needs a focused follow-up after the `v0.4.0` sheet/MapLibre redesign. Guarded by standing automated e2e tests: desktop/mobile Chromium sheet-shell coverage and typed-address overview rendering. Verified by hand during release but NOT yet guarded by a standing test (regressions would pass CI silently): the browser-local comparison tray, the provenance card, and the disclosure/regional detail card (`dai-detail-panel`). Closing these three e2e gaps is a small test-only slice worth doing before the r/quebec announcement. Still to prove at all:
   - Story 7 current-location flow on a real or simulated phone: confirm the browser geolocation path, address/coordinate confirmation, and first visible answer state.
   - Story 8 researcher/source-detail flow: inspect previous/archive/disclosure detail panels on mobile, including source links, selected-row-to-map feedback, and dense-source readability.
   - Story 9 returning-user freshness flow: add or expose feed freshness/latest-capture metadata clearly enough that a saved URL tells users whether the evidence changed.
@@ -352,7 +352,7 @@ Before handing off code changes:
 - Runtime/ops cleanup: D1 still has one stale `ingestion_runs` record from `2026-06-19T15:37:19Z` marked `running` despite later successful scheduled runs; add a timeout/cleanup path so abandoned runs do not confuse health checks.
 - Archive summary correctness: the main municipal archive territory list is grouped, but the "latest" archive summary can repeat the same territory/time when several outage polygons map to the same territory; group these latest rows by territory/time before display.
 - Archive bin completeness: on 2026-06-30 production had `136,575` archived `bispoly` outage polygons, `136,472` polygons with at least one geographic bin, and `136,003` polygons with a primary bin. The latest feed version was properly caught up (`31/31` latest polygons had primary bins and the backfill cursor matched `bispoly:20260630193015:30`), but the full archive still had `103` polygons with no bin and `572` without a primary bin. Add an audit/cleanup path that classifies these as expected boundary/out-of-territory cases versus assignment failures, repairs real misses, and records a cheap completeness metric in the operational status output.
-- D1 growth and query cost: production D1 was about 935 MB on 2026-06-20, and ad hoc full-bin aggregate checks read over 115k rows; monitor growth, consider retention/rollup policy, and keep user-facing archive summaries materialized.
+- D1 growth and query cost: production D1 grew from about `935 MB` (2026-06-20) to `1.35 GB` (2026-07-08) — roughly `+230 MB/week` — and ad hoc full-bin aggregate checks read over 115k rows. At this rate the included 5 GB threshold is months, not years, away, so schedule the retention/rollup/compaction policy rather than only monitoring; keep user-facing archive summaries materialized.
 - Runtime host configuration: the trusted container-runtime proxy check currently depends on the Cloudflare worker host `dalaque.workers.dev`; make this configurable before changing the workers.dev subdomain again.
 - Search architecture: representative search is fixed and under roughly one second when warm, but it still depends on the container path; keep moving ordinary search/render reads toward Worker/static/D1/R2 paths in `0.3.x`.
 - The desktop floating sheet is more coherent than the old side panel, but disclosure/regional detail panels can still make dense states feel crowded; use production observations before widening the panel again by default.
@@ -360,6 +360,7 @@ Before handing off code changes:
 - Cloudflare performance work now has two tracks: container/app response-time reduction already shipped in `v0.2.5`, while static asset/module waterfall measurement belongs to upcoming `0.3.x` evaluation before any bundler decision.
 - The first-party JS module split improves maintainability, but it increases native module requests; measure this on Cloudflare before assuming either native modules or bundling is better.
 - DAI/disclosure detail panels are data-rich and still visually fragile; keep checking for overlapping text, horizontal scrolling, and unreadable dense rows when deploying any frontend follow-up.
+- Unbranded error pages: a bad in-app URL or an unhandled Flask exception returns the browser-default 404/500 page (no shell, no bilingual copy). Production mostly shields this because private routes return JSON `404` at the Worker edge, but a user-facing 404/500 would look broken. Add minimal branded error pages as low-priority pre-announcement polish. (Distinct from the checklist item that triages production `500` responses — that is about diagnosing causes, this is about styling the response.)
 - The current OpenFreeMap Liberty vector style still includes non-Quebec labels at some zoom levels; hiding them cleanly requires a custom MapLibre style or label-overlay strategy.
 - Do not speculate about Hydro-Québec one-letter status-code meanings unless source documentation or payload context verifies them.
 
