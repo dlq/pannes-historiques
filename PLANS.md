@@ -338,7 +338,14 @@ Non-goals:
 
 ### Beyond `0.5.x`
 
-No concrete post-`0.5.x` release train is planned right now. Ideas that might eventually justify `0.6.x` or later should stay unversioned until `0.5.x` proves demand and cost: multi-channel alerting at scale, accounts, enterprise integrations, alternate basemap stacks, or broader reliability/comparator products.
+No concrete post-`0.5.x` release train is planned right now. Create explicit `0.6.x` slices only after `0.5.x` produces evidence for one of these thresholds:
+
+- recurring saved-area or API usage that needs accounts, quotas, billing, or abuse controls beyond the lightweight prototype model
+- notification demand large enough to justify scaled delivery, incident/quiet-hour behavior, and operational monitoring
+- analytical/research use that needs a separate dashboard, export workflow, or high-scale map-rendering stack
+- source/geocoder expansion that requires paid providers, formal data agreements, or a different provenance model
+
+Until one of those thresholds is met, keep ideas such as multi-channel alerting at scale, accounts, enterprise integrations, alternate basemap stacks, or broader reliability/comparator products unversioned.
 
 ## Testing Strategy
 
