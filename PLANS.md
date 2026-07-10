@@ -9,7 +9,7 @@ This file is the active execution plan. Keep durable evidence, source notes, and
 
 - Current deployed release: `v0.4.2`, public beta readiness (deployed 2026-07-10).
 - Current production deployment: Worker version `da3a0c51-d973-49b9-a9c0-9a2b819dd7e6`; container image `pannes-historiques-pannescontainer:da3a0c51`.
-- Current release in progress: `v0.4.3` runtime cost and public-read migration. Historical `500` attribution and a logged-in `r/quebec` rules check remain pre-announcement operational gates rather than release blockers.
+- Current release in progress: `v0.4.3` runtime cost and public-read migration. Earlier unclassified `500` responses are now a production-monitoring issue for this slice, not a public-announcement blocker. The remaining announcement blocker is external account eligibility: the posting account currently has `0` r/Quebec comment karma and cannot contribute until it meets the community's undisclosed activity threshold.
 - P1.1/P1.3 resolved for `v0.4.1`: the production D1 municipal archive is healthy (1,341 admin territories, all named, zero null-name primary bins; 24 h archive window live). The "Secteur 1000"/"24 h: 0" seen in the 2026-07-08 review were a container cold-start artifact — the baked SQLite fallback bins by Hydro area code and its degraded result was cached for the 120 s TTL. `v0.4.1` suppresses the code-named territory breakdown and skips caching when the durable D1 summary is expected but unavailable, so the tab recovers real names/fresh windows on the next request. The public durable endpoint `GET /api/durable/runtime/previous-archive-summary` returns named, fresh data directly.
 - Open follow-up (unchanged): the trusted container-runtime proxy check in `src/runtime-policy.js` still hardcodes `cf-worker === "dalaque.workers.dev"`; the container archive path currently authenticates via the operation token / the endpoint being un-gated, but the hardcoded host should still be made configurable.
 - Current repository state: `main` includes the deployed `v0.4.2` implementation. Start `v0.4.3` in a new dedicated worktree/branch.
@@ -39,12 +39,13 @@ Current assessment:
 
 Pre-announcement checklist:
 
-- [ ] Complete historical `500` attribution by route, user-agent, and country. Current direct probes returned no `500`, and a live error tail stayed clean, but Wrangler's live-only tail could not classify earlier analytics.
+- [x] Reclassify historical `500` attribution as production monitoring rather than an announcement gate. Current direct probes returned no `500`, and a live error tail stayed clean; if errors recur, capture route, user-agent, and country through persistent logs because Wrangler's live-only tail cannot classify older analytics.
 - [x] Sharpen public data-limit copy so previous-outage results are clearly retained observations with possible collection gaps, not complete official Hydro-Québec address history.
 - [x] Add plain-language privacy/geolocation notes for typed searches, Nominatim/cache behavior, browser location and URL coordinates, server logs, local storage, service-worker caching, cookies/trackers, retention, and contact.
 - [x] Re-run production desktop/mobile QA for the homepage, Montreal overview, provenance panel, language/caveat rendering, and representative Quebec City, Saguenay, and Val-d'Or overview responses. Post-deploy rendered checks also passed on `v0.4.2`; the controlled Playwright suite covers current-location permission/coordinates without transmitting a tester's real location.
 - [x] Confirm private/debug/collection/internal/runtime endpoints return `404`; add Worker-edge blocking for obvious PHP, WordPress, secret-file, CGI, and PHPUnit scanner probes. Post-deploy scanner probes returned 9-byte edge `404` responses.
-- [ ] Check `r/quebec` rules/sidebar while logged in, especially self-promotion, flair, title, and source-link expectations. The public rules URL redirected to Reddit verification during this pass.
+- [x] Check `r/quebec` rules/sidebar while logged in. The current self-promotion rule prohibits polluposting/spam but explicitly allows original material; keep this to one transparent original beta-feedback post rather than repeated promotion.
+- [ ] Meet r/Quebec's account-activity requirement. The posting account currently has `0` comment karma in the community; contribute normally in comments until Reddit enables posting. The required threshold is not disclosed.
 - [x] Draft the announcement as a beta feedback request in `docs/r-quebec-beta-draft.md`.
 
 Near-term scope decision:
@@ -114,7 +115,7 @@ Cost follow-up thresholds:
 
 Goal: make the site safe and credible for a soft `r/quebec` beta post without broad architecture work.
 
-Status: complete, deployed, and smoke-checked on 2026-07-10. Historical `500` attribution and the logged-in subreddit-rules check remain pre-announcement operational gates.
+Status: complete, deployed, and smoke-checked on 2026-07-10. Earlier unclassified `500` responses moved to `v0.4.3` production monitoring. The announcement content is ready, but posting remains blocked by r/Quebec's account-activity requirement.
 
 Scope:
 
@@ -151,6 +152,7 @@ Scope:
 - Move the highest-value public reads toward Worker/D1/R2 first: homepage shell data, `/sheet` domain changes where practical, operational map layers, archive summaries, and disclosure summaries.
 - Make the trusted container-runtime Worker host configurable instead of hardcoding `dalaque.workers.dev`.
 - Add a private cost-health/ops check for container live state, last wake, latest scheduled run, D1 size, R2 approximate state if available, ingestion status, and archive materialization status.
+- Monitor recurring production `500` responses and add persistent route, user-agent, and country attribution if live-tail evidence remains insufficient.
 - Add a low-cost production mode or documented kill switch where public routes refuse container wakeups and serve last-known-good durable data.
 
 Acceptance criteria:

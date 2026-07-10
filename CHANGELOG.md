@@ -43,7 +43,8 @@ Keep active execution state in `PLANS.md` and source/evidence research in `NOTES
 - GitHub Quality run `29104581707` passed on the release commit.
 - Deployed to production with Worker version `da3a0c51-d973-49b9-a9c0-9a2b819dd7e6` and container image `pannes-historiques-pannescontainer:da3a0c51`; the container rollout reported one healthy instance and no errors.
 - Post-deploy checks returned `200` for health, homepage, About/privacy, exact service-worker path, and a representative Montreal overview. The overview took `9.36 s` on the fresh container and `1.90 s` warm; browser rendering showed the new caveat and scope behavior with no console errors. Private-status, `.env`, WordPress, and PHP probes returned 9-byte Worker-edge `404` responses.
-- Production still showed cold/warm search latency and one stale timestamp supplied by Hydro's current feed; both are recorded in `NOTES.md`. Historical `500` attribution and the logged-in subreddit rules check remain pre-announcement gates.
+- Production still showed cold/warm search latency and one stale timestamp supplied by Hydro's current feed; both are recorded in `NOTES.md`. Earlier unclassified `500` analytics moved to `v0.4.3` monitoring after direct probes and a live error tail stayed clean. A logged-in `r/quebec` review confirmed that its anti-spam rule permits original material, but posting remains blocked until the account builds enough community comment karma from its current `0`; Reddit does not disclose the threshold.
+- Follow-up UI fixes keep latest archived-outage selections in their matching Quebec territory instead of coercing missing coordinates to null island, show the territory in archive rows/details, and use a stable southern-Quebec homepage overview so one remote live outage cannot pull the default camera off-centre.
 
 ## [v0.4.1] - 2026-07-08
 

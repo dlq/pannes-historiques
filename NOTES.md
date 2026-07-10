@@ -14,7 +14,7 @@ Observed production facts:
 - `/.env` and `/wp-login.php` also returned `404`, but their 207-byte responses and timings showed that the deployed Worker still forwarded these obvious probes to the container. The `v0.4.2` candidate blocks common PHP, WordPress, secret-file, CGI, and PHPUnit probes at the Worker edge.
 - A live `wrangler tail --status error` session stayed empty throughout the production QA and probe window. Wrangler tail is live-only, so it did not provide the historical route/user-agent/country breakdown needed to fully attribute earlier `500` analytics.
 - The public Hydro payload at source version `20260710103008` contained 67 current-outage rows. One source row was dated `2025-04-08 09:26:21` with 19 customers and status `L`, which explains the `458 d ago` current row seen in production. The row is present in Hydro's current feed; it is a source anomaly, not a pannes.ca archive record.
-- Opening the public `r/quebec` rules URL redirected to Reddit's verification screen. Rules were not confirmed; check them while logged in immediately before posting.
+- The public `r/quebec` rules URL redirected to Reddit's verification screen during the automated pass. A later logged-in review confirmed that the self-promotion rule prohibits polluposting/spam but explicitly allows original material. The planned single transparent beta-feedback post fits that distinction; avoid repeated promotion. The posting account is not yet eligible to contribute because it has `0` r/Quebec comment karma; Reddit requires more community activity but does not disclose the threshold.
 
 Implementation and deployment facts:
 
@@ -27,6 +27,7 @@ Implementation and deployment facts:
 - Post-deploy probes returned `200` for `/healthz` (`0.25 s`), `/` (`0.92 s`), `/about` (`0.45 s`), `/service-worker.js` (`0.21 s`), and the representative Montreal overview (`9.36 s` fresh, `1.90 s` warm).
 - The post-deploy rendered browser check showed the new retained-observation caveat, explicit local/province scope links, privacy copy, no horizontal overflow, and no console errors.
 - `/api/durable/status`, `/.env`, `/wp-login.php`, and `/phpinfo.php` returned 9-byte Worker-edge `404` responses in roughly `0.20-0.22 s`, confirming the scanner-blocking change avoids a container-generated response.
+- Earlier unclassified production `500` analytics are now a `v0.4.3` monitoring issue rather than an announcement blocker. Direct checks and the live error tail did not reproduce them; persistent request/error logs should capture route, user-agent, and country if they recur.
 
 ## Current repository and release state, 2026-07-06
 

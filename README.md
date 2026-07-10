@@ -1,6 +1,7 @@
 # Pannes Historiques
 
-Hydro-Quebec outage history prototype built from the `PLANS.md` direction.
+Independent Hydro-Quebec outage archive with live and planned outage maps, retained observations,
+and public-data context. The site is available at [pannes.ca](https://pannes.ca).
 
 ## What is implemented
 
@@ -60,13 +61,12 @@ Production is currently served at `pannes.ca` with Cloudflare Workers + Containe
 
 Current deployment status:
 
-- Current code version: `0.4.0`
-- Latest deployed release: `v0.4.0`, the sheet/MapLibre interface redesign (2026-07-06)
-- Current `main`: post-`v0.4.0` documentation/repository-maintenance baseline; merged auxiliary `codex/*` branches and local worktrees have been cleaned up
-- Latest production deployment: Worker version `1f2b6dc1-8f48-4354-be76-e65e339e3711`; container image `pannes-historiques-pannescontainer:1f2b6dc1`
-- Public service-worker marker for this release: `pannes-historiques-v0.4.0-sheet-maplibre`
-- Public smoke check target for the 2026-07-06 deploy: `/healthz`, `/`, a representative French address search, `/sheet?domain=archive`, and `/about` return `200`; deployed HTML contains the sheet shell, MapLibre assets, and the overview hero card; private endpoints return `404`
-- The `v0.4.0` release replaces Leaflet with vendored MapLibre GL JS + the OpenFreeMap Liberty style and rebuilds the interface as one full-bleed map plus a single sheet: segmented domain control, address-mode overview answer stack, scoped domain views, in-sheet detail cards, provenance card, and restyled About/offline pages. It also removes the HTMX and Google Fonts dependencies.
+- Current code and deployed release line: `v0.4.2`.
+- The current interface uses vendored MapLibre GL JS with the OpenFreeMap Liberty style, a
+  full-bleed map, and one responsive sheet for current, planned, archive, and context views.
+- Production is served through Cloudflare Workers + Containers with D1 and R2 durable storage.
+- Exact deployment identifiers, smoke-check evidence, and current follow-up work are tracked in
+  `CHANGELOG.md`, `NOTES.md`, and `PLANS.md`.
 
 ```bash
 npx wrangler deploy

@@ -1,6 +1,6 @@
 # Draft: r/quebec beta announcement
 
-Status: draft only. Confirm the current subreddit rules while logged in and complete the post-deploy smoke check before posting.
+Status: content and technical checks are complete, but the posting account is not yet eligible to contribute. It currently has `0` r/Quebec comment karma and must build normal community activity until Reddit enables posting; the required threshold is not disclosed.
 
 ## Proposed title
 
@@ -40,7 +40,8 @@ Merci pour les essais et les signalements de résultats étranges.
 
 ## Pre-post checklist
 
-- Confirm `r/quebec` self-promotion, title, flair, and source-link rules while logged in.
-- Confirm production serves the `v0.4.2` service-worker marker and current static modules.
-- Re-run homepage, representative search, privacy page, and private-endpoint smoke checks after deployment.
+- Keep this to one transparent original-material beta feedback post; do not repost it as promotion.
+- Build sufficient r/Quebec comment karma through normal participation, then confirm that the post composer is enabled.
+- Confirm the selected flair still fits when creating the post.
+- Production serves the `v0.4.2` service-worker marker and current static modules; homepage, representative search, privacy, and private-endpoint smoke checks passed after deployment.
 - Keep the framing as a beta feedback request; do not describe the archive as complete or official.
