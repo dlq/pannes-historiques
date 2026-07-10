@@ -28,6 +28,9 @@ Implementation and deployment facts:
 - The post-deploy rendered browser check showed the new retained-observation caveat, explicit local/province scope links, privacy copy, no horizontal overflow, and no console errors.
 - `/api/durable/status`, `/.env`, `/wp-login.php`, and `/phpinfo.php` returned 9-byte Worker-edge `404` responses in roughly `0.20-0.22 s`, confirming the scanner-blocking change avoids a container-generated response.
 - Earlier unclassified production `500` analytics are now a `v0.4.3` monitoring issue rather than an announcement blocker. Direct checks and the live error tail did not reproduce them; persistent request/error logs should capture route, user-agent, and country if they recur.
+- Follow-up merge commit `e8c69a7` was deployed as Worker version `b2e79756-ce7c-4293-b7ec-28d3b6550b6b` with container image `pannes-historiques-pannescontainer:b2e79756`. The first container-registry push failed with a transient TLS `bad record MAC`; the immediate retry completed and the container reached `ready` with one live instance.
+- The first `/healthz` request during rollout returned `500`. Ten seconds later health returned `200` after an `8.73 s` cold start, followed by a `1.62 s` homepage response; `/service-worker.js` and the Archive sheet also returned `200`.
+- Production served service-worker marker `pannes-historiques-v0.4.2-map-framing-fix`, overview bounds `[[-76.6, 45.0], [-67.0, 49.5]]`, and latest archive focus payloads with real municipality labels/centroids. Rendered QA confirmed a balanced southern-Quebec default view and a Saint-Mathieu-du-Parc latest row focused on the correct inland area rather than null island.
 
 ## Current repository and release state, 2026-07-06
 
