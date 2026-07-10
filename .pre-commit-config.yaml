@@ -41,11 +41,11 @@ repos:
         entry: npm run format
         language: system
         pass_filenames: false
-        files: ^app/static/.*\.(css|js|json|jsx|ts|tsx)$
+        files: ^(app/static|src|scripts/maintenance)/.*\.(css|js|json|jsx|ts|tsx)$
 
       - id: biome-check
         name: biome check
         entry: npm run check
         language: system
         pass_filenames: false
-        files: ^app/static/.*\.(css|js|json|jsx|ts|tsx)$
+        files: ^(app/static|src|scripts/maintenance)/.*\.(css|js|json|jsx|ts|tsx)$

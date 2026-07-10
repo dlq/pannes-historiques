@@ -3,6 +3,23 @@
 Independent Hydro-Quebec outage archive with live and planned outage maps, retained observations,
 and public-data context. The site is available at [pannes.ca](https://pannes.ca).
 
+## Quick start
+
+You need Python 3.12 or later with [uv](https://docs.astral.sh/uv/). Node.js 22 and npm are needed
+only for JavaScript checks and browser tests.
+
+```bash
+uv sync
+uv run python server.py serve
+```
+
+Open [http://127.0.0.1:8000](http://127.0.0.1:8000). A fresh local database is created
+automatically. Searching an address may fetch the live public Hydro-Quebec feed; see
+[data/README.md](data/README.md) for local data details.
+
+Want to help? Start with [the contribution guide](docs/contributing.md) and the repository's
+[open issues](https://github.com/dlq/pannes-historiques/issues).
+
 ## What is implemented
 
 - Local server app
@@ -29,13 +46,7 @@ and public-data context. The site is available at [pannes.ca](https://pannes.ca)
   - durable D1/R2-backed ingestion for current-feed rows, previous-outage rows, and raw archives
   - Worker-backed lookup/runtime map-layer endpoints and scheduled refresh/disclosure archival
 
-## Run
-
-```bash
-uv run python server.py serve
-```
-
-Then open [http://127.0.0.1:8000](http://127.0.0.1:8000).
+## Local development
 
 You can also run the Flask app directly:
 

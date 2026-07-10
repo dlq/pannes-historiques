@@ -1,6 +1,6 @@
 import { feature as topojsonFeature } from "topojson-client";
-import { presimplify, simplify as topojsonSimplify } from "topojson-simplify";
 import { topology } from "topojson-server";
+import { presimplify, simplify as topojsonSimplify } from "topojson-simplify";
 
 export function geometryBbox(geometry) {
   const points = geometryPoints(geometry);
@@ -240,7 +240,7 @@ function geometryPoints(geometry) {
 }
 
 function polygonPoints(polygon) {
-  return polygon.flatMap((ring) => ring);
+  return polygon.flat();
 }
 
 function simplifyRing(ring, toleranceDegrees) {

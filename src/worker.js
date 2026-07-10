@@ -1,6 +1,8 @@
 import { unzipSync } from "fflate";
 export { ContainerProxy } from "@cloudflare/containers";
 export { PannesContainer } from "./container.js";
+import { municipalArchiveLatestRow } from "./archive-summary.js";
+import { fetchContainerRequest } from "./container-proxy.js";
 import {
   assignPolygonToTerritories,
   compareHydroPolygonIds,
@@ -14,7 +16,6 @@ import {
   isTrustedContainerRuntimeProxyRequest,
   runtimeEndpointRequiresOperationToken,
 } from "./runtime-policy.js";
-import { municipalArchiveLatestRow } from "./archive-summary.js";
 import { workerRouteForPath } from "./worker-routing.js";
 
 const DISCLOSURE_CRONS = new Set(["0 10 */14 * *", "13 10 */14 * *"]);
@@ -48,7 +49,7 @@ export default {
     if (route === "durable_nearby") return durableNearbyResponse(request, env);
     if (route === "durable_history_nearby") return durableHistoryNearbyResponse(request, env);
     if (route === "durable_runtime") return durableRuntimeResponse(request, env);
-    return fetchContainer(request, env);
+    return fetchContainerRequest(request, env, CONTAINER_INSTANCE_NAME);
   },
 
   async scheduled(controller, env, ctx) {
@@ -66,32 +67,6 @@ function isOperationalRequest(request, env) {
     (Boolean(token) && request.headers.get("X-Pannes-Operation-Token") === token) ||
     isTrustedContainerRuntimeProxyRequest(request)
   );
-}
-
-async function fetchContainer(request, env) {
-  const started = Date.now();
-  const url = new URL(request.url);
-  const container = env.PANNES_CONTAINER.getByName(CONTAINER_INSTANCE_NAME);
-  const response = await container.fetch(request);
-  const elapsedMs = Date.now() - started;
-  console.log(
-    JSON.stringify({
-      event: "worker_container_fetch_timing",
-      method: request.method,
-      path: url.pathname,
-      status: response.status,
-      elapsed_ms: elapsedMs,
-      cf_ray: request.headers.get("cf-ray"),
-      colo: request.cf?.colo,
-    }),
-  );
-  const headers = new Headers(response.headers);
-  headers.set("X-Pannes-Worker-Container-Fetch-Ms", String(elapsedMs));
-  return new Response(response.body, {
-    status: response.status,
-    statusText: response.statusText,
-    headers,
-  });
 }
 
 async function runHydroSchedule(env) {
@@ -2163,7 +2138,11 @@ async function runtimeMunicipalPreviousArchiveSummaryResponse(env) {
   const materialized = await municipalArchiveSummary(env.DB);
   if (materialized) return jsonResponse(materialized);
   const summary = await buildMunicipalArchiveSummary(env.DB);
-  await storeMunicipalArchiveSummary(env.DB, summary, await latestMunicipalArchiveHydroPolygonId(env.DB));
+  await storeMunicipalArchiveSummary(
+    env.DB,
+    summary,
+    await latestMunicipalArchiveHydroPolygonId(env.DB),
+  );
   return jsonResponse(summary);
 }
 
@@ -2223,8 +2202,9 @@ async function buildMunicipalArchiveSummary(db) {
     ]),
     municipalArchiveLargest(db, cutoff1y),
     municipalArchiveLatest(db, cutoff1y),
-    db.prepare(
-      `
+    db
+      .prepare(
+        `
       SELECT b.territory_id,
              b.territory_name,
              b.designation,
@@ -2246,7 +2226,7 @@ async function buildMunicipalArchiveSummary(db) {
       ORDER BY latest_start_time DESC, max_customers DESC
       LIMIT 50
       `,
-    )
+      )
       .bind(cutoff1y)
       .all(),
   ]);

@@ -13,6 +13,7 @@ from .addressing import NormalizedAddress, normalize_address, normalize_text
 from .config import ensure_directories
 from .db import initialize, open_db
 from .disclosures import DisclosureCollector
+from .durable_runtime import DurableRuntimeClient
 from .geocoding import GeocodingService, haversine_meters
 from .hydro import HydroCollector
 from .perf import current_timer
@@ -105,6 +106,7 @@ class AppService:
         self.collector = HydroCollector(settings)
         self.disclosure_collector = DisclosureCollector(settings)
         self._context_cache: dict[str, dict[str, Any]] = {}
+        self.durable_runtime = DurableRuntimeClient(settings)
 
     def _durable_runtime_get(
         self, path: str, query: dict[str, str] | None = None
@@ -128,43 +130,10 @@ class AppService:
     def _durable_runtime_get_uncached(
         self, path: str, query: dict[str, str] | None = None
     ) -> dict[str, Any] | None:
-        suffix = f"/{path.lstrip('/')}"
-        encoded = f"?{urllib.parse.urlencode(query)}" if query else ""
-        request = urllib.request.Request(
-            f"{self.settings.durable_runtime_url}{suffix}{encoded}",
-            headers=self._durable_runtime_headers(),
-        )
-        try:
-            with urllib.request.urlopen(request, timeout=8) as response:
-                return json.loads(response.read().decode("utf-8"))
-        except Exception as exc:
-            current_timer().set(f"durable_runtime_{path.replace('/', '_')}_error", str(exc))
-            return None
+        return self.durable_runtime.get(path, query)
 
     def _durable_runtime_post(self, path: str, payload: dict[str, Any]) -> dict[str, Any] | None:
-        if not self.settings.durable_runtime_url:
-            return None
-        request = urllib.request.Request(
-            f"{self.settings.durable_runtime_url}/{path.lstrip('/')}",
-            data=json.dumps(payload, ensure_ascii=True).encode("utf-8"),
-            headers={
-                "Content-Type": "application/json",
-                **self._durable_runtime_headers(),
-            },
-            method="POST",
-        )
-        try:
-            with urllib.request.urlopen(request, timeout=8) as response:
-                return json.loads(response.read().decode("utf-8"))
-        except Exception as exc:
-            current_timer().set(f"durable_runtime_{path.replace('/', '_')}_error", str(exc))
-            return None
-
-    def _durable_runtime_headers(self) -> dict[str, str]:
-        headers = {"User-Agent": "pannes-historiques/0.1 (+https://pannes.ca)"}
-        if self.settings.durable_runtime_operation_token:
-            headers["X-Pannes-Operation-Token"] = self.settings.durable_runtime_operation_token
-        return headers
+        return self.durable_runtime.post(path, payload)
 
     def collect(self) -> dict[str, Any]:
         result = self.collector.collect_all()
