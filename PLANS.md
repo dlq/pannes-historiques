@@ -7,12 +7,12 @@ This file is the active execution plan. Keep durable evidence, source notes, and
 
 ## Current State
 
-- Current deployed release: `v0.4.1`, UI/UX-review polish plus the archive cold-start hardening (deployed 2026-07-08).
-- Current production deployment: Worker version `0438a124-064d-412e-9d75-9140fd19e791`; container image `pannes-historiques-pannescontainer:0438a124`.
-- Current release in progress: `v0.4.2` public beta readiness. The candidate implementation and local verification are complete on branch `finish-0.4.2`; commit/merge, deployment, post-deploy smoke checks, historical `500` attribution, and a logged-in `r/quebec` rules check remain.
+- Current deployed release: `v0.4.2`, public beta readiness (deployed 2026-07-10).
+- Current production deployment: Worker version `da3a0c51-d973-49b9-a9c0-9a2b819dd7e6`; container image `pannes-historiques-pannescontainer:da3a0c51`.
+- Current release in progress: `v0.4.3` runtime cost and public-read migration. Historical `500` attribution and a logged-in `r/quebec` rules check remain pre-announcement operational gates rather than release blockers.
 - P1.1/P1.3 resolved for `v0.4.1`: the production D1 municipal archive is healthy (1,341 admin territories, all named, zero null-name primary bins; 24 h archive window live). The "Secteur 1000"/"24 h: 0" seen in the 2026-07-08 review were a container cold-start artifact — the baked SQLite fallback bins by Hydro area code and its degraded result was cached for the 120 s TTL. `v0.4.1` suppresses the code-named territory breakdown and skips caching when the durable D1 summary is expected but unavailable, so the tab recovers real names/fresh windows on the next request. The public durable endpoint `GET /api/durable/runtime/previous-archive-summary` returns named, fresh data directly.
 - Open follow-up (unchanged): the trusted container-runtime proxy check in `src/runtime-policy.js` still hardcodes `cf-worker === "dalaque.workers.dev"`; the container archive path currently authenticates via the operation token / the endpoint being un-gated, but the hardcoded host should still be made configurable.
-- Current repository state: `main` includes `v0.4.1` plus the UI/UX audit fixes merged on 2026-07-08. The `v0.4.2` candidate is isolated in the `finish-0.4.2` worktree/branch.
+- Current repository state: `main` includes the deployed `v0.4.2` implementation. Start `v0.4.3` in a new dedicated worktree/branch.
 - Current frontend state: production serves one full-bleed MapLibre GL map with the OpenFreeMap Liberty vector style plus a single sheet: peek/half/full detents on mobile and a floating panel on desktop. Search lives inside the sheet. A segmented control (`En cours`/`Planifiées`/`Archive`/`Contexte`) drives both sheet content and visible map domain. Address mode opens to an overview answer stack with current/planned status lines, a 14-month local-history chart, scoped domain views with a `5 km / Québec` toggle, in-sheet detail cards, a provenance card, and a browser-local comparison tray. The old Leaflet/HTMX/header/accordion/sidebar/show-hide model is no longer the current interface.
 - Production data plane: D1/R2-backed durable ingestion for current feed rows, previous-outage rows, raw Hydro-Québec payloads, disclosure metadata, and runtime map-context layers.
 - Container role: still renders the Flask/Jinja shell and keeps a baked-in SQLite snapshot for local-compatible/container fallback paths.
@@ -20,8 +20,8 @@ This file is the active execution plan. Keep durable evidence, source notes, and
 - Cost caveat: the June 2026 Cloudflare invoice was driven mostly by Workers Paid baseline plus Durable Object/container runtime costs; D1 and R2 were not material cost drivers on that bill.
 - User-facing URL contract: clean root URL with `lang`, `q`, or current-location coordinate parameters; obsolete public `radius_m`, `days`, and `include_planned` parameters were removed from the main interface.
 - Debug, collection, cron, internal export/file, direct durable-status, and durable runtime endpoints are private by default; production returns `404` unless the expected debug flag, Worker block, scheduled header, internal header, or operation token is present.
-- Current deployed release marker: service worker cache name `pannes-historiques-v0.4.1-review-polish`. The prepared `v0.4.2` marker is `pannes-historiques-v0.4.2-beta-readiness` with browser-module token `20260710a`.
-- Latest public smoke check on 2026-07-10 returned `200` for `/healthz`, `/`, `/about`, `/service-worker.js`, Archive, and representative Montreal, Quebec City, Saguenay, and Val-d'Or overview searches; private/debug/collection/runtime endpoints returned `404`. A live error tail stayed empty during the probe window.
+- Current deployed release marker: service worker cache name `pannes-historiques-v0.4.2-beta-readiness` with browser-module token `20260710a`.
+- Post-deploy smoke checks on 2026-07-10 returned `200` for `/healthz`, `/`, `/about`, `/service-worker.js`, and a representative Montreal overview. The overview took `9.36 s` on the fresh container and `1.90 s` warm; rendered browser checks showed the new caveat/scope contracts with no console errors. Private status and obvious `.env`/WordPress/PHP scanner probes returned 9-byte Worker-edge `404` responses.
 - Current operational follow-ups from 2026-06-20 health sweep: remove or expire stale `ingestion_runs` rows stuck in `running`; group/de-duplicate the Archive "latest" summary rows by territory before display; monitor D1 growth (production D1 measured `1.35 GB` on 2026-07-08, up from `935 MB` on 2026-06-20 — the growth curve is steep enough that the retention/rollup policy under Cost Follow-up Thresholds should be scheduled this quarter rather than deferred); keep archive/count aggregations on materialized summaries rather than live full-table scans; continue moving user search paths away from the container where practical; and make the trusted container-runtime Worker host configurable instead of hardcoding the current `dalaque.workers.dev` value.
 - Current test baseline: Python tests, deterministic service/geocoding/parser tests, route smoke coverage, Playwright desktop/mobile Chromium coverage, and production-shaped UI regression fixtures.
 - Previous-outage accumulation is working in D1. On 2026-06-30 production had `18,236` resolved outage events and `146,109` folded outage sightings; all resolved outage events had centroids. Geographic archive bins were current through `bispoly:20260630193015:30`, but archive-bin completeness still needs a cleanup/audit pass.
@@ -42,8 +42,8 @@ Pre-announcement checklist:
 - [ ] Complete historical `500` attribution by route, user-agent, and country. Current direct probes returned no `500`, and a live error tail stayed clean, but Wrangler's live-only tail could not classify earlier analytics.
 - [x] Sharpen public data-limit copy so previous-outage results are clearly retained observations with possible collection gaps, not complete official Hydro-Québec address history.
 - [x] Add plain-language privacy/geolocation notes for typed searches, Nominatim/cache behavior, browser location and URL coordinates, server logs, local storage, service-worker caching, cookies/trackers, retention, and contact.
-- [x] Re-run production desktop/mobile QA for the homepage, Montreal overview, provenance panel, language/caveat rendering, and representative Quebec City, Saguenay, and Val-d'Or overview responses. The controlled Playwright suite covers current-location permission/coordinates without transmitting a tester's real location.
-- [x] Confirm private/debug/collection/internal/runtime endpoints return `404`; add Worker-edge blocking for obvious PHP, WordPress, secret-file, CGI, and PHPUnit scanner probes.
+- [x] Re-run production desktop/mobile QA for the homepage, Montreal overview, provenance panel, language/caveat rendering, and representative Quebec City, Saguenay, and Val-d'Or overview responses. Post-deploy rendered checks also passed on `v0.4.2`; the controlled Playwright suite covers current-location permission/coordinates without transmitting a tester's real location.
+- [x] Confirm private/debug/collection/internal/runtime endpoints return `404`; add Worker-edge blocking for obvious PHP, WordPress, secret-file, CGI, and PHPUnit scanner probes. Post-deploy scanner probes returned 9-byte edge `404` responses.
 - [ ] Check `r/quebec` rules/sidebar while logged in, especially self-promotion, flair, title, and source-link expectations. The public rules URL redirected to Reddit verification during this pass.
 - [x] Draft the announcement as a beta feedback request in `docs/r-quebec-beta-draft.md`.
 
@@ -108,10 +108,13 @@ Cost follow-up thresholds:
 - `0.3.x`: architecture and web-quality foundation, including durable archive summary materialization, Tailwind CDN removal, SEO/social metadata, `robots.txt`, `sitemap.xml`, cache/header cleanup, and parser/runtime test coverage.
 - `v0.4.0`: sheet/MapLibre interface redesign. Replaced Leaflet/HTMX/sidebar accordions with a MapLibre map shell plus one sheet, address overview answer stack, segmented domain views, scoped local/province views, in-sheet detail/provenance cards, and updated desktop/mobile Playwright coverage. Complete, tagged, deployed, and smoke-checked on 2026-07-06.
 - `v0.4.1`: UI/UX-review polish plus archive cold-start hardening. Complete and deployed on 2026-07-08.
+- `v0.4.2`: public beta readiness. Added explicit archive/privacy/non-affiliation copy, preserved selected domain scope, blocked common scanner probes at the Worker edge, expanded regression coverage, and drafted the `r/quebec` announcement. Complete, deployed, and smoke-checked on 2026-07-10.
 
 ### `v0.4.2`: Public Beta Readiness
 
 Goal: make the site safe and credible for a soft `r/quebec` beta post without broad architecture work.
+
+Status: complete, deployed, and smoke-checked on 2026-07-10. Historical `500` attribution and the logged-in subreddit-rules check remain pre-announcement operational gates.
 
 Scope:
 

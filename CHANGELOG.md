@@ -4,7 +4,7 @@ All notable completed release and implementation history for the Hydro-Quebec Ou
 
 Keep active execution state in `PLANS.md` and source/evidence research in `NOTES.md`.
 
-## [Unreleased]
+## [v0.4.2] - 2026-07-10
 
 ### Added
 
@@ -40,7 +40,10 @@ Keep active execution state in `PLANS.md` and source/evidence research in `NOTES
 - `v0.4.2` candidate verification passed `uv run pytest -q` (135), `node --test tests/*.test.js` (32), the complete desktop/mobile Playwright suite (46), and `uv run pre-commit run --all-files`.
 - `npx wrangler deploy --dry-run` built the `0.4.2` container image and Worker bundle successfully without deploying.
 - Production probes on 2026-07-10 returned `200` for public homepage, health, About, service-worker, Archive, and representative Montreal, Quebec City, Saguenay, and Val-d'Or overview routes. Private/debug/collection/runtime routes returned `404`, and no Worker error events appeared during the live tail window.
-- Production still showed cold/warm search latency and one stale timestamp supplied by Hydro's current feed; both are recorded in `NOTES.md`. Historical `500` attribution and the logged-in subreddit rules check remain pre-announcement gates. No production deployment was performed.
+- GitHub Quality run `29104581707` passed on the release commit.
+- Deployed to production with Worker version `da3a0c51-d973-49b9-a9c0-9a2b819dd7e6` and container image `pannes-historiques-pannescontainer:da3a0c51`; the container rollout reported one healthy instance and no errors.
+- Post-deploy checks returned `200` for health, homepage, About/privacy, exact service-worker path, and a representative Montreal overview. The overview took `9.36 s` on the fresh container and `1.90 s` warm; browser rendering showed the new caveat and scope behavior with no console errors. Private-status, `.env`, WordPress, and PHP probes returned 9-byte Worker-edge `404` responses.
+- Production still showed cold/warm search latency and one stale timestamp supplied by Hydro's current feed; both are recorded in `NOTES.md`. Historical `500` attribution and the logged-in subreddit rules check remain pre-announcement gates.
 
 ## [v0.4.1] - 2026-07-08
 

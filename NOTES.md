@@ -16,13 +16,17 @@ Observed production facts:
 - The public Hydro payload at source version `20260710103008` contained 67 current-outage rows. One source row was dated `2025-04-08 09:26:21` with 19 customers and status `L`, which explains the `458 d ago` current row seen in production. The row is present in Hydro's current feed; it is a source anomaly, not a pannes.ca archive record.
 - Opening the public `r/quebec` rules URL redirected to Reddit's verification screen. Rules were not confirmed; check them while logged in immediately before posting.
 
-Candidate implementation facts:
+Implementation and deployment facts:
 
 - The About page now discloses Nominatim geocoding/cache behavior, browser-location coordinates and URL persistence, comparison local storage, static-only service-worker caching, infrastructure logs, the absence of accounts/ads/analytics/application cookies, and the lack of automatic address-cache expiry.
 - The overview caveat now says retained observations can have collection gaps and are not Hydro-Quebec's official history for the address.
 - Address overview doorways explicitly open local scope, while segmented navigation preserves a user's selected `5 km` or `Quebec` scope.
-- The package version is `0.4.2`; the candidate service-worker marker is `pannes-historiques-v0.4.2-beta-readiness` and browser-module token is `20260710a`.
-- No production deployment was performed.
+- The package version is `0.4.2`; the deployed service-worker marker is `pannes-historiques-v0.4.2-beta-readiness` and browser-module token is `20260710a`.
+- Release commit `02fded1` passed GitHub Quality run `29104581707` and was deployed on 2026-07-10 as Worker version `da3a0c51-d973-49b9-a9c0-9a2b819dd7e6` with container image `pannes-historiques-pannescontainer:da3a0c51`.
+- The container rollout reached one healthy instance with no reported errors. The exact `/service-worker.js` path then served the `v0.4.2` marker.
+- Post-deploy probes returned `200` for `/healthz` (`0.25 s`), `/` (`0.92 s`), `/about` (`0.45 s`), `/service-worker.js` (`0.21 s`), and the representative Montreal overview (`9.36 s` fresh, `1.90 s` warm).
+- The post-deploy rendered browser check showed the new retained-observation caveat, explicit local/province scope links, privacy copy, no horizontal overflow, and no console errors.
+- `/api/durable/status`, `/.env`, `/wp-login.php`, and `/phpinfo.php` returned 9-byte Worker-edge `404` responses in roughly `0.20-0.22 s`, confirming the scanner-blocking change avoids a container-generated response.
 
 ## Current repository and release state, 2026-07-06
 
