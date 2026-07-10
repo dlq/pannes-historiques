@@ -10,6 +10,9 @@ Keep active execution state in `PLANS.md` and source/evidence research in `NOTES
 
 - Added a hidden app-level heading for the sheet/map interface so the main application screen has a stable accessible page title.
 - Added standing tests for the UI-audit follow-ups: hidden app heading, concise autocomplete accessible names, comparison-tray guidance, local-scope preservation from address overview links, plain context source labels, and English customer/status wording.
+- Added a bilingual privacy/data-handling section covering Nominatim geocoding and caches, browser-location coordinates, URL persistence, comparison local storage, static service-worker caching, infrastructure logs, cookies/trackers, retention, and contact. The provenance panel links directly to it.
+- Added a French `r/quebec` beta-announcement draft with explicit archive and non-affiliation caveats.
+- Added Worker-routing coverage for obvious WordPress, PHP, secret-file, CGI, and PHPUnit scanner probes.
 
 ### Changed
 
@@ -21,12 +24,23 @@ Keep active execution state in `PLANS.md` and source/evidence research in `NOTES
 - Improved UI wording from the live-site review: English count labels now say "customers", status `R` now reads "Crew on the way", context rows show plain source types, and autocomplete suggestions avoid duplicated accessible names.
 - Added a comparison-tray hint explaining the next comparison step and increased the hero info button touch target.
 - Kept address overview domain links local by default and bumped static/service-worker cache markers for the UI-audit branch.
+- Clarified the visible archive, About, and provenance copy: pannes.ca retains only successfully collected observations, gaps and source anomalies are possible, nearby evidence is not proof for an exact address, and the project is neither official nor affiliated with Hydro-Québec.
+- Prepared package version `0.4.2`, service-worker marker `pannes-historiques-v0.4.2-beta-readiness`, and one consistent `20260710a` browser-module token.
+
+### Fixed
+
+- Preserved a user's selected `5 km` or `Quebec` scope while switching Current, Planned, Archive, and Context segments; overview doorways still opt into the intended local/province scope explicitly.
+- Blocked common scanner probes at the Worker edge instead of waking the Flask container for an application-generated `404`.
 
 ### Verified
 
 - UI-audit implementation branch verification before merge: full Python suite, Node static tests, Ruff, djlint, Biome, pre-commit, and desktop/mobile browser QA passed.
 - Merged UI-audit result on `main` passed `uv run pytest` (135), `node --test tests/*.test.js` (31), and `uv run pre-commit run --all-files`.
 - Roadmap cleanup verification: `git diff --check` passed for `PLANS.md`.
+- `v0.4.2` candidate verification passed `uv run pytest -q` (135), `node --test tests/*.test.js` (32), the complete desktop/mobile Playwright suite (46), and `uv run pre-commit run --all-files`.
+- `npx wrangler deploy --dry-run` built the `0.4.2` container image and Worker bundle successfully without deploying.
+- Production probes on 2026-07-10 returned `200` for public homepage, health, About, service-worker, Archive, and representative Montreal, Quebec City, Saguenay, and Val-d'Or overview routes. Private/debug/collection/runtime routes returned `404`, and no Worker error events appeared during the live tail window.
+- Production still showed cold/warm search latency and one stale timestamp supplied by Hydro's current feed; both are recorded in `NOTES.md`. Historical `500` attribution and the logged-in subreddit rules check remain pre-announcement gates. No production deployment was performed.
 
 ## [v0.4.1] - 2026-07-08
 

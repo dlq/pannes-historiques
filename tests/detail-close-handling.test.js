@@ -8,7 +8,10 @@ const detailPanelsSource = readFileSync(
   "utf8",
 );
 const searchSource = readFileSync(new URL("../app/static/search.js", import.meta.url), "utf8");
-const sheetSourceForScope = readFileSync(new URL("../app/static/sheet.js", import.meta.url), "utf8");
+const overviewSource = readFileSync(
+  new URL("../app/templates/_sheet_overview.html", import.meta.url),
+  "utf8",
+);
 
 test("operational detail close buttons handle pointerup as well as click", () => {
   assert.match(sheetSource, /addEventListener\("click", handleDetailClose\)/);
@@ -31,7 +34,12 @@ test("comparison tray explains the next compare step", () => {
   assert.match(searchSource, /ph-compare-hint/);
 });
 
-test("address domain links keep local scope by default", () => {
-  assert.match(sheetSourceForScope, /const nextScope = domainLink\.dataset\.scopeLink \|\| \(hasAddress\(\) \? "local" : sheetState\.scope\)/);
-  assert.match(sheetSourceForScope, /fetchSheet\(\{ domain: domainLink\.dataset\.domainLink, scope: nextScope \}\)/);
+test("domain links preserve an explicit or user-selected scope", () => {
+  assert.match(sheetSource, /const nextScope = domainLink\.dataset\.scopeLink \|\| sheetState\.scope/);
+  assert.match(
+    sheetSource,
+    /fetchSheet\(\{ domain: domainLink\.dataset\.domainLink, scope: nextScope \}\)/,
+  );
+  assert.match(overviewSource, /data-domain-link="current"\s+data-scope-link="local"/);
+  assert.match(overviewSource, /data-domain-link="archive"\s+data-scope-link="local"/);
 });

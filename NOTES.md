@@ -1,7 +1,28 @@
 # Research: Hydro-Québec Historic Outage Data
 
 Date: 2026-04-25
-Last updated: 2026-07-06
+Last updated: 2026-07-10
+
+## v0.4.2 public-beta readiness evidence, 2026-07-10
+
+Observed production facts:
+
+- Browser QA at `1440 x 1000` and `390 x 844` loaded the English/French map, a representative Montreal address overview, the provenance panel, and the mobile answer state without application console warnings/errors or a framework error overlay.
+- A cold interactive Montreal search took roughly 20 seconds before the overview appeared. A later direct `/sheet` overview request took `4.14 s`; additional overview probes returned `200` for Quebec City (`2.02 s`), Saguenay (`1.74 s`), and Val-d'Or (`3.25 s`), and each rendered the overview hero card. This is a latency/cold-container follow-up for `v0.4.3`, not a reproduced `500`.
+- Public smoke probes returned `200` for `/` (`1.01 s`), `/healthz` (`0.44 s`), `/about?lang=en` (`0.24 s`), `/sheet?domain=archive&lang=en` (`1.35 s`), the representative Montreal overview (`4.14 s`), and `/service-worker.js` (`1.56 s`).
+- `/debug/timing/search`, `/collect`, `/cron/hydro`, `/internal/raw-snapshot`, `/api/durable/status`, `/api/durable/runtime/status`, and `/api/durable/runtime/geocode-cache` returned `404` without credentials.
+- `/.env` and `/wp-login.php` also returned `404`, but their 207-byte responses and timings showed that the deployed Worker still forwarded these obvious probes to the container. The `v0.4.2` candidate blocks common PHP, WordPress, secret-file, CGI, and PHPUnit probes at the Worker edge.
+- A live `wrangler tail --status error` session stayed empty throughout the production QA and probe window. Wrangler tail is live-only, so it did not provide the historical route/user-agent/country breakdown needed to fully attribute earlier `500` analytics.
+- The public Hydro payload at source version `20260710103008` contained 67 current-outage rows. One source row was dated `2025-04-08 09:26:21` with 19 customers and status `L`, which explains the `458 d ago` current row seen in production. The row is present in Hydro's current feed; it is a source anomaly, not a pannes.ca archive record.
+- Opening the public `r/quebec` rules URL redirected to Reddit's verification screen. Rules were not confirmed; check them while logged in immediately before posting.
+
+Candidate implementation facts:
+
+- The About page now discloses Nominatim geocoding/cache behavior, browser-location coordinates and URL persistence, comparison local storage, static-only service-worker caching, infrastructure logs, the absence of accounts/ads/analytics/application cookies, and the lack of automatic address-cache expiry.
+- The overview caveat now says retained observations can have collection gaps and are not Hydro-Quebec's official history for the address.
+- Address overview doorways explicitly open local scope, while segmented navigation preserves a user's selected `5 km` or `Quebec` scope.
+- The package version is `0.4.2`; the candidate service-worker marker is `pannes-historiques-v0.4.2-beta-readiness` and browser-module token is `20260710a`.
+- No production deployment was performed.
 
 ## Current repository and release state, 2026-07-06
 

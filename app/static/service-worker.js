@@ -1,4 +1,4 @@
-const CACHE_NAME = "pannes-historiques-v0.4.1-review-polish";
+const CACHE_NAME = "pannes-historiques-v0.4.2-beta-readiness";
 const APP_SHELL_URLS = [
   "/static/app.css",
   "/static/app.js",

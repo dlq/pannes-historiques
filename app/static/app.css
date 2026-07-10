@@ -1301,6 +1301,14 @@ button {
   line-height: 1.55;
 }
 
+.ph-about-section p + p {
+  margin-top: 10px;
+}
+
+.ph-about-section--anchor {
+  scroll-margin-top: 16px;
+}
+
 .ph-about-action {
   text-decoration: none;
 }

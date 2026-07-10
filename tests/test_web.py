@@ -35,7 +35,7 @@ def test_index_includes_web_quality_metadata_and_no_tailwind_cdn(app_client):
     assert response.status_code == 200
     assert '<meta name="description"' in html
     assert (
-        'content="Search current, planned, and archived Hydro-Quebec outage evidence for Quebec addresses."'
+        'content="Explore current and planned Hydro-Quebec outages and retained pannes.ca observations near Quebec addresses."'
         in html
     )
     assert '<link rel="canonical" href="https://pannes.ca/?lang=en">' in html
@@ -115,6 +115,7 @@ def test_index_links_to_about_page(app_client):
 
     assert response.status_code == 200
     assert 'href="/about?lang=en"' in html
+    assert 'href="/about?lang=en#privacy"' in html
     assert ">About</a>" in html
 
 
@@ -125,6 +126,10 @@ def test_about_page_renders_in_english(app_client):
     assert response.status_code == 200
     assert "About Outage History" in html
     assert "Data sources" in html
+    assert "OpenStreetMap&#39;s Nominatim" in html
+    assert "local storage" in html
+    assert "no accounts, advertising, analytics trackers, or application cookies" in html
+    assert "not yet an automatic expiry" in html
     assert 'href="mailto:contact@pannes.ca"' in html
     assert "contact@pannes.ca" in html
     assert 'href="/?lang=en"' in html
@@ -137,6 +142,10 @@ def test_about_page_renders_in_french(app_client):
     assert response.status_code == 200
     assert "À propos de Pannes Historiques" in html
     assert "Sources de données" in html
+    assert "service Nominatim d&#39;OpenStreetMap" in html
+    assert "stockage local de ce navigateur" in html
+    assert "aucun compte, publicité, outil de suivi analytique ni témoin applicatif" in html
+    assert "Aucune expiration automatique" in html
     assert 'href="mailto:contact@pannes.ca"' in html
     assert "contact@pannes.ca" in html
     assert 'href="/?lang=fr"' in html
@@ -161,7 +170,7 @@ def test_service_worker_route_has_root_scope(app_client):
     assert response.status_code == 200
     assert response.headers["Service-Worker-Allowed"] == "/"
     assert response.headers["Cache-Control"] == "no-cache"
-    assert b"pannes-historiques-v0.4.1-review-polish" in response.data
+    assert b"pannes-historiques-v0.4.2-beta-readiness" in response.data
     assert b"/static/app-icon-180.png" in response.data
     assert b"/static/icons.svg" in response.data
     assert b"/static/sheet.js" in response.data

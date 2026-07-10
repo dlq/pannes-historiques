@@ -1,10 +1,10 @@
-import { contextLayerForKind } from "./map-utils.js?v=20260707c";
+import { contextLayerForKind } from "./map-utils.js?v=20260710a";
 import {
   attachAddressAutocomplete,
   attachComparisonTray,
   hydrateTimeLabels,
   updateSearchUrl,
-} from "./search.js?v=20260707c";
+} from "./search.js?v=20260710a";
 import {
   escapeHtml,
   formatDistanceKm,
@@ -12,7 +12,7 @@ import {
   formatPreviousTimeParts,
   hasDistanceValue,
   label,
-} from "./ui-format.js?v=20260707c";
+} from "./ui-format.js?v=20260710a";
 
 const DETENTS = ["peek", "half", "full"];
 // The sheet height transition in app.css runs 280ms; wait slightly longer
@@ -461,7 +461,7 @@ function bindGlobalHandlers() {
     if (domainLink) {
       event.preventDefault();
       closeDetailCards();
-      const nextScope = domainLink.dataset.scopeLink || (hasAddress() ? "local" : sheetState.scope);
+      const nextScope = domainLink.dataset.scopeLink || sheetState.scope;
       fetchSheet({ domain: domainLink.dataset.domainLink, scope: nextScope });
       return;
     }

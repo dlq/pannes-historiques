@@ -112,6 +112,11 @@
             <a class="ph-detail-fact-value ph-provenance-link"
                href="{{ url_for('about', lang=lang) }}">pannes.ca/about</a>
           </li>
+          <li>
+            <span class="ph-detail-fact-label">{{ t(lang, "provenance_privacy") }}</span>
+            <a class="ph-detail-fact-value ph-provenance-link"
+               href="{{ url_for('about', lang=lang) }}#privacy">pannes.ca/about#privacy</a>
+          </li>
         </ul>
       </div>
       <dai-detail-panel class="ph-dai-detail-panel" title-label="{{ t(lang, 'disclosure') }}" empty-label="{{ t(lang, 'disclosure_empty') }}" hidden></dai-detail-panel>

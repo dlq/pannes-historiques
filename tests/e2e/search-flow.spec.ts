@@ -274,6 +274,15 @@ test("overview doorway opens the local archive with scope toggle", async ({ page
   await provinceResponse;
   await expect(page.locator(".ph-domain-title")).toContainText("Observed outage report");
 
+  const plannedProvinceResponse = page.waitForResponse(
+    (response) =>
+      response.url().includes("domain=planned") && response.url().includes("scope=province"),
+  );
+  await page.locator('.ph-segment[data-domain-link="planned"]').click();
+  await plannedProvinceResponse;
+  await expect(page.locator('.ph-sheet-content[data-domain="planned"]')).toBeVisible();
+  await expect(page.locator('[data-scope-link="province"]')).toHaveClass(/is-active/);
+
   const overviewResponse = page.waitForResponse((response) =>
     response.url().includes("domain=overview"),
   );
