@@ -15,7 +15,9 @@ node_modules/
 dist/
 .wrangler/
 output/
+tmp/
 playwright-report/
 test-results/
 .worktrees/
 .claude/
+docs/r-quebec-beta-draft.md

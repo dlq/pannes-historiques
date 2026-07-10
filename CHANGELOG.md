@@ -13,6 +13,7 @@ Keep active execution state in `PLANS.md` and source/evidence research in `NOTES
 - Added a bilingual privacy/data-handling section covering Nominatim geocoding and caches, browser-location coordinates, URL persistence, comparison local storage, static service-worker caching, infrastructure logs, cookies/trackers, retention, and contact. The provenance panel links directly to it.
 - Added a French `r/quebec` beta-announcement draft with explicit archive and non-affiliation caveats.
 - Added Worker-routing coverage for obvious WordPress, PHP, secret-file, CGI, and PHPUnit scanner probes.
+- Added deterministic tests for Hydro version payload variants and changed-feed decisions, plus disclosure boundary stitching, fallback geometry, and attachment content types.
 
 ### Changed
 
@@ -26,6 +27,8 @@ Keep active execution state in `PLANS.md` and source/evidence research in `NOTES
 - Kept address overview domain links local by default and bumped static/service-worker cache markers for the UI-audit branch.
 - Clarified the visible archive, About, and provenance copy: pannes.ca retains only successfully collected observations, gaps and source anomalies are possible, nearby evidence is not proof for an exact address, and the project is neither official nor affiliated with Hydro-Québec.
 - Prepared package version `0.4.2`, service-worker marker `pannes-historiques-v0.4.2-beta-readiness`, and one consistent `20260710a` browser-module token.
+- Removed one-off live-audit screenshots from tracked source, standardized temporary test/audit evidence under ignored `tmp/`, and kept the future `r/quebec` working draft local rather than as repository documentation.
+- Synchronized the README, architecture, contributor guidance, user stories, roadmap, and test-coverage notes with the deployed `v0.4.2` interface and the first `r/HydroQuebec` beta post.
 
 ### Fixed
 
@@ -49,6 +52,7 @@ Keep active execution state in `PLANS.md` and source/evidence research in `NOTES
 - Deployed the follow-up from merge commit `e8c69a7` as Worker version `b2e79756-ce7c-4293-b7ec-28d3b6550b6b` with container image `pannes-historiques-pannescontainer:b2e79756`. The first registry push hit a transient TLS `bad record MAC`; the retry reused accepted layers and completed successfully.
 - The container reached `ready` with one live instance. The first health probe during rollout returned `500`; after 10 seconds health returned `200` following an `8.73 s` cold start and the homepage returned `200` in `1.62 s`. The exact service-worker path served `pannes-historiques-v0.4.2-map-framing-fix`, the homepage carried the stable overview bounds, and Archive rows carried municipality labels and centroids.
 - Rendered production QA showed the southern-Quebec overview centred in the visible map area and a latest Saint-Mathieu-du-Parc archive row opening the correctly labelled detail over its inland map location.
+- The test follow-up passed 147 Python tests and raised measured combined line/branch coverage from 58% to 61%; `hydro.py` rose from 30% to 39% and `disclosures.py` from 34% to 41%.
 
 ## [v0.4.1] - 2026-07-08
 

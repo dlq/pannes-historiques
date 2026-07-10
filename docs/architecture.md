@@ -39,6 +39,14 @@ The interface is one full-bleed MapLibre GL map (OpenFreeMap Liberty vector styl
 
 The checker runs in pre-commit and has focused regression coverage in `tests/test_module_boundaries.py`.
 
+## Verification Topology
+
+- Pytest covers Flask routes, sheet/view-model construction, geocoding and service decisions, disclosure normalization, and data helpers.
+- Node's test runner covers pure browser/Worker helpers, runtime policy, route classification, archive summaries, municipal geometry, and selected source-level UI contracts.
+- Playwright runs the production-shaped fixture app in desktop and mobile Chromium for search, domain navigation, map focus, details, comparison, provenance, history state, and simulated current location.
+
+The GitHub Quality workflow currently runs pre-commit formatting, linting, and module-boundary checks only. Pytest, Node, Playwright, and coverage enforcement remain local release checks until the planned `v0.4.3` CI hardening. The dated measured baseline is recorded in `NOTES.md`.
+
 ## Data Stores
 
 - D1 stores normalized feed versions, current outage rows, planned interruption rows, resolved previous-outage rows, disclosure metadata, municipal archive bins, and geometry metadata.
@@ -47,4 +55,4 @@ The checker runs in pre-commit and has focused regression coverage in `tests/tes
 
 ## Generated Evidence
 
-Playwright screenshots, JSON snapshots, and other large run outputs belong under ignored `output/` paths. Commit durable conclusions to `NOTES.md`, `PLANS.md`, or release notes instead of committing raw generated artifacts.
+Playwright screenshots, JSON snapshots, and other temporary test or audit outputs belong under the ignored repository-local `tmp/` directory. The live UI audit writes to `tmp/live-ui-audit/` by default. Commit durable conclusions to `NOTES.md`, `PLANS.md`, or release notes instead of committing raw generated artifacts.

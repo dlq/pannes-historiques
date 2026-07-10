@@ -1,13 +1,13 @@
 # User Stories For Next Product Slices
 
 Date: 2026-06-17
-Last reviewed: 2026-07-06
+Last reviewed: 2026-07-10
 
 This file captures practical user stories for focusing the next pannes.ca work. These are not implementation tasks by themselves. They are decision scenarios that should drive UI, copy, data, and test choices.
 
 ## Current Implementation Status
 
-As of the `v0.4.0` sheet/MapLibre redesign (deployed 2026-07-06), the current codebase has:
+As of deployed `v0.4.2` (2026-07-10), the current codebase has:
 
 - one full-bleed MapLibre map with a detent-based sheet (mobile) / floating panel (desktop) and search inside the sheet;
 - a segmented `En cours / Planifiées / Archive / Contexte` control that drives both sheet content and the visible map layer;
@@ -19,7 +19,7 @@ As of the `v0.4.0` sheet/MapLibre redesign (deployed 2026-07-06), the current co
 
 Still not fully proven:
 
-- current-location search on a real phone (simulated geolocation is covered by e2e);
+- current-location permission and recovery behavior on a real phone (simulated geolocation is covered by desktop/mobile e2e);
 - saved-URL freshness/change detection;
 - a practical keyboard/screen-reader pass (segmented control now uses `aria-pressed`; a full audit remains).
 
@@ -48,7 +48,7 @@ What the app should help answer:
 
 Current product lesson:
 
-- The app is now useful for first-pass relative stability comparison on typed addresses, but the next slice should make freshness, archive coverage, source provenance, and confidence caveats more explicit. It should also prove current-location and accessibility flows, not only typed-address screenshots.
+- The app is now useful for first-pass relative stability comparison on typed addresses, but the next slice should make freshness, archive coverage, source provenance, and confidence caveats more explicit. Simulated current location is covered; real-device permission behavior and accessibility still need proof.
 
 ## Story 1: Home Seeker Comparing Neighbourhoods
 
@@ -219,7 +219,7 @@ Success looks like:
 
 Next product gap:
 
-- Typed-address mobile searches now open to the address overview and local-history evidence. Still prove current-location search on a real phone or a controlled mobile-browser simulation, including permission handling, coordinate/address confirmation, long-address clipping, and selected-row/detail behavior.
+- Desktop/mobile Playwright now proves the simulated current-location path, coordinate URL state, sheet detents, and selected-row/detail behavior. Still verify permission denial/recovery, coordinate/address confirmation, and long-address clipping on a real phone.
 
 ## Story 8: Local Journalist Or Researcher Looking For Examples
 
@@ -242,7 +242,7 @@ Success looks like:
 
 Next product gap:
 
-- Improve and verify mobile detail panels and source links for previous/archive and disclosure evidence in the `v0.4.0` sheet, especially dense disclosure/context states.
+- Fixture-backed desktop/mobile tests now cover archive, disclosure, and regional detail cards. Continue checking source links and readability against dense live disclosure/context data, where production payloads can be less tidy than fixtures.
 
 ## Story 9: Returning User Checking Whether Things Changed
 
@@ -296,7 +296,7 @@ Next product gap:
 The strongest next slices suggested by these stories are:
 
 1. Freshness and confidence: add archive-window, latest-capture, feed freshness, and clearer confidence language to the local stability card and Current/Planned summaries.
-2. Current-location proof: verify the current-location path on a phone-sized viewport, including permissions, address/coordinate confirmation, and first visible answer state.
+2. Real-device current-location proof: verify permission acceptance/denial/recovery, address/coordinate confirmation, and the first visible answer state on a phone.
 3. Research/source-detail proof: improve and test mobile detail panels, source links, selected-row-to-map feedback, and dense disclosure/archive readability.
 4. Accessibility proof: run a practical keyboard/screen-reader pass for sheet state, segmented-control wording, row selection, live-region/status updates, and detail-panel announcements.
 5. Comparison workflow refinement: decide whether the local comparison tray should remain a lightweight local-storage helper or become a more explicit multi-address comparison view.

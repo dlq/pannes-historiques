@@ -1,6 +1,11 @@
+import pytest
+
 from app.disclosures import (
     AccessResponsePageParser,
     DisclosureSource,
+    content_type_from_url,
+    fallback_circle_polygon,
+    geometry_bbox,
     is_outage_related_text,
     normalize_datetime,
     normalize_key,
@@ -8,6 +13,7 @@ from app.disclosures import (
     parse_multi_year_regional_metrics,
     parse_pdf_row_line,
     parse_single_period_regional_metrics,
+    relation_to_geojson,
     sources_from_discovered_article,
 )
 
@@ -201,3 +207,57 @@ def test_multi_year_regional_metrics_combines_three_metric_tables():
     assert provincial_2023["average_duration_minutes"] == 204
     assert provincial_2023["continuity_index_minutes"] == 304
     assert provincial_2023["geography_type"] == "province"
+
+
+def test_relation_to_geojson_stitches_outer_segments_into_closed_polygon():
+    relation = {
+        "members": [
+            {
+                "role": "outer",
+                "geometry": [
+                    {"lon": -73.7, "lat": 45.4},
+                    {"lon": -73.5, "lat": 45.4},
+                    {"lon": -73.5, "lat": 45.6},
+                ],
+            },
+            {
+                "role": "outer",
+                "geometry": [
+                    {"lon": -73.7, "lat": 45.4},
+                    {"lon": -73.7, "lat": 45.6},
+                    {"lon": -73.5, "lat": 45.6},
+                ],
+            },
+            {
+                "role": "inner",
+                "geometry": [
+                    {"lon": -73.6, "lat": 45.45},
+                    {"lon": -73.6, "lat": 45.5},
+                ],
+            },
+        ]
+    }
+
+    geometry = relation_to_geojson(relation)
+
+    assert geometry is not None
+    assert geometry["type"] == "Polygon"
+    assert geometry["coordinates"][0][0] == geometry["coordinates"][0][-1]
+    assert geometry_bbox(geometry) == (-73.7, 45.4, -73.5, 45.6)
+
+
+def test_fallback_boundary_and_content_types_are_deterministic():
+    assert fallback_circle_polygon(None, 45.5) is None
+
+    geometry = fallback_circle_polygon(-73.6, 45.5, radius_degrees=0.01)
+
+    assert geometry is not None
+    ring = geometry["coordinates"][0]
+    assert len(ring) == 25
+    assert ring[0] == ring[-1]
+    assert geometry_bbox(geometry) == pytest.approx((-73.61, 45.49, -73.59, 45.51))
+    assert content_type_from_url("https://example.test/data.XLSX") == (
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+    assert content_type_from_url("https://example.test/report.pdf") == "application/pdf"
+    assert content_type_from_url("https://example.test/archive.bin") == ("application/octet-stream")

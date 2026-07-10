@@ -3,6 +3,16 @@
 Date: 2026-04-25
 Last updated: 2026-07-10
 
+## Test coverage baseline, 2026-07-10
+
+Measured locally against the current `v0.4.2` runtime code; the pending housekeeping changes affected documentation and audit-artifact handling only:
+
+- `coverage.py` with branch measurement ran all 147 Python tests successfully. The `app/` package measured 61% combined line/branch coverage (2,122 of 3,300 statements executed). Strong areas were `addressing.py` and `config.py` (100%), `db.py` (94%), `i18n.py` (93%), `perf.py` (92%), `views.py` (91%), `sheet_views.py` (90%), and `web.py` (82%). Lower areas were `geocoding.py` (70%), `services.py` (52%), `disclosures.py` (41%), and `hydro.py` (39%). The added deterministic tests cover Hydro version payload variants, changed/unchanged/error collection checks, Overpass relation segment stitching, fallback boundary geometry, and disclosure attachment content types.
+- Node's built-in coverage run passed 34 tests. The five imported helper/runtime modules measured 96% line and 70% branch coverage, but that percentage excludes `src/worker.js`, `src/container.js`, and the main browser controllers (`sheet.js`, `outage-map.js`, `search.js`, and `detail-panels.js`). Source-text assertion tests also do not provide execution coverage.
+- Playwright lists 48 cases: 24 workflows in desktop Chromium and mobile Chromium. The full six-worker run passed 47 and timed out while closing the mobile disclosure detail panel. The same focused case passed three concurrent repeats immediately, so treat it as an unresolved parallel-run flake rather than a consistently reproduced product failure.
+- GitHub's Quality workflow currently runs pre-commit formatting, linting, and module-boundary checks only. It does not run pytest, Node tests, Playwright, or enforce a coverage threshold.
+- Highest-value next coverage work: put pytest and Node tests in CI; record and ratchet a realistic coverage floor; test Worker/container orchestration; deepen Hydro/disclosure/service-path fixtures; and make the Playwright gating and flaky-test policy explicit.
+
 ## v0.4.2 public-beta readiness evidence, 2026-07-10
 
 Observed production facts:
@@ -15,6 +25,7 @@ Observed production facts:
 - A live `wrangler tail --status error` session stayed empty throughout the production QA and probe window. Wrangler tail is live-only, so it did not provide the historical route/user-agent/country breakdown needed to fully attribute earlier `500` analytics.
 - The public Hydro payload at source version `20260710103008` contained 67 current-outage rows. One source row was dated `2025-04-08 09:26:21` with 19 customers and status `L`, which explains the `458 d ago` current row seen in production. The row is present in Hydro's current feed; it is a source anomaly, not a pannes.ca archive record.
 - The public `r/quebec` rules URL redirected to Reddit's verification screen during the automated pass. A later logged-in review confirmed that the self-promotion rule prohibits polluposting/spam but explicitly allows original material. The planned single transparent beta-feedback post fits that distinction; avoid repeated promotion. The posting account is not yet eligible to contribute because it has `0` r/Quebec comment karma; Reddit requires more community activity but does not disclose the threshold.
+- A first low-key beta feedback request was posted to `r/HydroQuebec` on 2026-07-10. The separate `r/quebec` post remains deferred until normal community participation satisfies its account-activity requirement.
 
 Implementation and deployment facts:
 

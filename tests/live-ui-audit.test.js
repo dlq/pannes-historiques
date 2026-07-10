@@ -8,6 +8,7 @@ const source = readFileSync(
 );
 
 test("live UI audit targets the current sheet interface", () => {
+  assert.match(source, /PANNES_AUDIT_OUTPUT_DIR \|\| "tmp\/live-ui-audit"/);
   assert.match(source, /document\.querySelector\("outage-map"\)/);
   assert.match(source, /responseUrl\.includes\("\/sheet"\)/);
   assert.match(source, /https:\/\/pannes\.ca\/\?q=/);

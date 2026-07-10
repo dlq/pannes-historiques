@@ -48,6 +48,12 @@ npm run check
 node --test tests/*.test.js
 ```
 
+Browser workflows:
+
+```bash
+npm run test:e2e
+```
+
 Full local pre-commit check:
 
 ```bash
@@ -73,6 +79,8 @@ npx wrangler deploy --dry-run
 - Worker routing or endpoint privacy: start in `src/worker-routing.js` and `src/runtime-policy.js`.
 - D1/R2 ingestion or scheduled work: start in `src/worker.js`, then consider extracting a focused module if the change grows.
 - Municipal archive geometry: start in `src/municipal-archive.js`; maintenance scripts should reuse these helpers.
-- Production evidence: summarize in `NOTES.md` or `PLANS.md`; keep raw screenshots and JSON under ignored `output/`.
+- Production evidence: summarize in `NOTES.md` or `PLANS.md`; keep raw screenshots and JSON under the ignored repository-local `tmp/` directory.
 
 Keep production runtime dependencies one-way. Flask code under `app/` should not import Worker, script, or test modules; browser modules under `app/static/` should stay within the browser module tree; Worker modules under `src/` should stay within the Worker module tree. If a helper needs to cross one of those boundaries, extract a smaller shared module deliberately and update `docs/architecture.md` plus the boundary checker in the same patch.
+
+GitHub's current Quality workflow runs pre-commit formatting, linting, and module-boundary checks. It does not yet run pytest, Node tests, Playwright, or enforce a coverage threshold; closing that gap is planned for `v0.4.3`. Until then, run the relevant test suites locally before pushing and report any skipped or flaky browser case.

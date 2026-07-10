@@ -19,7 +19,7 @@ and public-data context. The site is available at [pannes.ca](https://pannes.ca)
 - Historical disclosure and map context
   - access-to-information disclosure source registry plus XLSX and supported PDF extraction
   - DAI region outlines from OSM/Nominatim/Overpass with conservative fallback areas
-  - always-on disclosure context and simplified geometry assets for regional and local overlays
+  - domain-specific disclosure context with simplified geometry assets for regional and local overlays
 - Municipal archive bins
   - D1 schema and Worker runtime endpoints for derived municipal/TNO/Indigenous-territory previous-outage archive bins
   - pure geometry helpers and tests for territory assignment and display simplification
@@ -153,18 +153,15 @@ Currently supported published DAI extracts include:
 
 The map uses separate colors and draw order for each evidence type:
 
-- amber/orange: live outage API records from archived Hydro-Quebec snapshots
-- cyan/blue: planned interruption API records
-- gray dashed territory outlines: derived previous-outage archive bins for municipalities, TNOs,
-  and Indigenous territories when the runtime archive has populated bins
-- yellow/orange/red background: latest DAI administrative-region summary, colored by gross continuity index when available
-- blue dashed areas: DAI / access-to-information local historical area context
+- red: current outage API records from Hydro-Quebec's latest public feed
+- amber: planned interruption API records
+- violet: retained previous-outage records and derived municipal/TNO/Indigenous-territory archive bins
+- teal: DAI/access-to-information disclosure areas and administrative-region context
 
-Regional DAI summaries and local DAI areas are always shown on the map as broad background context,
-while the map opens centered on the searched address or coordinates. Click a
-colored region or blue DAI area to populate the scrollable details panel with the published source
-and metrics. Live/API-derived outage and planned interruption geometries are drawn after DAI areas so
-their smaller, more granular shapes remain visible on top.
+The active sheet domain controls the visible map evidence. Address overview mode can summarize
+multiple evidence types, while pushed Current, Planned, Archive, and Context views show their
+matching layer. Click a disclosure area or regional context row to open its published source and
+metrics in an in-sheet detail card.
 
 Sheet fragments are served through `GET /sheet`; each fragment embeds the map data for its domain,
 so the persistent MapLibre element updates without a page reload.
@@ -236,10 +233,12 @@ server. Python linting and formatting use Ruff. Jinja template linting and forma
 JavaScript linting and formatting for `app/static/` use Biome. Pre-commit runs the same local
 checks before commits once installed.
 
-Current automated coverage is intentionally still lightweight. The suite covers address and
-geocoding helpers, disclosure normalization helpers, service-layer decision paths, route smoke
-tests, payload serialization, and browser-level search/map regressions without making live network
-calls or using production credentials.
+The current suite has strong route, sheet/view, map-helper, and browser-workflow coverage, including
+desktop/mobile search, domain navigation, archive focus, detail cards, comparison, provenance, and
+simulated current location. Coverage remains uneven in collection and data-processing code: Hydro
+ingestion, disclosure parsing, service orchestration, the main Worker, and the container need deeper
+tests. The dated coverage baseline and CI gaps are recorded in `NOTES.md` and scheduled in
+`PLANS.md`.
 
 ## Notes
 

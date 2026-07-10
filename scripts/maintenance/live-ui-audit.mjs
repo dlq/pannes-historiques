@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { chromium } from "playwright";
 
-const outDir = path.resolve(process.env.PANNES_AUDIT_OUTPUT_DIR || "output/playwright");
+const outDir = path.resolve(process.env.PANNES_AUDIT_OUTPUT_DIR || "tmp/live-ui-audit");
 const chromePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE;
 
 await fs.mkdir(outDir, { recursive: true });
