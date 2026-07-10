@@ -29,6 +29,7 @@ from .sheet_views import (
     overview_sheet_context,
 )
 from .views import (
+    DEFAULT_MAP_BOUNDS,
     DEFAULT_MAP_CENTER,
     DEFAULT_MAP_ZOOM,
     FIXED_DAYS,
@@ -189,6 +190,8 @@ def create_app(settings: Settings | None = None) -> Flask:
         return {
             "center": center,
             "zoom": map_update.get("zoom") or DEFAULT_MAP_ZOOM,
+            "overviewBounds": DEFAULT_MAP_BOUNDS if not has_address else None,
+            "preserveInitialView": not has_address,
             "labels": sheet_context.get("map_labels") or {},
             "contextGeometryUrl": "/map-context-geometries",
             "matches": map_update.get("matches") or [],

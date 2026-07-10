@@ -307,11 +307,33 @@ def _territory_rows(lang: str, territories: list[dict[str, Any]]) -> list[dict[s
     return rows
 
 
-def _latest_archive_groups(lang: str, items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def _latest_archive_groups(
+    lang: str,
+    items: list[dict[str, Any]],
+    territories: list[dict[str, Any]] | None = None,
+) -> list[dict[str, Any]]:
     groups: list[dict[str, Any]] = []
     current_key = None
     weekdays = WEEKDAYS[lang if lang in WEEKDAYS else "fr"]
+    territories = territories or []
+    territories_by_id = {
+        item["territoryId"]: item for item in territories if item.get("territoryId")
+    }
+    territories_by_name = {
+        item["territoryName"]: item for item in territories if item.get("territoryName")
+    }
     for item in items:
+        territory = territories_by_id.get(item.get("territoryId")) or territories_by_name.get(
+            item.get("territoryName")
+        )
+        territory = territory or {}
+        territory_name = item.get("territoryName") or territory.get("territoryName") or ""
+        lat = item.get("centroidLat", item.get("centroid_lat"))
+        lon = item.get("centroidLon", item.get("centroid_lon"))
+        if lat is None:
+            lat = territory.get("centroidLat")
+        if lon is None:
+            lon = territory.get("centroidLon")
         moment = _parse_feed_time(item.get("startTime"))
         day_key = moment.date() if moment else None
         if day_key != current_key or not groups:
@@ -322,18 +344,22 @@ def _latest_archive_groups(lang: str, items: list[dict[str, Any]]) -> list[dict[
                 else t(lang, "unknown")
             )
             groups.append({"heading": heading, "rows": []})
+        focus = {
+            "kind": "previous_outage",
+            "geometryKey": territory.get("geometryKey"),
+            "lat": lat,
+            "lon": lon,
+            "label": territory_name,
+            "startTime": item.get("startTime"),
+            "customersAffected": item.get("customersAffected"),
+        }
         groups[-1]["rows"].append(
             {
                 "tile": _date_tile(lang, item.get("startTime")),
                 "startTime": item.get("startTime") or "",
+                "territoryName": territory_name,
                 "customers": _format_customers(item.get("customersAffected")),
-                "focus": {
-                    "kind": "previous_outage",
-                    "lat": item.get("centroidLat"),
-                    "lon": item.get("centroidLon"),
-                    "startTime": item.get("startTime"),
-                    "customersAffected": item.get("customersAffected"),
-                },
+                "focus": {key: value for key, value in focus.items() if value is not None},
             }
         )
     return groups
@@ -534,7 +560,11 @@ def explore_sheet_context(
             else "",
             "territoryRows": _territory_rows(lang, summary.get("territories") or []),
             "territoryNote": t(lang, "archive_bins_note") if summary.get("territories") else "",
-            "latestGroups": _latest_archive_groups(lang, (summary.get("latest") or [])[:20]),
+            "latestGroups": _latest_archive_groups(
+                lang,
+                (summary.get("latest") or [])[:20],
+                summary.get("territories") or [],
+            ),
             "latestCount": len((summary.get("latest") or [])[:20]),
             "latestNote": t(
                 lang,

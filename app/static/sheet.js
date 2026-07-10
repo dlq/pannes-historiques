@@ -1,10 +1,10 @@
-import { contextLayerForKind } from "./map-utils.js?v=20260710a";
+import { contextLayerForKind } from "./map-utils.js?v=20260710c";
 import {
   attachAddressAutocomplete,
   attachComparisonTray,
   hydrateTimeLabels,
   updateSearchUrl,
-} from "./search.js?v=20260710a";
+} from "./search.js?v=20260710c";
 import {
   escapeHtml,
   formatDistanceKm,
@@ -12,7 +12,7 @@ import {
   formatPreviousTimeParts,
   hasDistanceValue,
   label,
-} from "./ui-format.js?v=20260710a";
+} from "./ui-format.js?v=20260710c";
 
 const DETENTS = ["peek", "half", "full"];
 // The sheet height transition in app.css runs 280ms; wait slightly longer
@@ -397,7 +397,9 @@ function operationalDetailHtml(item) {
       )
     : "";
   const title =
-    item.kindLabel || label(mapLabels, item.kind === "outage" ? "outage" : item.kind, "");
+    (item.kind === "previous_outage" ? item.label : "") ||
+    item.kindLabel ||
+    label(mapLabels, item.kind === "outage" ? "outage" : item.kind, "");
   const dateTitle = startParts.date ? ` · ${startParts.date}` : "";
   return `
     <header class="ph-sheet-header">

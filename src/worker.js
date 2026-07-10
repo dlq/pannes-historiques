@@ -14,6 +14,7 @@ import {
   isTrustedContainerRuntimeProxyRequest,
   runtimeEndpointRequiresOperationToken,
 } from "./runtime-policy.js";
+import { municipalArchiveLatestRow } from "./archive-summary.js";
 import { workerRouteForPath } from "./worker-routing.js";
 
 const DISCLOSURE_CRONS = new Set(["0 10 */14 * *", "13 10 */14 * *"]);
@@ -2339,7 +2340,8 @@ async function municipalArchiveLatest(db, cutoff) {
   const result = await db
     .prepare(
       `
-      SELECT territory_name,
+      SELECT territory_id,
+             territory_name,
              max_customers,
              COALESCE(latest_start_time, last_seen_at, updated_at, '') AS sort_time
       FROM previous_outage_territory_bins
@@ -2351,12 +2353,7 @@ async function municipalArchiveLatest(db, cutoff) {
     )
     .bind(cutoff)
     .all();
-  return (result.results || []).map((row) => ({
-    key: "previous_archive_latest",
-    startTime: row.sort_time || "",
-    customersAffected: Number(row.max_customers || 0),
-    territoryName: row.territory_name,
-  }));
+  return (result.results || []).map(municipalArchiveLatestRow);
 }
 
 function sqlTimestampHoursAgo(hours) {

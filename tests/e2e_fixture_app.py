@@ -418,10 +418,10 @@ class E2EStubService:
             "latest": [
                 {
                     "key": "previous_archive_latest",
+                    "territoryId": "municipality:66023",
+                    "territoryName": "Montréal",
                     "startTime": "2026-06-14 14:06:00",
                     "customersAffected": 4,
-                    "centroidLat": 45.63,
-                    "centroidLon": -73.84,
                 }
             ],
         }

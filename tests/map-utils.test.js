@@ -6,6 +6,7 @@ import {
   contextLayerForKind,
   extendBoundsWithGeometry,
   itemRenderKey,
+  normalizeMapPoint,
   radiusCirclePolygon,
 } from "../app/static/map-utils.js";
 
@@ -61,6 +62,17 @@ test("bounds helpers cover nested polygon coordinates", () => {
 
 test("boundsToLngLatBounds returns null for empty input", () => {
   assert.equal(boundsToLngLatBounds([]), null);
+});
+
+test("normalizeMapPoint rejects missing and out-of-bounds focus coordinates", () => {
+  const quebec = { minLon: -79.8, minLat: 44.9, maxLon: -57.0, maxLat: 62.6 };
+  assert.equal(normalizeMapPoint(null, null, quebec), null);
+  assert.equal(normalizeMapPoint("", "", quebec), null);
+  assert.equal(normalizeMapPoint(0, 0, quebec), null);
+  assert.deepEqual(normalizeMapPoint("45.52", "-73.6", quebec), {
+    lat: 45.52,
+    lon: -73.6,
+  });
 });
 
 test("itemRenderKey distinguishes overlapping events", () => {

@@ -14,6 +14,9 @@ FIXED_INCLUDE_PLANNED = True
 PREVIOUS_NEAREST_LIMIT = 24
 DEFAULT_MAP_CENTER = [45.56, -73.61]
 DEFAULT_MAP_ZOOM = 8
+# Stable southern-Quebec overview from Gatineau through the lower St. Lawrence.
+# Remote events remain selectable without letting one point reframe the homepage.
+DEFAULT_MAP_BOUNDS = [[-76.6, 45.0], [-67.0, 49.5]]
 SEARCH_MAP_ZOOM = 13
 REGIONAL_GEOMETRY_ASSET = Path(__file__).parent / "static" / "regional_metric_geometries.json"
 DISCLOSURE_GEOMETRY_ASSET = Path(__file__).parent / "static" / "disclosure_geometries.json"
@@ -158,9 +161,10 @@ def default_map_payload(
     return {
         "center": DEFAULT_MAP_CENTER,
         "zoom": DEFAULT_MAP_ZOOM,
+        "overviewBounds": DEFAULT_MAP_BOUNDS,
         "showAddressMarker": False,
         "showEmptyNotice": False,
-        "preserveInitialView": False,
+        "preserveInitialView": True,
         "contextGeometryUrl": "/map-context-geometries",
         "labels": _map_labels(lang),
         "loadedLayers": _loaded_layer_keys(matches),
