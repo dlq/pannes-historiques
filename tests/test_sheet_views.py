@@ -223,6 +223,38 @@ def test_latest_archive_groups_split_by_day():
     assert groups[0]["rows"][0]["tile"] == {"day": "5", "month": "Jul"}
 
 
+def test_latest_archive_groups_use_territory_focus_when_event_centroid_is_missing():
+    from app.sheet_views import _latest_archive_groups
+
+    groups = _latest_archive_groups(
+        "fr",
+        [
+            {
+                "territoryId": "municipality:58227",
+                "territoryName": "Longueuil",
+                "startTime": "2026-07-10 11:46:39",
+                "customersAffected": 17,
+            }
+        ],
+        [
+            {
+                "territoryId": "municipality:58227",
+                "territoryName": "Longueuil",
+                "geometryKey": "municipal_archive:municipality:58227",
+                "centroidLat": 45.5171,
+                "centroidLon": -73.4426,
+            }
+        ],
+    )
+
+    row = groups[0]["rows"][0]
+    assert row["territoryName"] == "Longueuil"
+    assert row["focus"]["label"] == "Longueuil"
+    assert row["focus"]["lat"] == 45.5171
+    assert row["focus"]["lon"] == -73.4426
+    assert row["focus"]["geometryKey"] == "municipal_archive:municipality:58227"
+
+
 def test_address_domain_current_scopes_to_radius():
     from app.sheet_views import address_domain_sheet_context
 

@@ -32,6 +32,16 @@ test("page loads in English and French with the sheet shell", async ({ page }) =
       }),
     )
     .toBeGreaterThan(0);
+  await expect
+    .poll(() =>
+      page.locator("outage-map").evaluate((mapElement) => {
+        const bounds = mapElement.map?.getBounds();
+        return Boolean(
+          bounds && bounds.contains([-76.6, 45.0]) && bounds.contains([-67.0, 49.5]),
+        );
+      }),
+    )
+    .toBe(true);
 
   await page.goto("/?lang=fr");
   await expect(page.locator(".ph-segment.is-active")).toHaveText("En cours");
@@ -252,6 +262,39 @@ test("archive territory rows outline the area on the map", async ({ page }) => {
       }),
     )
     .toBeGreaterThan(0);
+});
+
+test("latest archive rows focus their territory instead of null island", async ({ page }) => {
+  await page.goto("/?lang=en");
+
+  const archiveResponse = page.waitForResponse((response) =>
+    response.url().includes("domain=archive"),
+  );
+  await page.locator('.ph-segment[data-domain-link="archive"]').click();
+  await archiveResponse;
+
+  const latestRow = page.locator("[data-archive-latest] .ph-row").first();
+  await expect(latestRow).toContainText("Montréal");
+  const focus = JSON.parse((await latestRow.getAttribute("data-map-focus")) || "{}");
+  expect(focus).toMatchObject({
+    label: "Montréal",
+    lat: 45.52,
+    lon: -73.6,
+  });
+
+  await latestRow.click();
+  await expect(page.locator("outage-map")).toHaveAttribute("data-active-focus-label", "Montréal");
+  await expect(page.locator("#sheet-detail h2")).toContainText("Montréal");
+  await expect
+    .poll(() =>
+      page.locator("outage-map").evaluate((mapElement) => mapElement.map?.getCenter().lat),
+    )
+    .toBeCloseTo(45.52, 1);
+  await expect
+    .poll(() =>
+      page.locator("outage-map").evaluate((mapElement) => mapElement.map?.getCenter().lng),
+    )
+    .toBeCloseTo(-73.6, 1);
 });
 
 test("overview doorway opens the local archive with scope toggle", async ({ page }) => {

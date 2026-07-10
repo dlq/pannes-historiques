@@ -83,7 +83,7 @@
     {% if sheet.body.latestNote %}<p class="ph-caveat ph-caveat--tight">{{ sheet.body.latestNote }}</p>{% endif %}
     {% for group in sheet.body.latestGroups %}
       <p class="ph-group-heading ph-group-heading--day">{{ group.heading }}</p>
-      <ul class="ph-row-list" data-domain-rows="archive">
+      <ul class="ph-row-list" data-domain-rows="archive" data-archive-latest>
         {% for row in group.rows %}
           <li>
             <button class="ph-row"
@@ -95,6 +95,7 @@
               </span>
               <span class="ph-row-main">
                 <span class="ph-row-title">{{ row.startTime[11:16] }}</span>
+                {% if row.territoryName %}<span class="ph-row-sub">{{ row.territoryName }}</span>{% endif %}
               </span>
               <span class="ph-row-metric">
                 <span class="ph-row-metric-value">{{ row.customers }}</span>

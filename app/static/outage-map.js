@@ -4,9 +4,10 @@ import {
   contextLayerForKind,
   extendBoundsWithGeometry,
   itemRenderKey,
+  normalizeMapPoint,
   radiusCirclePolygon,
-} from "./map-utils.js?v=20260710a";
-import { escapeHtml, label } from "./ui-format.js?v=20260710a";
+} from "./map-utils.js?v=20260710c";
+import { escapeHtml, label } from "./ui-format.js?v=20260710c";
 
 const LIBERTY_STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
 
@@ -296,10 +297,13 @@ export class OutageMap extends HTMLElement {
           return;
         }
       }
-      const lat = Number(matchedItem.lat ?? detail.lat);
-      const lon = Number(matchedItem.lon ?? detail.lon);
-      if (Number.isFinite(lat) && Number.isFinite(lon)) {
-        easeToVisible(lat, lon, Math.max(map.getZoom(), 12));
+      const point = normalizeMapPoint(
+        matchedItem.lat ?? detail.lat,
+        matchedItem.lon ?? detail.lon,
+        QUEBEC_BOUNDS,
+      );
+      if (point) {
+        easeToVisible(point.lat, point.lon, Math.max(map.getZoom(), 12));
       }
     };
 
@@ -329,6 +333,18 @@ export class OutageMap extends HTMLElement {
       if (activeMapFocus) return;
       if (data.center && Number.isFinite(data.radiusM)) {
         fitRadius(data.center[0], data.center[1], data.radiusM);
+        return;
+      }
+      if (
+        data.preserveInitialView &&
+        Array.isArray(data.overviewBounds) &&
+        data.overviewBounds.length === 2
+      ) {
+        map.fitBounds(data.overviewBounds, {
+          padding: fitPadding(32),
+          maxZoom: 14,
+          duration: 0,
+        });
         return;
       }
       if (data.preserveInitialView && data.center) {

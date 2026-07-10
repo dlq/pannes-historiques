@@ -1,4 +1,5 @@
 import json
+import re
 
 
 def test_index_renders(app_client):
@@ -6,6 +7,29 @@ def test_index_renders(app_client):
 
     assert response.status_code == 200
     assert "Pannes Historiques" in response.get_data(as_text=True)
+
+
+def test_index_preserves_stable_overview_map_bounds(app_client):
+    response = app_client.get("/?lang=en")
+    html = response.get_data(as_text=True)
+    match = re.search(r"data-map='([^']+)'", html)
+
+    assert match is not None
+    payload = json.loads(match.group(1))
+    assert payload["overviewBounds"] == [[-76.6, 45.0], [-67.0, 49.5]]
+    assert payload["preserveInitialView"] is True
+
+
+def test_address_index_keeps_radius_based_map_framing(app_client):
+    response = app_client.get("/?lang=en&q=5220+Rue+Jeanne-Mance")
+    html = response.get_data(as_text=True)
+    match = re.search(r"data-map='([^']+)'", html)
+
+    assert match is not None
+    payload = json.loads(match.group(1))
+    assert payload["overviewBounds"] is None
+    assert payload["preserveInitialView"] is False
+    assert payload["radiusM"] == 5000
 
 
 def test_index_includes_pwa_metadata(app_client):
@@ -170,7 +194,7 @@ def test_service_worker_route_has_root_scope(app_client):
     assert response.status_code == 200
     assert response.headers["Service-Worker-Allowed"] == "/"
     assert response.headers["Cache-Control"] == "no-cache"
-    assert b"pannes-historiques-v0.4.2-beta-readiness" in response.data
+    assert b"pannes-historiques-v0.4.2-map-framing-fix" in response.data
     assert b"/static/app-icon-180.png" in response.data
     assert b"/static/icons.svg" in response.data
     assert b"/static/sheet.js" in response.data

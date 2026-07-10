@@ -176,7 +176,7 @@ def test_default_map_payload_marks_previous_section_as_recent_archive():
     assert payload["previousMode"] == "recent_archive"
 
 
-def test_default_map_payload_starts_without_address_marker_or_fixed_view():
+def test_default_map_payload_starts_without_address_marker_and_uses_stable_overview():
     payload = default_map_payload(
         "en",
         [
@@ -252,9 +252,10 @@ def test_default_map_payload_starts_without_address_marker_or_fixed_view():
 
     assert payload["center"] == [45.56, -73.61]
     assert payload["zoom"] == 8
+    assert payload["overviewBounds"] == [[-76.6, 45.0], [-67.0, 49.5]]
     assert payload["showAddressMarker"] is False
     assert payload["showEmptyNotice"] is False
-    assert payload["preserveInitialView"] is False
+    assert payload["preserveInitialView"] is True
     assert any(item["kind"] == "outage" for item in payload["matches"])
     assert any(item["kind"] == "planned" for item in payload["matches"])
     assert any(

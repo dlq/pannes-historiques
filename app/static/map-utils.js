@@ -56,6 +56,22 @@ export function boundsToLngLatBounds(bounds) {
   ];
 }
 
+export function normalizeMapPoint(latValue, lonValue, bounds = null) {
+  if (latValue == null || lonValue == null || latValue === "" || lonValue === "") return null;
+  const lat = Number(latValue);
+  const lon = Number(lonValue);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) {
+    return null;
+  }
+  if (
+    bounds &&
+    (lat < bounds.minLat || lat > bounds.maxLat || lon < bounds.minLon || lon > bounds.maxLon)
+  ) {
+    return null;
+  }
+  return { lat, lon };
+}
+
 export function itemRenderKey(item) {
   return [
     item.kind,
