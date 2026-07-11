@@ -21,7 +21,7 @@ for JavaScript checks and Playwright.
 git clone https://github.com/dlq/pannes-historiques.git
 cd pannes-historiques
 uv sync
-npm install
+npm ci
 ```
 
 Run the local app:

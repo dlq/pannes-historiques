@@ -1,13 +1,14 @@
 # User Stories For Next Product Slices
 
 Date: 2026-06-17
-Last reviewed: 2026-07-10
+Last reviewed: 2026-07-11
 
 This file captures practical user stories for focusing the next pannes.ca work. These are not implementation tasks by themselves. They are decision scenarios that should drive UI, copy, data, and test choices.
 
 ## Current Implementation Status
 
-As of deployed `v0.4.2` (2026-07-10), the current codebase has:
+As of deployed `v0.4.2` (2026-07-10) plus the 2026-07-11 accessibility and cache-refresh follow-ups,
+the current codebase has:
 
 - one full-bleed MapLibre map with a detent-based sheet (mobile) / floating panel (desktop) and search inside the sheet;
 - a segmented `En cours / Planifiées / Archive / Contexte` control that drives both sheet content and the visible map layer;
@@ -15,13 +16,14 @@ As of deployed `v0.4.2` (2026-07-10), the current codebase has:
 - in-sheet detail cards with honest per-kind wording (estimated restoration for current, observed start/end/duration for archive, customers-to-be-affected for planned);
 - an archive report leading with named territory bins (production) plus day-grouped latest rows, all caps labeled;
 - a provenance card ("À propos de ces données") reachable from the hero info button and the explore footer, with GitHub and contact links;
-- a browser-local comparison tray, and error/sequencing hardening on sheet navigation.
+- a browser-local comparison tray, hardened sheet navigation, and accessible live/detail-dialog behavior.
 
 Still not fully proven:
 
 - current-location permission and recovery behavior on a real phone (simulated geolocation is covered by desktop/mobile e2e);
 - saved-URL freshness/change detection;
-- a practical keyboard/screen-reader pass (segmented control now uses `aria-pressed`; a full audit remains).
+- manual screen-reader/assistive-technology checks and an automated axe-style audit; keyboard/focus,
+  live-region, dialog, contrast, and reduced-motion regressions are covered.
 
 Story 1's comparison workflow, Story 6's provenance affordance, and Story 4's history visualization are now first-class; Stories 2/3 gained nearest-distance and next-window wording in the overview.
 
@@ -147,7 +149,9 @@ Success looks like:
 
 Next product gap:
 
-- Compact distribution cues now exist in the local answer. Next, add archive-window/freshness metadata and make row-to-map/detail selection more obvious on mobile.
+- Compact distribution cues now exist in the local answer. Add an adjustable nearby-outage radius with
+  an address-search-appropriate smaller default, then add archive-window/freshness metadata and make
+  row-to-map/detail selection more obvious on mobile.
 
 ## Story 5: Regional Context Seeker
 
@@ -289,7 +293,8 @@ Success looks like:
 
 Next product gap:
 
-- Continue the practical WCAG pass with live-region status, focus order, sheet detent behavior, and screen-reader checks.
+- Validate the shipped WCAG behavior with manual screen-reader checks and an automated axe-style audit,
+  including live-region status, focus order, sheet detent behavior, and detail-panel announcements.
 
 ## Next Slice Candidates
 

@@ -1,17 +1,18 @@
 # Research: Hydro-Québec Historic Outage Data
 
 Date: 2026-04-25
-Last updated: 2026-07-10
+Last updated: 2026-07-11
 
-## Test coverage baseline, 2026-07-10
+## Current verification and deployment baseline, 2026-07-11
 
-Measured locally against the current `v0.4.2` runtime code; the pending housekeeping changes affected documentation and audit-artifact handling only:
+Measured locally against the current `v0.4.2` runtime code plus its post-release map, accessibility,
+contributor-foundation, and cache-refresh follow-ups:
 
-- `coverage.py` with branch measurement ran all 147 Python tests successfully. The `app/` package measured 61% combined line/branch coverage (2,122 of 3,300 statements executed). Strong areas were `addressing.py` and `config.py` (100%), `db.py` (94%), `i18n.py` (93%), `perf.py` (92%), `views.py` (91%), `sheet_views.py` (90%), and `web.py` (82%). Lower areas were `geocoding.py` (70%), `services.py` (52%), `disclosures.py` (41%), and `hydro.py` (39%). The added deterministic tests cover Hydro version payload variants, changed/unchanged/error collection checks, Overpass relation segment stitching, fallback boundary geometry, and disclosure attachment content types.
-- Node's built-in coverage run passed 34 tests. The five imported helper/runtime modules measured 96% line and 70% branch coverage, but that percentage excludes `src/worker.js`, `src/container.js`, and the main browser controllers (`sheet.js`, `outage-map.js`, `search.js`, and `detail-panels.js`). Source-text assertion tests also do not provide execution coverage.
-- Playwright lists 48 cases: 24 workflows in desktop Chromium and mobile Chromium. The full six-worker run passed 47 and timed out while closing the mobile disclosure detail panel. The same focused case passed three concurrent repeats immediately, so treat it as an unresolved parallel-run flake rather than a consistently reproduced product failure.
-- GitHub's Quality workflow currently runs pre-commit formatting, linting, and module-boundary checks only. It does not run pytest, Node tests, Playwright, or enforce a coverage threshold.
-- Highest-value next coverage work: put pytest and Node tests in CI; record and ratchet a realistic coverage floor; test Worker/container orchestration; deepen Hydro/disclosure/service-path fixtures; and make the Playwright gating and flaky-test policy explicit.
+- The current local test count is 149 Python tests and 38 Node unit tests. The last branch-coverage measurement remains 61% at 147 Python tests; rerun coverage before treating that percentage as current. That measurement found strongest coverage in `addressing.py`, `config.py`, `db.py`, `i18n.py`, `perf.py`, `views.py`, `sheet_views.py`, and `web.py`, with lower coverage in `geocoding.py`, `services.py`, `disclosures.py`, and `hydro.py`.
+- Playwright lists 48 cases across desktop and mobile Chromium. The previous six-worker run passed 47 and timed out while closing a mobile disclosure detail panel; focused repeats passed, so retain this as a parallel-run flake until a full rerun resolves it.
+- GitHub Quality runs pre-commit formatting/linting/module-boundary checks, pytest, and Node unit tests on pull requests and pushes to `main`. It does not run Playwright or publish/enforce a coverage threshold.
+- The current production Worker is `395dd418-e47b-443e-a60c-ecc8c0305b51`, deployed on 2026-07-11 with container image `pannes-historiques-pannescontainer:395dd418`. Live `/`, `/healthz`, and `/service-worker.js` checks returned `200`; the service worker advertises `pannes-historiques-v0.4.2-cache-refresh`.
+- Highest-value next coverage work: record and ratchet a realistic coverage floor; test Worker/container orchestration; deepen Hydro/disclosure/service-path fixtures; and make the Playwright gating and flaky-test policy explicit.
 
 ## v0.4.2 public-beta readiness evidence, 2026-07-10
 
@@ -43,19 +44,19 @@ Implementation and deployment facts:
 - The first `/healthz` request during rollout returned `500`. Ten seconds later health returned `200` after an `8.73 s` cold start, followed by a `1.62 s` homepage response; `/service-worker.js` and the Archive sheet also returned `200`.
 - Production served service-worker marker `pannes-historiques-v0.4.2-map-framing-fix`, overview bounds `[[-76.6, 45.0], [-67.0, 49.5]]`, and latest archive focus payloads with real municipality labels/centroids. Rendered QA confirmed a balanced southern-Quebec default view and a Saint-Mathieu-du-Parc latest row focused on the correct inland area rather than null island.
 
-## Current repository and release state, 2026-07-06
+## Historical repository and release state, 2026-07-06
 
 Observed facts:
 
-- `v0.4.0` is the latest tagged release and marks the sheet/MapLibre interface redesign.
+- `v0.4.0` was the latest tagged release at that time and marks the sheet/MapLibre interface redesign.
 - Production was deployed on 2026-07-06 with Worker version `1f2b6dc1-8f48-4354-be76-e65e339e3711` and container image `pannes-historiques-pannescontainer:1f2b6dc1`.
 - The 2026-07-06 `main` deployment baseline was `7ae28f1` (`Remove Claude config and clarify branch names`).
 - The merged auxiliary `codex/*` worktrees/branches were cleaned up after confirming they had no commits ahead of `main`; only `main` remains locally and on `origin`.
 - The current browser interface is MapLibre plus a single sheet. Older Leaflet/sidebar/accordion/HTMX notes below are retained as historical evidence, not as the current UI state.
 
-Current follow-up evidence:
+Follow-up evidence recorded at that time:
 
-- `PLANS.md` now treats `v0.4.0` as the current released baseline and current `main` as the next implementation starting point.
+- `PLANS.md` then treated `v0.4.0` as the current released baseline and current `main` as the next implementation starting point.
 - The remaining product-proof gaps are current-location behavior on a real phone or controlled mobile simulation, mobile source/detail readability for dense archive/disclosure states, saved-URL freshness/change indicators, and a practical keyboard/screen-reader pass for the sheet UI.
 
 ## Local mobile verification: deployed mobile answer slice, 2026-07-05
@@ -770,7 +771,7 @@ Expected target architecture if the prototype confirms D1 performance:
 
 The migration should be driven by measured latency and deploy reliability, not by the fact that D1 is available.
 
-## 2026-05-16: PowerOutage benchmark and map-stack comparison
+## 2026-05-16: PowerOutage benchmark and map-stack comparison (pre-MapLibre)
 
 Added comparison targets:
 
@@ -808,7 +809,7 @@ Product implications for pannes.ca:
 
 Map stack comparison:
 
-- Current pannes.ca stack is Leaflet + raster/base tiles + GeoJSON overlays. This is still the pragmatic default for the current product because it is simple, open source, small, easy to debug, and a good fit for modest numbers of polygons/markers and server-rendered HTMX pages.
+- At the time of this research, pannes.ca used Leaflet with raster/base tiles and GeoJSON overlays. That pre-`v0.4.0` implementation has since been replaced by MapLibre GL and the sheet interface.
 - Leaflet is less ideal if pannes.ca evolves toward PowerOutage-style dashboard maps with many features, smooth choropleths, animated timelapse, vector-tile filtering, 3D extrusion, or GPU-rendered large datasets. Leaflet can be extended, but large overlay payloads and DOM/SVG/canvas layer management become the performance bottleneck.
 - MapLibre GL JS is the strongest open-source candidate for the next major map iteration. It is WebGL/GPU-accelerated, renders vector tiles and MapLibre styles client-side, supports data-driven styling, and matches the direction PowerOutage publicly says it took for its rewrite. The tradeoff is higher implementation complexity: vector tile generation/serving, style JSON, feature-state handling, WebGL testing, and migration of current Leaflet UI glue.
 - Apple MapKit JS is attractive for high-quality Apple Maps basemaps and a generous free daily limit, but it is a proprietary hosted map service with token setup, service-call quotas, less ecosystem flexibility for custom outage data workflows, and less obvious fit for open-source/provenance-oriented pannes.ca. It should not be the default for this project unless the product specifically needs Apple basemaps/look-and-feel.

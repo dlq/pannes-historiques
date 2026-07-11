@@ -45,7 +45,10 @@ The checker runs in pre-commit and has focused regression coverage in `tests/tes
 - Node's test runner covers pure browser/Worker helpers, runtime policy, route classification, archive summaries, municipal geometry, and selected source-level UI contracts.
 - Playwright runs the production-shaped fixture app in desktop and mobile Chromium for search, domain navigation, map focus, details, comparison, provenance, history state, and simulated current location.
 
-The GitHub Quality workflow currently runs pre-commit formatting, linting, and module-boundary checks only. Pytest, Node, Playwright, and coverage enforcement remain local release checks until the planned `v0.4.3` CI hardening. The dated measured baseline is recorded in `NOTES.md`.
+The GitHub Quality workflow runs pre-commit formatting, linting, and module-boundary checks plus
+pytest and Node unit tests on pull requests and pushes to `main`. Playwright and coverage reporting/
+enforcement remain local release checks until the planned `v0.4.3` CI hardening. The dated measured
+baseline is recorded in `NOTES.md`.
 
 ## Data Stores
 
