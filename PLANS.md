@@ -1,18 +1,18 @@
 # Plan: Hydro-Québec Outage History App
 
 Date: 2026-04-25
-Last updated: 2026-07-10
+Last updated: 2026-07-11
 
 This file is the active execution plan. Keep durable evidence, source notes, and long historical reasoning in `NOTES.md`; keep completed release and implementation history in `CHANGELOG.md`; keep completed detail here only when it affects current decisions.
 
 ## Current State
 
-- Current deployed release: `v0.4.2`, public beta readiness (deployed 2026-07-10).
-- Current production deployment: Worker version `b2e79756-ce7c-4293-b7ec-28d3b6550b6b`; container image `pannes-historiques-pannescontainer:b2e79756`.
+- Current deployed release: `v0.4.2`, public beta readiness (deployed 2026-07-10), with post-release archive-map, WCAG, contributor-foundation, and service-worker-cache follow-ups deployed on 2026-07-11.
+- Current production deployment: Worker version `395dd418-e47b-443e-a60c-ecc8c0305b51`; container image `pannes-historiques-pannescontainer:395dd418`.
 - Current release in progress: `v0.4.3` runtime cost, public-read migration, and CI/test hardening. Earlier unclassified `500` responses are now a production-monitoring issue for this slice, not a public-announcement blocker. A first low-key beta feedback post was made to `r/HydroQuebec` on 2026-07-10; posting to `r/quebec` remains blocked because the account has `0` community comment karma and has not met the undisclosed activity threshold.
 - P1.1/P1.3 resolved for `v0.4.1`: the production D1 municipal archive is healthy (1,341 admin territories, all named, zero null-name primary bins; 24 h archive window live). The "Secteur 1000"/"24 h: 0" seen in the 2026-07-08 review were a container cold-start artifact — the baked SQLite fallback bins by Hydro area code and its degraded result was cached for the 120 s TTL. `v0.4.1` suppresses the code-named territory breakdown and skips caching when the durable D1 summary is expected but unavailable, so the tab recovers real names/fresh windows on the next request. The public durable endpoint `GET /api/durable/runtime/previous-archive-summary` returns named, fresh data directly.
 - Open follow-up (unchanged): the trusted container-runtime proxy check in `src/runtime-policy.js` still hardcodes `cf-worker === "dalaque.workers.dev"`; the container archive path currently authenticates via the operation token / the endpoint being un-gated, but the hardcoded host should still be made configurable.
-- Current repository state: `main` includes the deployed `v0.4.2` implementation plus the archive-focus and default-map-framing follow-up. Start `v0.4.3` in a new dedicated worktree/branch.
+- Current repository state: `main` includes the deployed `v0.4.2` implementation plus archive-focus/default-map-framing, WCAG, contributor-foundation, and service-worker-cache follow-ups. Start the substantive `v0.4.3` implementation in a new dedicated worktree/branch.
 - Current frontend state: production serves one full-bleed MapLibre GL map with the OpenFreeMap Liberty vector style plus a single sheet: peek/half/full detents on mobile and a floating panel on desktop. Search lives inside the sheet. A segmented control (`En cours`/`Planifiées`/`Archive`/`Contexte`) drives both sheet content and visible map domain. Address mode opens to an overview answer stack with current/planned status lines, a 14-month local-history chart, scoped domain views with a `5 km / Québec` toggle, in-sheet detail cards, a provenance card, and a browser-local comparison tray. The old Leaflet/HTMX/header/accordion/sidebar/show-hide model is no longer the current interface.
 - Production data plane: D1/R2-backed durable ingestion for current feed rows, previous-outage rows, raw Hydro-Québec payloads, disclosure metadata, and runtime map-context layers.
 - Container role: still renders the Flask/Jinja shell and keeps a baked-in SQLite snapshot for local-compatible/container fallback paths.
@@ -20,12 +20,13 @@ This file is the active execution plan. Keep durable evidence, source notes, and
 - Cost caveat: the June 2026 Cloudflare invoice was driven mostly by Workers Paid baseline plus Durable Object/container runtime costs; D1 and R2 were not material cost drivers on that bill.
 - User-facing URL contract: clean root URL with `lang`, `q`, or current-location coordinate parameters; obsolete public `radius_m`, `days`, and `include_planned` parameters were removed from the main interface.
 - Debug, collection, cron, internal export/file, direct durable-status, and durable runtime endpoints are private by default; production returns `404` unless the expected debug flag, Worker block, scheduled header, internal header, or operation token is present.
-- Current deployed release marker: service worker cache name `pannes-historiques-v0.4.2-map-framing-fix` with browser-module token `20260710c`.
-- Follow-up deployment smoke checks on 2026-07-10 returned `200` for `/healthz`, `/`, `/service-worker.js`, and the Archive sheet after the container reached `ready` with one live instance. Rendered browser checks showed the stable southern-Quebec overview and correctly focused a latest archived Saint-Mathieu-du-Parc event. The first health request during rollout returned `500`; a retry after 10 seconds returned `200` after an `8.73 s` cold start, followed by a `1.62 s` homepage response.
+- Current deployed release marker: service worker cache name `pannes-historiques-v0.4.2-cache-refresh` with browser-module token `20260710c`.
+- Latest deployment smoke checks on 2026-07-11 returned `200` for `/`, `/healthz`, and `/service-worker.js`; the live worker served the cache-refresh marker. The earlier 2026-07-10 archive-focus rollout also passed rendered production checks for the stable southern-Quebec overview and correctly focused a latest archived Saint-Mathieu-du-Parc event.
 - Current operational follow-ups from 2026-06-20 health sweep: remove or expire stale `ingestion_runs` rows stuck in `running`; group/de-duplicate the Archive "latest" summary rows by territory before display; monitor D1 growth (production D1 measured `1.35 GB` on 2026-07-08, up from `935 MB` on 2026-06-20 — the growth curve is steep enough that the retention/rollup policy under Cost Follow-up Thresholds should be scheduled this quarter rather than deferred); keep archive/count aggregations on materialized summaries rather than live full-table scans; continue moving user search paths away from the container where practical; and make the trusted container-runtime Worker host configurable instead of hardcoding the current `dalaque.workers.dev` value.
-- Current test baseline measured on 2026-07-10: 147 passing Python tests with 61% combined line/branch coverage; 34 passing Node tests with 96% line and 70% branch coverage across the imported helper modules only; and 48 Playwright desktop/mobile cases. The full browser run passed 47 and hit one mobile detail-close timeout that then passed three focused repeats. Coverage is strong in routes, sheet/view construction, and tested helpers, but remains weakest in Hydro ingestion, disclosure parsing, service orchestration, `src/worker.js`, `src/container.js`, and the main browser controllers. GitHub Quality currently runs pre-commit checks but not the test suites or a coverage gate.
+- Current locally collected test baseline on 2026-07-11: 149 Python tests and 38 Node tests pass; Playwright lists 48 desktop/mobile cases. The last measured combined Python line/branch coverage was 61% at 147 tests, so rerun coverage before treating that percentage as current. Coverage remains weakest in Hydro ingestion, disclosure parsing, service orchestration, `src/worker.js`, `src/container.js`, and the main browser controllers. GitHub Quality now runs pre-commit, pytest, and Node unit tests on pull requests and `main`, but does not yet publish/enforce coverage or run the Playwright suite.
 - Previous-outage accumulation is working in D1. On 2026-06-30 production had `18,236` resolved outage events and `146,109` folded outage sightings; all resolved outage events had centroids. Geographic archive bins were current through `bispoly:20260630193015:30`, but archive-bin completeness still needs a cleanup/audit pass.
 - Public-announcement state: the first beta feedback post is live in `r/HydroQuebec`; keep the broader `r/quebec` post as a later one-time community post after normal participation satisfies Reddit's eligibility requirement.
+- `r/HydroQuebec` feedback on 2026-07-11: one address-search user found the fixed 5 km nearby-outage radius too broad in a small municipality because it returned municipal-wide events that did not affect their address. Treat a user-adjustable nearby radius with an address-search-appropriate smaller default as a concrete `v0.4.3` usability need; keep the main URL free of obsolete public `radius_m` parameters. A separate commenter requested regional outage preparedness summaries and a long-term address dashboard; use that as validation input for the deferred `v0.5.2` regional analytics and `v0.5.1` saved-area evaluation rather than committing to an address-level dashboard now.
 
 ## Near-Term Public Announcement Readiness
 
@@ -155,7 +156,8 @@ Scope:
 - Add a private cost-health/ops check for container live state, last wake, latest scheduled run, D1 size, R2 approximate state if available, ingestion status, and archive materialization status.
 - Monitor recurring production `500` responses and add persistent route, user-agent, and country attribution if live-tail evidence remains insufficient.
 - Add a low-cost production mode or documented kill switch where public routes refuse container wakeups and serve last-known-good durable data.
-- Make GitHub Quality run pytest and Node tests, publish a measured coverage report, and introduce a non-regressing coverage floor. Decide whether the full Playwright matrix belongs on every pull request or on protected main/release runs.
+- Make the nearby-outage radius adjustable in the search UI, with a smaller default for typed address searches and a clear selected-distance label. Preserve the clean URL contract rather than restoring public `radius_m` parameters.
+- Keep GitHub Quality running pytest and Node tests; add a measured coverage report and a non-regressing coverage floor. Decide whether the full Playwright matrix belongs on every pull request or on protected main/release runs.
 - Stabilize the mobile disclosure-detail close scenario that can time out in the full six-worker Playwright run even though focused repeats pass.
 
 Acceptance criteria:
@@ -164,6 +166,7 @@ Acceptance criteria:
 - Search/sheet smoke checks show fewer container wakeups for ordinary user flows than `v0.4.1`.
 - The hardcoded Worker host is replaced by configuration with tests.
 - Cost-health output is private and operation-token protected.
+- A typed-address search can narrow nearby archive evidence below the current 5 km default without exposing an obsolete radius parameter in the public URL.
 - CI rejects Python or Node test failures and records coverage for the code it measures; the browser-suite policy and any quarantined flake are explicit.
 
 Non-goals:
@@ -305,6 +308,7 @@ Goal: turn accumulated archive/disclosure data into useful public analytical vie
 Scope:
 
 - Build regional/municipal archive summaries and `Bilan par région`-style views from materialized summaries, not live full-table scans.
+- Use the `r/HydroQuebec` request for preparedness-oriented regional context as research input; validate whether a regional view can communicate observed outage frequency without implying a complete Hydro-Québec reliability ranking.
 - Decide whether analytical maps need MapLibre-only rendering or a high-scale visualization layer such as deck.gl.
 - Add source/caveat language for each analytical view, including retained-observation limits and disclosure-source differences.
 - Add downloadable or copyable summary tables only where row counts, privacy, and provenance are acceptable.
@@ -360,7 +364,7 @@ Until one of those thresholds is met, keep ideas such as multi-channel alerting 
 
 - Keep the full Python test suite, Node static-module tests, module-boundary checks, template linting, and Biome checks green for every release slice.
 - `v0.4.2` completed: browser coverage now includes the comparison tray, provenance card, disclosure/regional details, simulated current location, and desktop/mobile sheet/detail states.
-- `v0.4.3`: add Worker/runtime-policy tests for configurable container host checks, private cost-health endpoints, and runtime markers that distinguish Worker/static/D1/R2 responses from container responses. Add pytest and Node to CI, record coverage, ratchet a realistic floor upward, and make the Playwright gating/flaky-test policy explicit.
+- `v0.4.3`: add Worker/runtime-policy tests for configurable container host checks, private cost-health endpoints, and runtime markers that distinguish Worker/static/D1/R2 responses from container responses. Keep pytest and Node in CI, record coverage, ratchet a realistic floor upward, and make the Playwright gating/flaky-test policy explicit.
 - `v0.4.4`: add archive-health tests for stale ingestion-run cleanup, latest-row grouping, archive-bin completeness metrics, and retention/rollup behavior.
 - `v0.4.5`: add route/header tests for well-known files, machine-readable metadata, public/private route documentation, and security headers.
 - `v0.4.6`: treat saved-area and notification work as design-first until a go/no-go decision is written; do not add push-notification code without privacy/storage tests.
@@ -399,7 +403,7 @@ Before handing off code changes:
 - Runtime/cost architecture (`v0.4.3`) still depends on the hardcoded `dalaque.workers.dev` trusted Worker host and on container-backed search/render paths; representative search is warm-fast, but ordinary public reads should keep moving toward Worker/static/D1/R2 paths.
 - Archive health (`v0.4.4`) needs stale `ingestion_runs` cleanup, latest-row de-duplication, archive-bin completeness classification/repair, and a D1 retention/rollup policy; production D1 grew from about `935 MB` on 2026-06-20 to `1.35 GB` on 2026-07-08.
 - The desktop floating sheet is more coherent than the old side panel, but disclosure/regional detail panels can still make dense states feel crowded; use production observations before widening the panel again by default.
-- Accessibility still needs a dedicated W3C/WCAG pass beyond the current keyboard/focus regression checks; schedule the practical pass with `v0.4.5` public-surface work.
+- The WCAG pass shipped contrast, reduced-motion, live-region, dialog-focus, and keyboard regression fixes. Remaining proof gaps are manual screen-reader/assistive-technology checks and an automated axe-style audit, which belong with `v0.4.5` public-surface work.
 - Cloudflare performance work now has two tracks: container/app response-time reduction already shipped, while static asset/module waterfall measurement belongs with `v0.4.3` runtime-cost evaluation before any bundler decision.
 - The first-party JS module split improves maintainability, but it increases native module requests; measure this on Cloudflare before assuming either native modules or bundling is better.
 - DAI/disclosure detail panels are data-rich and still visually fragile; keep checking for overlapping text, horizontal scrolling, and unreadable dense rows when deploying any frontend follow-up.
