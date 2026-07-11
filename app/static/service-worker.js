@@ -1,4 +1,4 @@
-const CACHE_NAME = "pannes-historiques-v0.4.2-map-framing-fix";
+const CACHE_NAME = "pannes-historiques-v0.4.2-cache-refresh";
 const APP_SHELL_URLS = [
   "/static/app.css",
   "/static/app.js",
