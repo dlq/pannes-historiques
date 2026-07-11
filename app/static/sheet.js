@@ -19,8 +19,11 @@ const DETENTS = ["peek", "half", "full"];
 // before measuring insets or moving the camera.
 const SHEET_SETTLE_MS = 320;
 const LAYER_KEYS = ["current", "planned", "previous", "published"];
+const DIALOG_FOCUSABLE_SELECTOR =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 let mapLabels = {};
+let detailInvoker = null;
 const sheetState = {
   lang: document.documentElement.lang || "fr",
   domain: "current",
@@ -46,6 +49,26 @@ function sheetDetail() {
 
 function detailPanel() {
   return document.querySelector("dai-detail-panel");
+}
+
+function sheetStatus() {
+  return document.querySelector("#sheet-status");
+}
+
+function detailBackgroundElements() {
+  return [
+    sheetBody(),
+    document.querySelector("#ph-map"),
+    document.querySelector(".ph-brand-chip"),
+    document.querySelector(".ph-map-controls"),
+    document.querySelector(".ph-sheet-grabber"),
+  ].filter(Boolean);
+}
+
+function setDetailBackgroundInert(isOpen) {
+  for (const element of detailBackgroundElements()) {
+    element.toggleAttribute("inert", isOpen);
+  }
 }
 
 function isMobileLayout() {
@@ -198,7 +221,25 @@ function applyMapUpdate(root) {
   }, SHEET_SETTLE_MS);
 }
 
-function closeDetailCards() {
+function focusDetailCard(card) {
+  window.requestAnimationFrame(() => {
+    const closeButton = card.querySelector("[data-detail-close], [data-dai-detail-close]");
+    (closeButton || card).focus({ preventScroll: true });
+  });
+}
+
+function openDetailCard(card, invoker = document.activeElement) {
+  if (!card) return;
+  if (invoker instanceof HTMLElement && invoker !== document.body) {
+    detailInvoker = invoker;
+  }
+  card.hidden = false;
+  setDetailBackgroundInert(true);
+  card.scrollTop = 0;
+  focusDetailCard(card);
+}
+
+function closeDetailCards({ restoreFocus = false } = {}) {
   const detail = sheetDetail();
   if (detail) {
     detail.hidden = true;
@@ -208,6 +249,81 @@ function closeDetailCards() {
   if (provenance) provenance.hidden = true;
   const panel = detailPanel();
   if (panel && typeof panel.renderEmpty === "function") panel.renderEmpty();
+  setDetailBackgroundInert(false);
+  if (restoreFocus && detailInvoker?.isConnected) {
+    detailInvoker.focus({ preventScroll: true });
+  }
+  detailInvoker = null;
+}
+
+function openDetailCardForEvent(card) {
+  openDetailCard(card, detailInvoker || document.activeElement);
+}
+
+function activeDetailCard() {
+  return [sheetDetail(), document.querySelector("#sheet-provenance"), detailPanel()].find(
+    (card) => card && !card.hidden,
+  );
+}
+
+function trapDetailFocus(event) {
+  const card = activeDetailCard();
+  if (!card) return;
+  if (event.key === "Escape") {
+    event.preventDefault();
+    closeDetailCards({ restoreFocus: true });
+    return;
+  }
+  if (event.key !== "Tab") return;
+  const focusable = [...card.querySelectorAll(DIALOG_FOCUSABLE_SELECTOR)];
+  if (!focusable.length) {
+    event.preventDefault();
+    card.focus({ preventScroll: true });
+    return;
+  }
+  const first = focusable[0];
+  const last = focusable.at(-1);
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
+}
+
+function announceSheetUpdate() {
+  const status = sheetStatus();
+  const body = sheetBody();
+  if (!status || !body) return;
+  const summary = body
+    .querySelector(".ph-sheet-title, .ph-domain-title, .ph-domain-summary-title, .ph-empty")
+    ?.textContent?.trim();
+  if (!summary) return;
+  status.textContent = "";
+  window.requestAnimationFrame(() => {
+    status.textContent = summary;
+  });
+}
+
+function focusAfterSheetUpdate(target) {
+  if (!target) return;
+  const body = sheetBody();
+  if (!body) return;
+  const selector =
+    target === "domain"
+      ? ".ph-segment.is-active"
+      : target === "scope"
+        ? ".ph-scope-button.is-active"
+        : target === "search"
+          ? "#address-input"
+          : ".ph-sheet-title, .ph-domain-title, .ph-domain-summary-title, .ph-empty";
+  const element = body.querySelector(selector);
+  if (!element) return;
+  if (!element.matches("button, input, select, textarea, a[href], [tabindex]")) {
+    element.setAttribute("tabindex", "-1");
+  }
+  element.focus({ preventScroll: true });
 }
 
 function rowSortValues(item) {
@@ -280,7 +396,7 @@ function showSheetError() {
 
 let sheetFetchSequence = 0;
 
-export async function fetchSheet(updates = {}, { pushUrl = true } = {}) {
+export async function fetchSheet(updates = {}, { pushUrl = true, focus = null } = {}) {
   const previousState = { ...sheetState };
   Object.assign(sheetState, updates);
   const sheet = sheetElement();
@@ -290,6 +406,7 @@ export async function fetchSheet(updates = {}, { pushUrl = true } = {}) {
   const isCurrentRequest = () => requestId === sheetFetchSequence;
   closeDetailCards();
   sheet.classList.add("is-loading");
+  body.setAttribute("aria-busy", "true");
   const url = new URL("/sheet", window.location.origin);
   url.searchParams.set("lang", sheetState.lang);
   url.searchParams.set("domain", sheetState.domain);
@@ -308,6 +425,8 @@ export async function fetchSheet(updates = {}, { pushUrl = true } = {}) {
     if (!isCurrentRequest()) return;
     body.innerHTML = html;
     bindSheetContent();
+    announceSheetUpdate();
+    focusAfterSheetUpdate(focus);
     if (isMobileLayout() && hasAddress() && currentDetent() !== "half") {
       setDetent("half");
     }
@@ -327,7 +446,10 @@ export async function fetchSheet(updates = {}, { pushUrl = true } = {}) {
     Object.assign(sheetState, previousState);
     showSheetError();
   } finally {
-    if (isCurrentRequest()) sheet.classList.remove("is-loading");
+    if (isCurrentRequest()) {
+      sheet.classList.remove("is-loading");
+      body.setAttribute("aria-busy", "false");
+    }
   }
 }
 
@@ -407,7 +529,7 @@ function operationalDetailHtml(item) {
         <svg class="ph-icon" aria-hidden="true" focusable="false"><use href="/static/icons.svg#ph-icon-chevron-left"></use></svg>
       </button>
       <div class="ph-sheet-header-text">
-        <h2 class="ph-sheet-title">${escapeHtml(title)}${escapeHtml(dateTitle)}</h2>
+        <h2 id="sheet-detail-title" class="ph-sheet-title">${escapeHtml(title)}${escapeHtml(dateTitle)}</h2>
         ${distanceLine ? `<p class="ph-sheet-subtitle">${escapeHtml(distanceLine)}</p>` : ""}
       </div>
       <button class="ph-round-button" type="button" data-detail-close aria-label="${escapeHtml(label(mapLabels, "detail_close", "Close"))}">
@@ -431,17 +553,17 @@ function showOperationalDetail(item) {
   const panel = detailPanel();
   if (panel && typeof panel.renderEmpty === "function") panel.renderEmpty();
   detail.innerHTML = operationalDetailHtml(item);
-  detail.hidden = false;
-  detail.scrollTop = 0;
+  openDetailCardForEvent(detail);
   if (isMobileLayout() && currentDetent() === "full") setDetent("half");
 }
 
 function bindGlobalHandlers() {
   const handleDetailClose = (event) => {
-    const detailClose = event.target.closest("[data-detail-close]");
+    const detailClose = event.target.closest("[data-detail-close], [data-dai-detail-close]");
     if (detailClose) {
       event.preventDefault();
-      closeDetailCards();
+      event.stopPropagation();
+      closeDetailCards({ restoreFocus: true });
     }
   };
   document.body.addEventListener("click", handleDetailClose);
@@ -453,8 +575,7 @@ function bindGlobalHandlers() {
       event.preventDefault();
       const provenance = document.querySelector("#sheet-provenance");
       if (provenance) {
-        provenance.hidden = false;
-        provenance.scrollTop = 0;
+        openDetailCard(provenance, layerInfo);
         if (isMobileLayout() && currentDetent() === "peek") setDetent("half");
       }
       return;
@@ -464,13 +585,13 @@ function bindGlobalHandlers() {
       event.preventDefault();
       closeDetailCards();
       const nextScope = domainLink.dataset.scopeLink || sheetState.scope;
-      fetchSheet({ domain: domainLink.dataset.domainLink, scope: nextScope });
+      fetchSheet({ domain: domainLink.dataset.domainLink, scope: nextScope }, { focus: "domain" });
       return;
     }
     const scopeLink = event.target.closest("[data-scope-link]");
     if (scopeLink) {
       event.preventDefault();
-      fetchSheet({ scope: scopeLink.dataset.scopeLink });
+      fetchSheet({ scope: scopeLink.dataset.scopeLink }, { focus: "scope" });
       return;
     }
     const sortOption = event.target.closest("[data-sort-option]");
@@ -485,7 +606,10 @@ function bindGlobalHandlers() {
       event.preventDefault();
       const input = document.querySelector("#address-input");
       if (input) input.value = "";
-      fetchSheet({ q: "", lat: "", lon: "", accuracy: "", domain: "current", scope: "local" });
+      fetchSheet(
+        { q: "", lat: "", lon: "", accuracy: "", domain: "current", scope: "local" },
+        { focus: "search" },
+      );
       return;
     }
     const langSwitch = event.target.closest("[data-lang-switch]");
@@ -510,7 +634,10 @@ function bindGlobalHandlers() {
     event.preventDefault();
     const query = form.querySelector('[name="q"]')?.value.trim() || "";
     if (!query) return;
-    fetchSheet({ q: query, lat: "", lon: "", accuracy: "", domain: "overview", scope: "local" });
+    fetchSheet(
+      { q: query, lat: "", lon: "", accuracy: "", domain: "overview", scope: "local" },
+      { focus: "result" },
+    );
   });
 
   for (const eventName of ["operational-layer-selected"]) {
@@ -525,6 +652,7 @@ function bindGlobalHandlers() {
         detail.hidden = true;
         detail.innerHTML = "";
       }
+      openDetailCardForEvent(detailPanel());
       if (isMobileLayout() && currentDetent() === "peek") setDetent("half");
     });
   }
@@ -535,6 +663,8 @@ function bindGlobalHandlers() {
     focusRow(row);
   });
   document.body.addEventListener("keydown", (event) => {
+    trapDetailFocus(event);
+    if (event.defaultPrevented) return;
     if (event.key !== "Enter" && event.key !== " ") return;
     const row = event.target.closest("[data-map-focus]");
     if (!row) return;
@@ -550,6 +680,7 @@ function focusRow(row) {
   } catch (_error) {
     return;
   }
+  detailInvoker = row;
   for (const candidate of document.querySelectorAll("[data-map-focus]")) {
     candidate.classList.toggle("is-map-selected", candidate === row);
   }

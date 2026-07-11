@@ -101,6 +101,8 @@ test("segmented control switches explore domains and map layers", async ({ page 
   await page.locator('.ph-segment[data-domain-link="planned"]').click();
   await plannedResponse;
   await expect(page.locator('.ph-sheet-content[data-domain="planned"]')).toBeVisible();
+  await expect(page.locator("#sheet-status")).not.toBeEmpty();
+  await expect(page.locator('.ph-segment[data-domain-link="planned"]')).toBeFocused();
   await expect(page.locator(".ph-date-tile").first()).toBeVisible();
   await expect(page.locator('[data-domain-rows="planned"] .ph-row').first()).toBeVisible();
 
@@ -175,14 +177,19 @@ test("provenance card opens from the explore footer and the hero info button", a
 
   await page.locator('.ph-sheet-footer-link[data-layer-info]').click();
   await expect(page.locator("#sheet-provenance")).toBeVisible();
+  await expect(page.locator("#sheet-provenance")).toHaveAttribute("role", "dialog");
+  await expect(page.locator("#sheet-provenance [data-detail-close]")).toBeFocused();
+  await expect(page.locator("#ph-map")).toHaveAttribute("inert", "");
   await expect(page.locator("#sheet-provenance .ph-sheet-title")).toHaveText("About this data");
   await expect(page.locator("#sheet-provenance .ph-provenance-item")).toHaveCount(3);
   await expect(
     page.locator('#sheet-provenance a[href="mailto:contact@pannes.ca"]'),
   ).toBeVisible();
   await expect(page.locator('#sheet-provenance a[href*="github"]')).toBeVisible();
-  await page.locator("#sheet-provenance [data-detail-close]").click();
+  await page.keyboard.press("Escape");
   await expect(page.locator("#sheet-provenance")).toBeHidden();
+  await expect(page.locator("#ph-map")).not.toHaveAttribute("inert", "");
+  await expect(page.locator('.ph-sheet-footer-link[data-layer-info]')).toBeFocused();
 });
 
 test("failed sheet fetches show an error and recover", async ({ page }) => {
@@ -424,6 +431,8 @@ test("regional context rows open the regional metric card", async ({ page }) => 
 
   const panel = page.locator("dai-detail-panel");
   await expect(panel).toBeVisible();
+  await expect(panel).toHaveAttribute("role", "dialog");
+  await expect(panel.locator("[data-dai-detail-close]")).toBeFocused();
   await expect(panel.locator(".ph-sheet-title")).toHaveText("Montreal");
   await expect(panel.locator(".ph-detail-facts")).toContainText("184");
   await expect(panel.locator(".ph-detail-facts")).toContainText("DAI source");

@@ -48,7 +48,7 @@ function detailShell({ title, subtitle = "", action = "", body = "", labels = {}
   return `
     <header class="ph-sheet-header">
       <div class="ph-sheet-header-text">
-        <h2 class="ph-sheet-title">${escapeHtml(title || label(labels, "unknown", "unknown"))}</h2>
+        <h2 id="dai-detail-title" class="ph-sheet-title">${escapeHtml(title || label(labels, "unknown", "unknown"))}</h2>
         ${subtitle ? `<p class="ph-sheet-subtitle">${escapeHtml(subtitle)}</p>` : ""}
       </div>
       <button type="button"

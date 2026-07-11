@@ -3,7 +3,7 @@
 :root {
   --ph-ink: #1b1b1f;
   --ph-ink-2: #55555c;
-  --ph-ink-3: #8e8e93;
+  --ph-ink-3: #6d6d73;
   --ph-control: #efeff0;
   --ph-hairline: #e6e6ea;
   --ph-card: #f7f7f8;
@@ -1315,4 +1315,16 @@ button {
 
 .ph-about-page .ph-overview-actions {
   margin-top: 24px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ph-sheet,
+  .ph-sheet.is-dragging,
+  .ph-sheet.is-loading .ph-sheet-body {
+    transition-duration: 0.01ms;
+  }
+
+  .ph-button-spinner {
+    animation: none;
+  }
 }

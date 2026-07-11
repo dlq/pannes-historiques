@@ -70,11 +70,27 @@
         <span class="ph-sheet-grabber-bar" aria-hidden="true"></span>
       </button>
       <div id="sheet-body" class="ph-sheet-body" tabindex="-1">{% include "_sheet.html" %}</div>
-      <div id="sheet-detail" class="ph-sheet-detail" hidden></div>
-      <div id="sheet-provenance" class="ph-sheet-detail" hidden>
+      <p id="sheet-status"
+         class="sr-only"
+         aria-live="polite"
+         aria-atomic="true"></p>
+      <div id="sheet-detail"
+           class="ph-sheet-detail"
+           role="dialog"
+           aria-modal="true"
+           aria-labelledby="sheet-detail-title"
+           tabindex="-1"
+           hidden></div>
+      <div id="sheet-provenance"
+           class="ph-sheet-detail"
+           role="dialog"
+           aria-modal="true"
+           aria-labelledby="sheet-provenance-title"
+           tabindex="-1"
+           hidden>
         <header class="ph-sheet-header">
           <div class="ph-sheet-header-text">
-            <h2 class="ph-sheet-title">{{ t(lang, "provenance_title") }}</h2>
+            <h2 id="sheet-provenance-title" class="ph-sheet-title">{{ t(lang, "provenance_title") }}</h2>
           </div>
           <button class="ph-round-button"
                   type="button"
@@ -119,7 +135,7 @@
           </li>
         </ul>
       </div>
-      <dai-detail-panel class="ph-dai-detail-panel" title-label="{{ t(lang, 'disclosure') }}" empty-label="{{ t(lang, 'disclosure_empty') }}" hidden></dai-detail-panel>
+      <dai-detail-panel class="ph-dai-detail-panel" title-label="{{ t(lang, 'disclosure') }}" empty-label="{{ t(lang, 'disclosure_empty') }}" role="dialog" aria-modal="true" aria-labelledby="dai-detail-title" tabindex="-1" hidden></dai-detail-panel>
     </section>
   </body>
 </html>
