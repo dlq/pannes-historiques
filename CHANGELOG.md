@@ -4,6 +4,30 @@ All notable completed release and implementation history for the Hydro-Quebec Ou
 
 Keep active execution state in `PLANS.md` and source/evidence research in `NOTES.md`.
 
+## [Unreleased]
+
+### Added
+
+- Added contributor foundations: an MIT license, code of conduct, security reporting policy, contribution guide, issue forms, pull-request template, and GitHub Quality workflow.
+- GitHub Quality now runs pre-commit, pytest, and Node unit tests for pull requests and pushes to `main`.
+- Added regression coverage for durable-runtime behavior, Worker/container proxy boundaries, sheet dialog accessibility, archive-map focus, and default map framing.
+
+### Changed
+
+- Removed one-off live UI-audit artifacts from version control; generated audit and test evidence now belongs under ignored `tmp/` paths.
+- Kept public documentation, contributor guidance, architecture notes, and the active roadmap aligned with the current public-beta state and community feedback.
+
+### Fixed
+
+- Archived-outage rows now retain their territory identity and focus the map on a valid Quebec location; the initial map view uses a stable southern-Quebec overview rather than following a remote live outage.
+- Improved sheet accessibility with stronger secondary-text contrast, reduced-motion handling, live update announcements, dialog labeling, focus trapping, Escape handling, and focus restoration.
+- Refreshed the service-worker cache namespace so returning clients replace stale pre-MapLibre/Leaflet app shells on their next visit.
+
+### Verified
+
+- Current local baseline: 149 Python tests and 38 Node unit tests pass; Playwright lists 48 desktop/mobile cases.
+- Deployed the service-worker cache refresh on 2026-07-11 as Worker version `395dd418-e47b-443e-a60c-ecc8c0305b51`; live `/`, `/healthz`, and `/service-worker.js` checks returned `200` and the new cache marker was present.
+
 ## [v0.4.2] - 2026-07-10
 
 ### Added
