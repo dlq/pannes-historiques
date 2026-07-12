@@ -18,6 +18,20 @@ const stylesSource = readFileSync(new URL("../app/static/app.css", import.meta.u
 test("operational detail close buttons handle pointerup as well as click", () => {
   assert.match(sheetSource, /addEventListener\("click", handleDetailClose\)/);
   assert.match(sheetSource, /addEventListener\("pointerup", handleDetailClose\)/);
+  assert.match(sheetSource, /event\.stopImmediatePropagation\(\)/);
+});
+
+test("operational detail close buttons suppress mobile ghost row clicks", () => {
+  assert.match(sheetSource, /document\.addEventListener\("pointerdown", markCloseGestureStart/);
+  assert.match(sheetSource, /document\.addEventListener\("mousedown", markCloseGestureStart/);
+  assert.match(sheetSource, /document\.addEventListener\("touchstart", markCloseGestureStart/);
+  assert.match(
+    sheetSource,
+    /closeGestureStartedOnClose = Boolean\(\s*event\.target\.closest\("\[data-detail-close\], \[data-dai-detail-close\]"\)/,
+  );
+  assert.match(sheetSource, /closeGestureStartedOnClose = true/);
+  assert.match(sheetSource, /const skipGhost = closeGestureStartedOnClose/);
+  assert.match(sheetSource, /if \(skipGhost\) return/);
 });
 
 test("disclosure detail close buttons handle pointerup as well as click", () => {

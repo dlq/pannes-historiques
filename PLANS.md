@@ -1,7 +1,7 @@
 # Plan: Hydro-Québec Outage History App
 
 Date: 2026-04-25
-Last updated: 2026-07-11
+Last updated: 2026-07-12
 
 This file is the active execution plan. Keep durable evidence, source notes, and long historical reasoning in `NOTES.md`; keep completed release and implementation history in `CHANGELOG.md`; keep completed detail here only when it affects current decisions.
 
@@ -9,7 +9,7 @@ This file is the active execution plan. Keep durable evidence, source notes, and
 
 - Current deployed release: `v0.4.2`, public beta readiness (deployed 2026-07-10), with post-release archive-map, WCAG, contributor-foundation, and service-worker-cache follow-ups deployed on 2026-07-11.
 - Current production deployment: Worker version `395dd418-e47b-443e-a60c-ecc8c0305b51`; container image `pannes-historiques-pannescontainer:395dd418`.
-- Current release in progress: `v0.4.3` runtime cost, public-read migration, and CI/test hardening. Earlier unclassified `500` responses are now a production-monitoring issue for this slice, not a public-announcement blocker. A first low-key beta feedback post was made to `r/HydroQuebec` on 2026-07-10; posting to `r/quebec` remains blocked because the account has `0` community comment karma and has not met the undisclosed activity threshold.
+- Current release in progress: `v0.4.3` cost-containment architecture, instrumentation, and first public-read migration. Bias this slice toward reducing recurring container/runtime cost before beta-feedback UX work. Earlier unclassified `500` responses are now a production-monitoring issue for this slice, not a public-announcement blocker. A first low-key beta feedback post was made to `r/HydroQuebec` on 2026-07-10; posting to `r/quebec` remains blocked because the account has `0` community comment karma and has not met the undisclosed activity threshold.
 - P1.1/P1.3 resolved for `v0.4.1`: the production D1 municipal archive is healthy (1,341 admin territories, all named, zero null-name primary bins; 24 h archive window live). The "Secteur 1000"/"24 h: 0" seen in the 2026-07-08 review were a container cold-start artifact — the baked SQLite fallback bins by Hydro area code and its degraded result was cached for the 120 s TTL. `v0.4.1` suppresses the code-named territory breakdown and skips caching when the durable D1 summary is expected but unavailable, so the tab recovers real names/fresh windows on the next request. The public durable endpoint `GET /api/durable/runtime/previous-archive-summary` returns named, fresh data directly.
 - Open follow-up (unchanged): the trusted container-runtime proxy check in `src/runtime-policy.js` still hardcodes `cf-worker === "dalaque.workers.dev"`; the container archive path currently authenticates via the operation token / the endpoint being un-gated, but the hardcoded host should still be made configurable.
 - Current repository state: `main` includes the deployed `v0.4.2` implementation plus archive-focus/default-map-framing, WCAG, contributor-foundation, and service-worker-cache follow-ups. Start the substantive `v0.4.3` implementation in a new dedicated worktree/branch.
@@ -26,7 +26,7 @@ This file is the active execution plan. Keep durable evidence, source notes, and
 - Current locally collected test baseline on 2026-07-11: 149 Python tests and 38 Node tests pass; Playwright lists 48 desktop/mobile cases. The last measured combined Python line/branch coverage was 61% at 147 tests, so rerun coverage before treating that percentage as current. Coverage remains weakest in Hydro ingestion, disclosure parsing, service orchestration, `src/worker.js`, `src/container.js`, and the main browser controllers. GitHub Quality now runs pre-commit, pytest, and Node unit tests on pull requests and `main`, but does not yet publish/enforce coverage or run the Playwright suite.
 - Previous-outage accumulation is working in D1. On 2026-06-30 production had `18,236` resolved outage events and `146,109` folded outage sightings; all resolved outage events had centroids. Geographic archive bins were current through `bispoly:20260630193015:30`, but archive-bin completeness still needs a cleanup/audit pass.
 - Public-announcement state: the first beta feedback post is live in `r/HydroQuebec`; keep the broader `r/quebec` post as a later one-time community post after normal participation satisfies Reddit's eligibility requirement.
-- `r/HydroQuebec` feedback on 2026-07-11: one address-search user found the fixed 5 km nearby-outage radius too broad in a small municipality because it returned municipal-wide events that did not affect their address. Treat a user-adjustable nearby radius with an address-search-appropriate smaller default as a concrete `v0.4.3` usability need; keep the main URL free of obsolete public `radius_m` parameters. A separate commenter requested regional outage preparedness summaries and a long-term address dashboard; use that as validation input for the deferred `v0.5.2` regional analytics and `v0.5.1` saved-area evaluation rather than committing to an address-level dashboard now.
+- `r/HydroQuebec` feedback on 2026-07-11: one address-search user found the fixed 5 km nearby-outage radius too broad in a small municipality because it returned municipal-wide events that did not affect their address. Treat a user-adjustable nearby radius with an address-search-appropriate smaller default as a concrete usability need, but schedule it after the first cost-containment slice unless implementation naturally falls out of the same public-read work. Keep the main URL free of obsolete public `radius_m` parameters. A separate commenter requested regional outage preparedness summaries and a long-term address dashboard; use that as validation input for future regional analytical framing, not as a commitment to saved areas or notifications.
 - Support boundary for address-specific disputes: pannes.ca can show retained observations near an address, not certify service at that residence. Direct requests that need confirmation for a contractor, employer, insurance claim, or other dispute to [Hydro-Québec's official past-outage form](https://www.hydroquebec.com/sefco2016/nous-joindre/panne-passee.html), which accepts an address and date range and sends its response by mail.
 
 ## Near-Term Public Announcement Readiness
@@ -73,6 +73,20 @@ Primary architecture direction:
 - Ordinary browsing, startup map context, address search, layer toggles, archive summaries, disclosure summaries, language switches, and static assets should be served by Worker/static/D1/R2 paths.
 - The Python container should become an internal parser/batch service for scheduled ingestion, complex one-off maintenance, and local-compatible development behavior.
 - Production writes and durable state should stay in D1/R2; container-local writes remain ephemeral and should not be part of the production data contract.
+
+Open architecture options:
+
+1. Worker-first public reads, container for parsing/batch/fallback.
+   - Most aligned with cost containment: public routes read from D1/R2/materialized artifacts, and the container wakes only for scheduled ingestion, heavy parser jobs, local parity, or explicit fallback.
+   - Tradeoff: some Jinja/Flask rendering logic must be moved, duplicated, or replaced by static/Worker-rendered fragments.
+2. Hybrid renderer: Flask remains canonical, Worker caches/materializes the expensive reads.
+   - Lowest migration risk: keep current Flask templates and move only data-heavy endpoints and summaries to D1/R2-backed Worker routes.
+   - Tradeoff: public browsing can still wake the container unless cache and low-cost mode are strict.
+3. Static shell plus Worker APIs.
+   - Cleanest long-term public-read shape: static HTML/JS/CSS shell, Worker APIs for data, container only for ingestion/maintenance.
+   - Tradeoff: larger frontend rewrite and more API contract pressure before the product semantics are fully settled.
+
+Current preference: use `v0.4.3` to measure and choose between options 1 and 2. Avoid option 3 until runtime evidence shows the current sheet/Jinja path is the main obstacle.
 
 Execution plan:
 
@@ -144,39 +158,89 @@ Non-goals:
 - No large frontend redesign beyond readiness copy and focused regression coverage.
 - No production deploy unless explicitly requested.
 
-### `v0.4.3`: Runtime Cost, Public Read Migration, And CI Hardening
+### `v0.4.3`: Cost Containment Architecture And Runtime Instrumentation
 
-Goal: reduce normal public browsing/search dependence on the Python container, make runtime cost visible, and ensure test regressions are caught in CI.
+Goal: reduce normal public browsing/search dependence on the Python container, make runtime cost visible, and choose the public-read architecture with evidence.
 
 Scope:
 
 - Add response headers or `Server-Timing` markers that distinguish Worker/static/D1/R2 responses from container responses on browser paths.
 - Classify public routes as `edge-safe`, `container-needed`, or `internal-only`; document the classification in `NOTES.md` or a small architecture doc.
-- Move the highest-value public reads toward Worker/D1/R2 first: homepage shell data, `/sheet` domain changes where practical, operational map layers, archive summaries, and disclosure summaries.
+- Compare the Worker-first and hybrid-renderer options against current traffic, implementation risk, and expected Cloudflare cost.
+- Move the first highest-value public reads toward Worker/D1/R2 where the measured path is clear: startup map context, operational map layers, archive summaries, and disclosure summaries.
 - Make the trusted container-runtime Worker host configurable instead of hardcoding `dalaque.workers.dev`.
 - Add a private cost-health/ops check for container live state, last wake, latest scheduled run, D1 size, R2 approximate state if available, ingestion status, and archive materialization status.
 - Monitor recurring production `500` responses and add persistent route, user-agent, and country attribution if live-tail evidence remains insufficient.
 - Add a low-cost production mode or documented kill switch where public routes refuse container wakeups and serve last-known-good durable data.
-- Make the nearby-outage radius adjustable in the search UI, with a smaller default for typed address searches and a clear selected-distance label. Preserve the clean URL contract rather than restoring public `radius_m` parameters.
-- Keep GitHub Quality running pytest and Node tests; add a measured coverage report and a non-regressing coverage floor. Decide whether the full Playwright matrix belongs on every pull request or on protected main/release runs.
-- Stabilize the mobile disclosure-detail close scenario that can time out in the full six-worker Playwright run even though focused repeats pass.
+- Keep the full nearby-radius UI change out of this slice unless the chosen public-read path naturally requires touching the same address summary contract.
+- Keep broad CI hardening out of this slice except for tests needed to prove runtime policy and private cost-health behavior.
 
 Acceptance criteria:
 
 - Representative public paths report which runtime served them.
 - Search/sheet smoke checks show fewer container wakeups for ordinary user flows than `v0.4.1`.
+- `PLANS.md` or `docs/architecture.md` records the selected near-term architecture option and rejected alternatives.
 - The hardcoded Worker host is replaced by configuration with tests.
 - Cost-health output is private and operation-token protected.
-- A typed-address search can narrow nearby archive evidence below the current 5 km default without exposing an obsolete radius parameter in the public URL.
-- CI rejects Python or Node test failures and records coverage for the code it measures; the browser-suite policy and any quarantined flake are explicit.
 
 Non-goals:
 
 - No rewrite of the Flask shell.
 - No change to durable raw-data provenance.
 - No user-facing API versioning.
+- No saved areas, accounts, or notifications.
 
-### `v0.4.4`: Archive Health, Retention, And D1 Growth Control
+### `v0.4.4`: Contributor Readiness, CI Hardening, And Beta UX Follow-Up
+
+Goal: make the repo easier for external contributors while addressing the smallest user-facing beta feedback that does not depend on unresolved cost architecture.
+
+Scope:
+
+- Keep GitHub Quality running pytest and Node tests; add a measured coverage report and a non-regressing coverage floor.
+- Decide whether the full Playwright matrix belongs on every pull request or on protected main/release runs; document any quarantine policy explicitly.
+- Turn the mobile disclosure/detail close fix into a committed regression if it has not already shipped.
+- Add a contributor-friendly issue map for first external tasks: docs-only, tests-only, UI copy, Worker policy, archive-health, and data-source fixtures.
+- Make the nearby-outage radius adjustable in the search UI, with a smaller default for typed address searches and a clear selected-distance label. Preserve the clean URL contract rather than restoring public `radius_m` parameters.
+- Tighten `docs/contributing.md`, `docs/architecture.md`, and module-boundary notes where the cost-containment work creates a better explanation for the Worker/container split.
+
+Acceptance criteria:
+
+- A new contributor can identify safe first tasks and run the relevant verification commands without chat context.
+- CI rejects Python or Node test failures and records coverage for the code it measures.
+- The browser-suite gating policy is explicit.
+- A typed-address search can narrow nearby archive evidence below the current 5 km default without exposing an obsolete radius parameter in the public URL.
+
+Non-goals:
+
+- No broad UI redesign.
+- No saved areas, accounts, or notifications.
+
+### `v0.4.5`: Machine-Readable Public Surface And API Posture
+
+Goal: make the project easier for people and automated readers to understand without overstating authority, and start drawing the public/private API boundary before a full `v0.5.0` API contract.
+
+Scope:
+
+- Add `/.well-known/security.txt`, `humans.txt`, and project/contact metadata if appropriate.
+- Add `llms.txt` or equivalent concise machine-readable project notes covering data sources, limitations, public pages, private endpoints, and contact route.
+- Document any stable public JSON/data routes that already exist as available but not yet a versioned API contract; explicitly mark non-contract/private routes.
+- Evaluate structured data only where it helps discovery and does not imply official Hydro-Québec authority or complete historical coverage.
+- Add security headers that are compatible with the current asset/runtime stack: CSP where practical, HSTS, Referrer Policy, Permissions Policy, frame protections, and MIME-sniffing protection.
+- Decide which existing public data routes graduate into `v0.5.0` API-candidate status and which should remain internal/implementation details.
+
+Acceptance criteria:
+
+- Automated readers can discover what the site is, what it is not, and which endpoints are public without scraping implementation details.
+- Security/contact metadata exists and does not expose private operational routes.
+- Existing public JSON/data routes have a documented status: versioned candidate, available but unstable, or private/internal.
+- Structured data, if added, is conservative and reviewed for authority/completeness claims.
+
+Non-goals:
+
+- No full public API guarantee until `v0.5.0`.
+- No notification/watch-area feature.
+
+### `v0.4.6`: Archive Health, Retention, And D1 Growth Control
 
 Goal: keep the historical archive trustworthy and affordable as D1 grows.
 
@@ -201,54 +265,33 @@ Non-goals:
 - No destructive raw-source deletion without explicit provenance-preserving replacement.
 - No broad schema rewrite unless the measured D1 growth requires it.
 
-### `v0.4.5`: Machine-Readable Public Surface
+### `v0.4.7`: Hydro Score / Regional Analytics Framing
 
-Goal: make the project easier for people and automated readers to understand without overstating authority.
-
-Scope:
-
-- Add `/.well-known/security.txt`, `humans.txt`, and project/contact metadata if appropriate.
-- Add `llms.txt` or equivalent concise machine-readable project notes covering data sources, limitations, public pages, private endpoints, and contact route.
-- Document any stable public JSON/data routes that already exist; explicitly mark non-contract/private routes.
-- Evaluate structured data only where it helps discovery and does not imply official Hydro-Québec authority or complete historical coverage.
-- Add security headers that are compatible with the current asset/runtime stack: CSP where practical, HSTS, Referrer Policy, Permissions Policy, frame protections, and MIME-sniffing protection.
-
-Acceptance criteria:
-
-- Automated readers can discover what the site is, what it is not, and which endpoints are public without scraping implementation details.
-- Security/contact metadata exists and does not expose private operational routes.
-- Structured data, if added, is conservative and reviewed for authority/completeness claims.
-
-Non-goals:
-
-- No new public API guarantee beyond documented existing routes.
-- No notification/watch-area feature.
-
-### `v0.4.6`: Analytical Views And Saved-Area Feasibility
-
-Goal: decide whether broader analytics and opt-in notifications belong in the product before building them.
+Goal: explore whether a simple, well-disclosed "walkability score for Hydro reliability" style concept can communicate regional/address-area outage context without overclaiming precision or official authority.
 
 Scope:
 
 - Revisit regional/municipal archive views, `Bilan par région`-style summaries, and Quebec-first MapLibre labels using production observations.
-- Evaluate saved-area notifications after PWA installability, using watch areas or regions rather than requiring a literal home address.
-- Define privacy/storage implications for saved areas before implementing any notification flow.
+- Define candidate score inputs, such as observed outage frequency, recent/current proximity, planned-interruption context, archive/disclosure coverage, and data freshness.
+- Define disclosure rules before any score is built: retained observations are incomplete, disclosure data is uneven, address-level service cannot be certified, and Hydro-Québec remains the official source.
+- Decide whether a score should be numeric, categorical, or avoided in favor of component metrics.
 - Confirm the readiness gates for the `v0.5.0` historical-data API contract.
 
 Acceptance criteria:
 
-- There is a written go/no-go decision for saved areas and notifications.
+- There is a written go/no-go decision for a Hydro-score style product concept.
 - Any analytical view proposal includes the source tables, materialized summaries, latency/cost assumptions, and user-facing caveats.
 - The next implementation slice is small enough to ship independently.
 
 Non-goals:
 
+- No saved areas or notifications.
 - No push notifications in this slice.
 - No public API launch in this slice unless explicitly re-scoped.
 
-### `0.5.x`: Public Data Product And Opt-In Expansion
+### `0.5.x`: Public Data Product And Analytical Expansion
 
-Use `0.5.x` only after the `0.4.x` readiness, cost, archive-health, and machine-readable-surface slices are complete enough that broader public contracts will not lock in unstable architecture.
+Use `0.5.x` only after the `0.4.x` readiness, cost, archive-health, and machine-readable-surface slices are complete enough that broader public contracts will not lock in unstable architecture. Saved areas, saved-area notifications, and web push notifications are deferred out of the concrete near-term train until repeated user demand and a privacy/cost model justify them.
 
 ### `v0.5.0`: Historical Data API Contract
 
@@ -276,31 +319,29 @@ Non-goals:
 - No enterprise/commercial API product.
 - No guarantee of complete Hydro-Québec historical coverage.
 
-### `v0.5.1`: Saved Areas And Notification Pilot
+### `v0.5.1`: Public API Consumer Experience
 
-Goal: if `v0.4.6` approves the concept, add an opt-in saved-area model without requiring users to store a literal home address.
+Goal: make the `v0.5.0` historical-data API usable by lightweight public-interest consumers without creating accounts, saved areas, or notification infrastructure.
 
 Scope:
 
-- Define saved-area shapes: radius around a point, municipality, region, or named watch area.
-- Decide where saved-area state lives: browser-local only, server-side, or a hybrid model.
-- Add privacy copy and deletion/export expectations before any server-side saved state exists.
-- Build a small watch-area UI that can save, rename, list, and remove watch areas.
-- Evaluate notification channels: PWA/web push, email, or no notifications if operational cost/privacy tradeoffs are poor.
-- If notifications proceed, add explicit opt-in, quiet failure states, unsubscribe/delete paths, and low-cost rate limits.
+- Add examples for common public-interest use cases: nearby retained observations, municipal summary, feed freshness, and source metadata.
+- Add simple response-schema documentation and sample payloads that external contributors can test against.
+- Add rate-limit, caching, and attribution guidance for hobby/research users.
+- Add API contract tests that external contributors can run locally without Cloudflare credentials.
+- Add a small public changelog or compatibility note for API consumers if `v0.5.0` evolves.
 
 Acceptance criteria:
 
-- A user can understand and control what is saved.
-- Saved areas do not require exact home-address storage.
-- Notification delivery, if implemented, has opt-in, unsubscribe, and abuse/cost safeguards.
-- The feature can be disabled without breaking public read-only access.
+- A new API consumer can understand the supported routes, examples, caveats, and rate/caching expectations without reading implementation code.
+- API examples are tested or generated from known fixtures.
+- The public API can evolve without silently breaking documented consumers.
 
 Non-goals:
 
-- No default background tracking.
-- No address-level account system unless explicitly re-scoped.
-- No alerts based on unverifiable historical inference.
+- No saved areas, accounts, or user profiles.
+- No web push, email alerts, or background notifications.
+- No enterprise/commercial API product.
 
 ### `v0.5.2`: Regional Analytics And Research Views
 
@@ -310,6 +351,7 @@ Scope:
 
 - Build regional/municipal archive summaries and `Bilan par région`-style views from materialized summaries, not live full-table scans.
 - Use the `r/HydroQuebec` request for preparedness-oriented regional context as research input; validate whether a regional view can communicate observed outage frequency without implying a complete Hydro-Québec reliability ranking.
+- Reuse the `v0.4.7` Hydro-score framing decision; if a score survives review, expose its components and caveats rather than hiding methodology behind a single number.
 - Decide whether analytical maps need MapLibre-only rendering or a high-scale visualization layer such as deck.gl.
 - Add source/caveat language for each analytical view, including retained-observation limits and disclosure-source differences.
 - Add downloadable or copyable summary tables only where row counts, privacy, and provenance are acceptable.
