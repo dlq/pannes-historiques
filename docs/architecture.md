@@ -19,13 +19,15 @@ The interface is one full-bleed MapLibre GL map (OpenFreeMap Liberty vector styl
 
 ## Runtime Ownership
 
-- `app/` owns Flask routes, search orchestration, Jinja rendering, local SQLite fallback paths, and Python collectors. `app/sheet_views.py` builds the sheet fragment contexts.
+- `app/` owns Flask routes, search orchestration, Jinja rendering, local SQLite fallback paths, and Python collectors. `app/sheet_views.py` builds the sheet fragment contexts. `app/durable_runtime.py` owns the `DurableRuntimeClient` that talks to the Worker's private durable-runtime endpoints.
 - `app/static/` owns browser behavior as plain ES modules: `sheet.js` (detents, domain navigation, detail cards), `outage-map.js` (MapLibre element), `map-utils.js` (pure helpers), `search.js` (autocomplete, comparison tray, history), `detail-panels.js` (disclosure/regional detail rendering).
 - `src/worker.js` owns Worker fetch/scheduled entrypoints and D1/R2 runtime behavior.
 - `src/container.js` owns Cloudflare Container configuration.
 - `src/worker-routing.js` owns top-level Worker path classification.
 - `src/runtime-policy.js` owns private durable-runtime endpoint policy.
 - `src/municipal-archive.js` owns pure municipal geometry helpers shared by Worker code and maintenance scripts.
+- `src/archive-summary.js` owns pure row-shaping helpers for the previous-outage archive summary.
+- `src/container-proxy.js` owns forwarding browser requests from the Worker to the Cloudflare Container instance.
 - `scripts/maintenance/` owns one-off or operator-driven maintenance scripts.
 
 ## Enforced Module Boundaries
