@@ -552,6 +552,16 @@ def fetch_bytes(url: str) -> tuple[bytes, int, str]:
         return completed.stdout, 200, content_type_from_url(url)
 
 
+_DISCLOSURE_EVENT_INSERT = """
+INSERT OR REPLACE INTO disclosure_outage_events
+(source_id, source_row_id, start_time, end_time, duration_seconds,
+ duration_hours, customers_affected, interruption_type, cause, equipment,
+ cause_group, category, geography_label, geography_type, centroid_lon,
+ centroid_lat, precision_label, raw_row_json)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+"""
+
+
 class DisclosureCollector:
     def __init__(self, settings):
         self.settings = settings
@@ -937,14 +947,7 @@ class DisclosureCollector:
                     )
                     source_row_id = f"{sheet_name}:{row_index}"
                     connection.execute(
-                        """
-                        INSERT OR REPLACE INTO disclosure_outage_events
-                        (source_id, source_row_id, start_time, end_time, duration_seconds,
-                         duration_hours, customers_affected, interruption_type, cause, equipment,
-                         cause_group, category, geography_label, geography_type, centroid_lon,
-                         centroid_lat, precision_label, raw_row_json)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        """,
+                        _DISCLOSURE_EVENT_INSERT,
                         (
                             source_id,
                             source_row_id,
@@ -989,14 +992,7 @@ class DisclosureCollector:
                 target = target_lookup.get(normalize_text(str(geography)), {})
                 source_row_id = f"pdf:{row['page']}:{row['row_index']}"
                 connection.execute(
-                    """
-                    INSERT OR REPLACE INTO disclosure_outage_events
-                    (source_id, source_row_id, start_time, end_time, duration_seconds,
-                     duration_hours, customers_affected, interruption_type, cause, equipment,
-                     cause_group, category, geography_label, geography_type, centroid_lon,
-                     centroid_lat, precision_label, raw_row_json)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """,
+                    _DISCLOSURE_EVENT_INSERT,
                     (
                         source_id,
                         source_row_id,
@@ -1105,6 +1101,29 @@ def parse_annual_metrics_pdf(payload: bytes, source: DisclosureSource) -> list[d
     return parse_single_period_regional_metrics(lines, source)
 
 
+def _regional_metric_base(
+    label: str,
+    year: int | None,
+    source: DisclosureSource,
+    *,
+    period_label: str | None = None,
+) -> dict[str, Any]:
+    """Shared leading fields for a regional-metric row.
+
+    Callers add their own metric keys and notes/raw_text after spreading this,
+    preserving each parser's existing key order (rows are serialized whole into
+    ``disclosure_annual_metrics.raw_json``, so key order is part of the output).
+    """
+    return {
+        "year": year,
+        "period_label": period_label
+        if period_label is not None
+        else (str(year) if year else source.title),
+        "geography_label": label,
+        "geography_type": "province" if is_provincial_label(label) else "administrative_region",
+    }
+
+
 def parse_single_period_regional_metrics(
     lines: list[str], source: DisclosureSource
 ) -> list[dict[str, Any]]:
@@ -1120,12 +1139,7 @@ def parse_single_period_regional_metrics(
             continue
         rows.append(
             {
-                "year": year,
-                "period_label": period_label,
-                "geography_label": label,
-                "geography_type": "province"
-                if is_provincial_label(label)
-                else "administrative_region",
+                **_regional_metric_base(label, year, source, period_label=period_label),
                 "outage_count": values[0],
                 "average_duration_minutes": values[1],
                 "continuity_index_minutes": values[2],
@@ -1150,12 +1164,7 @@ def parse_multi_year_regional_metrics(
             item = rows.setdefault(
                 (label, year),
                 {
-                    "year": year,
-                    "period_label": str(year),
-                    "geography_label": label,
-                    "geography_type": "province"
-                    if is_provincial_label(label)
-                    else "administrative_region",
+                    **_regional_metric_base(label, year, source),
                     "notes": source.title,
                     "raw_text": line,
                 },
@@ -1181,12 +1190,7 @@ def parse_long_outage_metrics(lines: list[str], source: DisclosureSource) -> lis
         for year, value in zip(years, values[:5], strict=False):
             rows.append(
                 {
-                    "year": year,
-                    "period_label": str(year),
-                    "geography_label": label,
-                    "geography_type": "province"
-                    if is_provincial_label(label)
-                    else "administrative_region",
+                    **_regional_metric_base(label, year, source),
                     "long_outage_count": value,
                     "notes": source.title,
                     "raw_text": line,
