@@ -1,0 +1,26 @@
+# Keep broad searches focused on source and durable docs.
+app/static/vendor/
+node_modules/
+.venv/
+.uv-cache/
+.pytest_cache/
+.ruff_cache/
+.wrangler/
+.worktrees/
+__pycache__/
+tmp/
+output/
+test-results/
+playwright-report/
+data/*
+!data/README.md
+
+# Large generated/static payloads that are rarely useful in text search.
+app/static/disclosure_geometries.json
+app/static/regional_metric_geometries.json
+app/static/*.png
+app/static/*.webp
+app/static/*.woff2
+
+# Local-only drafts.
+docs/r-quebec-beta-draft.md
