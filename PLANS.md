@@ -412,6 +412,17 @@ Before handing off code changes:
 - The current OpenFreeMap Liberty vector style still includes non-Quebec labels at some zoom levels; hiding them cleanly requires a custom MapLibre style or label-overlay strategy.
 - Do not speculate about Hydro-Québec one-letter status-code meanings unless source documentation or payload context verifies them.
 
+### Simplify/Refactor Backlog
+
+An adversarially-verified simplify/refactor review (2026-07-11) confirmed 47 behavior-preserving opportunities. The low-risk dead-code + dedup subset was applied on branch `codex/refactor-cleanup` (services/views/sheet_views/db/geocoding/hydro/web helpers plus the client-JS dups; net −100 lines, full suite green). Deferred, in rough priority:
+
+- Server dedup not yet applied: `disclosures.py` identical `disclosure_outage_events` insert across xlsx/pdf ingest; `web.py` `require_*_route` guard boilerplate (13 routes); `sheet_views.py` `address_domain_sheet_context` double domain dispatch + `radius_km` reuse.
+- Template macros (`app/templates/_macros.html`): `ph_metric` (6 identical row-metric blocks), `ph_status_line` (3 overview lines), `ph_date_tile`.
+- Worker (`src/worker.js`) — held; it is the deployed hot path, do not churn before the beta: `callContainer*`/`fetchContainer*` POST/bytes boilerplate, `markDisclosure*` helpers, the repeated "map rows → prepared statements → `batchInChunks`" skeleton (~9 functions), and the 3000-line file mixing routing/cron/ingestion/KMZ/geo — a candidate module split, not a rewrite.
+- Judgment calls (higher effort/risk, decide deliberately): factor the shared post-geocode tail out of `search()`/`search_location()` in `services.py` (the one genuinely risky one); a `DurableRuntimeClient` full-URL GET helper; merge near-identical `_operational_map_item`/`_previous_operational_map_item`; `hydro.py` `*_if_changed`/`*_if_changed_against` scaffold dup; the month/weekday tables duplicated Python↔JS (`ui-format.js` ↔ `sheet_views.py`), held in sync only by a comment.
+- Explicitly NOT to change: the archive-summary windows/largest/latest shaping lives in both `services.py` and `src/worker.js` by design (Python container fallback vs Worker D1 path) — the review verified these should stay separate.
+- Two latent bugs the review surfaced (fixing either CHANGES behavior — do deliberately, not as "cleanup"): the geolocation error handler always shows the generic message, so the denied/timeout labels never surface; and confirm the client `?v=` cache tokens are bumped whenever these modules ship.
+
 ## Plan Maintenance
 
 - Keep this file focused on current goals, release boundaries, risks, and next steps.
