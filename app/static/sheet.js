@@ -566,13 +566,31 @@ function showOperationalDetail(item) {
 }
 
 function bindGlobalHandlers() {
+  // A tap can arrive as pointer, touch, mouse, then click events. Closing a
+  // mobile overlay can reveal a row underneath before the trailing click is
+  // delivered, so record close gestures and let the row handler discard that
+  // one synthetic click without a timing window.
+  let closeGestureStartedOnClose = false;
+  const markCloseGestureStart = (event) => {
+    closeGestureStartedOnClose = Boolean(
+      event.target.closest("[data-detail-close], [data-dai-detail-close]"),
+    );
+  };
+  const closeGestureOptions = { capture: true };
+  document.addEventListener("pointerdown", markCloseGestureStart, closeGestureOptions);
+  document.addEventListener("mousedown", markCloseGestureStart, closeGestureOptions);
+  document.addEventListener("touchstart", markCloseGestureStart, {
+    capture: true,
+    passive: true,
+  });
   const handleDetailClose = (event) => {
     const detailClose = event.target.closest("[data-detail-close], [data-dai-detail-close]");
-    if (detailClose) {
-      event.preventDefault();
-      event.stopPropagation();
-      closeDetailCards({ restoreFocus: true });
-    }
+    if (!detailClose) return;
+    closeGestureStartedOnClose = true;
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+    closeDetailCards({ restoreFocus: true });
   };
   document.body.addEventListener("click", handleDetailClose);
   document.body.addEventListener("pointerup", handleDetailClose);
@@ -654,6 +672,10 @@ function bindGlobalHandlers() {
   }
 
   document.body.addEventListener("click", (event) => {
+    // Ignore the ghost click whose gesture started on a detail-close control.
+    const skipGhost = closeGestureStartedOnClose;
+    closeGestureStartedOnClose = false;
+    if (skipGhost) return;
     const row = event.target.closest("[data-map-focus]");
     if (!row) return;
     focusRow(row);
