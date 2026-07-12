@@ -72,18 +72,15 @@ def create_app(settings: Settings | None = None) -> Flask:
     static_root = Path(app.static_folder or "")
     app.jinja_env.globals["static_version"] = static_asset_version(static_root)
 
-    def map_layer_scope(value: str | None) -> set[str]:
-        return {
-            value
-            if value
-            in {
-                CURRENT_MAP_LAYER_SCOPE,
-                PLANNED_MAP_LAYER_SCOPE,
-                PREVIOUS_MAP_LAYER_SCOPE,
-                PUBLISHED_MAP_LAYER_SCOPE,
-            }
-            else CURRENT_MAP_LAYER_SCOPE
-        }
+    def map_layer_scope(value: str | None) -> str:
+        if value in {
+            CURRENT_MAP_LAYER_SCOPE,
+            PLANNED_MAP_LAYER_SCOPE,
+            PREVIOUS_MAP_LAYER_SCOPE,
+            PUBLISHED_MAP_LAYER_SCOPE,
+        }:
+            return value
+        return CURRENT_MAP_LAYER_SCOPE
 
     def operational_layers_for_scope(scope: str) -> list[dict]:
         layers = service._current_operational_map_layers(
@@ -128,7 +125,8 @@ def create_app(settings: Settings | None = None) -> Flask:
             lang, "current", current_layers=operational_layers_for_scope(CURRENT_MAP_LAYER_SCOPE)
         )
 
-    def address_search_result(lang, query, latitude, longitude, accuracy_m):
+    def address_search_result(lang, query, latitude, longitude, accuracy_m, map_layer_scopes=None):
+        scopes = address_search_scopes if map_layer_scopes is None else map_layer_scopes
         if query:
             return service.search(
                 query=query,
@@ -138,7 +136,7 @@ def create_app(settings: Settings | None = None) -> Flask:
                 include_planned=FIXED_INCLUDE_PLANNED,
                 include_map_layers=True,
                 record_history=False,
-                map_layer_scopes=address_search_scopes,
+                map_layer_scopes=scopes,
             )
         return service.search_location(
             latitude=latitude,
@@ -150,7 +148,7 @@ def create_app(settings: Settings | None = None) -> Flask:
             include_planned=FIXED_INCLUDE_PLANNED,
             include_map_layers=True,
             record_history=False,
-            map_layer_scopes=address_search_scopes,
+            map_layer_scopes=scopes,
         )
 
     def sheet_error_context(lang: str, result) -> dict:
@@ -491,38 +489,16 @@ def create_app(settings: Settings | None = None) -> Flask:
     @app.get("/map-layer")
     def map_layer():
         lang = choose_language(request.args.get("lang"))
-        layer = next(iter(map_layer_scope(request.args.get("layer"))))
+        layer = map_layer_scope(request.args.get("layer"))
         query = request.args.get("q", "")
         latitude = parse_optional_float(request.args.get("lat"))
         longitude = parse_optional_float(request.args.get("lon"))
         accuracy_m = parse_optional_float(request.args.get("accuracy_m"))
 
         with current_timer().step("map_layer.service"):
-            if query:
-                result = service.search(
-                    query=query,
-                    language=lang,
-                    radius_m=FIXED_RADIUS_M,
-                    days=FIXED_DAYS,
-                    include_planned=FIXED_INCLUDE_PLANNED,
-                    include_map_layers=True,
-                    record_history=False,
-                    map_layer_scopes={layer},
-                )
-                context = result_context(lang, result, include_map_payload=True)
-                payload = context["map_payload"] if not result.error else {"matches": []}
-            elif latitude is not None and longitude is not None:
-                result = service.search_location(
-                    latitude=latitude,
-                    longitude=longitude,
-                    accuracy_m=accuracy_m,
-                    language=lang,
-                    radius_m=FIXED_RADIUS_M,
-                    days=FIXED_DAYS,
-                    include_planned=FIXED_INCLUDE_PLANNED,
-                    include_map_layers=True,
-                    record_history=False,
-                    map_layer_scopes={layer},
+            if query or (latitude is not None and longitude is not None):
+                result = address_search_result(
+                    lang, query, latitude, longitude, accuracy_m, map_layer_scopes={layer}
                 )
                 context = result_context(lang, result, include_map_payload=True)
                 payload = context["map_payload"] if not result.error else {"matches": []}

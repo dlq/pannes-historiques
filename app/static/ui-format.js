@@ -50,8 +50,7 @@ export function formatDuration(seconds, labels = {}) {
 
 function formatShortDateTime(value, labels = {}) {
   if (!value) return label(labels, "unknown", "unknown");
-  const [date, rawTime = ""] = String(value).replace("T", " ").split(" ");
-  const time = rawTime ? rawTime.slice(0, 5) : "";
+  const { date, time } = shortDateTimeParts(value, labels);
   return time ? `${date} ${time}` : date;
 }
 
@@ -69,7 +68,7 @@ function parseLocalDateTime(value) {
 
 function compactDuration(ms, lang = "en") {
   const minutes = Math.max(1, Math.round(Math.abs(ms) / 60000));
-  if (minutes < 60) return lang === "fr" ? `${minutes} min` : `${minutes} min`;
+  if (minutes < 60) return `${minutes} min`;
   const hours = Math.round(minutes / 60);
   if (hours < 24) return `${hours} h`;
   const days = Math.round(hours / 24);

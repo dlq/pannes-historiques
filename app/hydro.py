@@ -478,7 +478,7 @@ class HydroCollector:
                     fetched_at,
                     fetched_at,
                     start_time,
-                    safe_get(record, 2) if outage_kind == "planned" else safe_get(record, 2),
+                    safe_get(record, 2),
                     municipality,
                     centroid_lon,
                     centroid_lat,

@@ -4,6 +4,18 @@ import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
 
+# The canonical event-key expression, shared by the backfill/repair UPDATEs in
+# migrate(). Constant SQL text (no user input), safe to interpolate.
+_EVENT_KEY_SELECT = (
+    "SELECT COALESCE(r.municipality_code, '') || '|' ||"
+    " COALESCE(r.outage_start_time, '') || '|' ||"
+    " CAST(round(COALESCE(r.centroid_lat, 0.0), 3) AS TEXT) || '|' ||"
+    " CAST(round(COALESCE(r.centroid_lon, 0.0), 3) AS TEXT) || '|' ||"
+    " COALESCE(r.interruption_type, '')"
+    " FROM outage_records r"
+    " WHERE r.id = address_outage_matches.record_id"
+)
+
 SCHEMA = """
 PRAGMA foreign_keys = ON;
 
@@ -287,43 +299,19 @@ def migrate(connection: sqlite3.Connection) -> None:
     if "event_key" not in columns:
         connection.execute("ALTER TABLE address_outage_matches ADD COLUMN event_key TEXT")
     connection.execute(
-        """
+        f"""
         UPDATE address_outage_matches
-        SET event_key = (
-            SELECT COALESCE(r.municipality_code, '') || '|' ||
-                   COALESCE(r.outage_start_time, '') || '|' ||
-                   CAST(round(COALESCE(r.centroid_lat, 0.0), 3) AS TEXT) || '|' ||
-                   CAST(round(COALESCE(r.centroid_lon, 0.0), 3) AS TEXT) || '|' ||
-                   COALESCE(r.interruption_type, '')
-            FROM outage_records r
-            WHERE r.id = address_outage_matches.record_id
-        )
+        SET event_key = ({_EVENT_KEY_SELECT})
         WHERE outage_kind = 'outage'
           AND event_key IS NULL
         """
     )
     connection.execute(
-        """
+        f"""
         UPDATE address_outage_matches
-        SET event_key = (
-            SELECT COALESCE(r.municipality_code, '') || '|' ||
-                   COALESCE(r.outage_start_time, '') || '|' ||
-                   CAST(round(COALESCE(r.centroid_lat, 0.0), 3) AS TEXT) || '|' ||
-                   CAST(round(COALESCE(r.centroid_lon, 0.0), 3) AS TEXT) || '|' ||
-                   COALESCE(r.interruption_type, '')
-            FROM outage_records r
-            WHERE r.id = address_outage_matches.record_id
-        )
+        SET event_key = ({_EVENT_KEY_SELECT})
         WHERE outage_kind = 'outage'
-          AND event_key != (
-            SELECT COALESCE(r.municipality_code, '') || '|' ||
-                   COALESCE(r.outage_start_time, '') || '|' ||
-                   CAST(round(COALESCE(r.centroid_lat, 0.0), 3) AS TEXT) || '|' ||
-                   CAST(round(COALESCE(r.centroid_lon, 0.0), 3) AS TEXT) || '|' ||
-                   COALESCE(r.interruption_type, '')
-            FROM outage_records r
-            WHERE r.id = address_outage_matches.record_id
-          )
+          AND event_key != ({_EVENT_KEY_SELECT})
         """
     )
     connection.execute(

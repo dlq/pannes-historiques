@@ -81,6 +81,21 @@ class GeocodeResult:
     raw_json: dict[str, Any]
 
 
+def _geocode_result_from_row(row: Any) -> GeocodeResult:
+    """Build a GeocodeResult from a cache row (SQLite row or durable dict)."""
+    return GeocodeResult(
+        provider=row["provider"],
+        confidence=row["confidence"],
+        quality=row["quality"],
+        latitude=row["latitude"],
+        longitude=row["longitude"],
+        city=row["city"] or "",
+        province=row["province"] or "",
+        postal_code=row["postal_code"] or "",
+        raw_json=json.loads(row["raw_json"]),
+    )
+
+
 class GeocodingService:
     def __init__(self, settings):
         self.settings = settings
@@ -192,17 +207,7 @@ class GeocodingService:
             ).fetchone()
         if not row:
             return None
-        return GeocodeResult(
-            provider=row["provider"],
-            confidence=row["confidence"],
-            quality=row["quality"],
-            latitude=row["latitude"],
-            longitude=row["longitude"],
-            city=row["city"] or "",
-            province=row["province"] or "",
-            postal_code=row["postal_code"] or "",
-            raw_json=json.loads(row["raw_json"]),
-        )
+        return _geocode_result_from_row(row)
 
     def _store_cache(self, normalized_query: str, result: GeocodeResult) -> None:
         if self.settings.durable_runtime_url:
@@ -246,17 +251,7 @@ class GeocodingService:
         row = payload.get("item")
         if not row:
             return None
-        return GeocodeResult(
-            provider=row["provider"],
-            confidence=row["confidence"],
-            quality=row["quality"],
-            latitude=row["latitude"],
-            longitude=row["longitude"],
-            city=row["city"] or "",
-            province=row["province"] or "",
-            postal_code=row["postal_code"] or "",
-            raw_json=json.loads(row["raw_json"]),
-        )
+        return _geocode_result_from_row(row)
 
     def _store_durable_cache(self, normalized_query: str, result: GeocodeResult) -> None:
         payload = {

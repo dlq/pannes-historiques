@@ -27,20 +27,25 @@ HYDRO_STATUS_LABEL_KEYS = {
 }
 
 
+def _load_geometry_asset(path: Path) -> dict[str, dict[str, Any]]:
+    if not path.exists():
+        return {}
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    return {item["geometryKey"]: item["geometry"] for item in payload.get("geometries", [])}
+
+
 @lru_cache(maxsize=1)
 def _regional_geometry_asset() -> dict[str, dict[str, Any]]:
-    if not REGIONAL_GEOMETRY_ASSET.exists():
-        return {}
-    payload = json.loads(REGIONAL_GEOMETRY_ASSET.read_text(encoding="utf-8"))
-    return {item["geometryKey"]: item["geometry"] for item in payload.get("geometries", [])}
+    return _load_geometry_asset(REGIONAL_GEOMETRY_ASSET)
 
 
 @lru_cache(maxsize=1)
 def _disclosure_geometry_asset() -> dict[str, dict[str, Any]]:
-    if not DISCLOSURE_GEOMETRY_ASSET.exists():
-        return {}
-    payload = json.loads(DISCLOSURE_GEOMETRY_ASSET.read_text(encoding="utf-8"))
-    return {item["geometryKey"]: item["geometry"] for item in payload.get("geometries", [])}
+    return _load_geometry_asset(DISCLOSURE_GEOMETRY_ASSET)
+
+
+def _has_centroid(item: Any) -> bool:
+    return item["centroid_lat"] is not None and item["centroid_lon"] is not None
 
 
 def _regional_geometry_key(item: dict[str, Any]) -> str:
@@ -135,7 +140,7 @@ def default_map_payload(
     regional_matches_by_key = {
         _regional_geometry_key(item): _regional_metric_map_item(lang, item)
         for item in regional_metric_layers or []
-        if item["centroid_lat"] is not None and item["centroid_lon"] is not None
+        if _has_centroid(item)
     }
     if regional_metric_layers is not None:
         for label in _regional_geometry_labels(_regional_geometry_asset()):
@@ -145,18 +150,16 @@ def default_map_payload(
     matches = [
         _operational_map_item(lang, item)
         for item in current_map_layers or []
-        if item["centroid_lat"] is not None and item["centroid_lon"] is not None
+        if _has_centroid(item)
     ]
     matches += [
         _previous_operational_map_item(lang, item)
         for item in previous_map_layers or []
-        if item["centroid_lat"] is not None and item["centroid_lon"] is not None
+        if _has_centroid(item)
     ]
     matches += list(regional_matches_by_key.values())
     matches += [
-        _disclosure_map_item(lang, item)
-        for item in disclosure_layers or []
-        if item["centroid_lat"] is not None and item["centroid_lon"] is not None
+        _disclosure_map_item(lang, item) for item in disclosure_layers or [] if _has_centroid(item)
     ]
     return {
         "center": DEFAULT_MAP_CENTER,
@@ -229,24 +232,24 @@ def build_map_payload(lang: str, result: Any, display_address: str) -> dict[str,
     operational_items = [
         _operational_map_item(lang, item, reference)
         for item in result.current_map_layers
-        if item["centroid_lat"] is not None and item["centroid_lon"] is not None
+        if _has_centroid(item)
     ]
     current_items = [item for item in operational_items if item["kind"] == "outage"]
     planned_items = [item for item in operational_items if item["kind"] == "planned"]
     previous_items = [
         _previous_operational_map_item(lang, item, reference)
         for item in result.previous_map_layers
-        if item["centroid_lat"] is not None and item["centroid_lon"] is not None
+        if _has_centroid(item)
     ]
     previous_group_items = [
         _previous_group_map_item(lang, group)
         for group in result.previous_outage_groups
-        if group["centroid_lat"] is not None and group["centroid_lon"] is not None
+        if _has_centroid(group)
     ]
     disclosure_items = [
         _disclosure_map_item(lang, item, reference)
         for item in result.disclosure_layers
-        if item["centroid_lat"] is not None and item["centroid_lon"] is not None
+        if _has_centroid(item)
     ]
     previous_sidebar_matches = _previous_sidebar_matches(previous_items, previous_group_items)
     previous_local_summary = _previous_local_summary(
@@ -261,7 +264,7 @@ def build_map_payload(lang: str, result: Any, display_address: str) -> dict[str,
         + [
             _regional_metric_map_item(lang, item)
             for item in result.regional_metric_layers
-            if item["centroid_lat"] is not None and item["centroid_lon"] is not None
+            if _has_centroid(item)
         ]
         + _sort_by_distance(disclosure_items)
     )
