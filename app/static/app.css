@@ -1050,16 +1050,12 @@ button {
 }
 
 .ph-sheet-footer {
-  margin-top: 18px;
-  padding: 10px 0 4px;
-  border-top: 1px solid var(--ph-hairline);
-  text-align: center;
-}
-
-.ph-sheet-footer {
   display: flex;
   gap: 16px;
   justify-content: center;
+  margin-top: 18px;
+  padding: 10px 0 4px;
+  border-top: 1px solid var(--ph-hairline);
 }
 
 .ph-sheet-footer-link {

@@ -360,32 +360,41 @@ export class OutageMap extends HTMLElement {
       }
     };
 
+    const setAddressFeatures = (lat, lon, addressLabel, radiusM) => {
+      const source = map.getSource("ph-address");
+      if (!source) return;
+      const features = [
+        {
+          type: "Feature",
+          properties: { label: addressLabel || "" },
+          geometry: { type: "Point", coordinates: [lon, lat] },
+        },
+      ];
+      if (Number.isFinite(radiusM)) {
+        features.push({
+          type: "Feature",
+          properties: {},
+          geometry: radiusCirclePolygon(lat, lon, radiusM),
+        });
+      }
+      source.setData({ type: "FeatureCollection", features });
+    };
+
     map.on("load", () => {
       styleReady = true;
-      map.addSource("ph-context", {
-        type: "geojson",
-        data: { type: "FeatureCollection", features: [] },
-      });
-      map.addSource("ph-previous", {
-        type: "geojson",
-        data: { type: "FeatureCollection", features: [] },
-      });
-      map.addSource("ph-planned", {
-        type: "geojson",
-        data: { type: "FeatureCollection", features: [] },
-      });
-      map.addSource("ph-current", {
-        type: "geojson",
-        data: { type: "FeatureCollection", features: [] },
-      });
-      map.addSource("ph-address", {
-        type: "geojson",
-        data: { type: "FeatureCollection", features: [] },
-      });
-      map.addSource("ph-focus", {
-        type: "geojson",
-        data: { type: "FeatureCollection", features: [] },
-      });
+      for (const sourceId of [
+        "ph-context",
+        "ph-previous",
+        "ph-planned",
+        "ph-current",
+        "ph-address",
+        "ph-focus",
+      ]) {
+        map.addSource(sourceId, {
+          type: "geojson",
+          data: { type: "FeatureCollection", features: [] },
+        });
+      }
 
       map.addLayer({
         id: "ph-context-fill",
@@ -576,24 +585,7 @@ export class OutageMap extends HTMLElement {
       });
 
       if (data.center && data.showAddressMarker !== false) {
-        const addressFeatures = [
-          {
-            type: "Feature",
-            properties: { label: data.addressLabel || "" },
-            geometry: { type: "Point", coordinates: [data.center[1], data.center[0]] },
-          },
-        ];
-        if (Number.isFinite(data.radiusM)) {
-          addressFeatures.push({
-            type: "Feature",
-            properties: {},
-            geometry: radiusCirclePolygon(data.center[0], data.center[1], data.radiusM),
-          });
-        }
-        map.getSource("ph-address").setData({
-          type: "FeatureCollection",
-          features: addressFeatures,
-        });
+        setAddressFeatures(data.center[0], data.center[1], data.addressLabel, data.radiusM);
       }
 
       const clickableLayers = [
@@ -682,21 +674,7 @@ export class OutageMap extends HTMLElement {
           return;
         }
         const [lat, lon] = detail.center;
-        const features = [
-          {
-            type: "Feature",
-            properties: { label: detail.addressLabel || "" },
-            geometry: { type: "Point", coordinates: [lon, lat] },
-          },
-        ];
-        if (Number.isFinite(detail.radiusM)) {
-          features.push({
-            type: "Feature",
-            properties: {},
-            geometry: radiusCirclePolygon(lat, lon, detail.radiusM),
-          });
-        }
-        source.setData({ type: "FeatureCollection", features });
+        setAddressFeatures(lat, lon, detail.addressLabel, detail.radiusM);
         if (Number.isFinite(detail.radiusM)) {
           fitRadius(lat, lon, detail.radiusM);
         } else {

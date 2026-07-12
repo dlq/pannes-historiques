@@ -62,6 +62,14 @@ WEEKDAYS = {
 }
 
 
+def _month_names(lang: str) -> list[str]:
+    return MONTHS_SHORT[lang if lang in MONTHS_SHORT else "fr"]
+
+
+def _weekday_names(lang: str) -> list[str]:
+    return WEEKDAYS[lang if lang in WEEKDAYS else "fr"]
+
+
 def _parse_feed_time(value: str | None) -> datetime | None:
     if not value:
         return None
@@ -83,7 +91,7 @@ def _format_clock(lang: str, moment: datetime) -> str:
 
 
 def _format_day_month(lang: str, moment: datetime) -> str:
-    month = MONTHS_SHORT[lang if lang in MONTHS_SHORT else "fr"][moment.month - 1]
+    month = _month_names(lang)[moment.month - 1]
     if lang == "fr":
         day = "1er" if moment.day == 1 else str(moment.day)
         return f"{day} {month}."
@@ -191,7 +199,7 @@ def _monthly_buckets(lang: str, items: list[dict[str, Any]], months: int) -> lis
         key = (moment.year, moment.month)
         if key in counts:
             counts[key] += 1
-    month_names = MONTHS_SHORT[lang if lang in MONTHS_SHORT else "fr"]
+    month_names = _month_names(lang)
     return [
         {
             "label": f"{month_names[key[1] - 1]} {key[0]}",
@@ -235,10 +243,10 @@ def _planned_groups(
             tile_day, tile_month = "?", ""
         else:
             date_key = moment.strftime("%Y-%m-%d")
-            weekday = WEEKDAYS[lang if lang in WEEKDAYS else "fr"][moment.weekday()]
+            weekday = _weekday_names(lang)[moment.weekday()]
             heading = f"{weekday} {_format_day_month(lang, moment)}"
             tile_day = str(moment.day)
-            tile_month = MONTHS_SHORT[lang if lang in MONTHS_SHORT else "fr"][moment.month - 1]
+            tile_month = _month_names(lang)[moment.month - 1]
         group = groups.setdefault(
             date_key, {"heading": heading, "tileDay": tile_day, "tileMonth": tile_month, "rows": []}
         )
@@ -314,7 +322,7 @@ def _latest_archive_groups(
 ) -> list[dict[str, Any]]:
     groups: list[dict[str, Any]] = []
     current_key = None
-    weekdays = WEEKDAYS[lang if lang in WEEKDAYS else "fr"]
+    weekdays = _weekday_names(lang)
     territories = territories or []
     territories_by_id = {
         item["territoryId"]: item for item in territories if item.get("territoryId")
@@ -371,7 +379,7 @@ def _date_tile(lang: str, value: str | None) -> dict[str, str]:
         return {"day": "?", "month": ""}
     return {
         "day": str(moment.day),
-        "month": MONTHS_SHORT[lang if lang in MONTHS_SHORT else "fr"][moment.month - 1],
+        "month": _month_names(lang)[moment.month - 1],
     }
 
 
@@ -384,7 +392,7 @@ def _previous_rows(
     rows = sorted(items, key=sort_key, reverse=True)
     grouped: list[dict[str, Any]] = []
     current_month = None
-    month_names = MONTHS_SHORT[lang if lang in MONTHS_SHORT else "fr"]
+    month_names = _month_names(lang)
     for item in rows[:EXPLORE_ROW_LIMIT]:
         moment = _parse_feed_time(item.get("startTime"))
         month_key = (moment.year, moment.month) if moment else None

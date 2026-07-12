@@ -26,7 +26,6 @@ DURABLE_RUNTIME_CACHEABLE_PATHS = {
     "status",
 }
 DEFAULT_PREVIOUS_MAP_LAYER_LIMIT = 48
-DEFAULT_PREVIOUS_NEAREST_LIMIT = 24
 CURRENT_MAP_LAYER_SCOPE = "current"
 PLANNED_MAP_LAYER_SCOPE = "planned"
 PREVIOUS_MAP_LAYER_SCOPE = "previous"
@@ -95,6 +94,41 @@ class SearchResult:
     regional_metric_layers: list[dict[str, Any]]
     radius_m: int
     error: str | None = None
+
+
+def _empty_search_result(
+    *,
+    normalized: NormalizedAddress,
+    geocode: dict[str, Any] | None,
+    collector_summary: dict[str, Any],
+    coverage: dict[str, Any],
+    radius_m: int,
+    error: str,
+) -> SearchResult:
+    """Build an early-return SearchResult with every result list empty.
+
+    Single-sources the dataclass shape so a new field cannot be forgotten on
+    one of the outside-Quebec / geocode-failed early-return branches.
+    """
+    return SearchResult(
+        normalized=normalized,
+        address_id=None,
+        cache_hit=False,
+        geocode=geocode,
+        matches=[],
+        query_count=0,
+        collector_summary=collector_summary,
+        coverage=coverage,
+        outage_matches=[],
+        planned_matches=[],
+        previous_outage_groups=[],
+        current_map_layers=[],
+        previous_map_layers=[],
+        disclosure_layers=[],
+        regional_metric_layers=[],
+        radius_m=radius_m,
+        error=error,
+    )
 
 
 class AppService:
@@ -438,22 +472,11 @@ class AppService:
                 collector_summary = self.collector_status()
             with timer.step("search.coverage_stats"):
                 coverage = self.coverage_stats()
-            return SearchResult(
+            return _empty_search_result(
                 normalized=normalized,
-                address_id=None,
-                cache_hit=False,
                 geocode=None,
-                matches=[],
-                query_count=0,
                 collector_summary=collector_summary,
                 coverage=coverage,
-                outage_matches=[],
-                planned_matches=[],
-                previous_outage_groups=[],
-                current_map_layers=[],
-                previous_map_layers=[],
-                disclosure_layers=[],
-                regional_metric_layers=[],
                 radius_m=radius_m,
                 error="outside_quebec",
             )
@@ -468,22 +491,11 @@ class AppService:
         if geocode is None:
             with timer.step("search.coverage_stats"):
                 coverage = self.coverage_stats()
-            return SearchResult(
+            return _empty_search_result(
                 normalized=normalized,
-                address_id=None,
-                cache_hit=False,
                 geocode=None,
-                matches=[],
-                query_count=0,
                 collector_summary=collector_summary,
                 coverage=coverage,
-                outage_matches=[],
-                planned_matches=[],
-                previous_outage_groups=[],
-                current_map_layers=[],
-                previous_map_layers=[],
-                disclosure_layers=[],
-                regional_metric_layers=[],
                 radius_m=radius_m,
                 error="geocode_failed",
             )
@@ -492,22 +504,11 @@ class AppService:
         if not within_quebec_bounds(geocode["latitude"], geocode["longitude"]):
             with timer.step("search.coverage_stats"):
                 coverage = self.coverage_stats()
-            return SearchResult(
+            return _empty_search_result(
                 normalized=normalized,
-                address_id=None,
-                cache_hit=False,
                 geocode=geocode,
-                matches=[],
-                query_count=0,
                 collector_summary=collector_summary,
                 coverage=coverage,
-                outage_matches=[],
-                planned_matches=[],
-                previous_outage_groups=[],
-                current_map_layers=[],
-                previous_map_layers=[],
-                disclosure_layers=[],
-                regional_metric_layers=[],
                 radius_m=radius_m,
                 error="outside_quebec",
             )
@@ -664,22 +665,11 @@ class AppService:
         }
         collector_summary = self.collector_status()
         if not within_quebec_bounds(latitude, longitude):
-            return SearchResult(
+            return _empty_search_result(
                 normalized=normalized,
-                address_id=None,
-                cache_hit=False,
                 geocode=geocode,
-                matches=[],
-                query_count=0,
                 collector_summary=collector_summary,
                 coverage=self.coverage_stats(),
-                outage_matches=[],
-                planned_matches=[],
-                previous_outage_groups=[],
-                current_map_layers=[],
-                previous_map_layers=[],
-                disclosure_layers=[],
-                regional_metric_layers=[],
                 radius_m=radius_m,
                 error="outside_quebec",
             )
@@ -1408,32 +1398,8 @@ class AppService:
                 ORDER BY id DESC
                 """
             ).fetchall()
-        current_keys = {
-            self._outage_display_key(
-                {
-                    "municipality_code": row["municipality_code"],
-                    "start_time": row["outage_start_time"],
-                    "centroid_lat": row["centroid_lat"],
-                    "centroid_lon": row["centroid_lon"],
-                    "interruption_type": row["interruption_type"],
-                }
-            )
-            for row in current_rows
-        }
-        rows = [
-            row
-            for row in rows
-            if self._outage_display_key(
-                {
-                    "municipality_code": row["municipality_code"],
-                    "start_time": row["outage_start_time"],
-                    "centroid_lat": row["centroid_lat"],
-                    "centroid_lon": row["centroid_lon"],
-                    "interruption_type": row["interruption_type"],
-                }
-            )
-            not in current_keys
-        ]
+        current_keys = {self._row_display_key(row) for row in current_rows}
+        rows = [row for row in rows if self._row_display_key(row) not in current_keys]
         layers = self._map_layers_for_rows(
             rows=rows,
             geometry_payload=[dict(row) for row in geometry_rows],
@@ -1510,29 +1476,10 @@ class AppService:
                 (latest_snapshot_id, latest_snapshot_id, cutoff_1y),
             ).fetchall()
 
-        current_keys = {
-            self._outage_display_key(
-                {
-                    "municipality_code": row["municipality_code"],
-                    "start_time": row["outage_start_time"],
-                    "centroid_lat": row["centroid_lat"],
-                    "centroid_lon": row["centroid_lon"],
-                    "interruption_type": row["interruption_type"],
-                }
-            )
-            for row in current_rows
-        }
+        current_keys = {self._row_display_key(row) for row in current_rows}
         deduped: dict[tuple[Any, ...], dict[str, Any]] = {}
         for row in rows:
-            key = self._outage_display_key(
-                {
-                    "municipality_code": row["municipality_code"],
-                    "start_time": row["outage_start_time"],
-                    "centroid_lat": row["centroid_lat"],
-                    "centroid_lon": row["centroid_lon"],
-                    "interruption_type": row["interruption_type"],
-                }
-            )
+            key = self._row_display_key(row)
             if key in current_keys or key in deduped:
                 continue
             deduped[key] = {
@@ -2239,17 +2186,7 @@ class AppService:
                 }
             )
 
-        grouped = list(groups.values())
-        for group in grouped:
-            group["events"].sort(key=lambda item: item["sort_time"] or "", reverse=True)
-            group["events"] = group["events"][:3]
-            group["event_count"] = len(group["events"])
-            group["latest_start_time"] = (
-                group["events"][0]["start_time"] if group["events"] else None
-            )
-            group.pop("event_keys", None)
-        grouped.sort(key=lambda item: item["latest_start_time"] or "", reverse=True)
-        return grouped[:12]
+        return self._finalize_outage_groups(groups)
 
     def _group_outage_matches(
         self, matches: list[dict[str, Any]], exclude_event_keys: set[tuple[Any, ...]]
@@ -2287,6 +2224,16 @@ class AppService:
                 {**item, "sort_time": item.get("sort_time") or item.get("start_time")}
             )
 
+        return self._finalize_outage_groups(groups)
+
+    @staticmethod
+    def _finalize_outage_groups(groups: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
+        """Shared tail for the two outage-grouping paths.
+
+        Sorts each group's events by ``sort_time`` (newest first), keeps the
+        top 3, records the count and latest start time, drops the internal
+        dedup set, then returns the groups sorted by recency, capped at 12.
+        """
         grouped = list(groups.values())
         for group in grouped:
             group["events"].sort(key=lambda item: item["sort_time"] or "", reverse=True)
@@ -2298,6 +2245,24 @@ class AppService:
             group.pop("event_keys", None)
         grouped.sort(key=lambda item: item["latest_start_time"] or "", reverse=True)
         return grouped[:12]
+
+    @classmethod
+    def _row_display_key(cls, row: Any) -> tuple[Any, ...]:
+        """Display key for a raw ``outage_records`` row.
+
+        Maps the DB column ``outage_start_time`` to the ``start_time`` key
+        ``_outage_display_key`` expects, keeping that column-to-key mapping in
+        one place across the four row-based dedup sites.
+        """
+        return cls._outage_display_key(
+            {
+                "municipality_code": row["municipality_code"],
+                "start_time": row["outage_start_time"],
+                "centroid_lat": row["centroid_lat"],
+                "centroid_lon": row["centroid_lon"],
+                "interruption_type": row["interruption_type"],
+            }
+        )
 
     @staticmethod
     def _outage_display_key(item: dict[str, Any]) -> tuple[Any, ...]:

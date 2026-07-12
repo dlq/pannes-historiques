@@ -9,6 +9,10 @@ import {
 
 const DETAIL_EXTRACTED_ROW_LIMIT = 80;
 
+function isFrench() {
+  return (document.documentElement.lang || "fr") === "fr";
+}
+
 function factRow(labelText, value) {
   if (value === null || value === undefined || value === "") return "";
   return (
@@ -61,10 +65,9 @@ function detailShell({ title, subtitle = "", action = "", body = "", labels = {}
   `;
 }
 
-function pdfAction(url, labels = {}) {
+function pdfAction(url) {
   if (!url) return "";
-  const isFrench = (document.documentElement.lang || "fr") === "fr";
-  const text = isFrench ? "Document PDF Hydro-Québec" : "Hydro-Québec source PDF";
+  const text = isFrench() ? "Document PDF Hydro-Québec" : "Hydro-Québec source PDF";
   return `
     <a class="ph-action-button ph-action-button--primary ph-detail-action"
        href="${escapeHtml(url)}"
@@ -122,7 +125,6 @@ export class DaiDetailPanel extends HTMLElement {
 
   renderDisclosure(item) {
     const labels = this.uiLabels();
-    const isFrench = (document.documentElement.lang || "fr") === "fr";
     const sources = (item.sourceDais || []).join(", ") || item.sourceDai || "";
     const period =
       item.startMin && item.startMax
@@ -154,7 +156,7 @@ export class DaiDetailPanel extends HTMLElement {
     const rowCount = item.recordCount || allEvents.length;
     const rowNote =
       allEvents.length > visibleEvents.length || rowCount > visibleEvents.length
-        ? isFrench
+        ? isFrench()
           ? `${visibleEvents.length} sur ${rowCount} lignes affichées.`
           : `Showing ${visibleEvents.length} of ${rowCount} rows.`
         : "";
@@ -177,7 +179,7 @@ export class DaiDetailPanel extends HTMLElement {
     this.innerHTML = detailShell({
       title: item.label || label(labels, "disclosure", "Disclosure"),
       subtitle: joinParts([this.getAttribute("title-label") || "", item.precisionLabel || ""]),
-      action: pdfAction(item.sourceUrl, labels),
+      action: pdfAction(item.sourceUrl),
       body: `
         ${facts}
         ${
@@ -200,7 +202,6 @@ export class DaiDetailPanel extends HTMLElement {
 
   renderRegionalMetric(item) {
     const labels = this.uiLabels();
-    const isFrench = (document.documentElement.lang || "fr") === "fr";
     const unknownLabel = label(labels, "unknown", "unknown");
     const sourceCount = (item.sourceDais || []).length || 1;
     const sourceLabel = label(
@@ -234,7 +235,7 @@ export class DaiDetailPanel extends HTMLElement {
             metric.source_dai || "",
           ]),
           sub: joinParts([
-            avg != null ? `${avg} min ${isFrench ? "en moyenne" : "average"}` : "",
+            avg != null ? `${avg} min ${isFrench() ? "en moyenne" : "average"}` : "",
             longCount != null ? `${longCount} > 8 h` : "",
           ]),
           metricValue: outages ?? "",
@@ -249,12 +250,12 @@ export class DaiDetailPanel extends HTMLElement {
         `${sourceCount} ${sourceLabel}`,
         `${label(labels, "latest_map_source", "latest shown on map")}: ${item.sourceDai || unknownLabel}`,
       ]),
-      action: pdfAction(item.sourceUrl, labels),
+      action: pdfAction(item.sourceUrl),
       body: `
         ${facts}
         ${
           rows
-            ? `<p class="ph-group-heading">${escapeHtml(isFrench ? "Autres sources DAI" : "Other DAI sources")}</p>
+            ? `<p class="ph-group-heading">${escapeHtml(isFrench() ? "Autres sources DAI" : "Other DAI sources")}</p>
                <ul class="ph-row-list">${rows}</ul>`
             : ""
         }

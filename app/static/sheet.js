@@ -185,6 +185,16 @@ function hasAddress() {
   return Boolean(sheetState.q) || Boolean(sheetState.lat && sheetState.lon);
 }
 
+function applyLocationParams(searchParams) {
+  if (sheetState.q) {
+    searchParams.set("q", sheetState.q);
+  } else if (sheetState.lat && sheetState.lon) {
+    searchParams.set("lat", sheetState.lat);
+    searchParams.set("lon", sheetState.lon);
+    if (sheetState.accuracy) searchParams.set("accuracy_m", sheetState.accuracy);
+  }
+}
+
 function applyMapUpdate(root) {
   const script = root.querySelector("script[data-map-update]");
   if (!script || script.dataset.applied === "1") return;
@@ -239,12 +249,16 @@ function openDetailCard(card, invoker = document.activeElement) {
   focusDetailCard(card);
 }
 
-function closeDetailCards({ restoreFocus = false } = {}) {
+function clearOperationalDetail() {
   const detail = sheetDetail();
   if (detail) {
     detail.hidden = true;
     detail.innerHTML = "";
   }
+}
+
+function closeDetailCards({ restoreFocus = false } = {}) {
+  clearOperationalDetail();
   const provenance = document.querySelector("#sheet-provenance");
   if (provenance) provenance.hidden = true;
   const panel = detailPanel();
@@ -411,13 +425,7 @@ export async function fetchSheet(updates = {}, { pushUrl = true, focus = null } 
   url.searchParams.set("lang", sheetState.lang);
   url.searchParams.set("domain", sheetState.domain);
   url.searchParams.set("scope", sheetState.scope);
-  if (sheetState.q) {
-    url.searchParams.set("q", sheetState.q);
-  } else if (sheetState.lat && sheetState.lon) {
-    url.searchParams.set("lat", sheetState.lat);
-    url.searchParams.set("lon", sheetState.lon);
-    if (sheetState.accuracy) url.searchParams.set("accuracy_m", sheetState.accuracy);
-  }
+  applyLocationParams(url.searchParams);
   try {
     const response = await fetch(url, { headers: { Accept: "text/html" } });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -616,13 +624,7 @@ function bindGlobalHandlers() {
     if (langSwitch) {
       event.preventDefault();
       const url = new URL(langSwitch.href, window.location.origin);
-      if (sheetState.q) {
-        url.searchParams.set("q", sheetState.q);
-      } else if (sheetState.lat && sheetState.lon) {
-        url.searchParams.set("lat", sheetState.lat);
-        url.searchParams.set("lon", sheetState.lon);
-        if (sheetState.accuracy) url.searchParams.set("accuracy_m", sheetState.accuracy);
-      }
+      applyLocationParams(url.searchParams);
       window.location.assign(url.toString());
       return;
     }
@@ -640,18 +642,12 @@ function bindGlobalHandlers() {
     );
   });
 
-  for (const eventName of ["operational-layer-selected"]) {
-    document.body.addEventListener(eventName, (event) => {
-      if (event.detail) showOperationalDetail(event.detail);
-    });
-  }
+  document.body.addEventListener("operational-layer-selected", (event) => {
+    if (event.detail) showOperationalDetail(event.detail);
+  });
   for (const eventName of ["dai-selected", "regional-metric-selected"]) {
     document.body.addEventListener(eventName, () => {
-      const detail = sheetDetail();
-      if (detail) {
-        detail.hidden = true;
-        detail.innerHTML = "";
-      }
+      clearOperationalDetail();
       openDetailCardForEvent(detailPanel());
       if (isMobileLayout() && currentDetent() === "peek") setDetent("half");
     });
@@ -694,10 +690,12 @@ function attachLocationSearch() {
   if (!button || button.dataset.locationBound === "1") return;
   button.dataset.locationBound = "1";
   const originalHtml = button.innerHTML;
-  const showError = (message) => showSheetError(message);
+  // showSheetError() always shows the generic load-error copy; the specific
+  // denied/timeout/unavailable button labels are not surfaced today (a latent
+  // UX gap to wire up separately — doing so here would change behavior).
   button.addEventListener("click", () => {
     if (!("geolocation" in navigator)) {
-      showError(button.dataset.locationUnavailableLabel || "Location unavailable.");
+      showSheetError();
       return;
     }
     button.disabled = true;
@@ -721,14 +719,8 @@ function attachLocationSearch() {
         button.innerHTML = originalHtml;
         if (isMobileLayout()) setDetent("half");
       },
-      (error) => {
-        const message =
-          error?.code === 1
-            ? button.dataset.locationDeniedLabel
-            : error?.code === 3
-              ? button.dataset.locationTimeoutLabel
-              : button.dataset.locationUnavailableLabel;
-        showError(message || "Location unavailable.");
+      () => {
+        showSheetError();
         button.disabled = false;
         button.innerHTML = originalHtml;
       },
