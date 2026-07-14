@@ -1,7 +1,7 @@
 # Plan: Hydro-Quebec Outage History App
 
 Date: 2026-04-25
-Last updated: 2026-07-12
+Last updated: 2026-07-13
 
 This is the active execution plan. Keep detailed evidence and research notes in `NOTES.md`, completed release history in `CHANGELOG.md`, operational runbooks in `docs/operations.md`, and long maintenance backlogs in `docs/maintenance-backlog.md`.
 
@@ -114,7 +114,7 @@ Use `0.5.x` only after the `0.4.x` readiness, cost, archive-health, and machine-
 - `v0.5.0`: historical data API contract with explicit public/private boundaries, response schemas, provenance/freshness metadata, rate limits, docs, and tests.
 - `v0.5.1`: public API consumer experience: examples, sample payloads, compatibility notes, caching/rate guidance, and contract tests that contributors can run locally.
 - `v0.5.2`: regional analytics and research views from bounded, materialized data products, with conservative caveats and no reliability-ranking overclaims.
-- `v0.5.3`: source expansion and geocoder reliability after public contracts exist.
+- `v0.5.3`: source expansion and geocoder reliability after public contracts exist. Start with a municipal-distributor referral/source-discovery pass for Hydro-Sherbrooke: identify the authoritative live-outage map and address-specific historical-request path, and label it as external coverage. Do not scrape or imply archived Hydro-Sherbrooke coverage unless access terms, data quality, and retention are verified.
 
 Saved areas, saved-area notifications, and web push notifications are deferred out of the concrete train until repeated user demand and a privacy/cost model justify them.
 
