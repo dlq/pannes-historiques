@@ -327,20 +327,19 @@ class AppService:
             ).fetchone()
         if not row:
             return None
-        path = Path(row["payload_path"])
-        try:
-            path.relative_to(self.settings.raw_dir)
-        except ValueError:
-            return None
-        return path if path.exists() else None
+        return self._raw_payload_file(Path(row["payload_path"]))
 
     def raw_snapshot_payload_path(self, payload_path: str) -> Path | None:
-        path = Path(payload_path)
+        return self._raw_payload_file(Path(payload_path))
+
+    def _raw_payload_file(self, path: Path) -> Path | None:
         try:
-            path.relative_to(self.settings.raw_dir)
-        except ValueError:
+            raw_dir = self.settings.raw_dir.resolve(strict=True)
+            resolved_path = path.resolve(strict=True)
+            resolved_path.relative_to(raw_dir)
+        except (OSError, RuntimeError, ValueError):
             return None
-        return path if path.exists() else None
+        return resolved_path if resolved_path.is_file() else None
 
     def run_changed_collection_job(self) -> dict[str, Any]:
         return self._run_job("hydro_changed", self.collect_changed)
