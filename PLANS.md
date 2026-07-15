@@ -38,6 +38,27 @@ Reduce normal public browsing/search dependence on the Python container, make ru
 - Keep broad CI hardening out of this slice except for tests needed to prove runtime policy and private cost-health behavior.
 - Keep the full nearby-radius UI change out of this slice unless the chosen public-read path naturally requires touching the same address summary contract.
 
+### Production Navigation Cleanup
+
+Observed from Cloudflare request analytics on 2026-07-13:
+
+- Most public navigation and app interaction succeeds, but `/sheet` still produced a small number of user-facing `500` responses.
+- A few clients still request pre-MapLibre Leaflet assets, likely from stale cached app shells or old service-worker state.
+- Some `404` traffic is expected scanner noise or public hits to private runtime endpoints; keep those private rather than making them public to quiet analytics.
+
+Cleanup checklist:
+
+1. Add persistent `/sheet` exception attribution: request id, query params, domain, scope, language, address/current-location mode, and traceback.
+2. Add a defensive `/sheet` fallback that returns the localized sheet load-error fragment instead of a raw `500` when context building or rendering fails.
+3. Add compatibility tombstones for stale Leaflet URLs:
+   - `/static/vendor/leaflet/leaflet.css`
+   - `/static/vendor/leaflet/leaflet.js`
+4. Make the Leaflet JS tombstone clear old service-worker caches/unregister stale service workers and reload once, so old cached app shells converge to the MapLibre release.
+5. Add `/favicon.ico` as a redirect or alias to the current favicon.
+6. Tighten Worker scanner blocking for obvious WordPress/Joomla/PHP probe paths so those misses stay cheap and do not obscure real navigation errors.
+7. Keep private runtime endpoint `404`s private; only investigate if trusted Worker-proxied internal calls start failing.
+8. After deployment, compare the next 24h Cloudflare analytics for `/sheet` 500s, Leaflet 404s, favicon 404s, and scanner-path volume.
+
 ### Acceptance Criteria
 
 - Representative public paths report which runtime served them.
@@ -45,6 +66,7 @@ Reduce normal public browsing/search dependence on the Python container, make ru
 - `PLANS.md` or `docs/architecture.md` records the selected near-term architecture option and rejected alternatives.
 - The hardcoded Worker host is replaced by configuration with tests.
 - Cost-health output is private and operation-token protected.
+- The production navigation cleanup either eliminates `/sheet` 500s and stale asset 404s or records enough attribution to reproduce the remaining cases.
 
 ### Non-Goals
 
