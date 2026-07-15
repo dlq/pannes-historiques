@@ -23,7 +23,7 @@ const DISCLOSURE_RUN_BUDGET_MS = 90_000;
 const DISCLOSURE_FETCH_TIMEOUT_MS = 45_000;
 const DISCLOSURE_PARSE_TIMEOUT_MS = 60_000;
 const DISCLOSURE_SOURCE_DEFER_MS = 24 * 60 * 60 * 1000;
-const CONTAINER_INSTANCE_NAME = "web";
+const CONTAINER_INSTANCE_NAME = "web-v043-runtime-hotfix";
 const ADMIN_TERRITORY_LAYER_URL =
   "https://servicescarto.mern.gouv.qc.ca/pes/rest/services/Territoire/SDA_WMS/MapServer/2/query";
 const ADMIN_TERRITORY_SOURCE_LAYER = "donnees_quebec_sda_municipalite";

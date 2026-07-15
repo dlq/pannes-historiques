@@ -587,14 +587,22 @@ class AppService:
                 if include_map_layers and needs_published_layers
                 else []
             )
+        can_persist_address = address_id is not None
+        timer.set("search.address_persistence_available", can_persist_address)
         with timer.step("search.save_matches"):
-            if record_history:
+            if record_history and can_persist_address:
                 self._save_matches(address_id, outage_matches + archived_outage_matches)
         with timer.step("search.previous_outage_groups"):
             if needs_previous_layers:
-                previous_outage_groups = self._previous_outage_groups(
-                    address_id=address_id,
-                    exclude_event_keys={self._outage_display_key(item) for item in outage_matches},
+                previous_outage_groups = (
+                    self._previous_outage_groups(
+                        address_id=address_id,
+                        exclude_event_keys={
+                            self._outage_display_key(item) for item in outage_matches
+                        },
+                    )
+                    if can_persist_address
+                    else []
                 )
                 if archived_outage_matches:
                     previous_outage_groups = self._group_outage_matches(
@@ -606,7 +614,7 @@ class AppService:
             else:
                 previous_outage_groups = []
         with timer.step("search.record_query"):
-            if record_history:
+            if record_history and can_persist_address:
                 query_count = self._record_query(
                     address_id=address_id,
                     original_query=query,
@@ -617,8 +625,10 @@ class AppService:
                     include_planned=include_planned,
                     cache_hit=cache_hit,
                 )
-            else:
+            elif can_persist_address:
                 query_count = self._query_count(address_id)
+            else:
+                query_count = 0
         with timer.step("search.coverage_stats"):
             coverage = self.coverage_stats()
         timer.set("search.match_count", len(matches))
@@ -737,17 +747,26 @@ class AppService:
             if include_map_layers and needs_published_layers
             else []
         )
-        if record_history:
+        can_persist_address = address_id is not None
+        if record_history and can_persist_address:
             self._save_matches(address_id, outage_matches + archived_outage_matches)
-        previous_outage_groups = (
-            self._previous_outage_groups(
-                address_id=address_id,
-                exclude_event_keys={self._outage_display_key(item) for item in outage_matches},
+        if needs_previous_layers:
+            previous_outage_groups = (
+                self._previous_outage_groups(
+                    address_id=address_id,
+                    exclude_event_keys={self._outage_display_key(item) for item in outage_matches},
+                )
+                if can_persist_address
+                else []
             )
-            if needs_previous_layers
-            else []
-        )
-        if record_history:
+            if archived_outage_matches:
+                previous_outage_groups = self._group_outage_matches(
+                    archived_outage_matches,
+                    exclude_event_keys={self._outage_display_key(item) for item in outage_matches},
+                )
+        else:
+            previous_outage_groups = []
+        if record_history and can_persist_address:
             query_count = self._record_query(
                 address_id=address_id,
                 original_query=label,
@@ -758,8 +777,10 @@ class AppService:
                 include_planned=include_planned,
                 cache_hit=cache_hit,
             )
-        else:
+        elif can_persist_address:
             query_count = self._query_count(address_id)
+        else:
+            query_count = 0
         return SearchResult(
             normalized=normalized,
             address_id=address_id,
@@ -905,7 +926,7 @@ class AppService:
 
     def _upsert_address(
         self, normalized: NormalizedAddress, geocode: dict[str, Any]
-    ) -> tuple[int, bool]:
+    ) -> tuple[int | None, bool]:
         geocode = self._geocode_dict(geocode)
         if self.settings.durable_runtime_url:
             payload = self._durable_runtime_post(
@@ -914,7 +935,8 @@ class AppService:
             )
             if payload:
                 return int(payload["address_id"]), bool(payload["cache_hit"])
-            raise RuntimeError("D1 runtime address upsert failed")
+            current_timer().set("search.address_runtime_unavailable", True)
+            return None, False
         with open_db(self.settings.db_path) as connection:
             existing = connection.execute(
                 "SELECT id FROM addresses WHERE normalized_line = ?",
