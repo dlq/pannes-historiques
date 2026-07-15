@@ -35,8 +35,9 @@ Reduce normal public browsing/search dependence on the Python container, make ru
 - Add a private cost-health/ops check for container live state, last wake, latest scheduled run, D1 size, R2 approximate state if available, ingestion status, and archive materialization status.
 - Monitor recurring production `500` responses and improve persistent attribution if live-tail evidence remains insufficient.
 - Add a low-cost production mode or documented kill switch where public routes refuse container wakeups and serve last-known-good durable data.
+- Add an adjustable nearby-outage radius with a smaller typed-address default, while preserving the clean public URL contract.
 - Keep broad CI hardening out of this slice except for tests needed to prove runtime policy and private cost-health behavior.
-- Keep the full nearby-radius UI change out of this slice unless the chosen public-read path naturally requires touching the same address summary contract.
+- Keep broader search-contract changes out of this slice beyond the smaller typed-address default and radius control.
 
 ### Production Navigation Cleanup
 
@@ -99,7 +100,6 @@ Make the repo easier for external contributors while addressing the smallest bet
 - Add measured coverage reporting and a non-regressing floor.
 - Decide whether full Playwright belongs on every pull request or protected main/release runs.
 - Add a contributor-friendly issue map for first external tasks.
-- Add adjustable nearby-outage radius with a smaller typed-address default, while preserving the clean public URL contract.
 - Tighten contributor and architecture docs where the cost-containment work clarifies the Worker/container split.
 
 ### `v0.4.5`: Machine-Readable Public Surface And API Posture
