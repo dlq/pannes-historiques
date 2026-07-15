@@ -9,6 +9,8 @@ from .geocoding import haversine_meters
 from .i18n import STRINGS, choose_language, t
 
 FIXED_RADIUS_M = 5000
+TYPED_ADDRESS_RADIUS_M = 2000
+RADIUS_OPTIONS_M = (1000, 2000, 5000, 10000)
 FIXED_DAYS = 1825
 FIXED_INCLUDE_PLANNED = True
 PREVIOUS_NEAREST_LIMIT = 24
@@ -25,6 +27,15 @@ HYDRO_STATUS_LABEL_KEYS = {
     "L": "hydro_status_crew_at_work",
     "R": "hydro_status_crew_en_route",
 }
+
+
+def address_radius_m(value: str | None, *, typed_address: bool) -> int:
+    default_radius_m = TYPED_ADDRESS_RADIUS_M if typed_address else FIXED_RADIUS_M
+    try:
+        radius_m = int(value) if value is not None else default_radius_m
+    except ValueError:
+        return default_radius_m
+    return radius_m if radius_m in RADIUS_OPTIONS_M else default_radius_m
 
 
 def _load_geometry_asset(path: Path) -> dict[str, dict[str, Any]]:
