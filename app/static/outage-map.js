@@ -1,7 +1,7 @@
 import {
-  DOMAIN_COLORS,
   boundsToLngLatBounds,
   contextLayerForKind,
+  DOMAIN_COLORS,
   extendBoundsWithGeometry,
   itemRenderKey,
   normalizeMapPoint,
