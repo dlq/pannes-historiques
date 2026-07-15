@@ -75,11 +75,14 @@ class StubService:
 
     def search(self, **kwargs):
         self.search_calls.append(kwargs)
-        return make_search_result()
+        result = make_search_result()
+        result.radius_m = kwargs["radius_m"]
+        return result
 
     def search_location(self, **kwargs):
         self.search_location_calls.append(kwargs)
         result = make_search_result()
+        result.radius_m = kwargs["radius_m"]
         result.normalized = NormalizedAddress(  # type: ignore[misc]
             original="Current location",
             normalized_line="current location 45.50000,-73.56000",

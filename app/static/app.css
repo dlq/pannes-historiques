@@ -970,6 +970,27 @@ button {
   margin-top: 12px;
 }
 
+.ph-radius-control {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 10px 0;
+  color: var(--ph-ink-2);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.ph-radius-control select {
+  min-width: 86px;
+  padding: 7px 9px;
+  border: 1px solid var(--ph-hairline);
+  border-radius: 8px;
+  background: var(--ph-control);
+  color: var(--ph-ink);
+  font: inherit;
+}
+
 .ph-action-button {
   flex: 1;
   padding: 10px 8px;
