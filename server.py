@@ -52,7 +52,7 @@ def main() -> None:
         return
 
     app = create_app(settings)
-    app.run(host=settings.host, port=settings.port, debug=True)
+    app.run(host=settings.host, port=settings.port, debug=False)
 
 
 if __name__ == "__main__":

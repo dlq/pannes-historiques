@@ -1,5 +1,7 @@
 from app.addressing import NormalizedAddress
+from app.config import Settings
 from app.services import (
+    AppService,
     clearly_outside_quebec_query,
     point_in_polygon,
     within_quebec_bounds,
@@ -975,3 +977,22 @@ def test_cached_context_should_cache_predicate(tmp_path):
     service._cached_context("k", factory, should_cache=lambda v: not v["degraded"])
     service._cached_context("k", factory, should_cache=lambda v: not v["degraded"])
     assert calls["n"] == 2  # never cached, so factory ran both times
+
+
+def test_raw_snapshot_payload_path_rejects_symlink_outside_raw_directory(tmp_path):
+    raw_dir = tmp_path / "raw"
+    raw_dir.mkdir()
+    outside_payload = tmp_path / "outside.json"
+    outside_payload.write_text("outside", encoding="utf-8")
+    escaped_path = raw_dir / "escaped.json"
+    escaped_path.symlink_to(outside_payload)
+    service = AppService(
+        Settings(
+            base_dir=tmp_path,
+            data_dir=tmp_path / "data",
+            raw_dir=raw_dir,
+            db_path=tmp_path / "data" / "app.db",
+        )
+    )
+
+    assert service.raw_snapshot_payload_path(str(escaped_path)) is None
