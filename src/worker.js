@@ -14,10 +14,7 @@ import {
   simplifyTerritoryCoverage,
   territoryFromFeature,
 } from "./municipal-archive.js";
-import {
-  isTrustedContainerRuntimeProxyRequest,
-  runtimeEndpointRequiresOperationToken,
-} from "./runtime-policy.js";
+import { isOperationalRequest, runtimeEndpointRequiresOperationToken } from "./runtime-policy.js";
 import { workerRouteForPath } from "./worker-routing.js";
 
 const DISCLOSURE_CRONS = new Set(["0 10 */14 * *", "13 10 */14 * *"]);
@@ -41,9 +38,13 @@ export default {
     }
     const route = workerRouteForPath(url.pathname);
     if (route === "blocked") return new Response("Not found", { status: 404 });
+    if (route === "cost_health") {
+      if (!operationalRequest(request, env)) return new Response("Not found", { status: 404 });
+      return costHealthResponse(env);
+    }
     if (route === "durable_hydro") return durableHydroResponse(env);
     if (route === "durable_status") {
-      if (!isOperationalRequest(request, env)) {
+      if (!operationalRequest(request, env)) {
         return new Response("Not found", { status: 404 });
       }
       return durableStatusResponse(env);
@@ -51,6 +52,7 @@ export default {
     if (route === "durable_nearby") return durableNearbyResponse(request, env);
     if (route === "durable_history_nearby") return durableHistoryNearbyResponse(request, env);
     if (route === "durable_runtime") return durableRuntimeResponse(request, env);
+    if (isLowCostMode(env)) return lowCostContainerResponse();
     return fetchContainerRequest(request, env, CONTAINER_INSTANCE_NAME);
   },
 
@@ -63,12 +65,23 @@ export default {
   },
 };
 
-function isOperationalRequest(request, env) {
-  const token = env.PANNES_OPERATION_TOKEN;
-  return (
-    (Boolean(token) && request.headers.get("X-Pannes-Operation-Token") === token) ||
-    isTrustedContainerRuntimeProxyRequest(request)
-  );
+function operationalRequest(request, env) {
+  return isOperationalRequest(request, env.PANNES_OPERATION_TOKEN, env.PANNES_TRUSTED_WORKER_HOST);
+}
+
+function isLowCostMode(env) {
+  return env.PANNES_LOW_COST_MODE === "1";
+}
+
+function lowCostContainerResponse() {
+  return new Response("Public container routes are temporarily paused.", {
+    status: 503,
+    headers: {
+      "cache-control": "no-store",
+      "retry-after": "300",
+      "x-pannes-runtime": "worker-low-cost",
+    },
+  });
 }
 
 async function runHydroSchedule(env) {
@@ -102,7 +115,7 @@ async function currentFeedVersionMap(db) {
 }
 
 async function syncHydroFromContainerResult(env, containerResult) {
-  if (!containerResult || containerResult.status !== 200) {
+  if (containerResult?.status !== 200) {
     throw new Error(`container hydro returned HTTP ${containerResult?.status ?? "unknown"}`);
   }
   const body = containerResult.body || {};
@@ -178,7 +191,8 @@ async function syncHydroSourceFromContainer(env, sourceInfo, snapshots) {
 async function fetchContainerRawSnapshot(env, snapshot) {
   const container = env.PANNES_CONTAINER.getByName(CONTAINER_INSTANCE_NAME);
   const url = new URL("https://pannes.ca/internal/raw-snapshot");
-  url.searchParams.set("payload_path", snapshot.payload_path);
+  url.searchParams.set("source_type", snapshot.source_type);
+  url.searchParams.set("source_version", snapshot.version);
   const response = await container.fetch(
     new Request(url, {
       headers: {
@@ -1264,6 +1278,86 @@ async function durableStatusResponse(env) {
   return jsonResponse({ versions: versions.results || [], runs: runs.results || [], disclosures });
 }
 
+async function costHealthResponse(env) {
+  const container = env.PANNES_CONTAINER.getByName(CONTAINER_INSTANCE_NAME);
+  const [containerState, latestRun, latestHydro, archiveState, tableCounts] = await Promise.all([
+    readContainerState(container),
+    env.DB.prepare(
+      "SELECT * FROM ingestion_runs ORDER BY started_at DESC, id DESC LIMIT 1",
+    ).first(),
+    env.DB.prepare(
+      "SELECT * FROM ingestion_runs WHERE job_name = 'hydro_changed' ORDER BY started_at DESC, id DESC LIMIT 1",
+    ).first(),
+    readArchiveState(env.DB),
+    readCostHealthCounts(env.DB),
+  ]);
+  return jsonResponse({
+    generated_at: new Date().toISOString(),
+    low_cost_mode: isLowCostMode(env),
+    container: containerState,
+    ingestion: { latest_run: latestRun || null, latest_hydro_run: latestHydro || null },
+    d1: { table_counts: tableCounts, storage_bytes: numberEnv(env.PANNES_D1_SIZE_BYTES) },
+    r2: {
+      object_count: numberEnv(env.PANNES_R2_OBJECT_COUNT),
+      storage_bytes: numberEnv(env.PANNES_R2_STORAGE_BYTES),
+    },
+    archive: archiveState,
+  });
+}
+
+async function readContainerState(container) {
+  try {
+    const state = await container.getState();
+    return { state: state?.status || null, last_change_ms: state?.lastChange || null };
+  } catch (error) {
+    return { state: null, error: String(error) };
+  }
+}
+
+async function readArchiveState(db) {
+  try {
+    const rows = await db
+      .prepare(
+        "SELECT state_key, state_value, updated_at FROM municipal_archive_build_state ORDER BY state_key",
+      )
+      .all();
+    return Object.fromEntries(
+      (rows.results || []).map((row) => [
+        row.state_key,
+        { value: row.state_value, updated_at: row.updated_at },
+      ]),
+    );
+  } catch (_error) {
+    return {};
+  }
+}
+
+async function readCostHealthCounts(db) {
+  const tables = [
+    "hydro_snapshots",
+    "current_outage_records",
+    "current_planned_interruptions",
+    "resolved_events",
+    "disclosure_sources",
+    "previous_outage_territory_bins",
+  ];
+  const counts = {};
+  for (const table of tables) {
+    try {
+      const row = await db.prepare(`SELECT COUNT(*) AS count FROM ${table}`).first();
+      counts[table] = row?.count || 0;
+    } catch (_error) {
+      counts[table] = null;
+    }
+  }
+  return counts;
+}
+
+function numberEnv(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+}
+
 async function disclosureCounts(db) {
   const tables = [
     "disclosure_sources",
@@ -1288,7 +1382,7 @@ async function durableRuntimeResponse(request, env) {
   const suffix = url.pathname.replace("/api/durable/runtime", "") || "/";
   if (
     runtimeEndpointRequiresOperationToken(suffix, request.method) &&
-    !isOperationalRequest(request, env)
+    !operationalRequest(request, env)
   ) {
     return jsonResponse({ error: "not found" }, { status: 404 });
   }
@@ -1326,7 +1420,7 @@ async function durableRuntimeResponse(request, env) {
 }
 
 function operationalRuntimeResponse(request, env, handler) {
-  if (!isOperationalRequest(request, env))
+  if (!operationalRequest(request, env))
     return jsonResponse({ error: "not found" }, { status: 404 });
   return handler();
 }
@@ -2957,6 +3051,7 @@ function jsonResponse(payload, init = {}) {
     headers: {
       "content-type": "application/json; charset=utf-8",
       "cache-control": "no-store",
+      "x-pannes-runtime": "worker-d1",
       ...(init.headers || {}),
     },
   });

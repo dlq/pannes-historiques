@@ -14,3 +14,7 @@ def test_serialize_payload_handles_paths_and_objects():
         "path": "/tmp/example.txt",
         "items": [{"name": "alpha"}, {"nested": {"value": 3}}],
     }
+
+
+def test_serialize_payload_does_not_expose_exception_details():
+    assert serialize_payload(RuntimeError("sensitive detail")) == {"error": "internal error"}

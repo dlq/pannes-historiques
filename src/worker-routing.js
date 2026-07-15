@@ -13,6 +13,7 @@ export function workerRouteForPath(pathname) {
   if (pathname === "/api/durable/status") return "durable_status";
   if (pathname === "/api/durable/nearby") return "durable_nearby";
   if (pathname === "/api/durable/history-nearby") return "durable_history_nearby";
+  if (pathname === "/api/ops/cost-health") return "cost_health";
   if (pathname.startsWith("/api/durable/runtime")) return "durable_runtime";
   return "container";
 }
@@ -28,6 +29,8 @@ function isObviousScannerPath(pathname) {
     pathname.startsWith("/wordpress/") ||
     pathname.startsWith("/phpmyadmin") ||
     pathname.startsWith("/cgi-bin/") ||
-    pathname.startsWith("/vendor/phpunit/")
+    pathname.startsWith("/vendor/phpunit/") ||
+    pathname.startsWith("/administrator/") ||
+    pathname.startsWith("/libraries/joomla/")
   );
 }

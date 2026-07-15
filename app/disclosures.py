@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import html
 import json
+import logging
 import math
 import re
 import subprocess
@@ -21,6 +22,7 @@ from .db import open_db
 from .hydro import maybe_int
 
 ACCESS_ROOT = "https://www.hydroquebec.com/documents-donnees/loi-sur-acces/diffusion-informations/reponses-acces-information.html"
+LOGGER = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -601,8 +603,11 @@ class DisclosureCollector:
                 source_result = self._collect_source(source_id, source)
                 results["sources"].append(source_result)
                 results["events"] += source_result["events"]
-            except Exception as exc:
-                results["errors"].append({"source": source.dai_number, "error": str(exc)})
+            except Exception:
+                LOGGER.exception("Disclosure collection failed for source=%s", source.dai_number)
+                results["errors"].append(
+                    {"source": source.dai_number, "error": "collection failed"}
+                )
         return results
 
     def collect_source_payload(
@@ -631,8 +636,9 @@ class DisclosureCollector:
             source_result = self._collect_source_payload(source_id, source, payload, content_type)
             results["sources"].append(source_result)
             results["events"] += source_result["events"]
-        except Exception as exc:
-            results["errors"].append({"source": source.dai_number, "error": str(exc)})
+        except Exception:
+            LOGGER.exception("Disclosure collection failed for source=%s", source.dai_number)
+            results["errors"].append({"source": source.dai_number, "error": "collection failed"})
         return results
 
     def _sources_for_collection(self) -> tuple[list[DisclosureSource], int]:

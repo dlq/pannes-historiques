@@ -27,15 +27,15 @@ Reduce normal public browsing/search dependence on the Python container, make ru
 
 ### Scope
 
-- Add response headers or `Server-Timing` markers that distinguish Worker/static/D1/R2 responses from container responses on browser paths.
-- Classify public routes as `edge-safe`, `container-needed`, or `internal-only`; document the classification in `NOTES.md` or `docs/architecture.md`.
-- Compare the Worker-first and hybrid-renderer options against current traffic, implementation risk, and expected Cloudflare cost.
-- Move the first highest-value public reads toward Worker/D1/R2 where the measured path is clear: startup map context, operational map layers, archive summaries, and disclosure summaries.
-- Make the trusted container-runtime Worker host configurable instead of hardcoding `dalaque.workers.dev`.
-- Add a private cost-health/ops check for container live state, last wake, latest scheduled run, D1 size, R2 approximate state if available, ingestion status, and archive materialization status.
-- Monitor recurring production `500` responses and improve persistent attribution if live-tail evidence remains insufficient.
-- Add a low-cost production mode or documented kill switch where public routes refuse container wakeups and serve last-known-good durable data.
-- Add an adjustable nearby-outage radius with a smaller typed-address default, while preserving the clean public URL contract.
+- [x] Add response headers or `Server-Timing` markers that distinguish Worker/D1 from container responses on browser paths.
+- [x] Classify public routes as `edge-safe`, `container-needed`, or `internal-only` in `docs/architecture.md`.
+- [x] Choose the hybrid-renderer option while keeping Worker-first durable reads; defer a browser-shell rewrite until production markers justify it.
+- [x] Keep startup context, operational map layers, archive summaries, and disclosure summaries on the existing D1-backed runtime path; no Flask-shell rewrite in this slice.
+- [x] Make the trusted container-runtime Worker host configurable instead of hardcoding `dalaque.workers.dev`.
+- [x] Add a private cost-health/ops check for container state, latest scheduled run, optional D1/R2 dashboard estimates, ingestion status, and archive materialization.
+- [x] Add persistent `/sheet` exception attribution, a localized fallback fragment, stale Leaflet tombstones, favicon aliasing, and broader scanner blocking.
+- [x] Add a low-cost container-wake kill switch; durable APIs remain available while browser-shell routes deliberately return `503`.
+- [x] Add an adjustable nearby-outage radius with a smaller typed-address default, while preserving the clean public URL contract.
 - Keep broad CI hardening out of this slice except for tests needed to prove runtime policy and private cost-health behavior.
 - Keep broader search-contract changes out of this slice beyond the smaller typed-address default and radius control.
 

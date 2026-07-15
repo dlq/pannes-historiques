@@ -3,6 +3,10 @@
   "name": "pannes-historiques",
   "main": "src/worker.js",
   "compatibility_date": "2026-05-04",
+  "vars": {
+    "PANNES_TRUSTED_WORKER_HOST": "dalaque.workers.dev",
+    "PANNES_LOW_COST_MODE": "0"
+  },
   "account_id": "69e18e0e0020ea19ff9f8bbfd035c20c",
   "workers_dev": false,
   "preview_urls": false,

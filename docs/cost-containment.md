@@ -28,7 +28,7 @@ This project has no current monetization model: no ads, subscriptions, paid API,
    - Cleanest long-term public-read shape: static HTML/JS/CSS shell, Worker APIs for data, container only for ingestion/maintenance.
    - Tradeoff: larger frontend rewrite and more API contract pressure before the product semantics are fully settled.
 
-Current preference: use `v0.4.3` to measure and choose between options 1 and 2. Avoid option 3 until runtime evidence shows the current sheet/Jinja path is the main obstacle.
+Decision for `v0.4.3`: use option 2, with Worker-first durable reads. It preserves the settled Flask/Jinja interaction model while the Worker owns D1/R2 data routes, operational reads, and runtime attribution. Revisit option 1 only after production markers and monthly usage evidence show that normal shell traffic is a material recurring container cost. Option 3 remains deferred.
 
 ## Execution Plan
 
@@ -51,6 +51,13 @@ Current preference: use `v0.4.3` to measure and choose between options 1 and 2. 
    - Add a config switch where public routes refuse to call the container and serve last-known-good D1/R2 data.
    - Allow scheduled ingestion/parser jobs to be paused without breaking public read-only access.
    - Surface data freshness clearly in operational checks and, if needed, in the UI.
+
+## Operating The Guardrails
+
+- `X-Pannes-Runtime` and `Server-Timing` distinguish Worker/D1 from container responses in smoke checks and live-tail investigation.
+- `/api/ops/cost-health` is operation-token protected. It exposes live container state, the latest ingestion run, archive materialization state, table counts, and optional manually refreshed D1/R2 size estimates.
+- Keep `PANNES_LOW_COST_MODE=0` normally. Set it to `1` only to stop public container wakes during an incident; durable APIs remain available, while Flask-shell routes return `503` rather than claiming a partial browser experience is complete.
+- Once each month, record the Cloudflare dashboard's Durable Object/container duration, D1 storage and operations, and R2 storage and operations. Refresh the optional size fields only with that dated check.
 
 ## Follow-Up Thresholds
 

@@ -465,5 +465,5 @@ class E2EStubService:
     def disclosure_payload_path(self, source_key):
         return None
 
-    def raw_snapshot_payload_path(self, payload_path):
+    def raw_snapshot_payload_path(self, source_type, source_version):
         return None

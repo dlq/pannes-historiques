@@ -45,7 +45,7 @@ const viewports = [
   { key: "iphone", viewport: { width: 390, height: 844 }, isMobile: true },
 ];
 
-function rectFor(element) {
+function _rectFor(element) {
   const rect = element.getBoundingClientRect();
   return {
     x: rect.x,

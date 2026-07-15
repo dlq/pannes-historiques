@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import urllib.request
 import xml.etree.ElementTree as ET
 import zipfile
@@ -14,6 +15,11 @@ from typing import Any
 from .db import open_db
 
 HYDRO_ROOT = "https://pannes.hydroquebec.com/pannes/donnees/v3_0"
+LOGGER = logging.getLogger(__name__)
+
+
+def _collection_error(source: str) -> dict[str, str]:
+    return {"source": source, "error": "collection failed"}
 
 
 @dataclass(frozen=True)
@@ -45,8 +51,9 @@ class HydroCollector:
                 result = self.collect_source(source)
                 results["snapshots"].extend(result["snapshots"])
                 results["errors"].extend(result["errors"])
-            except Exception as exc:
-                results["errors"].append({"source": source, "error": str(exc)})
+            except Exception:
+                LOGGER.exception("Hydro collection failed for source=%s", source)
+                results["errors"].append(_collection_error(source))
         return results
 
     def collect_changed(self) -> dict[str, Any]:
@@ -89,8 +96,9 @@ class HydroCollector:
         try:
             version = self._fetch_version(source)
             results["snapshots"].extend(self._fetch_payloads(source, version))
-        except Exception as exc:
-            results["errors"].append({"source": source, "error": str(exc)})
+        except Exception:
+            LOGGER.exception("Hydro collection failed for source=%s", source)
+            results["errors"].append(_collection_error(source))
         return results
 
     def collect_source_if_changed(self, source: str) -> dict[str, Any]:
@@ -123,8 +131,9 @@ class HydroCollector:
                     version_content_type=content_type,
                 )
             )
-        except Exception as exc:
-            results["errors"].append({"source": source, "error": str(exc)})
+        except Exception:
+            LOGGER.exception("Hydro collection failed for source=%s", source)
+            results["errors"].append(_collection_error(source))
         return results
 
     def collect_source_if_changed_against(
@@ -158,8 +167,9 @@ class HydroCollector:
                     version_content_type=content_type,
                 )
             )
-        except Exception as exc:
-            results["errors"].append({"source": source, "error": str(exc)})
+        except Exception:
+            LOGGER.exception("Hydro collection failed for source=%s", source)
+            results["errors"].append(_collection_error(source))
         return results
 
     def _fetch_version(self, source: str) -> str:

@@ -917,3 +917,9 @@ Sources checked:
 - [Cloudflare D1 Workers Binding API](https://developers.cloudflare.com/d1/worker-api/)
 - [Cloudflare D1 REST query API](https://developers.cloudflare.com/api/resources/d1/subresources/database/methods/query/)
 - [Docker Desktop license agreement](https://docs.docker.com/subscription/desktop-license/)
+# v0.4.3 Runtime And Cost Decision (2026-07-15)
+
+- Observed: current public durable APIs already read D1/R2 in the Worker, while the Flask/Jinja shell, `/sheet`, autocomplete, and static assets still pass through the container.
+- Decision: retain the hybrid renderer for now. Runtime headers distinguish `worker-d1` from `container`, and the next production smoke/analytics window should identify whether shell wakeups justify a static or Worker-rendered migration.
+- Guardrail: `PANNES_LOW_COST_MODE=1` prevents container wakeups and leaves durable APIs available. Browser-shell routes return `503`; this is an operational kill switch, not a claim of an equivalent static UI.
+- Operations: `/api/ops/cost-health` is private and reports the container's live state, latest ingestion, archive materialization, D1 table counts, and optional dashboard-refreshed D1/R2 size estimates.

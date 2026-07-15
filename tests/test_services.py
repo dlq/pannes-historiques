@@ -1,5 +1,6 @@
 from app.addressing import NormalizedAddress
 from app.config import Settings
+from app.db import open_db
 from app.services import (
     AppService,
     clearly_outside_quebec_query,
@@ -995,4 +996,22 @@ def test_raw_snapshot_payload_path_rejects_symlink_outside_raw_directory(tmp_pat
         )
     )
 
-    assert service.raw_snapshot_payload_path(str(escaped_path)) is None
+    with open_db(service.settings.db_path) as connection:
+        connection.execute(
+            """
+            INSERT INTO raw_snapshots
+            (source_type, source_version, fetched_at, payload_path, content_type, sha256, http_status)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "bismarkers",
+                "fixture",
+                "2026-01-01T00:00:00+00:00",
+                str(escaped_path),
+                "application/json",
+                "x",
+                200,
+            ),
+        )
+
+    assert service.raw_snapshot_payload_path("bismarkers", "fixture") is None
