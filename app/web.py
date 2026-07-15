@@ -35,6 +35,9 @@ from .views import (
     FIXED_DAYS,
     FIXED_INCLUDE_PLANNED,
     FIXED_RADIUS_M,
+    RADIUS_OPTIONS_M,
+    TYPED_ADDRESS_RADIUS_M,
+    address_radius_m,
     context_geometry_payload,
     default_map_payload,
     result_context,
@@ -125,13 +128,15 @@ def create_app(settings: Settings | None = None) -> Flask:
             lang, "current", current_layers=operational_layers_for_scope(CURRENT_MAP_LAYER_SCOPE)
         )
 
-    def address_search_result(lang, query, latitude, longitude, accuracy_m, map_layer_scopes=None):
+    def address_search_result(
+        lang, query, latitude, longitude, accuracy_m, radius_m, map_layer_scopes=None
+    ):
         scopes = address_search_scopes if map_layer_scopes is None else map_layer_scopes
         if query:
             return service.search(
                 query=query,
                 language=lang,
-                radius_m=FIXED_RADIUS_M,
+                radius_m=radius_m,
                 days=FIXED_DAYS,
                 include_planned=FIXED_INCLUDE_PLANNED,
                 include_map_layers=True,
@@ -143,7 +148,7 @@ def create_app(settings: Settings | None = None) -> Flask:
             longitude=longitude,
             accuracy_m=accuracy_m,
             language=lang,
-            radius_m=FIXED_RADIUS_M,
+            radius_m=radius_m,
             days=FIXED_DAYS,
             include_planned=FIXED_INCLUDE_PLANNED,
             include_map_layers=True,
@@ -162,16 +167,18 @@ def create_app(settings: Settings | None = None) -> Flask:
             "map_labels": {},
         }
 
-    def address_sheet(lang, domain, scope, query, latitude, longitude, accuracy_m) -> dict:
-        result = address_search_result(lang, query, latitude, longitude, accuracy_m)
+    def address_sheet(
+        lang, domain, scope, query, latitude, longitude, accuracy_m, radius_m
+    ) -> dict:
+        result = address_search_result(lang, query, latitude, longitude, accuracy_m, radius_m)
         if result.error:
             return sheet_error_context(lang, result)
         context = result_context(lang, result, include_map_payload=False)
         display_address = context["display_address"]
         if domain == "overview":
-            return overview_sheet_context(lang, result, display_address)
-        if domain == "context" or scope == "province":
-            return address_domain_sheet_context(
+            sheet_context = overview_sheet_context(lang, result, display_address)
+        elif domain == "context" or scope == "province":
+            sheet_context = address_domain_sheet_context(
                 lang,
                 domain,
                 result,
@@ -179,7 +186,13 @@ def create_app(settings: Settings | None = None) -> Flask:
                 scope="province",
                 explore_context=explore_sheet(lang, domain),
             )
-        return address_domain_sheet_context(lang, domain, result, display_address, scope="local")
+        else:
+            sheet_context = address_domain_sheet_context(
+                lang, domain, result, display_address, scope="local"
+            )
+        sheet_context["radius_m"] = result.radius_m
+        sheet_context["radius_options"] = RADIUS_OPTIONS_M
+        return sheet_context
 
     def initial_map_payload(sheet_context: dict, lang: str) -> dict:
         map_update = sheet_context.get("map_update") or {}
@@ -287,14 +300,17 @@ def create_app(settings: Settings | None = None) -> Flask:
             domain = "overview" if has_address else "current"
         if not has_address and domain == "overview":
             domain = "current"
-        return lang, domain, scope, query, latitude, longitude, accuracy_m, has_address
+        radius_m = address_radius_m(source.get("radius_m"), typed_address=bool(query))
+        return lang, domain, scope, query, latitude, longitude, accuracy_m, radius_m, has_address
 
     def build_sheet_context(
-        lang, domain, scope, query, latitude, longitude, accuracy_m, has_address
+        lang, domain, scope, query, latitude, longitude, accuracy_m, radius_m, has_address
     ):
         if has_address:
             with current_timer().step("sheet.address"):
-                return address_sheet(lang, domain, scope, query, latitude, longitude, accuracy_m)
+                return address_sheet(
+                    lang, domain, scope, query, latitude, longitude, accuracy_m, radius_m
+                )
         if domain not in EXPLORE_DOMAINS:
             domain = "current"
         with current_timer().step("sheet.explore"):
@@ -302,7 +318,7 @@ def create_app(settings: Settings | None = None) -> Flask:
 
     @app.get("/")
     def index():
-        lang, domain, scope, query, latitude, longitude, accuracy_m, has_address = (
+        lang, domain, scope, query, latitude, longitude, accuracy_m, radius_m, has_address = (
             sheet_request_params()
         )
         initial_query = query
@@ -314,9 +330,12 @@ def create_app(settings: Settings | None = None) -> Flask:
             canonical_query["lon"] = f"{longitude:.5f}"
             if accuracy_m is not None:
                 canonical_query["accuracy_m"] = f"{accuracy_m:g}"
+        default_radius_m = TYPED_ADDRESS_RADIUS_M if query else FIXED_RADIUS_M
+        if has_address and radius_m != default_radius_m:
+            canonical_query["radius_m"] = str(radius_m)
         canonical_url = absolute_public_url(settings, "/", canonical_query)
         sheet_context = build_sheet_context(
-            lang, domain, scope, query, latitude, longitude, accuracy_m, has_address
+            lang, domain, scope, query, latitude, longitude, accuracy_m, radius_m, has_address
         )
         if not query and latitude is not None and longitude is not None:
             initial_query = f"{t(lang, 'current_location')} ({latitude:.5f}, {longitude:.5f})"
@@ -341,11 +360,11 @@ def create_app(settings: Settings | None = None) -> Flask:
 
     @app.get("/sheet")
     def sheet():
-        lang, domain, scope, query, latitude, longitude, accuracy_m, has_address = (
+        lang, domain, scope, query, latitude, longitude, accuracy_m, radius_m, has_address = (
             sheet_request_params()
         )
         sheet_context = build_sheet_context(
-            lang, domain, scope, query, latitude, longitude, accuracy_m, has_address
+            lang, domain, scope, query, latitude, longitude, accuracy_m, radius_m, has_address
         )
         with current_timer().step("sheet.render_template"):
             return render_template(
@@ -431,8 +450,16 @@ def create_app(settings: Settings | None = None) -> Flask:
     def search():
         lang = choose_language(request.form.get("lang"))
         with current_timer().step("search.sheet"):
+            query = request.form.get("q", "")
             sheet_context = address_sheet(
-                lang, "overview", "local", request.form.get("q", ""), None, None, None
+                lang,
+                "overview",
+                "local",
+                query,
+                None,
+                None,
+                None,
+                address_radius_m(request.form.get("radius_m"), typed_address=bool(query)),
             )
         with current_timer().step("search.render_template"):
             return render_template(
@@ -448,7 +475,7 @@ def create_app(settings: Settings | None = None) -> Flask:
             result = service.search(
                 query=request.args.get("q", ""),
                 language=lang,
-                radius_m=FIXED_RADIUS_M,
+                radius_m=address_radius_m(request.args.get("radius_m"), typed_address=True),
                 days=FIXED_DAYS,
                 include_planned=FIXED_INCLUDE_PLANNED,
                 include_map_layers=True,
@@ -494,11 +521,18 @@ def create_app(settings: Settings | None = None) -> Flask:
         latitude = parse_optional_float(request.args.get("lat"))
         longitude = parse_optional_float(request.args.get("lon"))
         accuracy_m = parse_optional_float(request.args.get("accuracy_m"))
+        radius_m = address_radius_m(request.args.get("radius_m"), typed_address=bool(query))
 
         with current_timer().step("map_layer.service"):
             if query or (latitude is not None and longitude is not None):
                 result = address_search_result(
-                    lang, query, latitude, longitude, accuracy_m, map_layer_scopes={layer}
+                    lang,
+                    query,
+                    latitude,
+                    longitude,
+                    accuracy_m,
+                    radius_m,
+                    map_layer_scopes={layer},
                 )
                 context = result_context(lang, result, include_map_payload=True)
                 payload = context["map_payload"] if not result.error else {"matches": []}
@@ -555,6 +589,7 @@ def create_app(settings: Settings | None = None) -> Flask:
                 float(request.form.get("latitude") or "0"),
                 float(request.form.get("longitude") or "0"),
                 float(request.form["accuracy_m"]) if request.form.get("accuracy_m") else None,
+                address_radius_m(request.form.get("radius_m"), typed_address=False),
             )
         with current_timer().step("search_location.render_template"):
             return render_template(

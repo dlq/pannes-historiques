@@ -83,13 +83,29 @@ test("address search opens the overview answer stack", async ({ page }) => {
   await expect(page).toHaveURL(/lang=en/);
   await expect(page).toHaveURL(/q=5220\+Rue\+Jeanne-Mance|q=5220%20Rue%20Jeanne-Mance/);
   await expect(page.locator("#sheet-body .ph-sheet-title")).toContainText("5220");
-  await expect(page.locator("#sheet-body .ph-sheet-subtitle").first()).toContainText("5 km");
+  await expect(page.locator("#sheet-body .ph-sheet-subtitle").first()).toContainText("2 km");
   await expect(page.locator(".ph-status-line")).toHaveCount(3);
   await expect(page.locator(".ph-hero-card")).toBeVisible();
   await expect(page.locator(".ph-hero-number")).toHaveText(/\d+/);
   await expect(page.locator(".ph-hero-caveat")).toContainText("not Hydro-Quebec's official");
   await expect(page.locator('[data-domain-link="archive"].ph-action-button')).toBeVisible();
   await expect(page.locator("outage-map")).toHaveAttribute("data-map", /.+/);
+});
+
+test("address results use a 2 km default and allow a wider radius", async ({ page }) => {
+  await runSearch(page);
+
+  const radius = page.locator("#nearby-radius");
+  await expect(radius).toHaveValue("2000");
+  const sheetResponse = page.waitForResponse(
+    (response) => response.url().includes("/sheet") && response.url().includes("radius_m=5000"),
+  );
+  await radius.selectOption("5000");
+  await sheetResponse;
+
+  await expect(page).toHaveURL(/radius_m=5000/);
+  await expect(page.locator("#nearby-radius")).toHaveValue("5000");
+  await expect(page.locator("#sheet-body .ph-sheet-subtitle").first()).toContainText("5 km");
 });
 
 test("segmented control switches explore domains and map layers", async ({ page }) => {

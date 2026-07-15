@@ -32,6 +32,7 @@ const sheetState = {
   lat: "",
   lon: "",
   accuracy: "",
+  radiusM: "",
   rowSort: "clients",
 };
 
@@ -167,6 +168,7 @@ function readBootState() {
   sheetState.lat = params.get("lat") || "";
   sheetState.lon = params.get("lon") || "";
   sheetState.accuracy = params.get("accuracy_m") || "";
+  sheetState.radiusM = params.get("radius_m") || "";
   if (content) {
     sheetState.domain = content.dataset.domain || sheetState.domain;
     sheetState.scope = content.dataset.scope || sheetState.scope;
@@ -185,13 +187,18 @@ function hasAddress() {
   return Boolean(sheetState.q) || Boolean(sheetState.lat && sheetState.lon);
 }
 
-function applyLocationParams(searchParams) {
+function applyLocationParams(searchParams, { includeDefaultRadius = false } = {}) {
   if (sheetState.q) {
     searchParams.set("q", sheetState.q);
   } else if (sheetState.lat && sheetState.lon) {
     searchParams.set("lat", sheetState.lat);
     searchParams.set("lon", sheetState.lon);
     if (sheetState.accuracy) searchParams.set("accuracy_m", sheetState.accuracy);
+  }
+  const radiusM = Number(sheetState.radiusM);
+  const defaultRadiusM = sheetState.q ? 2000 : 5000;
+  if (Number.isFinite(radiusM) && (includeDefaultRadius || radiusM !== defaultRadiusM)) {
+    searchParams.set("radius_m", String(radiusM));
   }
 }
 
@@ -385,6 +392,7 @@ function bindSheetContent() {
   if (content) {
     sheetState.domain = content.dataset.domain || sheetState.domain;
     sheetState.scope = content.dataset.scope || sheetState.scope;
+    sheetState.radiusM = content.dataset.radiusM || sheetState.radiusM;
     document.body.dataset.mode = content.dataset.mode || "explore";
   }
   if (sheetState.rowSort && sheetState.rowSort !== "clients") {
@@ -425,7 +433,7 @@ export async function fetchSheet(updates = {}, { pushUrl = true, focus = null } 
   url.searchParams.set("lang", sheetState.lang);
   url.searchParams.set("domain", sheetState.domain);
   url.searchParams.set("scope", sheetState.scope);
-  applyLocationParams(url.searchParams);
+  applyLocationParams(url.searchParams, { includeDefaultRadius: true });
   try {
     const response = await fetch(url, { headers: { Accept: "text/html" } });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -447,6 +455,7 @@ export async function fetchSheet(updates = {}, { pushUrl = true, focus = null } 
         latitude: sheetState.q ? "" : sheetState.lat,
         longitude: sheetState.q ? "" : sheetState.lon,
         accuracy: sheetState.q ? "" : sheetState.accuracy,
+        radiusM: sheetState.radiusM,
       });
     }
   } catch (_error) {
@@ -633,7 +642,15 @@ function bindGlobalHandlers() {
       const input = document.querySelector("#address-input");
       if (input) input.value = "";
       fetchSheet(
-        { q: "", lat: "", lon: "", accuracy: "", domain: "current", scope: "local" },
+        {
+          q: "",
+          lat: "",
+          lon: "",
+          accuracy: "",
+          radiusM: "",
+          domain: "current",
+          scope: "local",
+        },
         { focus: "search" },
       );
       return;
@@ -655,9 +672,23 @@ function bindGlobalHandlers() {
     const query = form.querySelector('[name="q"]')?.value.trim() || "";
     if (!query) return;
     fetchSheet(
-      { q: query, lat: "", lon: "", accuracy: "", domain: "overview", scope: "local" },
+      {
+        q: query,
+        lat: "",
+        lon: "",
+        accuracy: "",
+        radiusM: "2000",
+        domain: "overview",
+        scope: "local",
+      },
       { focus: "result" },
     );
+  });
+
+  document.body.addEventListener("change", (event) => {
+    const radius = event.target.closest("[data-nearby-radius]");
+    if (!radius) return;
+    fetchSheet({ radiusM: radius.value }, { focus: "result" });
   });
 
   document.body.addEventListener("operational-layer-selected", (event) => {
@@ -732,6 +763,7 @@ function attachLocationSearch() {
           lat: String(position.coords.latitude),
           lon: String(position.coords.longitude),
           accuracy,
+          radiusM: "5000",
           domain: "overview",
           scope: "local",
         });

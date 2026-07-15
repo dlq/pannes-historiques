@@ -14,6 +14,9 @@
             data-action="clear-search"
             aria-label="{{ t(lang, 'sheet_close_search') }}">{{ ph_icon("x") }}</button>
   </header>
+  {% if sheet.scope == "local" and sheet.domain != "context" %}
+    {% include "_radius_control.html" %}
+  {% endif %}
 {% else %}
   {% include "_sheet_search.html" %}
 {% endif %}

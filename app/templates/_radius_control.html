@@ -1,0 +1,9 @@
+<label class="ph-radius-control" for="nearby-radius">
+  <span>{{ t(lang, "nearby_radius_label") }}</span>
+  <select id="nearby-radius" data-nearby-radius>
+    {% for radius_m in sheet.radius_options %}
+      <option value="{{ radius_m }}"
+              {% if radius_m == sheet.radius_m %}selected{% endif %}>{{ radius_m // 1000 }} km</option>
+    {% endfor %}
+  </select>
+</label>
