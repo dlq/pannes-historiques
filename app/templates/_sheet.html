@@ -3,6 +3,7 @@
      data-mode="{{ sheet.mode }}"
      data-domain="{{ sheet.domain }}"
      data-scope="{{ sheet.scope }}"
+     {% if sheet.radius_m %}data-radius-m="{{ sheet.radius_m }}"{% endif %}
      {% if sheet_is_boot %}data-boot="1"{% endif %}>
   {% if sheet.map_update and not sheet_is_boot %}
     <script type="application/json" data-map-update>{{ sheet.map_update | tojson }}</script>

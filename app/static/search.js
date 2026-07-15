@@ -36,6 +36,11 @@ export function updateSearchUrl(params = {}) {
     url.searchParams.set("lon", params.longitude);
   }
   if (params.accuracy) url.searchParams.set("accuracy_m", params.accuracy);
+  const radiusM = Number(params.radiusM);
+  const defaultRadiusM = params.q ? 2000 : 5000;
+  if (Number.isFinite(radiusM) && radiusM !== defaultRadiusM) {
+    url.searchParams.set("radius_m", String(radiusM));
+  }
   window.history.pushState({ pannesSearch: true }, "", url);
 }
 

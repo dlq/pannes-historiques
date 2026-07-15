@@ -9,6 +9,7 @@
           data-action="clear-search"
           aria-label="{{ t(lang, 'sheet_close_search') }}">{{ ph_icon("x") }}</button>
 </header>
+{% include "_radius_control.html" %}
 <div class="ph-status-lines">
   <button class="ph-status-line"
           type="button"
@@ -76,7 +77,7 @@
           data-compare-add
           data-compare-address="{{ sheet.display_address }}"
           data-compare-count="{{ sheet.history.count }}"
-          data-compare-radius="5">{{ t(lang, "compare_button") }}</button>
+          data-compare-radius="{{ sheet.radius_m // 1000 }}">{{ t(lang, "compare_button") }}</button>
 </div>
 <div class="ph-compare-tray" data-compare-tray hidden></div>
 <div class="ph-overview-context-link">

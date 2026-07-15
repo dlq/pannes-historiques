@@ -29,7 +29,7 @@ def test_address_index_keeps_radius_based_map_framing(app_client):
     payload = json.loads(match.group(1))
     assert payload["overviewBounds"] is None
     assert payload["preserveInitialView"] is False
-    assert payload["radiusM"] == 5000
+    assert payload["radiusM"] == 2000
 
 
 def test_index_includes_pwa_metadata(app_client):
@@ -204,12 +204,12 @@ def test_service_worker_route_has_root_scope(app_client):
     assert b"/static/offline.html" in response.data
 
 
-def test_search_route_uses_fixed_defaults(app_client):
+def test_search_route_uses_typed_address_defaults(app_client):
     response = app_client.post("/search", data={"q": "5220 Rue Jeanne-Mance", "lang": "en"})
 
     assert response.status_code == 200
     call = app_client.application.testing_stub_service.search_calls[-1]
-    assert call["radius_m"] == 5000
+    assert call["radius_m"] == 2000
     assert call["days"] == 1825
     assert call["include_planned"] is True
     assert call["include_map_layers"] is True
@@ -233,12 +233,34 @@ def test_index_location_url_uses_coordinates(app_client):
     assert call["record_history"] is False
 
 
-def test_index_query_url_is_read_only(app_client):
+def test_typed_address_search_defaults_to_two_kilometers_and_renders_radius_control(app_client):
     response = app_client.get("/?lang=en&q=5220%20Rue%20Jeanne-Mance")
 
     assert response.status_code == 200
     call = app_client.application.testing_stub_service.search_calls[-1]
+    assert call["radius_m"] == 2000
+    html = response.get_data(as_text=True)
+    assert 'id="nearby-radius"' in html
+    assert re.search(r'<option value="2000"\s+selected>2 km</option>', html)
+
+
+def test_typed_address_search_accepts_supported_radius_setting(app_client):
+    response = app_client.get("/?lang=en&q=5220%20Rue%20Jeanne-Mance&radius_m=5000")
+
+    assert response.status_code == 200
+    call = app_client.application.testing_stub_service.search_calls[-1]
     assert call["radius_m"] == 5000
+    assert re.search(
+        r'<option value="5000"\s+selected>5 km</option>', response.get_data(as_text=True)
+    )
+
+
+def test_typed_address_search_rejects_unsupported_radius_setting(app_client):
+    response = app_client.get("/?lang=en&q=5220%20Rue%20Jeanne-Mance&radius_m=3000")
+
+    assert response.status_code == 200
+    call = app_client.application.testing_stub_service.search_calls[-1]
+    assert call["radius_m"] == 2000
     assert call["days"] == 1825
     assert call["include_planned"] is True
     assert call["include_map_layers"] is True
@@ -516,7 +538,7 @@ def test_sheet_with_address_renders_overview(app_client):
     assert 'data-domain="overview"' in html
     assert "ph-hero-card" in html
     call = app_client.application.testing_stub_service.search_calls[-1]
-    assert call["radius_m"] == 5000
+    assert call["radius_m"] == 2000
     assert call["record_history"] is False
 
 
