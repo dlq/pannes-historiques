@@ -19,6 +19,12 @@ export async function fetchContainerRequest(request, env, instanceName = DEFAULT
   );
   const headers = new Headers(response.headers);
   headers.set("X-Pannes-Worker-Container-Fetch-Ms", String(elapsedMs));
+  headers.set("X-Pannes-Runtime", "container");
+  const serverTiming = headers.get("Server-Timing");
+  headers.set(
+    "Server-Timing",
+    [serverTiming, `worker-container;dur=${elapsedMs}`].filter(Boolean).join(", "),
+  );
   return new Response(response.body, {
     status: response.status,
     statusText: response.statusText,

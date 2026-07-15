@@ -4,10 +4,16 @@ Pannes Historiques is a Flask application deployed behind a Cloudflare Worker an
 
 ## Request Flow
 
-- Public page requests (`/`, `/about`, `GET /sheet`, and the POST `/search`/`/search-location` compat aliases) enter the Worker and are forwarded to the Flask container.
-- Public read APIs under `/api/durable/hydro`, `/api/durable/nearby`, and `/api/durable/history-nearby` are served directly by the Worker from D1/R2.
-- Private runtime APIs under `/api/durable/runtime/*` are Worker endpoints used by the container. They require `X-Pannes-Operation-Token`.
-- Private operational paths (`/internal/*`, `/cron/*`, `/collect*`, `/debug/*`) are blocked at the Worker edge unless they are reached through scheduled/internal flows.
+- `container-needed`: `/`, `/about`, `GET /sheet`, static assets, and the POST `/search`/`/search-location` compatibility aliases enter the Worker and are forwarded to Flask. They report `X-Pannes-Runtime: container`; forwarded responses also report `worker-container` in `Server-Timing`.
+- `edge-safe`: `/api/durable/hydro`, `/api/durable/nearby`, and `/api/durable/history-nearby` are served directly from D1/R2 and report `X-Pannes-Runtime: worker-d1`.
+- `internal-only`: `/api/durable/status`, `/api/ops/cost-health`, private `/api/durable/runtime/*` operations, and `/internal/*`, `/cron/*`, `/collect*`, and `/debug/*` stay private or are blocked at the Worker edge. The operation token or the configured trusted container Worker host is required where applicable.
+- Obvious framework probes, including PHP, WordPress, Joomla, `.env`, `.git`, CGI, and PHPUnit paths, are rejected at the Worker edge.
+
+`PANNES_LOW_COST_MODE=1` is an emergency container-wake kill switch. Durable public data APIs keep serving last-known D1/R2 data; container-needed page routes return a marked `503` instead of waking Flask. It is deliberately not a substitute for a static browser shell.
+
+## Cost Decision
+
+The near-term architecture is **hybrid renderer with Worker-first durable reads**. D1/R2 remain canonical for production data and the Worker serves the data APIs and materialized runtime reads; Flask/Jinja remains the browser shell while its interaction model is still changing. A Worker-rendered or static shell is deferred until production markers show that shell requests, rather than durable reads, are the material source of recurring container cost.
 
 ## Browser Interface
 
@@ -28,6 +34,7 @@ The interface is one full-bleed MapLibre GL map (OpenFreeMap Liberty vector styl
 - `src/municipal-archive.js` owns pure municipal geometry helpers shared by Worker code and maintenance scripts.
 - `src/archive-summary.js` owns pure row-shaping helpers for the previous-outage archive summary.
 - `src/container-proxy.js` owns forwarding browser requests from the Worker to the Cloudflare Container instance.
+- `/api/ops/cost-health` reports the live container state, latest scheduled ingestion, archive materialization state, D1 table counts, and optional dashboard-measured D1/R2 size values. It is private; configure `PANNES_D1_SIZE_BYTES`, `PANNES_R2_OBJECT_COUNT`, and `PANNES_R2_STORAGE_BYTES` only from a dated dashboard check.
 - `scripts/maintenance/` owns one-off or operator-driven maintenance scripts.
 
 ## Enforced Module Boundaries

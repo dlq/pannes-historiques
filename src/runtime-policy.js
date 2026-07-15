@@ -21,13 +21,22 @@ export function runtimeEndpointRequiresOperationToken(suffix, method) {
   return PRIVATE_RUNTIME_ENDPOINTS.has(`${normalizedMethod} ${normalizedSuffix}`);
 }
 
-export function isTrustedContainerRuntimeProxyRequest(request) {
+export function isTrustedContainerRuntimeProxyRequest(request, trustedWorkerHost) {
   const url = new URL(request.url);
   return (
     url.protocol === "http:" &&
     url.pathname.startsWith("/api/durable/runtime") &&
-    request.headers.get("cf-worker") === "dalaque.workers.dev" &&
+    Boolean(trustedWorkerHost) &&
+    request.headers.get("cf-worker") === trustedWorkerHost &&
     request.headers.get("host") === "pannes.ca" &&
     request.headers.get("user-agent") === "pannes-historiques/0.1 (+https://pannes.ca)"
+  );
+}
+
+export function isOperationalRequest(request, operationToken, trustedWorkerHost) {
+  return (
+    (Boolean(operationToken) &&
+      request.headers.get("X-Pannes-Operation-Token") === operationToken) ||
+    isTrustedContainerRuntimeProxyRequest(request, trustedWorkerHost)
   );
 }

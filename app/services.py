@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import time
 import urllib.parse
 import urllib.request
@@ -17,6 +18,8 @@ from .durable_runtime import DurableRuntimeClient
 from .geocoding import GeocodingService, haversine_meters
 from .hydro import HydroCollector
 from .perf import current_timer
+
+LOGGER = logging.getLogger(__name__)
 
 DURABLE_RUNTIME_CACHEABLE_PATHS = {
     "map-context",
@@ -327,19 +330,39 @@ class AppService:
             ).fetchone()
         if not row:
             return None
-        return self._raw_payload_file(Path(row["payload_path"]))
+        return self._raw_payload_file(row["payload_path"])
 
-    def raw_snapshot_payload_path(self, payload_path: str) -> Path | None:
-        return self._raw_payload_file(Path(payload_path))
+    def raw_snapshot_payload_path(self, source_type: str, source_version: str) -> Path | None:
+        if source_type not in {
+            "bisversion",
+            "bismarkers",
+            "bispoly",
+            "aipversion",
+            "aipmarkers",
+            "aippoly",
+        }:
+            return None
+        with open_db(self.settings.db_path) as connection:
+            row = connection.execute(
+                """
+                SELECT payload_path
+                FROM raw_snapshots
+                WHERE source_type = ? AND source_version = ?
+                ORDER BY id DESC
+                LIMIT 1
+                """,
+                (source_type, source_version),
+            ).fetchone()
+        return self._raw_payload_file(row["payload_path"]) if row else None
 
-    def _raw_payload_file(self, path: Path) -> Path | None:
+    def _raw_payload_file(self, payload_path: str) -> Path | None:
         try:
             raw_dir = self.settings.raw_dir.resolve(strict=True)
-            resolved_path = path.resolve(strict=True)
+            resolved_path = Path(payload_path).resolve(strict=True)
             resolved_path.relative_to(raw_dir)
         except (OSError, RuntimeError, ValueError):
             return None
-        return resolved_path if resolved_path.is_file() else None
+        return resolved_path.relative_to(raw_dir) if resolved_path.is_file() else None
 
     def run_changed_collection_job(self) -> dict[str, Any]:
         return self._run_job("hydro_changed", self.collect_changed)
@@ -351,8 +374,9 @@ class AppService:
             result = factory()
             self._record_job_finished(run_id, "ok", result)
             return result
-        except Exception as exc:
-            result = {"errors": [{"job": job_name, "error": str(exc)}]}
+        except Exception:
+            LOGGER.exception("Collection job failed job=%s", job_name)
+            result = {"errors": [{"job": job_name, "error": "collection failed"}]}
             self._record_job_finished(run_id, "error", result)
             return result
 

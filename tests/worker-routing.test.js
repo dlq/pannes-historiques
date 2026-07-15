@@ -19,9 +19,15 @@ test("blocks obvious scanner probes at the Worker edge", () => {
     "/phpmyadmin/",
     "/cgi-bin/test.cgi",
     "/vendor/phpunit/phpunit/src/Util/PHP/eval-stdin.php",
+    "/administrator/manifests/files/joomla.xml",
+    "/libraries/joomla/session/session.php",
   ]) {
     assert.equal(workerRouteForPath(pathname), "blocked");
   }
+});
+
+test("classifies the private cost-health endpoint explicitly", () => {
+  assert.equal(workerRouteForPath("/api/ops/cost-health"), "cost_health");
 });
 
 test("classifies durable public and runtime endpoints explicitly", () => {

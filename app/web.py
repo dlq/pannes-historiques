@@ -8,7 +8,18 @@ from types import SimpleNamespace
 from urllib.parse import urlencode
 from uuid import uuid4
 
-from flask import Flask, Response, g, jsonify, render_template, request, send_file
+from flask import (
+    Flask,
+    Response,
+    g,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    send_file,
+    send_from_directory,
+    url_for,
+)
 
 from .config import Settings, ensure_directories
 from .db import initialize
@@ -167,6 +178,16 @@ def create_app(settings: Settings | None = None) -> Flask:
             "map_labels": {},
         }
 
+    def sheet_load_error_context(lang: str) -> dict:
+        return {
+            "mode": "explore",
+            "domain": "current",
+            "scope": "province",
+            "error_message": t(lang, "sheet_load_error"),
+            "map_update": None,
+            "map_labels": {},
+        }
+
     def address_sheet(
         lang, domain, scope, query, latitude, longitude, accuracy_m, radius_m
     ) -> dict:
@@ -260,13 +281,18 @@ def create_app(settings: Settings | None = None) -> Flask:
         timer = current_timer()
         timer.set("response_content_length", response.calculate_content_length())
         response.headers["X-Pannes-Request-Id"] = timer.request_id
+        response.headers["X-Pannes-Runtime"] = "container"
         response.headers["Server-Timing"] = f"app;dur={timer.snapshot().get('total_ms', 0)}"
         timer.log(status_code=response.status_code)
         token = getattr(g, "perf_token", None)
         if token is not None:
             reset_current_timer(token)
             g.perf_token = None
-        if request.path.startswith("/static/") and request.path != "/static/service-worker.js":
+        if request.path.startswith("/static/") and request.path not in {
+            "/static/service-worker.js",
+            "/static/vendor/leaflet/leaflet.css",
+            "/static/vendor/leaflet/leaflet.js",
+        }:
             response.headers["Cache-Control"] = (
                 "public, max-age=31536000, immutable"
                 if request.args.get("v")
@@ -334,9 +360,21 @@ def create_app(settings: Settings | None = None) -> Flask:
         if has_address and radius_m != default_radius_m:
             canonical_query["radius_m"] = str(radius_m)
         canonical_url = absolute_public_url(settings, "/", canonical_query)
-        sheet_context = build_sheet_context(
-            lang, domain, scope, query, latitude, longitude, accuracy_m, radius_m, has_address
-        )
+        try:
+            sheet_context = build_sheet_context(
+                lang, domain, scope, query, latitude, longitude, accuracy_m, radius_m, has_address
+            )
+        except Exception:
+            logging.exception(
+                "sheet_request_failed request_id=%s domain=%s scope=%s lang=%s has_query=%s has_coordinates=%s",
+                current_timer().request_id,
+                domain,
+                scope,
+                lang,
+                bool(query),
+                latitude is not None and longitude is not None,
+            )
+            sheet_context = sheet_load_error_context(lang)
         if not query and latitude is not None and longitude is not None:
             initial_query = f"{t(lang, 'current_location')} ({latitude:.5f}, {longitude:.5f})"
 
@@ -363,9 +401,25 @@ def create_app(settings: Settings | None = None) -> Flask:
         lang, domain, scope, query, latitude, longitude, accuracy_m, radius_m, has_address = (
             sheet_request_params()
         )
-        sheet_context = build_sheet_context(
-            lang, domain, scope, query, latitude, longitude, accuracy_m, radius_m, has_address
-        )
+        try:
+            sheet_context = build_sheet_context(
+                lang, domain, scope, query, latitude, longitude, accuracy_m, radius_m, has_address
+            )
+            with current_timer().step("sheet.render_template"):
+                return render_template(
+                    "_sheet.html", lang=lang, sheet=sheet_context, sheet_is_boot=False
+                )
+        except Exception:
+            logging.exception(
+                "sheet_request_failed request_id=%s domain=%s scope=%s lang=%s has_query=%s has_coordinates=%s",
+                current_timer().request_id,
+                domain,
+                scope,
+                lang,
+                bool(query),
+                latitude is not None and longitude is not None,
+            )
+            sheet_context = sheet_load_error_context(lang)
         with current_timer().step("sheet.render_template"):
             return render_template(
                 "_sheet.html", lang=lang, sheet=sheet_context, sheet_is_boot=False
@@ -431,6 +485,27 @@ def create_app(settings: Settings | None = None) -> Flask:
     @app.get("/healthz")
     def healthz():
         return jsonify({"ok": True})
+
+    @app.get("/favicon.ico")
+    def favicon_alias():
+        return redirect(url_for("static", filename="favicon.svg"))
+
+    @app.get("/static/vendor/leaflet/leaflet.css")
+    def leaflet_css_tombstone():
+        return Response(
+            "/* Retired: pannes.ca now uses MapLibre. */\n",
+            mimetype="text/css",
+            headers={"Cache-Control": "no-store"},
+        )
+
+    @app.get("/static/vendor/leaflet/leaflet.js")
+    def leaflet_js_tombstone():
+        body = """(() => {\n  const key = \"pannes-leaflet-cache-cleared\";\n  if (sessionStorage.getItem(key)) return;\n  sessionStorage.setItem(key, \"1\");\n  navigator.serviceWorker?.getRegistrations().then((registrations) =>\n    Promise.all(registrations.map((registration) => registration.unregister())),\n  ).finally(() => location.reload());\n})();\n"""
+        return Response(
+            body,
+            mimetype="text/javascript",
+            headers={"Cache-Control": "no-store"},
+        )
 
     @app.get("/service-worker.js")
     def service_worker():
@@ -712,18 +787,19 @@ def create_app(settings: Settings | None = None) -> Flask:
         if path is None:
             return jsonify({"error": "source file not found"}), 404
         content_type = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
-        return send_file(path, mimetype=content_type, as_attachment=False)
+        return send_from_directory(settings.raw_dir, path.as_posix(), mimetype=content_type)
 
     @app.get("/internal/raw-snapshot")
     def internal_raw_snapshot():
         if response := require_internal_route():
             return response
-        payload_path = request.args.get("payload_path", "")
-        path = service.raw_snapshot_payload_path(payload_path)
+        source_type = request.args.get("source_type", "")
+        source_version = request.args.get("source_version", "")
+        path = service.raw_snapshot_payload_path(source_type, source_version)
         if path is None:
             return jsonify({"error": "snapshot file not found"}), 404
         content_type = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
-        return send_file(path, mimetype=content_type, as_attachment=False)
+        return send_from_directory(settings.raw_dir, path.as_posix(), mimetype=content_type)
 
     return app
 
@@ -738,6 +814,8 @@ def parse_optional_float(value: str | None) -> float | None:
 
 
 def serialize_payload(payload):
+    if isinstance(payload, BaseException):
+        return {"error": "internal error"}
     if isinstance(payload, dict):
         return {key: serialize_payload(value) for key, value in payload.items()}
     if isinstance(payload, list):

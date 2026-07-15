@@ -1200,7 +1200,7 @@ button {
     top: 12px;
     bottom: auto;
     width: 392px;
-    height: auto !important;
+    height: auto;
     /* Hug content, but never taller than the viewport (body scrolls inside). */
     max-height: calc(100dvh - 24px);
     border: 1px solid var(--ph-hairline);

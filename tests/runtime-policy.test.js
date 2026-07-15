@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import {
+  isOperationalRequest,
   isTrustedContainerRuntimeProxyRequest,
   runtimeEndpointRequiresOperationToken,
 } from "../src/runtime-policy.js";
@@ -15,6 +16,14 @@ test("requires operation token for durable runtime write endpoints", () => {
   ]) {
     assert.equal(runtimeEndpointRequiresOperationToken(suffix, method), true);
   }
+});
+
+test("authorizes private operations with the configured token", () => {
+  const request = new Request("https://pannes.ca/api/ops/cost-health", {
+    headers: { "X-Pannes-Operation-Token": "expected" },
+  });
+  assert.equal(isOperationalRequest(request, "expected", "worker.example"), true);
+  assert.equal(isOperationalRequest(request, "other", "worker.example"), false);
 });
 
 test("requires operation token for address-scoped durable runtime reads", () => {
@@ -41,7 +50,7 @@ test("requires operation token for runtime map and status reads", () => {
   }
 });
 
-test("trusts only Cloudflare container proxy runtime requests", () => {
+test("trusts only Cloudflare container proxy runtime requests for the configured Worker host", () => {
   const trusted = new Request("http://pannes.ca/api/durable/runtime/address", {
     method: "POST",
     headers: {
@@ -50,7 +59,7 @@ test("trusts only Cloudflare container proxy runtime requests", () => {
       "user-agent": "pannes-historiques/0.1 (+https://pannes.ca)",
     },
   });
-  assert.equal(isTrustedContainerRuntimeProxyRequest(trusted), true);
+  assert.equal(isTrustedContainerRuntimeProxyRequest(trusted, "dalaque.workers.dev"), true);
 
   const publicHttps = new Request("https://pannes.ca/api/durable/runtime/address", {
     method: "POST",
@@ -60,7 +69,7 @@ test("trusts only Cloudflare container proxy runtime requests", () => {
       "user-agent": "pannes-historiques/0.1 (+https://pannes.ca)",
     },
   });
-  assert.equal(isTrustedContainerRuntimeProxyRequest(publicHttps), false);
+  assert.equal(isTrustedContainerRuntimeProxyRequest(publicHttps, "dalaque.workers.dev"), false);
 
   const wrongWorker = new Request("http://pannes.ca/api/durable/runtime/address", {
     method: "POST",
@@ -70,5 +79,16 @@ test("trusts only Cloudflare container proxy runtime requests", () => {
       "user-agent": "pannes-historiques/0.1 (+https://pannes.ca)",
     },
   });
-  assert.equal(isTrustedContainerRuntimeProxyRequest(wrongWorker), false);
+  assert.equal(isTrustedContainerRuntimeProxyRequest(wrongWorker, "dalaque.workers.dev"), false);
+
+  const customWorker = new Request("http://pannes.ca/api/durable/runtime/address", {
+    method: "POST",
+    headers: {
+      "cf-worker": "runtime.pannes.example",
+      host: "pannes.ca",
+      "user-agent": "pannes-historiques/0.1 (+https://pannes.ca)",
+    },
+  });
+  assert.equal(isTrustedContainerRuntimeProxyRequest(customWorker, "runtime.pannes.example"), true);
+  assert.equal(isTrustedContainerRuntimeProxyRequest(customWorker, ""), false);
 });

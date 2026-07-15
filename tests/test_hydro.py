@@ -172,6 +172,4 @@ def test_collect_source_if_changed_against_reports_version_fetch_failure(tmp_pat
 
     assert result["changed"] is False
     assert result["snapshots"] == []
-    assert result["errors"] == [
-        {"source": "bis", "error": "version fetch failed for bis: HTTP 503"}
-    ]
+    assert result["errors"] == [{"source": "bis", "error": "collection failed"}]

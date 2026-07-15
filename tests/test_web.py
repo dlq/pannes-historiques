@@ -501,11 +501,41 @@ def test_internal_raw_snapshot_requires_internal_header(app_client):
 
 def test_internal_raw_snapshot_returns_404_when_missing(app_client):
     response = app_client.get(
-        "/internal/raw-snapshot?payload_path=test",
+        "/internal/raw-snapshot?source_type=bismarkers&source_version=test",
         headers={"X-Cloudflare-Internal": "1"},
     )
 
     assert response.status_code == 404
+
+
+def test_favicon_alias_redirects_to_current_asset(app_client):
+    response = app_client.get("/favicon.ico")
+
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("/static/favicon.svg")
+
+
+def test_stale_leaflet_tombstones_are_cache_safe(app_client):
+    for path in ("/static/vendor/leaflet/leaflet.css", "/static/vendor/leaflet/leaflet.js"):
+        response = app_client.get(path)
+
+        assert response.status_code == 200
+        assert response.headers["Cache-Control"] == "no-store"
+
+
+def test_sheet_returns_localized_error_fragment_when_context_building_fails(
+    app_client, monkeypatch
+):
+    service = app_client.application.config["APP_SERVICE"]
+
+    def raise_error(*args, **kwargs):
+        raise RuntimeError("fixture failure")
+
+    monkeypatch.setattr(service, "_current_operational_map_layers", raise_error)
+    response = app_client.get("/sheet?lang=en&domain=current")
+
+    assert response.status_code == 200
+    assert "The content could not load. Try again." in response.get_data(as_text=True)
 
 
 def test_sheet_explore_domains_render(app_client):
