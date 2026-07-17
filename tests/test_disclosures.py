@@ -1,21 +1,40 @@
+import io
+import zipfile
+
 import pytest
 
 from app.disclosures import (
     AccessResponsePageParser,
     DisclosureSource,
+    clean_cell,
+    column_index,
     content_type_from_url,
+    discover_disclosure_sources,
     fallback_circle_polygon,
+    first_value,
     geometry_bbox,
     is_outage_related_text,
+    maybe_float,
     normalize_datetime,
     normalize_key,
     normalize_row_keys,
+    parse_integer_tokens,
     parse_multi_year_regional_metrics,
     parse_pdf_row_line,
     parse_single_period_regional_metrics,
+    parse_xlsx,
     relation_to_geojson,
+    rows_to_dicts,
     sources_from_discovered_article,
 )
+
+
+def xlsx_fixture(files: dict[str, str]) -> bytes:
+    payload = io.BytesIO()
+    with zipfile.ZipFile(payload, "w") as archive:
+        for path, content in files.items():
+            archive.writestr(path, content)
+    return payload.getvalue()
 
 
 def test_normalize_key_handles_accents_apostrophes_and_spacing():
@@ -33,6 +52,135 @@ def test_normalize_datetime_handles_empty_and_iso_t_values():
     assert normalize_datetime("") is None
     assert normalize_datetime(None) is None
     assert normalize_datetime("2025-01-01T12:34:56.789Z") == "2025-01-01 12:34:56"
+
+
+def test_parse_xlsx_reads_inline_cells_and_sparse_data_rows():
+    payload = xlsx_fixture(
+        {
+            "xl/workbook.xml": """
+                <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+                  xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+                  <sheets><sheet name="Pannes" sheetId="1" r:id="rId1" /></sheets>
+                </workbook>
+            """,
+            "xl/_rels/workbook.xml.rels": """
+                <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+                  <Relationship Id="rId1" Target="worksheets/sheet1.xml" />
+                </Relationships>
+            """,
+            "xl/worksheets/sheet1.xml": """
+                <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+                  <sheetData>
+                    <row r="1"><c r="A1" t="inlineStr"><is><t>Notes</t></is></c></row>
+                    <row r="2">
+                      <c r="A2" t="inlineStr"><is><t>Date début interruption</t></is></c>
+                      <c r="B2" t="inlineStr"><is><t>Clients</t></is></c>
+                      <c r="C2" t="inlineStr"><is><t>Durée (sec)</t></is></c>
+                    </row>
+                    <row r="3">
+                      <c r="A3" t="inlineStr"><is><t>2025-01-02 03:04:05</t></is></c>
+                      <c r="B3"><v>42</v></c><c r="C3"><v>7200</v></c>
+                    </row>
+                    <row r="4"><c r="B4"><v>7</v></c></row>
+                  </sheetData>
+                </worksheet>
+            """,
+        }
+    )
+
+    assert parse_xlsx(payload) == {
+        "Pannes": [
+            {
+                "Date début interruption": "2025-01-02 03:04:05",
+                "Clients": 42,
+                "Durée (sec)": 7200,
+            },
+            {"Clients": 7},
+        ]
+    }
+
+
+def test_parse_integer_tokens_handles_split_and_unexpected_metric_columns():
+    assert parse_integer_tokens("1 234 56 7 890", expected_values=3) == [1234, 56, 7890]
+    assert parse_integer_tokens("12 345 678") == [12345, 678]
+
+
+def test_parse_xlsx_ignores_sheets_without_a_recognized_outage_header():
+    payload = xlsx_fixture(
+        {
+            "xl/workbook.xml": """
+                <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+                  xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+                  <sheets><sheet name="Metadata" sheetId="1" r:id="rId1" /></sheets>
+                </workbook>
+            """,
+            "xl/_rels/workbook.xml.rels": """
+                <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+                  <Relationship Id="rId1" Target="worksheets/sheet1.xml" />
+                </Relationships>
+            """,
+            "xl/worksheets/sheet1.xml": """
+                <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+                  <sheetData><row r="1"><c r="A1" t="inlineStr"><is><t>Read me</t></is></c></row></sheetData>
+                </worksheet>
+            """,
+        }
+    )
+
+    assert parse_xlsx(payload) == {}
+
+
+def test_parse_xlsx_resolves_shared_strings():
+    payload = xlsx_fixture(
+        {
+            "xl/sharedStrings.xml": """
+                <sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+                  <si><t>Date début interruption</t></si><si><t>Clients</t></si>
+                  <si><t>2025-01-02 03:04:05</t></si>
+                </sst>
+            """,
+            "xl/workbook.xml": """
+                <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+                  xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+                  <sheets><sheet name="Pannes" sheetId="1" r:id="rId1" /></sheets>
+                </workbook>
+            """,
+            "xl/_rels/workbook.xml.rels": """
+                <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+                  <Relationship Id="rId1" Target="worksheets/sheet1.xml" />
+                </Relationships>
+            """,
+            "xl/worksheets/sheet1.xml": """
+                <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+                  <sheetData>
+                    <row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="s"><v>1</v></c></row>
+                    <row r="2"><c r="A2" t="s"><v>2</v></c><c r="B2"><v>42</v></c></row>
+                  </sheetData>
+                </worksheet>
+            """,
+        }
+    )
+
+    assert parse_xlsx(payload) == {
+        "Pannes": [{"Date début interruption": "2025-01-02 03:04:05", "Clients": 42}]
+    }
+
+
+def test_xlsx_helper_values_handle_sparse_rows_and_invalid_numbers():
+    assert column_index("A1") == 0
+    assert column_index("AA10") == 26
+    assert clean_cell(" 42 ") == 42
+    assert clean_cell("2.5") == 2.5
+    assert clean_cell("not a number") == "not a number"
+    assert rows_to_dicts([["Notes"], ["Clients", ""], [5, "ignored"]]) == [{"Clients": 5}]
+
+
+def test_disclosure_value_helpers_prefer_present_values_and_reject_invalid_numbers():
+    assert first_value({"first": "", "second": 2}, "first", "second") == 2
+    assert first_value({"first": None}, "first", "missing") is None
+    assert maybe_float("2.5") == 2.5
+    assert maybe_float("null") is None
+    assert maybe_float("invalid") is None
 
 
 def test_access_response_parser_keeps_article_text_and_links():
@@ -87,6 +235,30 @@ def test_discovered_article_skips_response_letter_when_data_attachment_exists():
     assert source.geometry_query == "Sainte-Julie, Québec, Canada"
     assert source.published_date == "2026-02-03"
     assert source.transmitted_date == "2026-02-02"
+
+
+def test_discover_disclosure_sources_filters_non_outage_articles_and_http_failures(monkeypatch):
+    page = """
+      <article id="dai-2026-0099">
+        <h2>Objet : Pannes dans la ville de Sainte-Julie</h2>
+        <p>Publié sur le site Web : 2026-02-03</p>
+        <a href="/data/DAI-2026-0099-document.xlsx">Document Excel</a>
+      </article>
+      <article id="dai-2026-0100">
+        <h2>Objet : Contrats de fourniture</h2>
+        <a href="/data/DAI-2026-0100-document.xlsx">Document Excel</a>
+      </article>
+    """.encode()
+    monkeypatch.setattr("app.disclosures.fetch_bytes", lambda _url: (page, 200, "text/html"))
+
+    sources = discover_disclosure_sources()
+
+    assert [(source.dai_number, source.format, source.geography_label) for source in sources] == [
+        ("DAI-2026-0099", "xlsx", "Sainte-Julie")
+    ]
+
+    monkeypatch.setattr("app.disclosures.fetch_bytes", lambda _url: (b"", 503, "text/html"))
+    assert discover_disclosure_sources() == []
 
 
 def test_outage_related_text_matches_accents_and_english_negative_case():

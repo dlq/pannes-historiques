@@ -184,7 +184,9 @@ class HydroCollector:
         if isinstance(version_data, str):
             return version_data
         if isinstance(version_data, dict):
-            return str(version_data.get("version") or next(iter(version_data.values())))
+            version = version_data.get("version") or next(iter(version_data.values()), None)
+            if version is not None:
+                return str(version)
         raise RuntimeError("unexpected version payload")
 
     def _latest_payload_version(self, source: str) -> str | None:
@@ -552,15 +554,18 @@ def maybe_int(value: Any) -> int | None:
 def parse_centroid(raw: Any) -> tuple[float | None, float | None]:
     if not raw:
         return None, None
-    if isinstance(raw, (list, tuple)) and len(raw) >= 2:
-        return float(raw[0]), float(raw[1])
-    if isinstance(raw, str):
-        cleaned = raw.strip().strip("[]")
-        if not cleaned:
-            return None, None
-        parts = [part.strip() for part in cleaned.split(",")]
-        if len(parts) >= 2:
-            return float(parts[0]), float(parts[1])
+    try:
+        if isinstance(raw, (list, tuple)) and len(raw) >= 2:
+            return float(raw[0]), float(raw[1])
+        if isinstance(raw, str):
+            cleaned = raw.strip().strip("[]")
+            if not cleaned:
+                return None, None
+            parts = [part.strip() for part in cleaned.split(",")]
+            if len(parts) >= 2:
+                return float(parts[0]), float(parts[1])
+    except (TypeError, ValueError):
+        return None, None
     return None, None
 
 
@@ -579,8 +584,11 @@ def parse_kml_polygons(kml_text: str) -> list[dict[str, Any]]:
             parts = chunk.split(",")
             if len(parts) < 2:
                 continue
-            lon = float(parts[0])
-            lat = float(parts[1])
+            try:
+                lon = float(parts[0])
+                lat = float(parts[1])
+            except ValueError:
+                continue
             points.append([lon, lat])
         if len(points) < 3:
             continue
