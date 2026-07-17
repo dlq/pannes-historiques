@@ -35,6 +35,7 @@ Keep active execution state in `PLANS.md` and source/evidence research in `NOTES
 - Current local baseline: 159 Python tests and 41 Node unit tests pass; Playwright lists 48 desktop/mobile cases.
 - Deployed the service-worker cache refresh on 2026-07-11 as Worker version `395dd418-e47b-443e-a60c-ecc8c0305b51`; live `/`, `/healthz`, and `/service-worker.js` checks returned `200` and the new cache marker was present.
 - On 2026-07-17, deployed the v0.4.3 navigation cleanup as Worker version `9ddad2ec-ea03-4b4a-80d2-7bee40ddfa92` with container image `pannes-historiques-pannescontainer:9ddad2ec`. Homepage and `/sheet` probes returned `200`; favicon and stale-Leaflet compatibility routes returned the expected responses; and a WordPress scanner probe was blocked with a Worker-edge `404`.
+- The v0.4.3 release commit passed pre-commit, 159 Python tests, 41 Node tests, Biome checks, and a Wrangler dry-run. It deployed on 2026-07-17 as Worker version `fd05d96f-4dc6-4c24-82b2-08571f390165` with container image `pannes-historiques-pannescontainer:fd05d96f`; public homepage, health, Archive sheet, and service-worker probes returned `200` with the `pannes-historiques-v0.4.3-cost-containment` cache marker.
 
 ## [v0.4.2] - 2026-07-10
 
