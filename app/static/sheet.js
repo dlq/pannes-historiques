@@ -1,11 +1,11 @@
-import { dispatchMapEvent, MAP_EVENTS, requestMapFocus } from "./map-events.js?v=20260717a";
-import { contextLayerForKind } from "./map-utils.js?v=20260717a";
+import { dispatchMapEvent, MAP_EVENTS, requestMapFocus } from "./map-events.js?v=20260717b";
+import { contextLayerForKind } from "./map-utils.js?v=20260717b";
 import {
   attachAddressAutocomplete,
   attachComparisonTray,
   hydrateTimeLabels,
   updateSearchUrl,
-} from "./search.js?v=20260717a";
+} from "./search.js?v=20260717b";
 import {
   escapeHtml,
   formatDistanceKm,
@@ -13,7 +13,7 @@ import {
   formatPreviousTimeParts,
   hasDistanceValue,
   label,
-} from "./ui-format.js?v=20260717a";
+} from "./ui-format.js?v=20260717b";
 
 const DETENTS = ["peek", "half", "full"];
 // The sheet height transition in app.css runs 280ms; wait slightly longer
@@ -598,8 +598,11 @@ function bindGlobalHandlers() {
     event.stopImmediatePropagation();
     closeDetailCards({ restoreFocus: true });
   };
-  document.body.addEventListener("click", handleDetailClose);
-  document.body.addEventListener("pointerup", handleDetailClose);
+  // Capture the gesture while its target is still connected. Detail cards
+  // re-render on close, and a bubble-phase handler can otherwise lose the
+  // originating close button before it gets here.
+  document.addEventListener("click", handleDetailClose, closeGestureOptions);
+  document.addEventListener("pointerup", handleDetailClose, closeGestureOptions);
 
   document.body.addEventListener("click", (event) => {
     const layerInfo = event.target.closest("[data-layer-info]");

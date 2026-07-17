@@ -1,11 +1,11 @@
-import { phIconMarkup } from "./icons.js?v=20260717a";
+import { phIconMarkup } from "./icons.js?v=20260717b";
 import {
   escapeHtml,
   formatDuration,
   formatPreviousTimeParts,
   label,
   localizeCause,
-} from "./ui-format.js?v=20260717a";
+} from "./ui-format.js?v=20260717b";
 
 const DETAIL_EXTRACTED_ROW_LIMIT = 80;
 
@@ -105,17 +105,6 @@ export class DaiDetailPanel extends HTMLElement {
   }
 
   connectedCallback() {
-    if (this.dataset.closeBound !== "1") {
-      this.dataset.closeBound = "1";
-      const handleClose = (event) => {
-        if (!event.target.closest("[data-dai-detail-close]")) return;
-        event.preventDefault();
-        if (event.type === "pointerup") return;
-        this.renderEmpty();
-      };
-      this.addEventListener("click", handleClose);
-      this.addEventListener("pointerup", handleClose);
-    }
     this.renderEmpty();
   }
 
