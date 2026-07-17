@@ -6,13 +6,21 @@ Keep active execution state in `PLANS.md` and source/evidence research in `NOTES
 
 ## [Unreleased]
 
+## [v0.4.4] - 2026-07-17
+
 ### Added
 
 - Added combined Python line/branch coverage reporting with a 61.9% non-regression floor in GitHub Quality, a full desktop/mobile browser-regression workflow after changes reach `main` or on manual dispatch, and a contributor issue map for bounded test work.
+- Added direct coverage for Hydro collection/orchestration, disclosure XLSX/discovery parsing, and service scheduling/cache paths, lifting each risk-prone module to at least 60% combined coverage.
 
 ### Fixed
 
 - Kept E2E search fixtures aligned with the requested radius and stopped empty radius values from being serialized as `radius_m=0` in browser URLs.
+- Rejected malformed Hydro coordinate/KML records without aborting feed ingestion and normalized empty version payload failures as parser errors.
+
+### Changed
+
+- Replaced private Flask-to-service access with named service methods, centralized browser map/sheet event state, and extracted durable Worker reads into a directly tested module.
 
 ## [v0.4.3] - 2026-07-17
 

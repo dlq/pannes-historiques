@@ -1,6 +1,6 @@
 [project]
 name = "pannes-historiques"
-version = "0.4.3"
+version = "0.4.4"
 description = "Map-first Hydro-Quebec outage history prototype."
 readme = "README.md"
 requires-python = ">=3.12"

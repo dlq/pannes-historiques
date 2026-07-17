@@ -72,7 +72,7 @@ Production is currently served at `pannes.ca` with Cloudflare Workers + Containe
 
 Current deployment status:
 
-- Current code and release line: `v0.4.3`.
+- Current code and release line: `v0.4.4`.
 - The current interface uses vendored MapLibre GL JS with the OpenFreeMap Liberty style, a
   full-bleed map, and one responsive sheet for current, planned, archive, and context views.
 - Production is served through Cloudflare Workers + Containers with D1 and R2 durable storage.
