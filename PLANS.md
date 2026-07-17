@@ -7,9 +7,9 @@ This is the active execution plan. Keep detailed evidence and research notes in 
 
 ## Current State
 
-- Current shipped release: `v0.4.3`, cost containment and production-navigation cleanup, released 2026-07-17.
+- Current shipped release: `v0.4.4`, contributor readiness and CI hardening, released 2026-07-17.
 - Current production deployment: Worker version `fd05d96f-4dc6-4c24-82b2-08571f390165`; container image `pannes-historiques-pannescontainer:fd05d96f`.
-- Current implementation line: `main` has released `v0.4.3`; the next active product slice is `v0.4.4` contributor readiness and CI hardening.
+- Current implementation line: `main` releases `v0.4.4`; the next active product slice is `v0.4.5` machine-readable public surface and API posture.
 - Current frontend: one full-bleed MapLibre GL map plus a single sheet. The sheet owns search, domain navigation, address overview, scoped local/province views, detail cards, provenance, and browser-local comparison.
 - Current data plane: D1/R2-backed durable ingestion for current feed rows, previous-outage rows, raw Hydro-Quebec payloads, disclosure metadata, and runtime map-context layers.
 - Current container role: Flask/Jinja shell rendering, local-compatible fallback paths, and a baked SQLite snapshot. Container-local writes are ephemeral and must not become production state.
@@ -91,7 +91,7 @@ The cost-containment direction is detailed in `docs/cost-containment.md`. Keep t
 
 Decision: use option 2, the hybrid renderer with Worker-first durable reads. Avoid option 3 for now.
 
-## Active Slice: `v0.4.4`
+## Completed Slice: `v0.4.4`
 
 ### Goal
 
@@ -109,7 +109,7 @@ Make the repository easier to approach and safely change for external contributo
 
 ## Roadmap
 
-Completed release history lives in `CHANGELOG.md`. Current planning starts from `v0.4.4`.
+Completed release history lives in `CHANGELOG.md`. Current planning starts from `v0.4.5`.
 
 ### `v0.4.4`: Contributor Readiness, CI Hardening, And Beta UX Follow-Up
 

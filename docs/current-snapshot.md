@@ -6,10 +6,10 @@ Read this first for quick orientation. Use `PLANS.md` for the active roadmap, `d
 
 ## Version And Deployment
 
-- Shipped release: `v0.4.3`.
-- Package metadata: `0.4.3` in `pyproject.toml` and `package.json`.
+- Shipped release: `v0.4.4`.
+- Package metadata: `0.4.4` in `pyproject.toml` and `package.json`.
 - Production deployment: Worker version `fd05d96f-4dc6-4c24-82b2-08571f390165`; container image `pannes-historiques-pannescontainer:fd05d96f`.
-- Current development direction: `v0.4.4` contributor readiness, contract tests, and CI hardening.
+- Current development direction: `v0.4.5` machine-readable public surface and API posture.
 
 ## Product Shape
 
