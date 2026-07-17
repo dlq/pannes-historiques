@@ -198,7 +198,11 @@ function applyLocationParams(searchParams, { includeDefaultRadius = false } = {}
   }
   const radiusM = Number(sheetState.radiusM);
   const defaultRadiusM = sheetState.q ? 2000 : 5000;
-  if (Number.isFinite(radiusM) && (includeDefaultRadius || radiusM !== defaultRadiusM)) {
+  if (
+    sheetState.radiusM !== "" &&
+    Number.isFinite(radiusM) &&
+    (includeDefaultRadius || radiusM !== defaultRadiusM)
+  ) {
     searchParams.set("radius_m", String(radiusM));
   }
 }

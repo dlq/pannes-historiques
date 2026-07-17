@@ -16,6 +16,7 @@ dev = [
   "geopandas>=1.1.4",
   "pre-commit>=4.6.0",
   "pytest>=9.1.1",
+  "pytest-cov>=7.0.0",
   "ruff>=0.15.21",
 ]
 
@@ -46,6 +47,14 @@ ignore = "H006,H030,H031"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.coverage.run]
+branch = true
+source = ["app"]
+
+[tool.coverage.report]
+fail_under = 61.9
+precision = 1
 
 [tool.setuptools.packages.find]
 include = ["app*"]

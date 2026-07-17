@@ -491,7 +491,7 @@ test("current doorway opens the local scoped view and detail card", async ({ pag
 
   await expect(page.locator('.ph-sheet-content[data-domain="current"]')).toBeVisible();
   // Address-scoped Current is labelled by radius, not "in Quebec".
-  await expect(page.locator(".ph-domain-summary-title")).toContainText("within 5 km");
+  await expect(page.locator(".ph-domain-summary-title")).toContainText("within 2 km");
   const scopeLocal = page.locator('[data-scope-link="local"]');
   await expect(scopeLocal).toHaveText("5 km");
   await expect(scopeLocal).toHaveClass(/is-active/);

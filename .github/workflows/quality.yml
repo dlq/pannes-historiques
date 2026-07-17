@@ -57,8 +57,8 @@ jobs:
       - name: Install Python dependencies
         run: uv sync --locked
 
-      - name: Run pytest
-        run: uv run pytest -q
+      - name: Run pytest with branch coverage
+        run: uv run pytest -q --cov
 
   node-tests:
     name: Node unit tests

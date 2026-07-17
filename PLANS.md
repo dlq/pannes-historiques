@@ -15,7 +15,7 @@ This is the active execution plan. Keep detailed evidence and research notes in 
 - Current container role: Flask/Jinja shell rendering, local-compatible fallback paths, and a baked SQLite snapshot. Container-local writes are ephemeral and must not become production state.
 - Current cost posture: normal public browsing/search should not produce recurring container/runtime overage. The next slice prioritizes cost containment before broader beta UX work.
 - Current public API posture: some JSON/data routes exist, but the public/private boundary and stability status are not yet a full API contract.
-- Current contribution posture: contributor docs exist and GitHub Quality runs pre-commit, pytest, and Node unit tests. Coverage reporting and Playwright gating still need policy work.
+- Current contribution posture: contributor docs and a scoped issue map exist. GitHub Quality enforces Python branch coverage, while full Playwright runs on `main` and by manual dispatch.
 - Public-announcement state: the first beta feedback post is live in `r/HydroQuebec`; the broader `r/quebec` post remains blocked by that community's account-activity requirement.
 - Address-specific dispute boundary: pannes.ca can show retained observations near an address, not certify service at that residence. Direct certification requests belong with Hydro-Quebec's official past-outage form.
 
@@ -103,9 +103,9 @@ Make the repository easier to approach and safely change for external contributo
 - [x] Replace private Flask-to-service calls with named public service methods and focused tests.
 - [x] Define named browser map/sheet events and move pending focus state out of `window`.
 - [x] Extract one independently testable Worker responsibility and add contract-focused tests around it.
-- [ ] Add measured coverage reporting and a non-regressing floor.
-- [ ] Decide whether full Playwright belongs on every pull request or protected main/release runs.
-- [ ] Keep the first-contributor issue map current and add scoped follow-up issues as work is identified.
+- [x] Add measured coverage reporting and a non-regressing floor.
+- [x] Decide whether full Playwright belongs on every pull request or protected main/release runs.
+- [x] Keep the first-contributor issue map current and add scoped follow-up issues as work is identified.
 
 ## Roadmap
 
@@ -115,9 +115,9 @@ Completed release history lives in `CHANGELOG.md`. Current planning starts from 
 
 Make the repo easier for external contributors while addressing the smallest beta feedback that does not depend on unresolved cost architecture.
 
-- Add measured coverage reporting and a non-regressing floor.
-- Decide whether full Playwright belongs on every pull request or protected main/release runs.
-- Add a contributor-friendly issue map for first external tasks.
+- Coverage reporting has a 61.9% Python line/branch floor; ratchet it upward with focused risk-based tests.
+- Full Playwright runs after pushes to `main` and by manual dispatch; browser-facing pull requests run the affected project locally.
+- The contributor issue map defines bounded first tasks; keep the matching GitHub issues current.
 - Tighten contributor and architecture docs where the cost-containment work clarifies the Worker/container split.
 
 ### `v0.4.5`: Machine-Readable Public Surface And API Posture
@@ -162,7 +162,7 @@ Saved areas, saved-area notifications, and web push notifications are deferred o
 
 - Keep Python tests, Node tests, module-boundary checks, template linting, and Biome checks green for every release slice.
 - `v0.4.3`: Worker/runtime-policy tests cover configurable container host checks, private cost-health endpoints, and runtime markers.
-- `v0.4.4`: add coverage reporting, decide the Playwright gating policy, keep browser regressions focused on changed UX paths, and add contract tests as runtime responsibilities are extracted.
+- `v0.4.4`: GitHub Quality enforces a combined Python coverage floor; complete desktop/mobile browser regression runs after changes reach `main` or on manual dispatch; focused browser and contract tests remain the default for feature work.
 - `v0.4.5`: add route/header tests for well-known files, machine-readable metadata, public/private route documentation, and security headers.
 - `v0.4.6`: add archive-health tests for stale ingestion-run cleanup, latest-row grouping, archive-bin completeness metrics, and retention/rollup behavior.
 - `v0.4.7`: test analytical framing with bounded fixture data only if a product concept survives review.
