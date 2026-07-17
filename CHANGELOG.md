@@ -22,6 +22,11 @@ Keep active execution state in `PLANS.md` and source/evidence research in `NOTES
 
 - Replaced private Flask-to-service access with named service methods, centralized browser map/sheet event state, and extracted durable Worker reads into a directly tested module.
 
+### Verified
+
+- The release candidate passed pre-commit, 182 Python tests at 70.5% combined coverage, 44 Node unit tests, the complete 50-case desktop/mobile Playwright suite, and a Wrangler dry-run.
+- Deployed on 2026-07-17 as Worker version `29282ba3-aa84-4eb1-8683-98e5aafee8f9` with container image `pannes-historiques-pannescontainer:29282ba3`. Public homepage, health, Archive sheet, and service-worker probes returned `200`; a no-cache service-worker fetch confirmed `pannes-historiques-v0.4.4-contributor-readiness`.
+
 ## [v0.4.3] - 2026-07-17
 
 ### Added
