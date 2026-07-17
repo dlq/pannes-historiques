@@ -3,18 +3,18 @@
 Date: 2026-04-25
 Last updated: 2026-07-17
 
-## Current verification and deployment baseline, 2026-07-11
+## Current verification and deployment baseline, 2026-07-17
 
-- Release `v0.4.3` passed pre-commit, 159 Python tests, 41 Node unit tests, Biome checks, and a Wrangler dry-run. It deployed on 2026-07-17 as Worker version `fd05d96f-4dc6-4c24-82b2-08571f390165` with container image `pannes-historiques-pannescontainer:fd05d96f`; public `/`, `/healthz`, `/sheet?lang=en&domain=archive`, and `/service-worker.js` probes returned `200`, with cache marker `pannes-historiques-v0.4.3-cost-containment`.
-- The v0.4.4 baseline run measured 61.9% combined Python line/branch coverage across `app/` with 160 passing tests. CI now enforces that floor; lower-coverage priorities remain `hydro.py`, `disclosures.py`, `services.py`, Worker orchestration, and container behavior.
+- Release `v0.4.4` passed pre-commit, 182 Python tests at 70.5% combined line/branch coverage, 44 Node unit tests, the complete 50-case desktop/mobile Playwright suite, and a Wrangler dry-run. It deployed on 2026-07-17 as Worker version `29282ba3-aa84-4eb1-8683-98e5aafee8f9` with container image `pannes-historiques-pannescontainer:29282ba3`; public `/`, `/healthz`, `/sheet?lang=en&domain=archive&scope=province`, and `/service-worker.js` probes returned `200`. A no-cache service-worker fetch confirmed `pannes-historiques-v0.4.4-contributor-readiness`.
+- GitHub Quality enforces a 61.9% combined coverage floor. The v0.4.4 risk-based suite raised `hydro.py` to 63.3%, `disclosures.py` to 59.9% (rounded 60%), and `services.py` to 61.9% (rounded 62%).
 
 Measured locally against the current `v0.4.2` runtime code plus its post-release map, accessibility,
 contributor-foundation, and cache-refresh follow-ups:
 
-- The current local test count is 149 Python tests and 38 Node unit tests. The last branch-coverage measurement remains 61% at 147 Python tests; rerun coverage before treating that percentage as current. That measurement found strongest coverage in `addressing.py`, `config.py`, `db.py`, `i18n.py`, `perf.py`, `views.py`, `sheet_views.py`, and `web.py`, with lower coverage in `geocoding.py`, `services.py`, `disclosures.py`, and `hydro.py`.
-- Playwright lists 48 cases across desktop and mobile Chromium. The previous six-worker run passed 47 and timed out while closing a mobile disclosure detail panel; focused repeats passed, so retain this as a parallel-run flake until a full rerun resolves it.
-- GitHub Quality runs pre-commit formatting/linting/module-boundary checks, pytest, and Node unit tests on pull requests and pushes to `main`. It does not run Playwright or publish/enforce a coverage threshold.
-- The current production Worker is `395dd418-e47b-443e-a60c-ecc8c0305b51`, deployed on 2026-07-11 with container image `pannes-historiques-pannescontainer:395dd418`. Live `/`, `/healthz`, and `/service-worker.js` checks returned `200`; the service worker advertises `pannes-historiques-v0.4.2-cache-refresh`.
+- The current local test count is 182 Python tests and 44 Node unit tests. The release measurement is 70.5% combined coverage; strongest coverage remains in `addressing.py`, `config.py`, `db.py`, `i18n.py`, `perf.py`, `views.py`, `sheet_views.py`, and `web.py`.
+- Playwright lists 50 cases across desktop and mobile Chromium. The full six-worker release run passed after the disclosure-detail close path was fixed to preserve its pointer target through the close gesture.
+- GitHub Quality runs pre-commit formatting/linting/module-boundary checks, coverage-gated pytest, and Node unit tests on pull requests and pushes to `main`. Full Playwright runs after pushes to `main` and on manual dispatch.
+- The current production Worker is `29282ba3-aa84-4eb1-8683-98e5aafee8f9`, deployed on 2026-07-17 with container image `pannes-historiques-pannescontainer:29282ba3`. Live `/`, `/healthz`, `/sheet?lang=en&domain=archive&scope=province`, and `/service-worker.js` checks returned `200`; a no-cache service-worker probe advertises `pannes-historiques-v0.4.4-contributor-readiness`.
 - Highest-value next coverage work: record and ratchet a realistic coverage floor; test Worker/container orchestration; deepen Hydro/disclosure/service-path fixtures; and make the Playwright gating and flaky-test policy explicit.
 
 ## v0.4.2 public-beta readiness evidence, 2026-07-10
