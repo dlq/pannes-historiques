@@ -8,7 +8,7 @@ This is the active execution plan. Keep detailed evidence and research notes in 
 ## Current State
 
 - Current shipped release: `v0.4.4`, contributor readiness and CI hardening, released 2026-07-17.
-- Current production deployment: Worker version `29282ba3-aa84-4eb1-8683-98e5aafee8f9`; container image `pannes-historiques-pannescontainer:29282ba3`.
+- Current production deployment: Worker version `4cc949c8-566d-411d-bce2-7d6092f640ed`; container image `pannes-historiques-pannescontainer:4cc949c8`.
 - Current implementation line: `main` has released `v0.4.4`; the next active product slice is `v0.4.5` machine-readable public surface and API posture.
 - Current frontend: one full-bleed MapLibre GL map plus a single sheet. The sheet owns search, domain navigation, address overview, scoped local/province views, detail cards, provenance, and browser-local comparison.
 - Current data plane: D1/R2-backed durable ingestion for current feed rows, previous-outage rows, raw Hydro-Quebec payloads, disclosure metadata, and runtime map-context layers.

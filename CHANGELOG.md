@@ -17,6 +17,7 @@ Keep active execution state in `PLANS.md` and source/evidence research in `NOTES
 
 - Kept E2E search fixtures aligned with the requested radius and stopped empty radius values from being serialized as `radius_m=0` in browser URLs.
 - Rejected malformed Hydro coordinate/KML records without aborting feed ingestion and normalized empty version payload failures as parser errors.
+- Made the mobile disclosure-card close lifecycle capture the gesture before its component re-renders, eliminating the browser-regression race; advanced service-worker and module cache markers with the hotfix.
 
 ### Changed
 
@@ -25,7 +26,7 @@ Keep active execution state in `PLANS.md` and source/evidence research in `NOTES
 ### Verified
 
 - The release candidate passed pre-commit, 182 Python tests at 70.5% combined coverage, 44 Node unit tests, the complete 50-case desktop/mobile Playwright suite, and a Wrangler dry-run.
-- Deployed on 2026-07-17 as Worker version `29282ba3-aa84-4eb1-8683-98e5aafee8f9` with container image `pannes-historiques-pannescontainer:29282ba3`. Public homepage, health, Archive sheet, and service-worker probes returned `200`; a no-cache service-worker fetch confirmed `pannes-historiques-v0.4.4-contributor-readiness`.
+- The release and its mobile close-handler hotfix deployed on 2026-07-17 as Worker version `4cc949c8-566d-411d-bce2-7d6092f640ed` with container image `pannes-historiques-pannescontainer:4cc949c8`. Public homepage, health, Archive sheet, and service-worker probes returned `200`; a no-cache service-worker fetch confirmed `pannes-historiques-v0.4.4-close-handler-fix`.
 
 ## [v0.4.3] - 2026-07-17
 
