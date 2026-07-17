@@ -923,3 +923,10 @@ Sources checked:
 - Decision: retain the hybrid renderer for now. Runtime headers distinguish `worker-d1` from `container`, and the next production smoke/analytics window should identify whether shell wakeups justify a static or Worker-rendered migration.
 - Guardrail: `PANNES_LOW_COST_MODE=1` prevents container wakeups and leaves durable APIs available. Browser-shell routes return `503`; this is an operational kill switch, not a claim of an equivalent static UI.
 - Operations: `/api/ops/cost-health` is private and reports the container's live state, latest ingestion, archive materialization, D1 table counts, and optional dashboard-refreshed D1/R2 size estimates.
+
+## v0.4.3 Navigation Cleanup Deployment (2026-07-17)
+
+- Deployed Worker version `9ddad2ec-ea03-4b4a-80d2-7bee40ddfa92` and container image `pannes-historiques-pannescontainer:9ddad2ec`.
+- Production probes returned `200` for `/healthz`, `/?lang=fr`, `/sheet?lang=en&domain=archive`, and both stale Leaflet compatibility URLs. The CSS and JS tombstones used `Cache-Control: no-store`; the JS body unregisters service workers and reloads once.
+- `/favicon.ico` returned `302` to `/static/favicon.svg`; `/wp-login.php` returned a plain Worker-edge `404`, without container runtime headers.
+- Focused regression checks passed: 88 Python tests across `tests/test_web.py` and `tests/test_services.py`, plus 41 Node unit tests and Biome checks. Follow up after 24 hours with Cloudflare analytics for `/sheet` errors and stale-asset/scanner traffic.

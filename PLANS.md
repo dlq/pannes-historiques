@@ -1,14 +1,14 @@
 # Plan: Hydro-Quebec Outage History App
 
 Date: 2026-04-25
-Last updated: 2026-07-13
+Last updated: 2026-07-17
 
 This is the active execution plan. Keep detailed evidence and research notes in `NOTES.md`, completed release history in `CHANGELOG.md`, operational runbooks in `docs/operations.md`, and long maintenance backlogs in `docs/maintenance-backlog.md`.
 
 ## Current State
 
 - Current shipped release: `v0.4.2`, public beta readiness, deployed 2026-07-10. Post-release archive-map, WCAG, contributor-foundation, and service-worker-cache follow-ups were deployed on 2026-07-11.
-- Current production deployment: Worker version `395dd418-e47b-443e-a60c-ecc8c0305b51`; container image `pannes-historiques-pannescontainer:395dd418`.
+- Current production deployment: Worker version `9ddad2ec-ea03-4b4a-80d2-7bee40ddfa92`; container image `pannes-historiques-pannescontainer:9ddad2ec`.
 - Current implementation line: `main` is ahead of `v0.4.2` with follow-up fixes and planning; the active product slice is `v0.4.3`.
 - Current frontend: one full-bleed MapLibre GL map plus a single sheet. The sheet owns search, domain navigation, address overview, scoped local/province views, detail cards, provenance, and browser-local comparison.
 - Current data plane: D1/R2-backed durable ingestion for current feed rows, previous-outage rows, raw Hydro-Quebec payloads, disclosure metadata, and runtime map-context layers.
@@ -59,6 +59,8 @@ Cleanup checklist:
 6. Tighten Worker scanner blocking for obvious WordPress/Joomla/PHP probe paths so those misses stay cheap and do not obscure real navigation errors.
 7. Keep private runtime endpoint `404`s private; only investigate if trusted Worker-proxied internal calls start failing.
 8. After deployment, compare the next 24h Cloudflare analytics for `/sheet` 500s, Leaflet 404s, favicon 404s, and scanner-path volume.
+
+Deployed 2026-07-17 as Worker version `9ddad2ec-ea03-4b4a-80d2-7bee40ddfa92`. Live probes confirmed `200` for the homepage, `/sheet`, and both Leaflet tombstones; `/favicon.ico` redirects to the SVG; and `/wp-login.php` returns a Worker-edge `404`. Keep the 24-hour analytics comparison as the remaining monitoring step.
 
 ### Acceptance Criteria
 
