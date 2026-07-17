@@ -97,7 +97,7 @@ def create_app(settings: Settings | None = None) -> Flask:
         return CURRENT_MAP_LAYER_SCOPE
 
     def operational_layers_for_scope(scope: str) -> list[dict]:
-        layers = service._current_operational_map_layers(
+        layers = service.current_operational_map_layers(
             include_planned=scope == PLANNED_MAP_LAYER_SCOPE
         )
         if scope == PLANNED_MAP_LAYER_SCOPE:
@@ -120,7 +120,7 @@ def create_app(settings: Settings | None = None) -> Flask:
             previous_layers = (
                 []
                 if archive_summary.get("mode") == "municipal_archive"
-                else service._previous_operational_map_layers()
+                else service.previous_operational_map_layers()
             )
             return explore_sheet_context(
                 lang,
@@ -132,8 +132,8 @@ def create_app(settings: Settings | None = None) -> Flask:
             return explore_sheet_context(
                 lang,
                 "context",
-                regional_layers=service._regional_metric_map_layers(),
-                disclosure_layers=service._disclosure_map_layers(),
+                regional_layers=service.regional_metric_map_layers(),
+                disclosure_layers=service.disclosure_map_layers(),
             )
         return explore_sheet_context(
             lang, "current", current_layers=operational_layers_for_scope(CURRENT_MAP_LAYER_SCOPE)
@@ -580,8 +580,8 @@ def create_app(settings: Settings | None = None) -> Flask:
     def map_context_geometries():
         with current_timer().step("map_context_geometries.layers"):
             result = SimpleNamespace(
-                regional_metric_layers=service._regional_metric_map_layers(),
-                disclosure_layers=service._disclosure_map_layers(),
+                regional_metric_layers=service.regional_metric_map_layers(),
+                disclosure_layers=service.disclosure_map_layers(),
             )
         with current_timer().step("map_context_geometries.payload"):
             response = jsonify(context_geometry_payload(result))
@@ -621,7 +621,7 @@ def create_app(settings: Settings | None = None) -> Flask:
                 previous_map_layers = (
                     []
                     if previous_archive_summary.get("mode") == "municipal_archive"
-                    else service._previous_operational_map_layers()
+                    else service.previous_operational_map_layers()
                 )
                 payload = default_map_payload(
                     lang,
@@ -631,8 +631,8 @@ def create_app(settings: Settings | None = None) -> Flask:
             elif layer == PUBLISHED_MAP_LAYER_SCOPE:
                 payload = default_map_payload(
                     lang,
-                    regional_metric_layers=service._regional_metric_map_layers(),
-                    disclosure_layers=service._disclosure_map_layers(),
+                    regional_metric_layers=service.regional_metric_map_layers(),
+                    disclosure_layers=service.disclosure_map_layers(),
                 )
             else:
                 payload = default_map_payload(

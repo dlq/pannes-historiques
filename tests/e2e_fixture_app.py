@@ -338,19 +338,19 @@ class E2EStubService:
             map_layer_scopes=kwargs.get("map_layer_scopes"),
         )
 
-    def _regional_metric_map_layers(self) -> list[dict[str, object]]:
+    def regional_metric_map_layers(self) -> list[dict[str, object]]:
         return _regional_metric_layers()
 
-    def _disclosure_map_layers(self) -> list[dict[str, object]]:
+    def disclosure_map_layers(self) -> list[dict[str, object]]:
         return _disclosure_layers()
 
-    def _current_operational_map_layers(self, include_planned: bool) -> list[dict[str, object]]:
+    def current_operational_map_layers(self, include_planned: bool) -> list[dict[str, object]]:
         layers = _outage_matches()
         if include_planned:
             layers = [*layers, *_planned_matches()]
         return layers
 
-    def _previous_operational_map_layers(self, limit: int = 36) -> list[dict[str, object]]:
+    def previous_operational_map_layers(self) -> list[dict[str, object]]:
         return [
             {
                 "outage_kind": "previous_outage",
@@ -367,7 +367,7 @@ class E2EStubService:
                 "event_count": 1,
                 "recent_events": [],
             }
-        ][:limit]
+        ]
 
     def previous_operational_archive_summary(self) -> dict[str, object]:
         return {

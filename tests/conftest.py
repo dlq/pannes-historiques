@@ -94,10 +94,10 @@ class StubService:
         )
         return result
 
-    def _regional_metric_map_layers(self):
+    def regional_metric_map_layers(self):
         return []
 
-    def _disclosure_map_layers(self):
+    def disclosure_map_layers(self):
         return [
             {
                 "centroid_lat": 45.51,
@@ -118,7 +118,7 @@ class StubService:
             }
         ]
 
-    def _current_operational_map_layers(self, include_planned: bool):
+    def current_operational_map_layers(self, include_planned: bool):
         layers = [
             {
                 "outage_kind": "outage",
@@ -194,7 +194,7 @@ class StubService:
             ],
         }
 
-    def _previous_operational_map_layers(self, limit: int = 36):
+    def previous_operational_map_layers(self):
         return [
             {
                 "outage_kind": "previous_outage",
@@ -211,7 +211,7 @@ class StubService:
                 "event_count": 1,
                 "recent_events": [],
             }
-        ][:limit]
+        ]
 
     def collect(self):
         return {"kind": "collect"}

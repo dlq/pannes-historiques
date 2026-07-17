@@ -19,11 +19,11 @@ This is the active execution plan. Keep detailed evidence and research notes in 
 - Public-announcement state: the first beta feedback post is live in `r/HydroQuebec`; the broader `r/quebec` post remains blocked by that community's account-activity requirement.
 - Address-specific dispute boundary: pannes.ca can show retained observations near an address, not certify service at that residence. Direct certification requests belong with Hydro-Quebec's official past-outage form.
 
-## Active Slice: `v0.4.3`
+## Completed Slice: `v0.4.3`
 
 ### Goal
 
-Reduce normal public browsing/search dependence on the Python container, make runtime cost visible, and choose the near-term public-read architecture with evidence.
+Reduced normal public browsing/search dependence on the Python container, made runtime cost visible, and selected the near-term public-read architecture with evidence.
 
 ### Scope
 
@@ -89,11 +89,27 @@ The cost-containment direction is detailed in `docs/cost-containment.md`. Keep t
 3. Static shell plus Worker APIs.
    Cleanest long-term shape, but too much rewrite and API-contract pressure until evidence shows Flask/Jinja is the main cost problem.
 
-Current preference: use `v0.4.3` to measure and choose between options 1 and 2. Avoid option 3 for now.
+Decision: use option 2, the hybrid renderer with Worker-first durable reads. Avoid option 3 for now.
+
+## Active Slice: `v0.4.4`
+
+### Goal
+
+Make the repository easier to approach and safely change for external contributors.
+
+### Scope
+
+- [x] Keep one current deployment/version summary; remove stale release-state duplication from docs.
+- [x] Replace private Flask-to-service calls with named public service methods and focused tests.
+- [x] Define named browser map/sheet events and move pending focus state out of `window`.
+- [x] Extract one independently testable Worker responsibility and add contract-focused tests around it.
+- [ ] Add measured coverage reporting and a non-regressing floor.
+- [ ] Decide whether full Playwright belongs on every pull request or protected main/release runs.
+- [ ] Keep the first-contributor issue map current and add scoped follow-up issues as work is identified.
 
 ## Roadmap
 
-Completed release history lives in `CHANGELOG.md`. Current planning starts from `v0.4.3`.
+Completed release history lives in `CHANGELOG.md`. Current planning starts from `v0.4.4`.
 
 ### `v0.4.4`: Contributor Readiness, CI Hardening, And Beta UX Follow-Up
 
@@ -145,8 +161,8 @@ Saved areas, saved-area notifications, and web push notifications are deferred o
 ## Testing Strategy
 
 - Keep Python tests, Node tests, module-boundary checks, template linting, and Biome checks green for every release slice.
-- `v0.4.3`: add Worker/runtime-policy tests for configurable container host checks, private cost-health endpoints, and runtime markers.
-- `v0.4.4`: add coverage reporting, decide the Playwright gating policy, and keep browser regressions focused on changed UX paths.
+- `v0.4.3`: Worker/runtime-policy tests cover configurable container host checks, private cost-health endpoints, and runtime markers.
+- `v0.4.4`: add coverage reporting, decide the Playwright gating policy, keep browser regressions focused on changed UX paths, and add contract tests as runtime responsibilities are extracted.
 - `v0.4.5`: add route/header tests for well-known files, machine-readable metadata, public/private route documentation, and security headers.
 - `v0.4.6`: add archive-health tests for stale ingestion-run cleanup, latest-row grouping, archive-bin completeness metrics, and retention/rollup behavior.
 - `v0.4.7`: test analytical framing with bounded fixture data only if a product concept survives review.
@@ -156,7 +172,7 @@ Routine command details live in `docs/contributing.md`; production and deploy ch
 
 ## Current Risks And Open Questions
 
-- Runtime/cost architecture still depends on a hardcoded trusted Worker host and container-backed search/render paths.
+- Container-backed search/render paths still need measured cost evidence; the trusted Worker host is configured in `wrangler.jsonc`, not hardcoded in runtime policy.
 - Ordinary public reads should keep moving toward Worker/static/D1/R2 paths, but the right migration boundary is not yet proven.
 - Archive health needs stale ingestion cleanup, latest-row de-duplication, archive-bin completeness classification, and a D1 retention/rollup policy.
 - D1 grew from about `935 MB` on 2026-06-20 to `1.35 GB` on 2026-07-08, so storage policy should not be deferred indefinitely.

@@ -1,3 +1,4 @@
+import { dispatchMapEvent, MAP_EVENTS, requestMapFocus } from "./map-events.js?v=20260710c";
 import { contextLayerForKind } from "./map-utils.js?v=20260710c";
 import {
   attachAddressAutocomplete,
@@ -77,7 +78,7 @@ function isMobileLayout() {
 }
 
 function announceSheetInsetChange() {
-  document.dispatchEvent(new CustomEvent("sheet-inset-change"));
+  dispatchMapEvent(MAP_EVENTS.sheetInsetChange);
 }
 
 function setDetent(name) {
@@ -218,23 +219,15 @@ function applyMapUpdate(root) {
     if (groups[layerKey]) groups[layerKey].push(item);
   }
   for (const layerKey of LAYER_KEYS) {
-    document.dispatchEvent(
-      new CustomEvent("map-layer-items", {
-        detail: { layer: layerKey, matches: groups[layerKey] },
-      }),
-    );
+    dispatchMapEvent(MAP_EVENTS.layerItems, { layer: layerKey, matches: groups[layerKey] });
   }
   window.setTimeout(() => {
-    document.dispatchEvent(
-      new CustomEvent("map-address", {
-        detail: {
-          center: payload.center || null,
-          radiusM: payload.radiusM || null,
-          addressLabel: payload.addressLabel || "",
-          zoom: payload.zoom || null,
-        },
-      }),
-    );
+    dispatchMapEvent(MAP_EVENTS.address, {
+      center: payload.center || null,
+      radiusM: payload.radiusM || null,
+      addressLabel: payload.addressLabel || "",
+      zoom: payload.zoom || null,
+    });
   }, SHEET_SETTLE_MS);
 }
 
@@ -691,10 +684,10 @@ function bindGlobalHandlers() {
     fetchSheet({ radiusM: radius.value }, { focus: "result" });
   });
 
-  document.body.addEventListener("operational-layer-selected", (event) => {
+  document.body.addEventListener(MAP_EVENTS.operationalLayerSelected, (event) => {
     if (event.detail) showOperationalDetail(event.detail);
   });
-  for (const eventName of ["dai-selected", "regional-metric-selected"]) {
+  for (const eventName of [MAP_EVENTS.daiSelected, MAP_EVENTS.regionalMetricSelected]) {
     document.body.addEventListener(eventName, () => {
       clearOperationalDetail();
       openDetailCardForEvent(detailPanel());
@@ -733,8 +726,7 @@ function focusRow(row) {
   for (const candidate of document.querySelectorAll("[data-map-focus]")) {
     candidate.classList.toggle("is-map-selected", candidate === row);
   }
-  window.pendingMapFocus = detail;
-  document.dispatchEvent(new CustomEvent("map-focus", { detail }));
+  requestMapFocus(detail);
   if (isMobileLayout() && currentDetent() === "full") setDetent("half");
 }
 
