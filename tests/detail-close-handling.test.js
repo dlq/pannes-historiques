@@ -15,9 +15,15 @@ const overviewSource = readFileSync(
 const indexSource = readFileSync(new URL("../app/templates/index.html", import.meta.url), "utf8");
 const stylesSource = readFileSync(new URL("../app/static/app.css", import.meta.url), "utf8");
 
-test("operational detail close buttons handle pointerup as well as click", () => {
-  assert.match(sheetSource, /addEventListener\("click", handleDetailClose\)/);
-  assert.match(sheetSource, /addEventListener\("pointerup", handleDetailClose\)/);
+test("detail close buttons are handled during capture for pointerup and click", () => {
+  assert.match(
+    sheetSource,
+    /document\.addEventListener\("click", handleDetailClose, closeGestureOptions\)/,
+  );
+  assert.match(
+    sheetSource,
+    /document\.addEventListener\("pointerup", handleDetailClose, closeGestureOptions\)/,
+  );
   assert.match(sheetSource, /event\.stopImmediatePropagation\(\)/);
 });
 
@@ -34,9 +40,8 @@ test("operational detail close buttons suppress mobile ghost row clicks", () => 
   assert.match(sheetSource, /if \(skipGhost\) return/);
 });
 
-test("disclosure detail close buttons handle pointerup as well as click", () => {
-  assert.match(detailPanelsSource, /addEventListener\("click", handleClose\)/);
-  assert.match(detailPanelsSource, /addEventListener\("pointerup", handleClose\)/);
+test("disclosure detail close buttons use the shared sheet close lifecycle", () => {
+  assert.doesNotMatch(detailPanelsSource, /addEventListener\(/);
   assert.match(sheetSource, /\[data-detail-close\], \[data-dai-detail-close\]/);
 });
 
