@@ -1,9 +1,13 @@
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
+
 from app.addressing import NormalizedAddress
 from app.config import Settings
 from app.db import open_db
 from app.services import (
     AppService,
     clearly_outside_quebec_query,
+    json_safe,
     point_in_polygon,
     within_quebec_bounds,
 )
@@ -63,6 +67,137 @@ def test_point_in_polygon_detects_inside_and_outside_points():
 def test_within_quebec_bounds_handles_simple_cases():
     assert within_quebec_bounds(45.5019, -73.5674) is True
     assert within_quebec_bounds(43.7, -79.4) is False
+
+
+def test_map_layer_scope_helpers_drop_unknown_scopes_and_filter_current_layers():
+    scopes = AppService._normalize_map_layer_scopes({"current", "unknown"})
+    layers = [
+        {"outage_kind": "outage", "id": "outage"},
+        {"outage_kind": "planned", "id": "planned"},
+        {"outage_kind": "unexpected", "id": "other"},
+    ]
+
+    assert scopes == frozenset({"current"})
+    assert AppService._filter_current_map_layers(layers, scopes) == [layers[0]]
+    assert AppService._normalize_map_layer_scopes(None) == frozenset(
+        {"current", "planned", "previous", "published"}
+    )
+
+
+def test_json_safe_serializes_paths_tuples_and_objects():
+    class Payload:
+        def __init__(self):
+            self.path = Path("raw/payload.json")
+            self.values = (1, Path("raw/child.json"))
+
+    assert json_safe({"payload": Payload()}) == {
+        "payload": {"path": "raw/payload.json", "values": [1, "raw/child.json"]}
+    }
+
+
+def test_maybe_refresh_collects_only_when_no_snapshot_or_snapshot_is_stale(
+    service_factory, monkeypatch
+):
+    service = service_factory(refresh_max_age_minutes=30)
+    calls: list[str] = []
+    monkeypatch.setattr(service, "collect", lambda: calls.append("collect") or {"snapshots": []})
+
+    assert service.maybe_refresh() == {"snapshots": []}
+    assert calls == ["collect"]
+
+    with open_db(service.settings.db_path) as connection:
+        connection.execute(
+            """
+            INSERT INTO raw_snapshots
+            (source_type, source_version, fetched_at, payload_path, content_type, sha256, http_status)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "bismarkers",
+                "fresh",
+                datetime.now(UTC).replace(microsecond=0).isoformat(),
+                "raw/fresh.json",
+                "application/json",
+                "fresh",
+                200,
+            ),
+        )
+
+    assert service.maybe_refresh() is None
+    assert calls == ["collect"]
+
+    with open_db(service.settings.db_path) as connection:
+        connection.execute(
+            "UPDATE raw_snapshots SET fetched_at = ?",
+            ((datetime.now(UTC) - timedelta(hours=1)).replace(microsecond=0).isoformat(),),
+        )
+
+    assert service.maybe_refresh() == {"snapshots": []}
+    assert calls == ["collect", "collect"]
+
+
+def test_local_collector_and_coverage_summaries_reflect_stored_snapshots(service_factory):
+    service = service_factory()
+    with open_db(service.settings.db_path) as connection:
+        connection.execute(
+            """
+            INSERT INTO raw_snapshots
+            (source_type, source_version, fetched_at, payload_path, content_type, sha256, http_status)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "bismarkers",
+                "old",
+                "2026-01-01T00:00:00+00:00",
+                "raw/old.json",
+                "application/json",
+                "old",
+                200,
+            ),
+        )
+        connection.execute(
+            """
+            INSERT INTO raw_snapshots
+            (source_type, source_version, fetched_at, payload_path, content_type, sha256, http_status)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "aipmarkers",
+                "new",
+                "2026-01-02T00:00:00+00:00",
+                "raw/new.json",
+                "application/json",
+                "new",
+                200,
+            ),
+        )
+
+    assert service.collector_status() == {
+        "snapshot_count": 2,
+        "latest": {
+            "source_type": "aipmarkers",
+            "source_version": "new",
+            "fetched_at": "2026-01-02T00:00:00+00:00",
+        },
+        "earliest": {
+            "source_type": "bismarkers",
+            "source_version": "old",
+            "fetched_at": "2026-01-01T00:00:00+00:00",
+        },
+    }
+    assert service.coverage_stats() == {
+        "outage_count": 0,
+        "planned_count": 0,
+        "event_count": 0,
+        "geometry_count": 0,
+        "outage_min_time": None,
+        "outage_max_time": None,
+        "planned_min_time": None,
+        "planned_max_time": None,
+        "disclosure_source_count": 0,
+        "disclosure_event_count": 0,
+        "disclosure_metric_count": 0,
+    }
 
 
 def test_clearly_outside_quebec_query_flags_ottawa_ontario():
@@ -1128,6 +1263,110 @@ def test_cached_context_should_cache_predicate(tmp_path):
     service._cached_context("k", factory, should_cache=lambda v: not v["degraded"])
     service._cached_context("k", factory, should_cache=lambda v: not v["degraded"])
     assert calls["n"] == 2  # never cached, so factory ran both times
+
+
+def test_collect_changed_only_clears_context_when_a_source_changed(service_factory, monkeypatch):
+    service = service_factory()
+    service._context_cache["collector_status"] = {"value": {}, "expires_at": None}
+    monkeypatch.setattr(
+        service.collector,
+        "collect_changed",
+        lambda: {"sources": [{"source": "bis", "changed": False}]},
+    )
+
+    assert service.collect_changed()["sources"][0]["changed"] is False
+    assert "collector_status" in service._context_cache
+
+    monkeypatch.setattr(
+        service.collector,
+        "collect_changed",
+        lambda: {"sources": [{"source": "bis", "changed": True}]},
+    )
+
+    assert service.collect_changed()["sources"][0]["changed"] is True
+    assert service._context_cache == {}
+
+
+def test_collection_commands_delegate_to_the_owned_collector_and_clear_context(
+    service_factory, monkeypatch
+):
+    service = service_factory()
+    monkeypatch.setattr(service.collector, "collect_source", lambda source: {"source": source})
+    monkeypatch.setattr(service.disclosure_collector, "collect_all", lambda: {"source": "all"})
+    monkeypatch.setattr(
+        service.disclosure_collector,
+        "collect_sources",
+        lambda source_keys: {"source_keys": source_keys},
+    )
+    monkeypatch.setattr(
+        service.disclosure_collector,
+        "collect_source_payload",
+        lambda source_key, payload, *, content_type: {
+            "source_key": source_key,
+            "payload": payload,
+            "content_type": content_type,
+        },
+    )
+
+    for command, expected in [
+        (service.collect_current_outages, {"source": "bis"}),
+        (service.collect_planned_interruptions, {"source": "aip"}),
+        (service.collect_disclosures, {"source": "all"}),
+        (lambda: service.collect_disclosure_sources(["one"]), {"source_keys": ["one"]}),
+        (
+            lambda: service.collect_disclosure_source_payload(
+                "one", b"payload", content_type="application/pdf"
+            ),
+            {"source_key": "one", "payload": b"payload", "content_type": "application/pdf"},
+        ),
+    ]:
+        service._context_cache["stale"] = {"value": {}, "expires_at": None}
+        assert command() == expected
+        assert service._context_cache == {}
+
+
+def test_disclosure_collection_schedule_skips_recent_runs_and_runs_due_work(
+    service_factory, monkeypatch
+):
+    service = service_factory()
+    recent = datetime.now(UTC).replace(microsecond=0).isoformat()
+    monkeypatch.setattr(service, "_latest_job_run", lambda _name: {"finished_at": recent})
+
+    skipped = service.collect_disclosures_if_due(min_age_days=14)
+
+    assert skipped["changed"] is False
+    assert skipped["reason"] == "not_due"
+    assert skipped["last_finished_at"] == recent
+
+    monkeypatch.setattr(service, "_latest_job_run", lambda _name: None)
+    monkeypatch.setattr(
+        service,
+        "_run_job",
+        lambda job_name, factory: {"job_name": job_name, "result": factory()},
+    )
+    monkeypatch.setattr(service, "collect_disclosures", lambda: {"changed": True})
+
+    assert service.collect_disclosures_if_due() == {
+        "job_name": "disclosures",
+        "result": {"changed": True},
+    }
+
+
+def test_collect_changed_for_durable_marks_result_without_invalidating_context(
+    service_factory, monkeypatch
+):
+    service = service_factory()
+    service._context_cache["collector_status"] = {"value": {}, "expires_at": None}
+    monkeypatch.setattr(
+        service.collector,
+        "collect_changed_against",
+        lambda versions: {"sources": [{"source": "bis", "version": versions["bis"]}]},
+    )
+
+    result = service.collect_changed_for_durable({"bis": "v1", "aip": None})
+
+    assert result == {"sources": [{"source": "bis", "version": "v1"}], "mode": "durable_fetch"}
+    assert "collector_status" in service._context_cache
 
 
 def test_raw_snapshot_payload_path_rejects_symlink_outside_raw_directory(tmp_path):
