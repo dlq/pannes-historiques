@@ -1376,6 +1376,20 @@ class AppService:
             "event_count": item.get("record_count"),
         }
 
+    # Map contexts are consumed by Flask route/view code. Keep that dependency
+    # on this public surface rather than on the cache/build implementation.
+    def current_operational_map_layers(self, include_planned: bool) -> list[dict[str, Any]]:
+        return self._current_operational_map_layers(include_planned)
+
+    def previous_operational_map_layers(self) -> list[dict[str, Any]]:
+        return self._previous_operational_map_layers()
+
+    def regional_metric_map_layers(self) -> list[dict[str, Any]]:
+        return self._regional_metric_map_layers()
+
+    def disclosure_map_layers(self) -> list[dict[str, Any]]:
+        return self._disclosure_map_layers()
+
     def _current_operational_map_layers(self, include_planned: bool) -> list[dict[str, Any]]:
         if self.settings.durable_runtime_url or self.settings.durable_nearby_url:
             return self._build_current_operational_map_layers(include_planned)

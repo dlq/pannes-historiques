@@ -16,6 +16,8 @@ Keep active execution state in `PLANS.md` and source/evidence research in `NOTES
 
 ### Changed
 
+- Replaced Flask route use of private map-context builders with a small public `AppService` interface, centralized browser map/sheet event names and pending map focus state, and extracted Worker durable-read handlers into a directly tested module.
+- Added a top-level contributor entry point and refreshed architecture, code-map, setup, deployment-snapshot, and active-plan documentation to match the current runtime and release direction.
 - Applied a behavior-preserving simplification/dedup pass (adversarially reviewed) across the server and client: shared helpers for the empty/error `SearchResult` shape, outage-group finalize tail, and row display keys in `services.py`; merged the duplicate geometry-asset loaders and centroid/distance predicates in `views.py`; single-sourced the month/weekday lang-fallback lookups in `sheet_views.py`; deduped `db.py` migrate SQL, `geocoding.py` row mapping, and `web.py` route/scope helpers; and removed dead constants, duplicated DOM/address/detail logic, and redundant branches across the static JS modules. Net −100 lines, no behavior change.
 - Deduped the `disclosure_outage_events` INSERT (shared `_DISCLOSURE_EVENT_INSERT` constant across xlsx/pdf ingest) and the regional-metric province/administrative-region base fields (`_regional_metric_base`), preserving stored key order.
 - Removed one-off live UI-audit artifacts from version control; generated audit and test evidence now belongs under ignored `tmp/` paths.

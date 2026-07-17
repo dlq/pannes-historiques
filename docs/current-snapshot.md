@@ -28,9 +28,10 @@ Read this first for quick orientation. Use `PLANS.md` for the active roadmap, `d
 
 ## Active Decision
 
-`v0.4.3` selected the hybrid renderer: Flask/Jinja remains the browser-page renderer while the Worker
-owns D1/R2 durable reads and runtime attribution. Revisit a Worker-first browser shell only if
-measured traffic shows container-rendered pages are the material recurring cost.
+`v0.4.3` selected the hybrid renderer: Flask/Jinja still renders browser pages while the Worker
+owns D1/R2 durable reads, operational map layers, and runtime attribution. Revisit a Worker-first
+browser shell only if measured traffic shows container-rendered pages are the material recurring
+cost.
 
 ## Useful Commands
 

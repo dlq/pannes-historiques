@@ -9,7 +9,7 @@ You need Python 3.12 or later with [uv](https://docs.astral.sh/uv/). Node.js 22 
 only for JavaScript checks and browser tests.
 
 ```bash
-uv sync
+uv sync --locked
 uv run python server.py serve
 ```
 

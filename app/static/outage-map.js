@@ -1,3 +1,4 @@
+import { clearPendingMapFocus, MAP_EVENTS, pendingMapFocus } from "./map-events.js?v=20260710c";
 import {
   boundsToLngLatBounds,
   contextLayerForKind,
@@ -155,19 +156,19 @@ export class OutageMap extends HTMLElement {
       if (detailPanel && typeof detailPanel.renderDisclosure === "function") {
         detailPanel.renderDisclosure(item);
       }
-      this.dispatchEvent(new CustomEvent("dai-selected", { bubbles: true, detail: item }));
+      this.dispatchEvent(new CustomEvent(MAP_EVENTS.daiSelected, { bubbles: true, detail: item }));
     };
     const showRegionalMetric = (item) => {
       if (detailPanel && typeof detailPanel.renderRegionalMetric === "function") {
         detailPanel.renderRegionalMetric(item);
       }
       this.dispatchEvent(
-        new CustomEvent("regional-metric-selected", { bubbles: true, detail: item }),
+        new CustomEvent(MAP_EVENTS.regionalMetricSelected, { bubbles: true, detail: item }),
       );
     };
     const showOperational = (item) => {
       this.dispatchEvent(
-        new CustomEvent("operational-layer-selected", { bubbles: true, detail: item }),
+        new CustomEvent(MAP_EVENTS.operationalLayerSelected, { bubbles: true, detail: item }),
       );
     };
 
@@ -311,9 +312,9 @@ export class OutageMap extends HTMLElement {
       if (!this.isConnected || this.getBoundingClientRect().width === 0) return;
       const detail = event.detail || {};
       focusMap(detail);
-      if (window.pendingMapFocus === detail) window.pendingMapFocus = null;
+      clearPendingMapFocus(detail);
     };
-    document.addEventListener("map-focus", this.handleMapFocus);
+    document.addEventListener(MAP_EVENTS.focus, this.handleMapFocus);
 
     focusItems = [...(data.matches || [])];
 
@@ -622,10 +623,10 @@ export class OutageMap extends HTMLElement {
       for (const operation of pendingStyleOps.splice(0)) operation();
       for (const layerKey of Object.keys(LAYER_SOURCE_BY_KEY)) rebuildLayerFeatures(layerKey);
       fitStartupExtent();
-      const focusDetail = window.pendingMapFocus || activeMapFocus;
+      const focusDetail = pendingMapFocus() || activeMapFocus;
       if (focusDetail) {
         focusMap(focusDetail);
-        if (window.pendingMapFocus === focusDetail) window.pendingMapFocus = null;
+        clearPendingMapFocus(focusDetail);
       }
     });
 
@@ -686,9 +687,9 @@ export class OutageMap extends HTMLElement {
       map.resize();
       if (activeMapFocus) focusMap(activeMapFocus, { remember: false });
     };
-    document.addEventListener("map-address", this.handleMapAddress);
-    document.addEventListener("map-layer-items", this.handleMapLayerItems);
-    document.addEventListener("sheet-inset-change", this.handleSheetInsetChange);
+    document.addEventListener(MAP_EVENTS.address, this.handleMapAddress);
+    document.addEventListener(MAP_EVENTS.layerItems, this.handleMapLayerItems);
+    document.addEventListener(MAP_EVENTS.sheetInsetChange, this.handleSheetInsetChange);
 
     if ("ResizeObserver" in window) {
       this.resizeObserver = new ResizeObserver(() => {
@@ -699,12 +700,13 @@ export class OutageMap extends HTMLElement {
   }
 
   disconnectedCallback() {
-    if (this.handleMapFocus) document.removeEventListener("map-focus", this.handleMapFocus);
-    if (this.handleMapAddress) document.removeEventListener("map-address", this.handleMapAddress);
+    if (this.handleMapFocus) document.removeEventListener(MAP_EVENTS.focus, this.handleMapFocus);
+    if (this.handleMapAddress)
+      document.removeEventListener(MAP_EVENTS.address, this.handleMapAddress);
     if (this.handleMapLayerItems)
-      document.removeEventListener("map-layer-items", this.handleMapLayerItems);
+      document.removeEventListener(MAP_EVENTS.layerItems, this.handleMapLayerItems);
     if (this.handleSheetInsetChange)
-      document.removeEventListener("sheet-inset-change", this.handleSheetInsetChange);
+      document.removeEventListener(MAP_EVENTS.sheetInsetChange, this.handleSheetInsetChange);
     if (this.resizeObserver) this.resizeObserver.disconnect();
     if (this.map) {
       this.map.remove();

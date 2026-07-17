@@ -26,11 +26,12 @@ The interface is one full-bleed MapLibre GL map (OpenFreeMap Liberty vector styl
 ## Runtime Ownership
 
 - `app/` owns Flask routes, search orchestration, Jinja rendering, local SQLite fallback paths, and Python collectors. `app/sheet_views.py` builds the sheet fragment contexts. `app/durable_runtime.py` owns the `DurableRuntimeClient` that talks to the Worker's private durable-runtime endpoints.
-- `app/static/` owns browser behavior as plain ES modules: `sheet.js` (detents, domain navigation, detail cards), `outage-map.js` (MapLibre element), `map-utils.js` (pure helpers), `search.js` (autocomplete, comparison tray, history), `detail-panels.js` (disclosure/regional detail rendering).
+- `app/static/` owns browser behavior as plain ES modules: `sheet.js` (detents, domain navigation, detail cards), `outage-map.js` (MapLibre element), `map-events.js` (map/sheet event contract), `map-utils.js` (pure helpers), `search.js` (autocomplete, comparison tray, history), `detail-panels.js` (disclosure/regional detail rendering).
 - `src/worker.js` owns Worker fetch/scheduled entrypoints and D1/R2 runtime behavior.
 - `src/container.js` owns Cloudflare Container configuration.
 - `src/worker-routing.js` owns top-level Worker path classification.
 - `src/runtime-policy.js` owns private durable-runtime endpoint policy.
+- `src/durable-read-handlers.js` owns public D1-backed durable read responses and their spatial query helpers.
 - `src/municipal-archive.js` owns pure municipal geometry helpers shared by Worker code and maintenance scripts.
 - `src/archive-summary.js` owns pure row-shaping helpers for the previous-outage archive summary.
 - `src/container-proxy.js` owns forwarding browser requests from the Worker to the Cloudflare Container instance.
@@ -56,7 +57,7 @@ The checker runs in pre-commit and has focused regression coverage in `tests/tes
 
 The GitHub Quality workflow runs pre-commit formatting, linting, and module-boundary checks plus
 pytest and Node unit tests on pull requests and pushes to `main`. Playwright and coverage reporting/
-enforcement remain local release checks until the planned `v0.4.3` CI hardening. The dated measured
+enforcement remain local release checks while `v0.4.4` decides their CI policy. The dated measured
 baseline is recorded in `NOTES.md`.
 
 ## Data Stores

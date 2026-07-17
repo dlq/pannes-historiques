@@ -35,6 +35,7 @@ Use this map before opening large files. Prefer targeted `rg` searches over read
 - `app/static/app.js`: browser module bootstrap.
 - `app/static/sheet.js`: sheet navigation, detents, detail cards, and row focus.
 - `app/static/outage-map.js`: MapLibre custom element.
+- `app/static/map-events.js`: named event contract and pending map focus state shared by sheet/map modules.
 - `app/static/search.js`: autocomplete, comparison tray, browser history.
 - `app/static/detail-panels.js`: disclosure/regional detail panel custom element.
 - `app/static/map-utils.js`: pure map helper functions.
@@ -44,6 +45,7 @@ Use this map before opening large files. Prefer targeted `rg` searches over read
 ## Worker Runtime
 
 - `src/worker.js`: Cloudflare Worker fetch/scheduled entrypoints and D1/R2 runtime behavior.
+- `src/durable-read-handlers.js`: public durable read handlers and spatial query helpers.
 - `src/worker-routing.js`: public/private path classification.
 - `src/runtime-policy.js`: private durable-runtime access policy.
 - `src/container-proxy.js`: Worker-to-container forwarding.

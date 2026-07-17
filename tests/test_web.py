@@ -531,7 +531,7 @@ def test_sheet_returns_localized_error_fragment_when_context_building_fails(
     def raise_error(*args, **kwargs):
         raise RuntimeError("fixture failure")
 
-    monkeypatch.setattr(service, "_current_operational_map_layers", raise_error)
+    monkeypatch.setattr(service, "current_operational_map_layers", raise_error)
     response = app_client.get("/sheet?lang=en&domain=current")
 
     assert response.status_code == 200
