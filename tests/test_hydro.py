@@ -1,6 +1,9 @@
+import json
+
 import pytest
 
 from app.config import Settings
+from app.db import initialize, open_db
 from app.hydro import HydroCollector, maybe_int, parse_centroid, parse_kml_polygons, safe_get
 
 
@@ -17,6 +20,11 @@ def test_parse_centroid_accepts_feed_arrays_and_string_coordinates():
     assert parse_centroid("[45.52, -73.6]") == (45.52, -73.6)
     assert parse_centroid("") == (None, None)
     assert parse_centroid(None) == (None, None)
+
+
+@pytest.mark.parametrize("raw", (["longitude", "latitude"], "[longitude, latitude]"))
+def test_parse_centroid_rejects_malformed_coordinate_values(raw):
+    assert parse_centroid(raw) == (None, None)
 
 
 def test_safe_get_returns_none_for_missing_feed_columns():
@@ -86,6 +94,88 @@ def test_parse_kml_polygons_extracts_geometry_bbox_and_centroid():
     ]
 
 
+def test_parse_kml_polygons_skips_malformed_coordinate_records():
+    kml = """
+    <kml xmlns="http://www.opengis.net/kml/2.2">
+      <Placemark>
+        <name>invalid</name>
+        <Polygon><outerBoundaryIs><LinearRing>
+          <coordinates>-73.6,45.5 invalid,coordinate -73.5,45.6</coordinates>
+        </LinearRing></outerBoundaryIs></Polygon>
+      </Placemark>
+    </kml>
+    """
+
+    assert parse_kml_polygons(kml) == []
+
+
+@pytest.mark.parametrize(
+    ("source_type", "payload", "record_table", "event_kind"),
+    [
+        (
+            "bismarkers",
+            {
+                "pannes": [
+                    [42, "2026-01-02 03:04:05", None, "P", [-73.6, 45.5], "N", "C", "D", "66023"]
+                ]
+            },
+            "outage_records",
+            "outage",
+        ),
+        (
+            "aipmarkers",
+            [
+                [
+                    None,
+                    "notice-1",
+                    "2026-01-02 03:04:05",
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    "18",
+                    None,
+                    None,
+                    "66023",
+                    "A",
+                    [-73.6, 45.5],
+                ]
+            ],
+            "planned_interruptions",
+            "planned",
+        ),
+    ],
+)
+def test_ingest_markers_stores_feed_records_and_resolved_events(
+    tmp_path, source_type, payload, record_table, event_kind
+):
+    collector = HydroCollector(Settings(raw_dir=tmp_path / "raw", db_path=tmp_path / "app.db"))
+    initialize(collector.settings.db_path)
+    payload_bytes = json.dumps(payload).encode()
+    snapshot = collector._store_snapshot(
+        source_type=source_type,
+        version="fixture",
+        fetched_at="2026-01-02T03:04:05+00:00",
+        payload=payload_bytes,
+        content_type="application/json",
+        extension="json",
+    )
+    collector._register_snapshot(snapshot)
+
+    collector._ingest_markers(snapshot, payload_bytes)
+
+    with open_db(collector.settings.db_path) as connection:
+        record = connection.execute(f"SELECT * FROM {record_table}").fetchone()
+        event = connection.execute("SELECT * FROM resolved_events").fetchone()
+    assert record is not None
+    assert event is not None
+    assert event["outage_kind"] == event_kind
+    assert event["source_versions"] == "fixture"
+
+
 @pytest.mark.parametrize(
     ("payload", "expected"),
     [
@@ -101,6 +191,50 @@ def test_parse_version_accepts_hydro_payload_shapes(payload, expected):
 def test_parse_version_rejects_unexpected_payload_shape():
     with pytest.raises(RuntimeError, match="unexpected version payload"):
         HydroCollector._parse_version(b"[]")
+
+    with pytest.raises(RuntimeError, match="unexpected version payload"):
+        HydroCollector._parse_version(b"{}")
+
+
+def test_collection_orchestration_keeps_successful_source_when_the_other_fails(
+    tmp_path, monkeypatch
+):
+    collector = HydroCollector(Settings(raw_dir=tmp_path / "raw", db_path=tmp_path / "app.db"))
+
+    def collect_source(source):
+        if source == "bis":
+            return {"snapshots": ["bis-snapshot"], "errors": []}
+        raise RuntimeError("upstream unavailable")
+
+    monkeypatch.setattr(collector, "collect_source", collect_source)
+
+    assert collector.collect_all() == {
+        "snapshots": ["bis-snapshot"],
+        "errors": [{"source": "aip", "error": "collection failed"}],
+    }
+
+
+def test_changed_collection_summaries_keep_versions_snapshots_and_errors(tmp_path, monkeypatch):
+    collector = HydroCollector(Settings(raw_dir=tmp_path / "raw", db_path=tmp_path / "app.db"))
+    monkeypatch.setattr(
+        collector,
+        "collect_source_if_changed",
+        lambda source: {
+            "version": f"{source}-version",
+            "changed": source == "bis",
+            "snapshots": [source],
+            "errors": [] if source == "bis" else [{"source": source, "error": "collection failed"}],
+        },
+    )
+
+    assert collector.collect_changed() == {
+        "sources": [
+            {"source": "bis", "version": "bis-version", "changed": True},
+            {"source": "aip", "version": "aip-version", "changed": False},
+        ],
+        "snapshots": ["bis", "aip"],
+        "errors": [{"source": "aip", "error": "collection failed"}],
+    }
 
 
 def test_collect_source_if_changed_against_skips_known_version(tmp_path, monkeypatch):
