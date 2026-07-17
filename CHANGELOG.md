@@ -6,6 +6,14 @@ Keep active execution state in `PLANS.md` and source/evidence research in `NOTES
 
 ## [Unreleased]
 
+### Added
+
+- Added combined Python line/branch coverage reporting with a 61.9% non-regression floor in GitHub Quality, a full desktop/mobile browser-regression workflow after changes reach `main` or on manual dispatch, and a contributor issue map for bounded test work.
+
+### Fixed
+
+- Kept E2E search fixtures aligned with the requested radius and stopped empty radius values from being serialized as `radius_m=0` in browser URLs.
+
 ## [v0.4.3] - 2026-07-17
 
 ### Added

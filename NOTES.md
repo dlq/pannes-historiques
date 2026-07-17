@@ -6,6 +6,7 @@ Last updated: 2026-07-17
 ## Current verification and deployment baseline, 2026-07-11
 
 - Release `v0.4.3` passed pre-commit, 159 Python tests, 41 Node unit tests, Biome checks, and a Wrangler dry-run. It deployed on 2026-07-17 as Worker version `fd05d96f-4dc6-4c24-82b2-08571f390165` with container image `pannes-historiques-pannescontainer:fd05d96f`; public `/`, `/healthz`, `/sheet?lang=en&domain=archive`, and `/service-worker.js` probes returned `200`, with cache marker `pannes-historiques-v0.4.3-cost-containment`.
+- The v0.4.4 baseline run measured 61.9% combined Python line/branch coverage across `app/` with 160 passing tests. CI now enforces that floor; lower-coverage priorities remain `hydro.py`, `disclosures.py`, `services.py`, Worker orchestration, and container behavior.
 
 Measured locally against the current `v0.4.2` runtime code plus its post-release map, accessibility,
 contributor-foundation, and cache-refresh follow-ups:

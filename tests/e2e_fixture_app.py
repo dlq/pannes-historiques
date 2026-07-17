@@ -225,6 +225,7 @@ def _build_result(
     *,
     location_query: bool = False,
     map_layer_scopes: set[str] | frozenset[str] | None = None,
+    radius_m: int = 5000,
 ) -> SearchResult:
     map_layer_scopes = map_layer_scopes or {"current", "planned", "previous", "published"}
     normalized = _base_normalized()
@@ -281,7 +282,7 @@ def _build_result(
         else [],
         disclosure_layers=_disclosure_layers() if "published" in map_layer_scopes else [],
         regional_metric_layers=_regional_metric_layers() if "published" in map_layer_scopes else [],
-        radius_m=5000,
+        radius_m=radius_m,
         error=None,
     )
 
@@ -330,12 +331,14 @@ class E2EStubService:
         return _build_result(
             location_query=False,
             map_layer_scopes=kwargs.get("map_layer_scopes"),
+            radius_m=kwargs["radius_m"],
         )
 
     def search_location(self, **kwargs) -> SearchResult:
         return _build_result(
             location_query=True,
             map_layer_scopes=kwargs.get("map_layer_scopes"),
+            radius_m=kwargs["radius_m"],
         )
 
     def regional_metric_map_layers(self) -> list[dict[str, object]]:

@@ -52,7 +52,7 @@ Python:
 ```bash
 uv run ruff check . --fix
 uv run ruff format .
-uv run pytest -q
+uv run pytest -q --cov
 ```
 
 Templates:
@@ -111,6 +111,7 @@ associated credentials.
 
 Keep production runtime dependencies one-way. Flask code under `app/` should not import Worker, script, or test modules; browser modules under `app/static/` should stay within the browser module tree; Worker modules under `src/` should stay within the Worker module tree. If a helper needs to cross one of those boundaries, extract a smaller shared module deliberately and update `docs/architecture.md` plus the boundary checker in the same patch.
 
-GitHub Quality runs formatting, linting, module-boundary checks, pytest, and Node unit tests for
-pull requests and pushes to `main`. Playwright is available locally for browser-facing changes; run
-the affected desktop or mobile project and describe any skipped or flaky case in the pull request.
+GitHub Quality runs formatting, linting, module-boundary checks, Python branch coverage with a
+non-regressing floor, and Node unit tests for pull requests and pushes to `main`. The full desktop and
+mobile Playwright suite runs after pushes to `main` and on manual workflow dispatch; run the affected
+browser project locally for browser-facing pull requests and describe any skipped or flaky case.
