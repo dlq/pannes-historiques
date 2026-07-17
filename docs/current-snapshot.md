@@ -1,15 +1,15 @@
 # Current Snapshot
 
-Last updated: 2026-07-12
+Last updated: 2026-07-17
 
 Read this first for quick orientation. Use `PLANS.md` for the active roadmap, `docs/architecture.md` for runtime boundaries, `docs/cost-containment.md` for cost strategy, and `CHANGELOG.md` for completed release history.
 
 ## Version And Deployment
 
-- Shipped release: `v0.4.2`.
-- Package metadata: `0.4.2` in `pyproject.toml` and `package.json`.
-- Production deployment: Worker version `395dd418-e47b-443e-a60c-ecc8c0305b51`; container image `pannes-historiques-pannescontainer:395dd418`.
-- Current development direction: `v0.4.3` cost-containment architecture, runtime instrumentation, and first public-read migration.
+- Shipped release: `v0.4.3`.
+- Package metadata: `0.4.3` in `pyproject.toml` and `package.json`.
+- Production deployment before the v0.4.3 release: Worker version `9ddad2ec-ea03-4b4a-80d2-7bee40ddfa92`; container image `pannes-historiques-pannescontainer:9ddad2ec`.
+- Current development direction: `v0.4.4` contributor readiness, contract tests, and CI hardening.
 
 ## Product Shape
 
@@ -28,12 +28,9 @@ Read this first for quick orientation. Use `PLANS.md` for the active roadmap, `d
 
 ## Active Decision
 
-`v0.4.3` should measure and choose between:
-
-1. Worker-first public reads with the container kept for parsing/batch/fallback.
-2. Hybrid renderer where Flask remains canonical while Worker/D1/R2 take over expensive reads.
-
-Avoid a static-shell rewrite until evidence shows the Flask/Jinja path itself is the main cost problem.
+`v0.4.3` selected the hybrid renderer: Flask/Jinja remains the browser-page renderer while the Worker
+owns D1/R2 durable reads and runtime attribution. Revisit a Worker-first browser shell only if
+measured traffic shows container-rendered pages are the material recurring cost.
 
 ## Useful Commands
 
@@ -48,7 +45,8 @@ npx wrangler deploy --dry-run
 
 ## Known Risk Areas
 
-- Hardcoded trusted Worker host in runtime policy.
+- The trusted Worker host is deployment configuration in `wrangler.jsonc`; keep it synchronized with
+  the actual Worker host and avoid embedding it in runtime code.
 - Container-backed search/render paths still wake the container.
 - Archive health: stale ingestion rows, latest-row de-duplication, archive-bin completeness, and D1 retention.
 - Public/private JSON route posture needs a machine-readable/API-boundary pass.

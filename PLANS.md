@@ -7,9 +7,9 @@ This is the active execution plan. Keep detailed evidence and research notes in 
 
 ## Current State
 
-- Current shipped release: `v0.4.2`, public beta readiness, deployed 2026-07-10. Post-release archive-map, WCAG, contributor-foundation, and service-worker-cache follow-ups were deployed on 2026-07-11.
+- Current shipped release: `v0.4.3`, cost containment and production-navigation cleanup, released 2026-07-17.
 - Current production deployment: Worker version `9ddad2ec-ea03-4b4a-80d2-7bee40ddfa92`; container image `pannes-historiques-pannescontainer:9ddad2ec`.
-- Current implementation line: `main` is ahead of `v0.4.2` with follow-up fixes and planning; the active product slice is `v0.4.3`.
+- Current implementation line: `main` has released `v0.4.3`; the next active product slice is `v0.4.4` contributor readiness and CI hardening.
 - Current frontend: one full-bleed MapLibre GL map plus a single sheet. The sheet owns search, domain navigation, address overview, scoped local/province views, detail cards, provenance, and browser-local comparison.
 - Current data plane: D1/R2-backed durable ingestion for current feed rows, previous-outage rows, raw Hydro-Quebec payloads, disclosure metadata, and runtime map-context layers.
 - Current container role: Flask/Jinja shell rendering, local-compatible fallback paths, and a baked SQLite snapshot. Container-local writes are ephemeral and must not become production state.

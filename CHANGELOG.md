@@ -6,6 +6,8 @@ Keep active execution state in `PLANS.md` and source/evidence research in `NOTES
 
 ## [Unreleased]
 
+## [v0.4.3] - 2026-07-17
+
 ### Added
 
 - Added contributor foundations: an MIT license, code of conduct, security reporting policy, contribution guide, issue forms, pull-request template, and GitHub Quality workflow.
