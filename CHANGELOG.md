@@ -24,11 +24,15 @@ Keep active execution state in `PLANS.md` and source/evidence research in `NOTES
 - Archived-outage rows now retain their territory identity and focus the map on a valid Quebec location; the initial map view uses a stable southern-Quebec overview rather than following a remote live outage.
 - Improved sheet accessibility with stronger secondary-text contrast, reduced-motion handling, live update announcements, dialog labeling, focus trapping, Escape handling, and focus restoration.
 - Refreshed the service-worker cache namespace so returning clients replace stale pre-MapLibre/Leaflet app shells on their next visit.
+- Made `/sheet` failures diagnosable and recoverable: exception logs now carry request context, and the route returns a localized retry fragment instead of a raw `500`.
+- Added no-store Leaflet compatibility tombstones that unregister stale service workers and reload once, a `/favicon.ico` alias, and Worker-edge filtering for common scanner probes.
+- Kept address results available when durable address persistence is temporarily unavailable; only persistence-dependent history is omitted.
 
 ### Verified
 
-- Current local baseline: 149 Python tests and 38 Node unit tests pass; Playwright lists 48 desktop/mobile cases.
+- Current local baseline: 159 Python tests and 41 Node unit tests pass; Playwright lists 48 desktop/mobile cases.
 - Deployed the service-worker cache refresh on 2026-07-11 as Worker version `395dd418-e47b-443e-a60c-ecc8c0305b51`; live `/`, `/healthz`, and `/service-worker.js` checks returned `200` and the new cache marker was present.
+- On 2026-07-17, deployed the v0.4.3 navigation cleanup as Worker version `9ddad2ec-ea03-4b4a-80d2-7bee40ddfa92` with container image `pannes-historiques-pannescontainer:9ddad2ec`. Homepage and `/sheet` probes returned `200`; favicon and stale-Leaflet compatibility routes returned the expected responses; and a WordPress scanner probe was blocked with a Worker-edge `404`.
 
 ## [v0.4.2] - 2026-07-10
 
