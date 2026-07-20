@@ -307,3 +307,50 @@ def test_collect_source_if_changed_against_reports_version_fetch_failure(tmp_pat
     assert result["changed"] is False
     assert result["snapshots"] == []
     assert result["errors"] == [{"source": "bis", "error": "collection failed"}]
+
+
+def test_durable_fetch_registers_snapshots_for_worker_lookup(tmp_path, monkeypatch):
+    """The durable path must record raw_snapshots rows.
+
+    The Worker fetches these payloads back out of the container by
+    (source_type, source_version) via /internal/raw-snapshot. If the durable
+    collection path stores the file without registering the row, that lookup
+    404s and every scheduled ingestion fails -- which is exactly what broke
+    production ingestion for five days.
+    """
+    from app.config import Settings
+    from app.db import initialize, open_db
+    from app.hydro import HydroCollector
+
+    settings = Settings(raw_dir=tmp_path / "raw", db_path=tmp_path / "app.db")
+    initialize(settings.db_path)
+    collector = HydroCollector(settings)
+
+    def fake_fetch_bytes(url):
+        if url.endswith("version.json"):
+            return b'{"version":"V1"}', 200, "application/json"
+        return b"payload-bytes", 200, "application/json"
+
+    monkeypatch.setattr("app.hydro.fetch_bytes", fake_fetch_bytes)
+    monkeypatch.setattr(HydroCollector, "_parse_version", lambda self, payload: "V1")
+
+    result = collector.collect_changed_against({"bis": None, "aip": None})
+    assert not result["errors"]
+
+    with open_db(settings.db_path) as connection:
+        rows = connection.execute(
+            "SELECT source_type, source_version FROM raw_snapshots ORDER BY source_type"
+        ).fetchall()
+    registered = {(r["source_type"], r["source_version"]) for r in rows}
+    assert registered, "durable collection registered no raw_snapshots rows"
+
+    # Every snapshot returned to the Worker must be resolvable by the same
+    # (source_type, source_version) lookup the Worker uses.
+    from app.services import AppService
+
+    service = AppService(settings)
+    for snapshot in result["snapshots"]:
+        assert (snapshot.source_type, snapshot.version) in registered
+        assert (
+            service.raw_snapshot_payload_path(snapshot.source_type, snapshot.version) is not None
+        ), f"Worker lookup would 404 for {snapshot.source_type}"

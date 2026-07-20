@@ -265,16 +265,21 @@ class HydroCollector:
                 payload, status, content_type = fetch_bytes(url)
             if status != 200:
                 raise RuntimeError(f"payload fetch failed for {source_type}: HTTP {status}")
-            snapshots.append(
-                self._store_snapshot(
-                    source_type=source_type,
-                    version=version,
-                    fetched_at=now,
-                    payload=payload,
-                    content_type=content_type,
-                    extension=extension,
-                )
+            snapshot = self._store_snapshot(
+                source_type=source_type,
+                version=version,
+                fetched_at=now,
+                payload=payload,
+                content_type=content_type,
+                extension=extension,
             )
+            # Durable mode deliberately skips the heavy local marker/polygon
+            # ingestion -- that state belongs in D1. It must still register the
+            # raw_snapshots row, because the Worker fetches these payloads back
+            # out by (source_type, source_version) via /internal/raw-snapshot.
+            # Without the row that lookup 404s and the whole durable sync fails.
+            self._register_snapshot(snapshot)
+            snapshots.append(snapshot)
         return snapshots
 
     def _store_snapshot(
