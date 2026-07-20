@@ -21,7 +21,7 @@
     "@biomejs/biome": "^2.5.4",
     "@cloudflare/containers": "^0.3.7",
     "@playwright/test": "^1.61.1",
-    "wrangler": "^4.110.0"
+    "wrangler": "^4.112.0"
   },
   "dependencies": {
     "fflate": "^0.8.3",
