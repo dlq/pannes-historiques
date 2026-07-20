@@ -14,7 +14,8 @@ This is the active execution plan. Keep detailed evidence and research notes in 
 - Current data plane: D1/R2-backed durable ingestion for current feed rows, previous-outage rows, raw Hydro-Quebec payloads, disclosure metadata, and runtime map-context layers.
 - Current container role: Flask/Jinja shell rendering, local-compatible fallback paths, and a baked SQLite snapshot. Container-local writes are ephemeral and must not become production state.
 - Current cost posture: normal public browsing/search should not produce recurring container/runtime overage. The next slice prioritizes cost containment before broader beta UX work.
-- Current public API posture: some JSON/data routes exist, but the public/private boundary and stability status are not yet a full API contract.
+- Current public API posture: route stability tiers are now written down in `docs/api-posture.md` and summarized for machine readers at `/llms.txt`. Every JSON route is explicitly `unstable`; the first `stable` contract is still deferred to `v0.5.0`.
+- Known test flake (pre-existing, attributed 2026-07-17): one mobile-chromium detail-close case fails intermittently in full Playwright runs — the failure rotates between `search-flow.spec.ts:147` and the neighbouring planned/regional detail-close cases, and each passes in isolation. Verified on a clean `main` checkout with all local work stashed, so it is not caused by the `v0.4.5` header work. Root cause is the ghost `click` that follows a `pointerup`-driven card close: the close clears the card, so the trailing click hit-tests against the row revealed behind it and re-opens a detail. A deterministic fix is to ignore a click whose gesture began on a close control rather than to race it with a timing window.
 - Current contribution posture: contributor docs and a scoped issue map exist. GitHub Quality enforces Python branch coverage, while full Playwright runs on `main` and by manual dispatch.
 - Public-announcement state: the first beta feedback post is live in `r/HydroQuebec`; the broader `r/quebec` post remains blocked by that community's account-activity requirement.
 - Address-specific dispute boundary: pannes.ca can show retained observations near an address, not certify service at that residence. Direct certification requests belong with Hydro-Quebec's official past-outage form.
@@ -124,10 +125,11 @@ Make the repo easier for external contributors while addressing the smallest bet
 
 Make the project easier for people and automated readers to understand without overstating authority, and start drawing the public/private API boundary before `v0.5.0`.
 
-- Add appropriate `security.txt`, `humans.txt`, `llms.txt`, contact, and project metadata.
-- Document existing public JSON/data routes as versioned candidates, available-but-unstable routes, or private/internal routes.
-- Add compatible security headers.
+- [x] Add appropriate `security.txt`, `humans.txt`, `llms.txt`, contact, and project metadata. `/.well-known/security.txt` generates its RFC 9116 `Expires` at request time so it cannot silently lapse; `/security.txt` redirects to it. `/llms.txt` leads with the data limits (not Hydro-Quebec, not official history, cannot certify an address) so automated readers cannot quote the archive as authoritative.
+- [x] Document existing public JSON/data routes as versioned candidates, available-but-unstable routes, or private/internal routes — see `docs/api-posture.md`. Every JSON route is tiered `unstable`; nothing is advertised as `stable` yet.
+- [x] Add compatible security headers. CSP is shaped to real needs and browser-verified: MapLibre's blob worker, the OpenFreeMap tile origin, and one inline `style` attribute (`unsafe-inline` for styles only, never scripts). `geolocation=(self)` is retained because current-location search depends on it.
 - Keep the full public API contract for `v0.5.0`.
+- Contact email moved from hardcoded template literals into `Settings.contact_email` (`APP_CONTACT_EMAIL`).
 
 ### `v0.4.6`: Archive Health, Retention, And D1 Growth Control
 
@@ -175,7 +177,7 @@ Routine command details live in `docs/contributing.md`; production and deploy ch
 - Container-backed search/render paths still need measured cost evidence; the trusted Worker host is configured in `wrangler.jsonc`, not hardcoded in runtime policy.
 - Ordinary public reads should keep moving toward Worker/static/D1/R2 paths, but the right migration boundary is not yet proven.
 - Archive health needs stale ingestion cleanup, latest-row de-duplication, archive-bin completeness classification, and a D1 retention/rollup policy.
-- D1 grew from about `935 MB` on 2026-06-20 to `1.35 GB` on 2026-07-08, so storage policy should not be deferred indefinitely.
+- D1 growth measurements: `935 MB` (2026-06-20), `1.35 GB` (2026-07-08), `1.48 GB` (2026-07-17). The rate eased from about `23 MB/day` to about `15 MB/day` across those windows, leaving roughly `3.5 GB` of headroom under the 5 GB included threshold — on the order of 5–8 months of runway. That is why retention stays scheduled in `v0.4.6` rather than preempting `v0.4.5`. Treat the projection as indicative only: row growth tracks outage volume, so a heavy storm season can steepen it quickly. Re-measure at the start of each slice instead of trusting the extrapolation.
 - Browser proof gaps remain: real-device geolocation/permission recovery, visible freshness/change cues, dense live-data readability, and practical keyboard/screen-reader checks.
 - The WCAG pass shipped contrast, reduced-motion, live-region, dialog-focus, and keyboard regression fixes; remaining proof gaps belong with `v0.4.5`.
 - First-party JS modules improve maintainability but increase module requests; measure on Cloudflare before assuming native modules or bundling is better.
