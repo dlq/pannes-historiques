@@ -6,6 +6,16 @@ Keep active execution state in `PLANS.md` and source/evidence research in `NOTES
 
 ## [Unreleased]
 
+### Fixed
+
+- Fixed scheduled Hydro ingestion, which had failed on every run since 2026-07-15T17:07 while the site continued returning `200` and serving five-day-old outage data. The durable collection path (`_fetch_payload_files`, used by the cron) wrote each payload to disk via `_store_snapshot` but never called `_register_snapshot`, so the `raw_snapshots` row was missing. The Worker fetches those payloads back out by `(source_type, source_version)` through `/internal/raw-snapshot`, which resolves the file through that table, so the lookup returned `snapshot file not found` and every sync aborted. Durable mode still skips the heavy marker/polygon ingestion, but now registers the lightweight row the Worker callback depends on.
+
+### Added
+
+- Added `GET /api/health/ingestion`, an unauthenticated probe that returns `503` when ingestion is unhealthy so any external uptime monitor can alert without a secret or extra infrastructure. It reports snapshot age, last successful run, and the current failure streak, and treats a single failed run as noise while flagging a sustained streak or data older than three hours.
+- Added `src/ingestion-health.js` with the pure health-decision logic and direct tests, including the exact five-day-stall scenario, a single transient failure, a failure streak while data is still fresh, and runs that report `ok` while producing no new data.
+- The Hydro cron now evaluates the same health after each run and emits a greppable `INGESTION_UNHEALTHY` log line for Cloudflare log filters and Logpush.
+
 ## [v0.4.5] - 2026-07-20
 
 ### Added

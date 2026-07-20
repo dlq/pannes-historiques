@@ -14,6 +14,7 @@ import {
   latestRows,
   numberParam,
 } from "./durable-read-handlers.js";
+import { evaluateIngestionHealth } from "./ingestion-health.js";
 import {
   assignPolygonToTerritories,
   compareHydroPolygonIds,
@@ -51,6 +52,7 @@ export default {
       if (!operationalRequest(request, env)) return new Response("Not found", { status: 404 });
       return costHealthResponse(env);
     }
+    if (route === "ingestion_health") return ingestionHealthResponse(env);
     if (route === "durable_hydro") return durableHydroResponse(env);
     if (route === "durable_status") {
       if (!operationalRequest(request, env)) {
@@ -116,6 +118,29 @@ async function runHydroSchedule(env) {
   const status = summary.errors.length ? "error" : "ok";
   await recordRunFinished(env.DB, run.meta.last_row_id, status, summary);
   if (summary.errors.length) console.error("Hydro schedule completed with errors", summary);
+  await reportIngestionHealth(env);
+}
+
+// A single failed run is noise; a sustained stall is an incident. Evaluate the
+// same health the public probe reports and emit one structured, greppable line
+// so Cloudflare log filters / Logpush can alert on it. Ingestion previously
+// failed every 30 minutes for five days without surfacing anywhere.
+async function reportIngestionHealth(env) {
+  try {
+    const health = await readIngestionHealth(env.DB);
+    if (health.healthy) return;
+    console.error(
+      "INGESTION_UNHEALTHY",
+      JSON.stringify({
+        problems: health.problems,
+        snapshot_age_minutes: health.snapshot_age_minutes,
+        consecutive_failures: health.consecutive_failures,
+        last_successful_run: health.last_successful_run,
+      }),
+    );
+  } catch (error) {
+    console.error("INGESTION_HEALTH_CHECK_FAILED", String(error));
+  }
 }
 
 async function currentFeedVersionMap(db) {
@@ -1278,6 +1303,47 @@ async function durableStatusResponse(env) {
   ).all();
   const disclosures = await disclosureCounts(env.DB);
   return jsonResponse({ versions: versions.results || [], runs: runs.results || [], disclosures });
+}
+
+async function readIngestionHealth(db) {
+  const [newest, lastOk, recent] = await Promise.all([
+    db.prepare("SELECT MAX(fetched_at) AS fetched_at FROM hydro_snapshots").first(),
+    db
+      .prepare(
+        "SELECT started_at FROM ingestion_runs WHERE job_name = 'hydro_changed' AND status = 'ok' ORDER BY id DESC LIMIT 1",
+      )
+      .first(),
+    db
+      .prepare(
+        "SELECT status FROM ingestion_runs WHERE job_name = 'hydro_changed' ORDER BY id DESC LIMIT 10",
+      )
+      .all(),
+  ]);
+  return evaluateIngestionHealth({
+    newestSnapshot: newest?.fetched_at || null,
+    lastSuccessfulRun: lastOk?.started_at || null,
+    recentStatuses: (recent?.results || []).map((row) => row.status),
+  });
+}
+
+async function ingestionHealthResponse(env) {
+  let health;
+  try {
+    health = await readIngestionHealth(env.DB);
+  } catch (error) {
+    // A health probe that cannot read its own data plane is unhealthy.
+    return jsonResponse(
+      { healthy: false, problems: [`health check failed: ${String(error)}`] },
+      { status: 503 },
+    );
+  }
+  return jsonResponse(
+    { generated_at: new Date().toISOString(), ...health },
+    {
+      status: health.healthy ? 200 : 503,
+      headers: { "Cache-Control": "no-store" },
+    },
+  );
 }
 
 async function costHealthResponse(env) {

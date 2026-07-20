@@ -43,3 +43,9 @@ test("falls back to the container for app routes", () => {
   assert.equal(workerRouteForPath("/sheet"), "container");
   assert.equal(workerRouteForPath("/about"), "container");
 });
+
+test("ingestion health probe is routed and left unauthenticated", () => {
+  // An uptime monitor must reach it without a secret, so it must not be
+  // classified as blocked or fall through to the container.
+  assert.equal(workerRouteForPath("/api/health/ingestion"), "ingestion_health");
+});
