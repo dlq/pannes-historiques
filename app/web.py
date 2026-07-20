@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import mimetypes
+from datetime import UTC, datetime, timedelta
 from hashlib import sha256
 from pathlib import Path
 from types import SimpleNamespace
@@ -53,6 +54,36 @@ from .views import (
     default_map_payload,
     result_context,
 )
+
+# Security headers applied to every container response. The CSP is deliberately
+# shaped around what this app actually needs: MapLibre spawns its worker from a
+# blob URL, the Liberty style/tiles/sprites come from OpenFreeMap, and one
+# template sets an inline `style` attribute for the history bar heights (hence
+# 'unsafe-inline' for styles only, never for scripts). Geolocation stays enabled
+# for self because the current-location search depends on it.
+SECURITY_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "X-Frame-Options": "DENY",
+    "Permissions-Policy": "geolocation=(self), camera=(), microphone=(), payment=(), usb=()",
+    "Strict-Transport-Security": "max-age=15552000",
+    "Content-Security-Policy": "; ".join(
+        [
+            "default-src 'self'",
+            "base-uri 'self'",
+            "object-src 'none'",
+            "frame-ancestors 'none'",
+            "form-action 'self'",
+            "script-src 'self'",
+            "style-src 'self' 'unsafe-inline'",
+            "img-src 'self' data: blob: https://tiles.openfreemap.org",
+            "connect-src 'self' https://tiles.openfreemap.org",
+            "worker-src 'self' blob:",
+            "child-src 'self' blob:",
+            "font-src 'self' data:",
+        ]
+    ),
+}
 
 
 def static_asset_version(static_root: Path) -> str:
@@ -283,6 +314,8 @@ def create_app(settings: Settings | None = None) -> Flask:
         response.headers["X-Pannes-Request-Id"] = timer.request_id
         response.headers["X-Pannes-Runtime"] = "container"
         response.headers["Server-Timing"] = f"app;dur={timer.snapshot().get('total_ms', 0)}"
+        for header, value in SECURITY_HEADERS.items():
+            response.headers.setdefault(header, value)
         timer.log(status_code=response.status_code)
         token = getattr(g, "perf_token", None)
         if token is not None:
@@ -481,6 +514,118 @@ def create_app(settings: Settings | None = None) -> Flask:
             mimetype="application/xml",
             headers={"Cache-Control": "public, max-age=3600"},
         )
+
+    def _plain_text(body: str, max_age: int = 3600) -> Response:
+        return Response(
+            body,
+            mimetype="text/plain; charset=utf-8",
+            headers={"Cache-Control": f"public, max-age={max_age}"},
+        )
+
+    def _security_txt_body() -> str:
+        # RFC 9116 requires an Expires value; compute it so the file cannot go
+        # stale on its own and quietly become non-compliant.
+        expires = (datetime.now(UTC) + timedelta(days=365)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        return "\n".join(
+            [
+                f"Contact: mailto:{settings.contact_email}",
+                f"Expires: {expires}",
+                "Preferred-Languages: fr, en",
+                f"Canonical: {absolute_public_url(settings, '/.well-known/security.txt')}",
+                f"Policy: {absolute_public_url(settings, '/about')}",
+                "",
+                "# pannes.ca is an independent community project and is not",
+                "# affiliated with Hydro-Quebec. Please report issues in French",
+                "# or English; expect a best-effort, volunteer response time.",
+                "",
+            ]
+        )
+
+    @app.get("/.well-known/security.txt")
+    def well_known_security_txt():
+        return _plain_text(_security_txt_body())
+
+    @app.get("/security.txt")
+    def security_txt_alias():
+        return redirect(url_for("well_known_security_txt"), code=301)
+
+    @app.get("/humans.txt")
+    def humans_txt():
+        body = "\n".join(
+            [
+                "/* MAINTAINER */",
+                f"Contact: {settings.contact_email}",
+                f"Source: {settings.app_repo_url}",
+                f"Site: {settings.public_base_url}",
+                "Languages: Francais, English",
+                "",
+                "/* SITE */",
+                "Standards: HTML5, CSS, native ES modules",
+                "Map: MapLibre GL JS with the OpenFreeMap Liberty style",
+                "Server: Python, Flask, Jinja",
+                "Platform: Cloudflare Workers, Containers, D1, R2",
+                "Data: Hydro-Quebec public outage feeds and access-to-information disclosures",
+                "",
+                "/* THANKS */",
+                "OpenStreetMap contributors, OpenFreeMap, and MapLibre.",
+                "",
+            ]
+        )
+        return _plain_text(body)
+
+    @app.get("/llms.txt")
+    def llms_txt():
+        base = settings.public_base_url.rstrip("/")
+        body = "\n".join(
+            [
+                "# Pannes Historiques (pannes.ca)",
+                "",
+                "> An independent, community-run view of Hydro-Quebec power outages in",
+                "> Quebec. It shows current and planned interruptions from Hydro-Quebec's",
+                "> public feed, an archive of outages this project has observed since it",
+                "> began collecting, and regional context from access-to-information",
+                "> disclosure documents.",
+                "",
+                "## What this data is and is not",
+                "",
+                "- This project is NOT Hydro-Quebec and is not affiliated with it.",
+                "- Archive entries are observations captured from the public feed. They",
+                "  are not Hydro-Quebec's official or complete outage history.",
+                "- Coverage begins when this project started collecting. Earlier outages",
+                "  are absent unless they appear in a disclosure document.",
+                "- The archive shows outages observed NEAR an address; it cannot certify",
+                "  whether a specific residence lost service. Address-level certification",
+                "  requests belong with Hydro-Quebec's official past-outage form.",
+                "- Do not present these figures as authoritative outage statistics.",
+                "",
+                "## Pages",
+                "",
+                f"- [Map and search]({base}/): outages by address or current location,",
+                "  in French (default) or English via `?lang=en`.",
+                f"- [About]({base}/about): sources, method, limits, and privacy posture.",
+                "",
+                "## Data routes",
+                "",
+                "No stable public API contract exists yet; a versioned contract is",
+                "planned. The JSON routes below are available but UNSTABLE and may",
+                "change or disappear without notice. Please do not build on them yet.",
+                "",
+                f"- `{base}/api/durable/hydro`: current and planned feed rows.",
+                f"- `{base}/api/durable/nearby`: current rows near a coordinate.",
+                f"- `{base}/api/durable/history-nearby`: archived rows near a coordinate.",
+                f"- `{base}/healthz`: liveness check.",
+                "",
+                "Operational, collection, cron, and internal routes are private and",
+                "return 404 to the public. Please do not probe them.",
+                "",
+                "## Contact",
+                "",
+                f"- {settings.contact_email}",
+                f"- Source code: {settings.app_repo_url}",
+                "",
+            ]
+        )
+        return _plain_text(body)
 
     @app.get("/healthz")
     def healthz():

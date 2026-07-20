@@ -1,5 +1,6 @@
 import json
 import re
+from datetime import UTC, datetime
 
 
 def test_index_renders(app_client):
@@ -587,3 +588,74 @@ def test_index_boot_sheet_omits_duplicate_map_payload(app_client):
     html = response.get_data(as_text=True)
     assert 'data-boot="1"' in html
     assert "data-map-update" not in html
+
+
+def test_security_headers_present_on_pages(app_client):
+    response = app_client.get("/?lang=en")
+    assert response.headers["X-Content-Type-Options"] == "nosniff"
+    assert response.headers["Referrer-Policy"] == "strict-origin-when-cross-origin"
+    assert response.headers["X-Frame-Options"] == "DENY"
+    assert "geolocation=(self)" in response.headers["Permissions-Policy"]
+    assert "camera=()" in response.headers["Permissions-Policy"]
+    assert response.headers["Strict-Transport-Security"].startswith("max-age=")
+
+
+def test_csp_allows_what_the_app_actually_needs(app_client):
+    csp = app_client.get("/?lang=en").headers["Content-Security-Policy"]
+    # MapLibre spawns its worker from a blob URL.
+    assert "worker-src 'self' blob:" in csp
+    # The Liberty style, tiles, glyphs and sprites come from OpenFreeMap.
+    assert "connect-src 'self' https://tiles.openfreemap.org" in csp
+    assert "https://tiles.openfreemap.org" in csp.split("img-src")[1].split(";")[0]
+    # One template sets an inline style attribute; scripts never get unsafe-inline.
+    assert "style-src 'self' 'unsafe-inline'" in csp
+    assert "script-src 'self'" in csp
+    assert "'unsafe-inline'" not in csp.split("script-src")[1].split(";")[0]
+    assert "object-src 'none'" in csp
+    assert "frame-ancestors 'none'" in csp
+
+
+def test_security_txt_is_rfc9116_shaped(app_client):
+    response = app_client.get("/.well-known/security.txt")
+    assert response.status_code == 200
+    assert response.mimetype == "text/plain"
+    body = response.get_data(as_text=True)
+    assert "Contact: mailto:contact@pannes.ca" in body
+    assert "Preferred-Languages: fr, en" in body
+    assert "Canonical: https://pannes.ca/.well-known/security.txt" in body
+    # RFC 9116 requires Expires, and it must be in the future.
+    expires_line = next(line for line in body.splitlines() if line.startswith("Expires:"))
+    expires = datetime.strptime(expires_line.split("Expires: ")[1], "%Y-%m-%dT%H:%M:%SZ")
+    assert expires.replace(tzinfo=UTC) > datetime.now(UTC)
+
+
+def test_security_txt_alias_redirects(app_client):
+    response = app_client.get("/security.txt")
+    assert response.status_code == 301
+    assert response.headers["Location"].endswith("/.well-known/security.txt")
+
+
+def test_humans_txt_lists_stack_and_contact(app_client):
+    body = app_client.get("/humans.txt").get_data(as_text=True)
+    assert "contact@pannes.ca" in body
+    assert "MapLibre" in body
+    assert "OpenStreetMap" in body
+
+
+def test_llms_txt_states_the_data_limits(app_client):
+    response = app_client.get("/llms.txt")
+    assert response.status_code == 200
+    body = response.get_data(as_text=True)
+    assert body.startswith("# Pannes Historiques")
+    # The honesty boundaries must survive refactors: not Hydro-Quebec, not
+    # official history, and not address-level certification.
+    assert "NOT Hydro-Quebec" in body
+    assert "not Hydro-Quebec's official or complete outage history" in body
+    assert "cannot certify" in body
+    assert "UNSTABLE" in body
+
+
+def test_metadata_routes_are_crawlable(app_client):
+    robots = app_client.get("/robots.txt").get_data(as_text=True)
+    for path in ("/llms.txt", "/humans.txt", "/.well-known/"):
+        assert f"Disallow: {path}" not in robots
