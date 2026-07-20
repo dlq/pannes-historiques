@@ -623,10 +623,19 @@ export class OutageMap extends HTMLElement {
       for (const operation of pendingStyleOps.splice(0)) operation();
       for (const layerKey of Object.keys(LAYER_SOURCE_BY_KEY)) rebuildLayerFeatures(layerKey);
       fitStartupExtent();
-      const focusDetail = pendingMapFocus() || activeMapFocus;
-      if (focusDetail) {
-        focusMap(focusDetail);
-        clearPendingMapFocus(focusDetail);
+      // A focus requested before the style was ready still needs delivering,
+      // but the two cases must not be conflated. A *pending* focus was never
+      // delivered, so replay it in full and let it open its detail card. An
+      // *active* focus was already delivered, and the user may have closed its
+      // card in the meantime -- replaying it with `remember` would re-run the
+      // selection side effects and silently re-open that card. Under load the
+      // style can finish after the close, which is exactly when that happened.
+      const pending = pendingMapFocus();
+      if (pending) {
+        focusMap(pending);
+        clearPendingMapFocus(pending);
+      } else if (activeMapFocus) {
+        focusMap(activeMapFocus, { remember: false });
       }
     });
 

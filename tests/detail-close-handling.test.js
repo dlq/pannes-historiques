@@ -92,3 +92,14 @@ test("secondary text and motion respect the accessibility baseline", () => {
   assert.match(stylesSource, /--ph-ink-3: #6d6d73/);
   assert.match(stylesSource, /@media \(prefers-reduced-motion: reduce\)/);
 });
+
+test("map load replays a pending focus but never re-runs an active focus's selection", () => {
+  const mapSource = readFileSync(new URL("../app/static/outage-map.js", import.meta.url), "utf8");
+  // A pending focus was never delivered, so it must open its detail card.
+  assert.match(mapSource, /const pending = pendingMapFocus\(\);/);
+  assert.match(mapSource, /if \(pending\) \{\s*\n\s*focusMap\(pending\);/);
+  // An active focus was already delivered. Replaying it with `remember` would
+  // re-run showOperational/showRegionalMetric and re-open a card the user just
+  // closed -- which is what made mobile detail-close tests flake under load.
+  assert.match(mapSource, /\} else if \(activeMapFocus\) \{\s*\n\s*focusMap\(activeMapFocus, \{ remember: false \}\);/);
+});
