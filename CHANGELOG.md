@@ -6,6 +6,29 @@ Keep active execution state in `PLANS.md` and source/evidence research in `NOTES
 
 ## [Unreleased]
 
+## [v0.4.5] - 2026-07-20
+
+### Added
+
+- Added `/.well-known/security.txt` (RFC 9116) with an `Expires` value generated at request time so the record cannot silently lapse, plus `/security.txt` as a `301` alias.
+- Added `/humans.txt` and `/llms.txt`. The `llms.txt` leads with the data limits — not Hydro-Quebec, not official history, cannot certify an address — so automated readers cannot quote the archive as authoritative.
+- Added `docs/api-posture.md`, documenting every route's stability tier. All JSON routes are explicitly `unstable`; no stable contract is advertised before `v0.5.0`.
+- Added security headers to every container response. The CSP is shaped to what the app actually needs rather than copied boilerplate: MapLibre spawns its worker from a `blob:` URL, the Liberty style/tiles/sprites come from OpenFreeMap, and one template sets an inline `style` attribute, so `unsafe-inline` applies to styles only and never to scripts. Geolocation stays enabled for `self` because current-location search depends on it.
+
+### Fixed
+
+- Fixed mobile detail cards re-opening themselves when the map style finished loading after the card was closed. The map's `load` handler replayed `pendingMapFocus() || activeMapFocus` with `remember` defaulting to true, which re-ran the selection side effects and re-opened the card. A *pending* focus was never delivered and still replays in full; an *active* focus was already delivered and now re-applies only the camera, selection, and geometry. This also removes the long-standing Playwright detail-close flake, which rotated between the planned, regional, disclosure, and archive cases because they share that path.
+
+### Changed
+
+- Moved the contact email out of hardcoded template literals into `Settings.contact_email`.
+- Bumped `wrangler` to 4.112.0, `djlint` to 1.41.0, and `ruff` to 0.15.22 via Dependabot.
+
+### Verified
+
+- Passed pre-commit, 189 Python tests, 45 Node unit tests, the complete 50-case desktop/mobile Playwright suite, and a Wrangler dry-run.
+- Confirmed the detail-close fix against the configuration that reliably reproduced the failure: mobile `--repeat-each 3` returned 63/63 where it had produced two failures, followed by three consecutive clean full suites.
+
 ## [v0.4.4] - 2026-07-17
 
 ### Added
