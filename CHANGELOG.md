@@ -28,6 +28,7 @@ Keep active execution state in `PLANS.md` and source/evidence research in `NOTES
 
 - Passed pre-commit, 189 Python tests, 45 Node unit tests, the complete 50-case desktop/mobile Playwright suite, and a Wrangler dry-run.
 - Confirmed the detail-close fix against the configuration that reliably reproduced the failure: mobile `--repeat-each 3` returned 63/63 where it had produced two failures, followed by three consecutive clean full suites.
+- Deployed on 2026-07-20 as Worker version `ea2adee9-675c-4349-a618-19c249ab4c79` with a rebuilt container image. Live probes returned `200` for `/healthz`, `/`, `/about`, the Archive sheet, `/.well-known/security.txt`, `/llms.txt`, `/humans.txt`, and `/service-worker.js`, which served `pannes-historiques-v0.4.5-machine-readable-surface`. `/security.txt` returned `301` to the well-known path; CSP, Referrer-Policy, X-Content-Type-Options, Permissions-Policy, HSTS, and X-Frame-Options were present; `/collect`, `/cron/hydro`, `/internal/disclosures/export`, and `/debug/timing/search` all returned `404`.
 
 ## [v0.4.4] - 2026-07-17
 
