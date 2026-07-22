@@ -198,6 +198,17 @@ def create_app(settings: Settings | None = None) -> Flask:
             map_layer_scopes=scopes,
         )
 
+    def address_sheet_map_layer_scopes(domain: str, scope: str) -> frozenset[str]:
+        if scope == "province" or domain == "context":
+            return frozenset()
+        if domain == "current":
+            return frozenset({CURRENT_MAP_LAYER_SCOPE})
+        if domain == "planned":
+            return frozenset({PLANNED_MAP_LAYER_SCOPE})
+        if domain == "archive":
+            return frozenset({PREVIOUS_MAP_LAYER_SCOPE})
+        return address_search_scopes
+
     def sheet_error_context(lang: str, result) -> dict:
         context = result_context(lang, result, include_map_payload=False)
         return {
@@ -222,7 +233,15 @@ def create_app(settings: Settings | None = None) -> Flask:
     def address_sheet(
         lang, domain, scope, query, latitude, longitude, accuracy_m, radius_m
     ) -> dict:
-        result = address_search_result(lang, query, latitude, longitude, accuracy_m, radius_m)
+        result = address_search_result(
+            lang,
+            query,
+            latitude,
+            longitude,
+            accuracy_m,
+            radius_m,
+            map_layer_scopes=address_sheet_map_layer_scopes(domain, scope),
+        )
         if result.error:
             return sheet_error_context(lang, result)
         context = result_context(lang, result, include_map_payload=False)

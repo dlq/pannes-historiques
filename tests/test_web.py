@@ -574,6 +574,20 @@ def test_sheet_with_address_renders_overview(app_client):
     assert call["record_history"] is False
 
 
+def test_sheet_with_address_requests_only_domain_map_layers(app_client):
+    expected = {
+        "current": {"current"},
+        "planned": {"planned"},
+        "archive": {"previous"},
+        "context": set(),
+    }
+    for domain, scopes in expected.items():
+        response = app_client.get(f"/sheet?lang=en&domain={domain}&q=5220+Rue+Jeanne-Mance")
+        assert response.status_code == 200
+        call = app_client.application.testing_stub_service.search_calls[-1]
+        assert call["map_layer_scopes"] == scopes
+
+
 def test_sheet_unknown_domain_falls_back(app_client):
     response = app_client.get("/sheet?lang=en&domain=bogus")
     assert response.status_code == 200
