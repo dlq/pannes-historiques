@@ -6,7 +6,7 @@ from datetime import UTC, datetime, timedelta
 from hashlib import sha256
 from pathlib import Path
 from types import SimpleNamespace
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 from uuid import uuid4
 
 from flask import (
@@ -311,9 +311,15 @@ def create_app(settings: Settings | None = None) -> Flask:
     def finish_request_timer(response):
         timer = current_timer()
         timer.set("response_content_length", response.calculate_content_length())
+        snapshot = timer.snapshot()
         response.headers["X-Pannes-Request-Id"] = timer.request_id
         response.headers["X-Pannes-Runtime"] = "container"
-        response.headers["Server-Timing"] = f"app;dur={timer.snapshot().get('total_ms', 0)}"
+        response.headers["Server-Timing"] = f"app;dur={snapshot.get('total_ms', 0)}"
+        slow_steps = timer.slowest_steps()
+        if slow_steps:
+            response.headers["X-Pannes-Slowest-Steps"] = ", ".join(
+                f"{quote(name, safe='._-')}={duration:g}" for name, duration in slow_steps
+            )
         for header, value in SECURITY_HEADERS.items():
             response.headers.setdefault(header, value)
         timer.log(status_code=response.status_code)

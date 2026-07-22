@@ -9,6 +9,7 @@ from collections.abc import Iterator
 from typing import Any
 
 LOGGER = logging.getLogger("pannes.perf")
+MAX_STEP_HEADER_ITEMS = 6
 _CURRENT_TIMER: contextvars.ContextVar[RequestTimer | None] = contextvars.ContextVar(
     "pannes_request_timer",
     default=None,
@@ -28,6 +29,9 @@ class NullTimer:
 
     def snapshot(self) -> dict[str, Any]:
         return {}
+
+    def slowest_steps(self, *, limit: int = MAX_STEP_HEADER_ITEMS) -> list[tuple[str, float]]:
+        return []
 
 
 class RequestTimer:
@@ -65,6 +69,9 @@ class RequestTimer:
             "steps": dict(sorted(self.steps.items())),
             "attrs": self.attrs,
         }
+
+    def slowest_steps(self, *, limit: int = MAX_STEP_HEADER_ITEMS) -> list[tuple[str, float]]:
+        return sorted(self.steps.items(), key=lambda item: item[1], reverse=True)[:limit]
 
     def log(self, *, status_code: int | None = None, error: str | None = None) -> None:
         payload = self.snapshot()
