@@ -332,7 +332,13 @@ def test_search_location_uses_operational_map_layers_with_durable_nearby(
     )
     monkeypatch.setattr(service, "collector_status", lambda: {"snapshot_count": 0})
     monkeypatch.setattr(service, "coverage_stats", lambda: {"outage_count": 0})
-    monkeypatch.setattr(service, "_upsert_address", lambda normalized, geocode: (7, True))
+    monkeypatch.setattr(
+        service,
+        "_upsert_address",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("read-only location search should not upsert an address")
+        ),
+    )
     monkeypatch.setattr(
         service,
         "_find_current_matches",
@@ -382,7 +388,13 @@ def test_search_location_uses_operational_map_layers_with_durable_nearby(
     )
     monkeypatch.setattr(service, "_find_archived_outage_matches", lambda *args, **kwargs: [])
     monkeypatch.setattr(service, "_previous_outage_groups", lambda **kwargs: [])
-    monkeypatch.setattr(service, "_query_count", lambda address_id: 3)
+    monkeypatch.setattr(
+        service,
+        "_query_count",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("read-only location search should not fetch query count")
+        ),
+    )
 
     result = service.search_location(
         latitude=45.5,
@@ -397,7 +409,7 @@ def test_search_location_uses_operational_map_layers_with_durable_nearby(
     )
 
     assert result.error is None
-    assert result.query_count == 3
+    assert result.query_count == 0
     assert result.current_map_layers == map_layers
     assert result.normalized.normalized_line == "current location 45.50000,-73.56000"
 
@@ -642,7 +654,13 @@ def test_archived_outage_matches_populate_previous_groups_when_runtime_has_none(
     service = service_factory(auto_refresh_on_search=False)
     monkeypatch.setattr(service, "collector_status", lambda: {"snapshot_count": 0})
     monkeypatch.setattr(service, "coverage_stats", lambda: {"outage_count": 0})
-    monkeypatch.setattr(service, "_upsert_address", lambda normalized, geocode: (7, True))
+    monkeypatch.setattr(
+        service,
+        "_upsert_address",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("read-only search should not upsert an address")
+        ),
+    )
     monkeypatch.setattr(service, "_find_current_matches", lambda *args, **kwargs: [])
     monkeypatch.setattr(
         service,
@@ -717,7 +735,13 @@ def test_address_search_without_history_or_map_layers_stays_read_only(service_fa
     )
     monkeypatch.setattr(service, "_find_archived_outage_matches", lambda *args, **kwargs: [])
     monkeypatch.setattr(service, "_previous_outage_groups", lambda **kwargs: [])
-    monkeypatch.setattr(service, "_query_count", lambda address_id: 3)
+    monkeypatch.setattr(
+        service,
+        "_query_count",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("read-only search should not fetch query count")
+        ),
+    )
     monkeypatch.setattr(
         service,
         "_current_operational_map_layers",
@@ -766,7 +790,7 @@ def test_address_search_without_history_or_map_layers_stays_read_only(service_fa
     )
 
     assert result.error is None
-    assert result.query_count == 3
+    assert result.query_count == 0
     assert len(result.outage_matches) == 1
     assert result.current_map_layers == []
     assert result.previous_map_layers == []

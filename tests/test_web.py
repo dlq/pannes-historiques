@@ -564,6 +564,7 @@ def test_sheet_archive_lists_territory_bins(app_client):
 def test_sheet_with_address_renders_overview(app_client):
     response = app_client.get("/sheet?lang=en&domain=overview&q=5220+Rue+Jeanne-Mance")
     assert response.status_code == 200
+    assert "sheet.address=" in response.headers["X-Pannes-Slowest-Steps"]
     html = response.get_data(as_text=True)
     assert 'data-mode="address"' in html
     assert 'data-domain="overview"' in html
