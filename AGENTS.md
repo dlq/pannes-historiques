@@ -11,6 +11,7 @@
 - For debugging or ambiguous technical decisions, separate observed facts, inferences, assumptions, and next verification steps before making changes.
 - Use `NOTES.md` for durable findings: observed facts, evidence, source URLs, commands run, open questions, and conclusions that should survive chat context loss.
 - Use `PLANS.md` for durable execution state: current goal, task checklist, decisions, risks, and next steps.
+- Record consequential, long-lived architecture choices in `docs/adr/`; do not use ADRs for task-level implementation details or temporary findings.
 - Update these files only when the durable findings, task list, decision, or next step changes. Do not add conversational notes or duplicate the final response.
 
 ## Verification

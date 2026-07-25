@@ -5,6 +5,8 @@ It is deliberately conservative: **there is no versioned public API contract
 yet.** That contract is planned for `v0.5.0`. Until then, every JSON route
 below is available-but-unstable and may change or disappear without notice.
 
+This boundary is an architectural decision, recorded in [ADR 0004](adr/0004-unversioned-public-json-is-unstable.md).
+
 Machine-readable summaries of the same posture live at `/llms.txt`,
 `/.well-known/security.txt`, and `/humans.txt`.
 

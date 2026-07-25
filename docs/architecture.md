@@ -2,6 +2,8 @@
 
 Pannes Historiques is a Flask application deployed behind a Cloudflare Worker and Container. The current design keeps the browser-facing app stable while moving durable production state into D1 and R2.
 
+Long-lived architectural choices are recorded in the [ADR index](adr/README.md). This document describes the current implementation; ADRs explain why consequential choices were made and when to revisit them.
+
 ## Request Flow
 
 - `container-needed`: `/`, `/about`, `GET /sheet`, static assets, and the POST `/search`/`/search-location` compatibility aliases enter the Worker and are forwarded to Flask. They report `X-Pannes-Runtime: container`; forwarded responses also report `worker-container` in `Server-Timing`.
@@ -13,7 +15,7 @@ Pannes Historiques is a Flask application deployed behind a Cloudflare Worker an
 
 ## Cost Decision
 
-The near-term architecture is **hybrid renderer with Worker-first durable reads**. D1/R2 remain canonical for production data and the Worker serves the data APIs and materialized runtime reads; Flask/Jinja remains the browser shell while its interaction model is still changing. A Worker-rendered or static shell is deferred until production markers show that shell requests, rather than durable reads, are the material source of recurring container cost.
+The near-term architecture is **hybrid renderer with Worker-first durable reads**. D1/R2 remain canonical for production data and the Worker serves the data APIs and materialized runtime reads; Flask/Jinja remains the browser shell while its interaction model is still changing. A Worker-rendered or static shell is deferred until production markers show that shell requests, rather than durable reads, are the material source of recurring container cost. See [ADR 0001](adr/0001-hybrid-renderer-worker-first-reads.md).
 
 ## Browser Interface
 
@@ -66,6 +68,8 @@ is recorded in `NOTES.md`.
 - D1 stores normalized feed versions, current outage rows, planned interruption rows, resolved previous-outage rows, disclosure metadata, municipal archive bins, and geometry metadata.
 - R2 stores raw Hydro-Quebec feed payloads and raw DAI/access-to-information source files.
 - The container image still includes a baked SQLite snapshot for local-compatible fallback paths. Runtime writes inside the container are ephemeral.
+
+See [ADR 0002](adr/0002-d1-r2-canonical-production-state.md) for the durable-store boundary and [ADR 0003](adr/0003-preserve-raw-source-inputs.md) for source-data provenance.
 
 ## Generated Evidence
 
