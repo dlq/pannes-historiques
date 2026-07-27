@@ -19,3 +19,4 @@ Use an ADR when a decision materially constrains future design, operations, publ
 | [0002](0002-d1-r2-canonical-production-state.md) | Accepted | Use D1/R2 as canonical production state; keep SQLite as a local-compatible fallback. |
 | [0003](0003-preserve-raw-source-inputs.md) | Accepted | Preserve raw Hydro-Quebec and access-to-information source inputs. |
 | [0004](0004-unversioned-public-json-is-unstable.md) | Accepted | Treat public JSON routes as unstable until a versioned API contract exists. |
+| [0005](0005-d1-archive-retention-and-compaction.md) | Accepted | Retain bounded operational history while deferring archive-data deletion until a tested rollup or offload exists. |

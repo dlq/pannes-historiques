@@ -69,7 +69,7 @@ is recorded in `NOTES.md`.
 - R2 stores raw Hydro-Quebec feed payloads and raw DAI/access-to-information source files.
 - The container image still includes a baked SQLite snapshot for local-compatible fallback paths. Runtime writes inside the container are ephemeral.
 
-See [ADR 0002](adr/0002-d1-r2-canonical-production-state.md) for the durable-store boundary and [ADR 0003](adr/0003-preserve-raw-source-inputs.md) for source-data provenance.
+See [ADR 0002](adr/0002-d1-r2-canonical-production-state.md) for the durable-store boundary, [ADR 0003](adr/0003-preserve-raw-source-inputs.md) for source-data provenance, and [ADR 0005](adr/0005-d1-archive-retention-and-compaction.md) for retention and compaction guardrails.
 
 ## Generated Evidence
 

@@ -9,6 +9,7 @@ const PRIVATE_RUNTIME_ENDPOINTS = new Set([
   "POST /admin-territories/import",
   "POST /municipal-archive/backfill",
   "GET /municipal-archive/status",
+  "GET /municipal-archive/completeness",
   "GET /operational-map-layers",
   "GET /previous-map-layers",
   "GET /status",
