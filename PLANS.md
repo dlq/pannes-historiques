@@ -153,6 +153,16 @@ Decide whether a simple, well-disclosed "walkability score for Hydro reliability
 - Confirm the readiness gates for the `v0.5.0` API contract.
 - Do not build saved areas or notifications in this slice.
 
+### `v0.4.8`: Privacy-Preserving Product Usage Evidence
+
+Measure whether people reach and use the site's substantive functions before investing further in product expansion.
+
+- Define aggregate feature-use metrics for current outages, planned interruptions, Archive, DAI/Context, address answers, and comparison. Counts are interactions, not people or unique visitors.
+- Record only bounded daily aggregates. Do not persist addresses, query strings, IP addresses, user identifiers, raw interaction logs, or browser fingerprints.
+- Exclude or separately classify obvious scanner and bot traffic so route probes do not look like product demand.
+- Add a private operational readout with metric definitions, collection-status indicators, and a documented retention policy.
+- Test event classification and ensure the public response surface never exposes operational usage data.
+
 ### `0.5.x`: Public Data Product And Analytical Expansion
 
 Use `0.5.x` only after the `0.4.x` readiness, cost, archive-health, and machine-readable-surface slices are complete enough that broader public contracts will not lock in unstable architecture.
