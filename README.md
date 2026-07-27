@@ -20,6 +20,13 @@ automatically. Searching an address may fetch the live public Hydro-Quebec feed;
 Want to help? Start with [the contribution guide](docs/contributing.md) and the repository's
 [open issues](https://github.com/dlq/pannes-historiques/issues).
 
+## Development acknowledgement
+
+Development of Pannes Historiques has been supplemented by the use of large language models for
+code generation, review, testing, documentation, and research assistance. All resulting
+contributions remain subject to human review and the project's automated correctness and quality
+checks. Responsibility for the project and its releases rests with its maintainer.
+
 ## What is implemented
 
 - Local server app
