@@ -3,6 +3,7 @@ import { unzipSync } from "fflate";
 export { ContainerProxy } from "@cloudflare/containers";
 export { PannesContainer } from "./container.js";
 
+import { archiveHealthCutoffs, summarizeArchiveCompleteness } from "./archive-health.js";
 import { municipalArchiveLatestRow } from "./archive-summary.js";
 import { fetchContainerRequest } from "./container-proxy.js";
 import {
@@ -98,7 +99,13 @@ function lowCostContainerResponse() {
 async function runHydroSchedule(env) {
   const started = new Date().toISOString();
   const run = await recordRunStarted(env.DB, "hydro_changed", started);
-  const summary = { d1: null, container: null, municipal_archive: null, errors: [] };
+  const summary = {
+    d1: null,
+    container: null,
+    municipal_archive: null,
+    archive_health: null,
+    errors: [],
+  };
   try {
     const versions = await currentFeedVersionMap(env.DB);
     summary.container = {
@@ -114,6 +121,12 @@ async function runHydroSchedule(env) {
     summary.municipal_archive = await runMunicipalArchiveBackfill(env, { limit: 500 });
   } catch (error) {
     summary.errors.push({ step: "container_hydro_sync", error: String(error?.stack || error) });
+  }
+  try {
+    summary.archive_health = await cleanupIngestionRuns(env.DB);
+  } catch (error) {
+    summary.archive_health = { error: String(error?.stack || error) };
+    console.error("Archive-health cleanup failed", summary.archive_health);
   }
   const status = summary.errors.length ? "error" : "ok";
   await recordRunFinished(env.DB, run.meta.last_row_id, status, summary);
@@ -1421,6 +1434,37 @@ async function readCostHealthCounts(db) {
   return counts;
 }
 
+async function cleanupIngestionRuns(db, now = new Date()) {
+  const nowIso = now.toISOString();
+  const { staleRunBefore, retainRunsAfter } = archiveHealthCutoffs(now);
+  const expired = await db
+    .prepare(
+      `
+      UPDATE ingestion_runs
+      SET status = 'expired', finished_at = ?
+      WHERE status = 'running' AND started_at < ?
+      `,
+    )
+    .bind(nowIso, staleRunBefore)
+    .run();
+  const deleted = await db
+    .prepare(
+      `
+      DELETE FROM ingestion_runs
+      WHERE started_at < ? AND status IN ('ok', 'error', 'expired')
+      `,
+    )
+    .bind(retainRunsAfter)
+    .run();
+  await setBuildState(db, "ingestion_runs_last_cleanup_at", nowIso);
+  return {
+    expired_stale_runs: expired.meta?.changes || 0,
+    deleted_expired_runs: deleted.meta?.changes || 0,
+    stale_run_before: staleRunBefore,
+    retain_runs_after: retainRunsAfter,
+  };
+}
+
 function numberEnv(value) {
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
@@ -1477,6 +1521,10 @@ async function durableRuntimeResponse(request, env) {
   if (suffix === "/municipal-archive/status" && request.method === "GET")
     return operationalRuntimeResponse(request, env, () =>
       runtimeMunicipalArchiveStatusResponse(env),
+    );
+  if (suffix === "/municipal-archive/completeness" && request.method === "GET")
+    return operationalRuntimeResponse(request, env, () =>
+      runtimeMunicipalArchiveCompletenessResponse(env),
     );
   if (suffix === "/operational-map-layers" && request.method === "GET")
     return runtimeOperationalMapLayersResponse(env, url);
@@ -1657,6 +1705,7 @@ async function runtimeMunicipalArchiveStatusResponse(env) {
     importedAt,
     lastBackfillAt,
     lastPolygonId,
+    completeness,
   ] = await Promise.all([
     countRows(env.DB, "admin_territories"),
     countRows(env.DB, "previous_outage_territory_bins"),
@@ -1669,6 +1718,7 @@ async function runtimeMunicipalArchiveStatusResponse(env) {
     getBuildState(env.DB, "admin_territories_imported_at"),
     getBuildState(env.DB, "municipal_archive_last_backfill_at"),
     getBuildState(env.DB, "municipal_archive_last_polygon_id"),
+    municipalArchiveCompleteness(env.DB),
   ]);
   return jsonResponse({
     territories,
@@ -1679,6 +1729,61 @@ async function runtimeMunicipalArchiveStatusResponse(env) {
     admin_territories_imported_at: importedAt || null,
     municipal_archive_last_backfill_at: lastBackfillAt || null,
     municipal_archive_last_polygon_id: lastPolygonId || null,
+    completeness,
+  });
+}
+
+async function runtimeMunicipalArchiveCompletenessResponse(env) {
+  return jsonResponse(await municipalArchiveCompleteness(env.DB));
+}
+
+async function municipalArchiveCompleteness(db) {
+  const [totalPolygons, polygonsWithAnyBin, polygonsWithPrimaryBin, candidateUnassigned] =
+    await Promise.all([
+      countRows(db, "hydro_polygon_geometries", "source_type = 'bispoly'"),
+      scalar(
+        db,
+        `
+        SELECT COUNT(DISTINCT b.hydro_polygon_id) AS value
+        FROM previous_outage_territory_bins b
+        JOIN hydro_polygon_geometries h ON h.id = b.hydro_polygon_id
+        WHERE h.source_type = 'bispoly'
+        `,
+      ),
+      scalar(
+        db,
+        `
+        SELECT COUNT(DISTINCT b.hydro_polygon_id) AS value
+        FROM previous_outage_territory_bins b
+        JOIN hydro_polygon_geometries h ON h.id = b.hydro_polygon_id
+        WHERE h.source_type = 'bispoly' AND b.assignment_type = 'primary'
+        `,
+      ),
+      scalar(
+        db,
+        `
+        SELECT COUNT(*) AS value
+        FROM hydro_polygon_geometries h
+        WHERE h.source_type = 'bispoly'
+          AND NOT EXISTS (
+            SELECT 1 FROM previous_outage_territory_bins b
+            WHERE b.hydro_polygon_id = h.id
+          )
+          AND EXISTS (
+            SELECT 1 FROM admin_territories t
+            WHERE h.bbox_min_lon <= t.bbox_max_lon
+              AND h.bbox_max_lon >= t.bbox_min_lon
+              AND h.bbox_min_lat <= t.bbox_max_lat
+              AND h.bbox_max_lat >= t.bbox_min_lat
+          )
+        `,
+      ),
+    ]);
+  return summarizeArchiveCompleteness({
+    totalPolygons,
+    polygonsWithAnyBin,
+    polygonsWithPrimaryBin,
+    unassignedWithTerritoryCandidate: candidateUnassigned,
   });
 }
 
@@ -2484,14 +2589,22 @@ async function municipalArchiveLatest(db, cutoff) {
   const result = await db
     .prepare(
       `
-      SELECT territory_id,
-             territory_name,
-             max_customers,
-             COALESCE(latest_start_time, last_seen_at, updated_at, '') AS sort_time
-      FROM previous_outage_territory_bins
-      WHERE assignment_type = 'primary'
-        AND COALESCE(latest_start_time, last_seen_at, updated_at, '') >= ?
-      ORDER BY sort_time DESC
+      SELECT territory_id, territory_name, max_customers, sort_time
+      FROM (
+        SELECT territory_id,
+               territory_name,
+               max_customers,
+               COALESCE(latest_start_time, last_seen_at, updated_at, '') AS sort_time,
+               ROW_NUMBER() OVER (
+                 PARTITION BY territory_id, COALESCE(latest_start_time, last_seen_at, updated_at, '')
+                 ORDER BY updated_at DESC, hydro_polygon_id DESC
+               ) AS duplicate_rank
+        FROM previous_outage_territory_bins
+        WHERE assignment_type = 'primary'
+          AND COALESCE(latest_start_time, last_seen_at, updated_at, '') >= ?
+      )
+      WHERE duplicate_rank = 1
+      ORDER BY sort_time DESC, territory_id
       LIMIT 20
       `,
     )

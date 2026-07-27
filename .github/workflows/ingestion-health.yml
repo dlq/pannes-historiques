@@ -1,0 +1,21 @@
+name: Ingestion health monitor
+
+on:
+  schedule:
+    - cron: "17,47 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    name: Public ingestion health
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+
+    steps:
+      - name: Require a healthy, fresh ingestion feed
+        run: >-
+          curl --fail-with-body --retry 2 --retry-all-errors --max-time 20
+          https://pannes.ca/api/health/ingestion

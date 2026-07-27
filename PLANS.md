@@ -1,7 +1,7 @@
 # Plan: Hydro-Quebec Outage History App
 
 Date: 2026-04-25
-Last updated: 2026-07-17
+Last updated: 2026-07-27
 
 This is the active execution plan. Keep detailed evidence and research notes in `NOTES.md`, completed release history in `CHANGELOG.md`, operational runbooks in `docs/operations.md`, and long maintenance backlogs in `docs/maintenance-backlog.md`.
 
@@ -10,7 +10,7 @@ This is the active execution plan. Keep detailed evidence and research notes in 
 - Current shipped release: `v0.4.5`, machine-readable public surface and API posture, released and deployed 2026-07-20.
 - Current production deployment: Worker version `bd062fab-3051-4a00-b790-f85c7b662d06`; container image rebuilt for the ingestion fix.
 - Ingestion incident 2026-07-15 to 2026-07-20: scheduled Hydro ingestion failed every 30 minutes for five days while the site returned `200` and served stale data. Cause was the durable collection path storing payload files without registering the `raw_snapshots` row the Worker's `/internal/raw-snapshot` callback resolves through. Fixed and verified: run 3630 completed `ok` and snapshots are current again. Two plausible-but-wrong hypotheses were ruled out by testing rather than by correlation — container ephemerality, and the `v0.4.3` CodeQL path-hardening, whose lookup was exercised directly against a real file and resolves correctly.
-- Monitoring gap this exposed: the only health surface was token-protected and pull-based, so nothing observed the failure. `GET /api/health/ingestion` now returns `503` when ingestion is stale or failing, so an external uptime monitor can alert. Wiring an actual monitor to that URL is still an open operational step.
+- Monitoring gap this exposed: the only health surface was token-protected and pull-based, so nothing observed the failure. `GET /api/health/ingestion` now returns `503` when ingestion is stale or failing. The `Ingestion health monitor` GitHub Actions workflow probes it twice hourly.
 - Current implementation line: `main` has released and deployed `v0.4.5`; the next active product slice is `v0.4.6` archive health, retention, and D1 growth control.
 - Current frontend: one full-bleed MapLibre GL map plus a single sheet. The sheet owns search, domain navigation, address overview, scoped local/province views, detail cards, provenance, and browser-local comparison.
 - Current data plane: D1/R2-backed durable ingestion for current feed rows, previous-outage rows, raw Hydro-Quebec payloads, disclosure metadata, and runtime map-context layers.
@@ -137,10 +137,12 @@ Make the project easier for people and automated readers to understand without o
 
 Keep the historical archive trustworthy and affordable as D1 grows.
 
-- Clean up or expire stale `ingestion_runs`.
-- De-duplicate Archive latest rows by territory/time.
-- Audit archive-bin completeness and classify expected boundary/out-of-territory cases separately from assignment failures.
-- Define the first D1 retention, rollup, compaction, or archive-offload policy before the 5 GB included storage threshold becomes urgent.
+- [x] Wire external monitoring to the public ingestion-health endpoint.
+- [x] Expire stale `ingestion_runs` and retain terminal run records for 30 days.
+- [x] De-duplicate Archive latest rows by territory/time.
+- [x] Audit archive-bin completeness and classify expected boundary/out-of-territory cases separately from assignment failures.
+- [x] Define the first D1 retention and compaction policy in ADR 0005.
+- [ ] Deploy and verify the archive-health controls against production.
 
 ### `v0.4.7`: Hydro Score / Regional Analytics Framing
 
@@ -178,8 +180,8 @@ Routine command details live in `docs/contributing.md`; production and deploy ch
 
 - Container-backed search/render paths still need measured cost evidence; the trusted Worker host is configured in `wrangler.jsonc`, not hardcoded in runtime policy.
 - Ordinary public reads should keep moving toward Worker/static/D1/R2 paths, but the right migration boundary is not yet proven.
-- Archive health needs stale ingestion cleanup, latest-row de-duplication, archive-bin completeness classification, and a D1 retention/rollup policy.
-- D1 growth measurements: `935 MB` (2026-06-20), `1.35 GB` (2026-07-08), `1.48 GB` (2026-07-17). The rate eased from about `23 MB/day` to about `15 MB/day` across those windows, leaving roughly `3.5 GB` of headroom under the 5 GB included threshold — on the order of 5–8 months of runway. That is why retention stays scheduled in `v0.4.6` rather than preempting `v0.4.5`. Treat the projection as indicative only: row growth tracks outage volume, so a heavy storm season can steepen it quickly. Re-measure at the start of each slice instead of trusting the extrapolation.
+- Archive health is implemented but not yet deployed: stale run expiry, 30-day terminal-run retention, latest-row de-duplication, and classified archive-bin completeness are ready for production verification.
+- D1 measured `1,578,500,096` bytes (about `1.58 GB`) on 2026-07-27. The first compaction trigger is `3.5 GB`; a migration must begin before the 5 GB included-storage threshold. Raw R2 payloads, geometry, archive bins, and snapshot metadata remain out of scope for automatic deletion. See ADR 0005.
 - Browser proof gaps remain: real-device geolocation/permission recovery, visible freshness/change cues, dense live-data readability, and practical keyboard/screen-reader checks.
 - The WCAG pass shipped contrast, reduced-motion, live-region, dialog-focus, and keyboard regression fixes; remaining proof gaps belong with `v0.4.5`.
 - First-party JS modules improve maintainability but increase module requests; measure on Cloudflare before assuming native modules or bundling is better.

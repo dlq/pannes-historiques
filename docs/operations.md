@@ -39,6 +39,27 @@ Include these after a deploy:
 - static app assets and service worker
 - container status/image if the deploy touched container code
 
+## Ingestion Monitoring And Archive Health
+
+`GET /api/health/ingestion` is public, exposes only ingestion freshness facts, and returns `503` when the latest Hydro snapshot is stale or the recent failure streak is sustained. The `Ingestion health monitor` GitHub Actions workflow polls it at minute 17 and 47 of every hour; a failing run is the alert signal.
+
+For the private archive audit, use an operation token to query:
+
+```bash
+curl -fsS -H "X-Pannes-Operation-Token: $PANNES_OPERATION_TOKEN" \
+  https://pannes.ca/api/durable/runtime/municipal-archive/completeness
+```
+
+The response distinguishes polygons with a municipal assignment, overlap-only polygons, polygons outside all administrative-territory bounding boxes, and polygons that intersect a territory bounding box but have no assignment. The latter require backfill or geometry review.
+
+The normal Hydro schedule expires `ingestion_runs` left in `running` for more than three hours and purges terminal run records older than 30 days. It does not delete raw R2 inputs, D1 geometry, municipal archive bins, or resolved-event history. See [ADR 0005](adr/0005-d1-archive-retention-and-compaction.md).
+
+Before deploying a Worker release that includes a D1 migration, apply the reviewed migration explicitly, then run the Worker deployment. For this slice:
+
+```bash
+npx wrangler d1 execute pannes-historiques --remote --file migrations/0011_archive_health_indexes.sql
+```
+
 ## Static Asset Performance Checks
 
 For Cloudflare static-asset performance work, use cold and warm `curl -fsS -w` probes for:

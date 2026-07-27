@@ -3,6 +3,13 @@
 Date: 2026-04-25
 Last updated: 2026-07-17
 
+## Archive health baseline, 2026-07-27
+
+- Read-only remote D1 inspection measured `1,578,500,096` bytes of storage. `ingestion_runs` had 3,957 rows: 3,685 `ok`, 268 `error`, and four stale `running` rows dating from 2026-06-19 through 2026-07-23.
+- The first conservative cleanup policy expires `running` records older than three hours and deletes terminal run records older than 30 days. It does not delete raw R2 objects, snapshot metadata, geometry, archive bins, or resolved outage rows.
+- Municipal archive baseline: 203,298 `bispoly` geometries; 203,084 have at least one archive bin; 202,351 have a primary bin. Of 947 unbinned polygons, 214 intersect an administrative territory candidate (assignment gaps); the remaining 733 are overlap-only rather than missing entirely.
+- The public `GET /api/health/ingestion` endpoint was healthy and 23 minutes fresh at inspection. GitHub Actions now probes it twice hourly. The private `GET /api/durable/runtime/municipal-archive/completeness` endpoint exposes the completeness classification for operators.
+
 ## Current verification and deployment baseline, 2026-07-17
 
 - Release `v0.4.4` passed pre-commit, 182 Python tests at 70.5% combined line/branch coverage, 44 Node unit tests, the complete 50-case desktop/mobile Playwright suite, and a Wrangler dry-run. Its post-release mobile disclosure-close hotfix also passed the affected 58 Python tests, pre-commit, and the 50-case Playwright suite. The hotfix deployed on 2026-07-17 as Worker version `4cc949c8-566d-411d-bce2-7d6092f640ed` with container image `pannes-historiques-pannescontainer:4cc949c8`; public `/`, `/healthz`, `/sheet?lang=en&domain=archive&scope=province`, and `/service-worker.js` probes returned `200`. A no-cache service-worker fetch confirmed `pannes-historiques-v0.4.4-close-handler-fix`.
