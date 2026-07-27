@@ -51,6 +51,7 @@ test("mobile sheet starts at peek and expands through detents", async ({ page })
   await expect
     .poll(() => sheet.evaluate((node) => node.getBoundingClientRect().height))
     .toBeGreaterThan(initialHeight + 80);
+  await page.waitForTimeout(350);
 
   const box = await grabber.boundingBox();
   expect(box).not.toBeNull();
