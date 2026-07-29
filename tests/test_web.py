@@ -650,11 +650,18 @@ def test_security_headers_present_on_pages(app_client):
 
 def test_csp_allows_what_the_app_actually_needs(app_client):
     csp = app_client.get("/?lang=en").headers["Content-Security-Policy"]
+    directives = {
+        name: value
+        for name, value in (
+            directive.strip().split(" ", maxsplit=1) for directive in csp.split(";")
+        )
+    }
+
     # MapLibre spawns its worker from a blob URL.
     assert "worker-src 'self' blob:" in csp
     # The Liberty style, tiles, glyphs and sprites come from OpenFreeMap.
-    assert "connect-src 'self' https://tiles.openfreemap.org" in csp
-    assert "https://tiles.openfreemap.org" in csp.split("img-src")[1].split(";")[0]
+    assert directives["connect-src"] == "'self' https://tiles.openfreemap.org"
+    assert directives["img-src"] == "'self' data: blob: https://tiles.openfreemap.org"
     # One template sets an inline style attribute; scripts never get unsafe-inline.
     assert "style-src 'self' 'unsafe-inline'" in csp
     assert "script-src 'self'" in csp
