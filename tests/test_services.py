@@ -1,9 +1,12 @@
+import json
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from types import SimpleNamespace
 
 from app.addressing import NormalizedAddress
 from app.config import Settings
 from app.db import open_db
+from app.disclosures import DisclosureSource
 from app.services import (
     AppService,
     clearly_outside_quebec_query,
@@ -62,6 +65,201 @@ def test_point_in_polygon_detects_inside_and_outside_points():
 
     assert point_in_polygon(-73.60, 45.52, polygon) is True
     assert point_in_polygon(-73.70, 45.52, polygon) is False
+
+
+def test_local_address_query_job_and_disclosure_export_paths(service_factory, monkeypatch):
+    service = service_factory()
+    normalized = NormalizedAddress(
+        original="5220 Rue Jeanne-Mance",
+        normalized_line="5220 rue jeanne-mance, montreal, QC",
+        street_line="5220 rue jeanne-mance",
+        city="montreal",
+        province="QC",
+        postal_code="H2V4G7",
+        unit="",
+    )
+    geocode = fake_montreal_geocode()
+
+    address_id, cache_hit = service._upsert_address(normalized, geocode)
+    repeated_id, repeated_cache_hit = service._upsert_address(normalized, geocode)
+    assert address_id == repeated_id
+    assert cache_hit is False
+    assert repeated_cache_hit is True
+    assert (
+        service._record_query(
+            address_id=address_id,
+            original_query=normalized.original,
+            normalized_query=normalized.normalized_line,
+            language="en",
+            radius_m=2000,
+            days=365,
+            include_planned=True,
+            cache_hit=False,
+        )
+        == 1
+    )
+    assert service._query_count(address_id) == 1
+
+    source = DisclosureSource(
+        dai_number="TEST-001",
+        title="Test disclosure",
+        attachment_url="https://example.invalid/test.xlsx",
+        format="xlsx",
+        geography_label="Montreal",
+        geography_type="municipality",
+        extraction_method="xlsx_rows",
+        precision_label="municipality",
+    )
+    source_id = service.disclosure_collector._register_source(source)
+    with open_db(service.settings.db_path) as connection:
+        connection.execute(
+            """INSERT INTO disclosure_outage_events
+            (source_id, source_row_id, geography_label, geography_type, precision_label, raw_row_json)
+            VALUES (?, ?, ?, ?, ?, ?)""",
+            (source_id, "row-1", "Montreal", "municipality", "municipality", "{}"),
+        )
+        connection.execute(
+            """INSERT INTO disclosure_annual_metrics
+            (source_id, geography_label, geography_type, raw_row_json)
+            VALUES (?, ?, ?, ?)""",
+            (source_id, "Montreal", "municipality", "{}"),
+        )
+        connection.execute(
+            """INSERT INTO disclosure_geometries
+            (source_id, geography_label, geography_type, geometry_source, geometry_geojson, raw_json)
+            VALUES (?, ?, ?, ?, ?, ?)""",
+            (
+                source_id,
+                "Montreal",
+                "municipality",
+                "fixture",
+                json.dumps({"type": "Polygon", "coordinates": []}),
+                "{}",
+            ),
+        )
+
+    exported = service.disclosure_export([source.attachment_url])
+    assert exported["counts"] == {"sources": 1, "events": 1, "metrics": 1, "geometries": 1}
+
+    assert service._run_job("fixture", lambda: {"changed": True}) == {"changed": True}
+    assert service._latest_job_run("fixture")["status"] == "ok"
+    monkeypatch.setattr(service, "collect_changed", lambda: {"sources": []})
+    assert service.run_changed_collection_job() == {"sources": []}
+    failed = service._run_job("fixture-failure", lambda: (_ for _ in ()).throw(RuntimeError()))
+    assert failed == {"errors": [{"job": "fixture-failure", "error": "collection failed"}]}
+    assert (
+        service._geocode_dict(
+            SimpleNamespace(
+                provider="fixture",
+                confidence=0.8,
+                quality="address",
+                latitude=45.5,
+                longitude=-73.6,
+                city="Montreal",
+                province="Quebec",
+                postal_code="H2V",
+                raw_json={"fixture": True},
+            )
+        )["provider"]
+        == "fixture"
+    )
+
+
+def test_durable_address_and_query_persistence_degrades_cleanly(service_factory, monkeypatch):
+    service = service_factory(durable_runtime_url="https://worker.invalid/runtime")
+    normalized = NormalizedAddress(
+        original="1 Test Street",
+        normalized_line="1 test street, montreal, QC",
+        street_line="1 test street",
+        city="montreal",
+        province="QC",
+        postal_code="",
+        unit="",
+    )
+    calls = []
+
+    def fake_post(path, payload):
+        calls.append((path, payload))
+        return {"address_id": 42, "cache_hit": True} if path == "address" else {"count": 3}
+
+    monkeypatch.setattr(service, "_durable_runtime_post", fake_post)
+    monkeypatch.setattr(service, "_durable_runtime_get", lambda _path, _query: {"count": 4})
+
+    assert service._upsert_address(normalized, fake_montreal_geocode()) == (42, True)
+    assert (
+        service._record_query(
+            address_id=42,
+            original_query=normalized.original,
+            normalized_query=normalized.normalized_line,
+            language="fr",
+            radius_m=2000,
+            days=365,
+            include_planned=False,
+            cache_hit=True,
+        )
+        == 3
+    )
+    assert service._query_count(42) == 4
+    assert [path for path, _payload in calls] == ["address", "query"]
+
+    monkeypatch.setattr(service, "_durable_runtime_post", lambda *_args: None)
+    monkeypatch.setattr(service, "_durable_runtime_get", lambda *_args: None)
+    assert service._upsert_address(normalized, fake_montreal_geocode()) == (None, False)
+    assert (
+        service._record_query(
+            address_id=42,
+            original_query=normalized.original,
+            normalized_query=normalized.normalized_line,
+            language="fr",
+            radius_m=2000,
+            days=365,
+            include_planned=False,
+            cache_hit=False,
+        )
+        == 0
+    )
+    assert service._query_count(42) == 0
+
+
+def test_disclosure_payload_collection_handles_unknown_and_pending_sources(
+    service_factory, monkeypatch
+):
+    from app import disclosures
+
+    service = service_factory()
+    source = DisclosureSource(
+        dai_number="TEST-PENDING",
+        title="Fixture source",
+        attachment_url="https://example.invalid/pending.bin",
+        format="xlsx",
+        geography_label="Montreal",
+        geography_type="municipality",
+        extraction_method="discovered_pending_review",
+        precision_label="municipality",
+        geometry_query="Montreal, Quebec",
+    )
+    geometry = {
+        "type": "Polygon",
+        "coordinates": [[[-73.6, 45.5], [-73.5, 45.5], [-73.5, 45.6], [-73.6, 45.5]]],
+    }
+    monkeypatch.setattr(disclosures, "DISCLOSURE_SOURCES", (source,))
+    monkeypatch.setattr(disclosures, "discover_disclosure_sources", lambda: [])
+    monkeypatch.setattr(
+        disclosures,
+        "fetch_boundary_geometry",
+        lambda *_args, **_kwargs: {"geometry": geometry, "raw": {}},
+    )
+
+    unknown = service.collect_disclosure_source_payload(
+        "https://example.invalid/unknown", b"payload"
+    )
+    result = service.collect_disclosure_source_payload(source.attachment_url, b"payload")
+
+    assert unknown["errors"] == [
+        {"source": "https://example.invalid/unknown", "error": "unknown disclosure source"}
+    ]
+    assert result["events"] == 0
+    assert result["sources"][0]["geometry_loaded"] is True
 
 
 def test_within_quebec_bounds_handles_simple_cases():
@@ -1287,6 +1485,9 @@ def test_cached_context_should_cache_predicate(tmp_path):
     service._cached_context("k", factory, should_cache=lambda v: not v["degraded"])
     service._cached_context("k", factory, should_cache=lambda v: not v["degraded"])
     assert calls["n"] == 2  # never cached, so factory ran both times
+
+    service._context_cache["expired"] = {"value": "old", "expires_at": 0}
+    assert service._cached_context("expired", lambda: "fresh") == "fresh"
 
 
 def test_collect_changed_only_clears_context_when_a_source_changed(service_factory, monkeypatch):

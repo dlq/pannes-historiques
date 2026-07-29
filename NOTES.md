@@ -3,6 +3,11 @@
 Date: 2026-04-25
 Last updated: 2026-07-29
 
+## Risk-based coverage uplift, 2026-07-29
+
+- Focused fixture tests raised combined Python line/branch coverage from 71.9% (191 tests) to 78.0% (199 tests). Every measured `app/` module is now at least 70%: `services.py` 70.1%, `hydro.py` 71.4%, `disclosures.py` 73.1%, and `geocoding.py` 78.7%; the remaining modules are above those levels.
+- The added tests cover the package app factory, durable geocoding-cache requests and failure handling, local and durable address/query persistence, disclosure export and pending-source ingestion, collection-job failure recording, and Nominatim/Overpass geometry fallbacks. No production behavior changed.
+
 ## v0.4.6 release verification, 2026-07-29
 
 - Applied `migrations/0011_archive_health_indexes.sql` to remote D1 before rollout. The index build completed successfully; D1 reported 933,618 rows read, 462,102 rows written, and a resulting database size of 1,631,522,816 bytes. No archival data was deleted by that migration.
