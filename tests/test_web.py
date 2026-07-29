@@ -68,7 +68,15 @@ def test_index_includes_hidden_app_heading(app_client):
     html = response.get_data(as_text=True)
 
     assert response.status_code == 200
+    assert '<main class="ph-app-main" aria-label="Outage History">' in html
     assert '<h1 class="sr-only">Outage History map</h1>' in html
+
+
+def test_search_map_legacy_url_redirects_to_current_search(app_client):
+    response = app_client.get("/search-map?lang=en&q=5220%20Rue%20Jeanne-Mance&radius_m=500")
+
+    assert response.status_code == 301
+    assert response.headers["Location"] == "/?lang=en&q=5220+Rue+Jeanne-Mance&radius_m=500"
 
 
 def test_index_includes_web_quality_metadata_and_no_tailwind_cdn(app_client):

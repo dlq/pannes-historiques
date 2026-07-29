@@ -463,6 +463,16 @@ def create_app(settings: Settings | None = None) -> Flask:
                 social_description=t(lang, "page_description"),
             )
 
+    @app.get("/search-map")
+    def search_map_alias():
+        query = {"lang": choose_language(request.args.get("lang"))}
+        if request.args.get("q"):
+            query["q"] = request.args.get("q", "")[:MAX_ADDRESS_QUERY_LENGTH]
+        for key in ("lat", "lon", "accuracy_m", "radius_m"):
+            if request.args.get(key):
+                query[key] = request.args[key]
+        return redirect(url_for("index", **query), code=301)
+
     @app.get("/sheet")
     def sheet():
         lang, domain, scope, query, latitude, longitude, accuracy_m, radius_m, has_address = (

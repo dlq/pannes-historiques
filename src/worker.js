@@ -44,7 +44,8 @@ const GEOCODE_CACHE_RETENTION_DAYS = 30;
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
-    if (url.hostname === "www.pannes.ca") {
+    if (url.protocol === "http:" || url.hostname === "www.pannes.ca") {
+      url.protocol = "https:";
       url.hostname = "pannes.ca";
       return Response.redirect(url.toString(), 308);
     }
