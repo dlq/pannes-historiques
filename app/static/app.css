@@ -87,6 +87,10 @@ button {
   overflow: hidden;
 }
 
+.ph-app-main {
+  min-height: 100%;
+}
+
 .ph-map {
   position: fixed;
   inset: 0;
@@ -1109,7 +1113,7 @@ button {
   padding: 0;
   background: none;
   border: 0;
-  color: var(--ph-ink-3);
+  color: var(--ph-ink-2);
   font-size: 0.78rem;
 }
 
@@ -1118,7 +1122,7 @@ button {
 }
 
 .ph-sheet-footer a {
-  color: var(--ph-ink-3);
+  color: var(--ph-ink-2);
   font-size: 0.78rem;
   text-decoration: none;
 }
