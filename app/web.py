@@ -400,6 +400,25 @@ def create_app(settings: Settings | None = None) -> Flask:
         with current_timer().step("sheet.explore"):
             return explore_sheet(lang, domain)
 
+    def build_sheet_context_or_fallback(
+        lang, domain, scope, query, latitude, longitude, accuracy_m, radius_m, has_address
+    ) -> dict:
+        try:
+            return build_sheet_context(
+                lang, domain, scope, query, latitude, longitude, accuracy_m, radius_m, has_address
+            )
+        except Exception:
+            logging.exception(
+                "sheet_request_failed request_id=%s domain=%s scope=%s lang=%s has_query=%s has_coordinates=%s",
+                current_timer().request_id,
+                domain,
+                scope,
+                lang,
+                bool(query),
+                latitude is not None and longitude is not None,
+            )
+            return sheet_load_error_context(lang)
+
     @app.get("/")
     def index():
         lang, domain, scope, query, latitude, longitude, accuracy_m, radius_m, has_address = (
@@ -418,21 +437,9 @@ def create_app(settings: Settings | None = None) -> Flask:
         if has_address and radius_m != default_radius_m:
             canonical_query["radius_m"] = str(radius_m)
         canonical_url = absolute_public_url(settings, "/", canonical_query)
-        try:
-            sheet_context = build_sheet_context(
-                lang, domain, scope, query, latitude, longitude, accuracy_m, radius_m, has_address
-            )
-        except Exception:
-            logging.exception(
-                "sheet_request_failed request_id=%s domain=%s scope=%s lang=%s has_query=%s has_coordinates=%s",
-                current_timer().request_id,
-                domain,
-                scope,
-                lang,
-                bool(query),
-                latitude is not None and longitude is not None,
-            )
-            sheet_context = sheet_load_error_context(lang)
+        sheet_context = build_sheet_context_or_fallback(
+            lang, domain, scope, query, latitude, longitude, accuracy_m, radius_m, has_address
+        )
         if not query and latitude is not None and longitude is not None:
             initial_query = f"{t(lang, 'current_location')} ({latitude:.5f}, {longitude:.5f})"
 
@@ -459,25 +466,9 @@ def create_app(settings: Settings | None = None) -> Flask:
         lang, domain, scope, query, latitude, longitude, accuracy_m, radius_m, has_address = (
             sheet_request_params()
         )
-        try:
-            sheet_context = build_sheet_context(
-                lang, domain, scope, query, latitude, longitude, accuracy_m, radius_m, has_address
-            )
-            with current_timer().step("sheet.render_template"):
-                return render_template(
-                    "_sheet.html", lang=lang, sheet=sheet_context, sheet_is_boot=False
-                )
-        except Exception:
-            logging.exception(
-                "sheet_request_failed request_id=%s domain=%s scope=%s lang=%s has_query=%s has_coordinates=%s",
-                current_timer().request_id,
-                domain,
-                scope,
-                lang,
-                bool(query),
-                latitude is not None and longitude is not None,
-            )
-            sheet_context = sheet_load_error_context(lang)
+        sheet_context = build_sheet_context_or_fallback(
+            lang, domain, scope, query, latitude, longitude, accuracy_m, radius_m, has_address
+        )
         with current_timer().step("sheet.render_template"):
             return render_template(
                 "_sheet.html", lang=lang, sheet=sheet_context, sheet_is_boot=False

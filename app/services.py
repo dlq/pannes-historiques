@@ -512,11 +512,11 @@ class AppService:
         map_layer_scopes: set[str] | frozenset[str] | None = None,
     ) -> SearchResult:
         map_layer_scopes = self._normalize_map_layer_scopes(map_layer_scopes)
-        needs_previous_layers = PREVIOUS_MAP_LAYER_SCOPE in map_layer_scopes
-        needs_current_layers = bool(
-            {CURRENT_MAP_LAYER_SCOPE, PLANNED_MAP_LAYER_SCOPE} & map_layer_scopes
-        )
-        needs_published_layers = PUBLISHED_MAP_LAYER_SCOPE in map_layer_scopes
+        (
+            needs_previous_layers,
+            needs_current_layers,
+            needs_published_layers,
+        ) = self._map_layer_requirements(map_layer_scopes)
         timer = current_timer()
         timer.set("search.query_length", len(query or ""))
         timer.set("search.radius_m", radius_m)
@@ -716,11 +716,11 @@ class AppService:
         map_layer_scopes: set[str] | frozenset[str] | None = None,
     ) -> SearchResult:
         map_layer_scopes = self._normalize_map_layer_scopes(map_layer_scopes)
-        needs_previous_layers = PREVIOUS_MAP_LAYER_SCOPE in map_layer_scopes
-        needs_current_layers = bool(
-            {CURRENT_MAP_LAYER_SCOPE, PLANNED_MAP_LAYER_SCOPE} & map_layer_scopes
-        )
-        needs_published_layers = PUBLISHED_MAP_LAYER_SCOPE in map_layer_scopes
+        (
+            needs_previous_layers,
+            needs_current_layers,
+            needs_published_layers,
+        ) = self._map_layer_requirements(map_layer_scopes)
         label = f"Current location ({latitude:.5f}, {longitude:.5f})"
         normalized = NormalizedAddress(
             original=label,
@@ -876,6 +876,15 @@ class AppService:
         if scopes is None:
             return ALL_MAP_LAYER_SCOPES
         return frozenset(scope for scope in scopes if scope in ALL_MAP_LAYER_SCOPES)
+
+    @staticmethod
+    def _map_layer_requirements(scopes: frozenset[str]) -> tuple[bool, bool, bool]:
+        """Return whether a search must load previous, current/planned, and published layers."""
+        return (
+            PREVIOUS_MAP_LAYER_SCOPE in scopes,
+            bool({CURRENT_MAP_LAYER_SCOPE, PLANNED_MAP_LAYER_SCOPE} & scopes),
+            PUBLISHED_MAP_LAYER_SCOPE in scopes,
+        )
 
     @staticmethod
     def _filter_current_map_layers(

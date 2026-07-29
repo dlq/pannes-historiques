@@ -280,6 +280,12 @@ def test_map_layer_scope_helpers_drop_unknown_scopes_and_filter_current_layers()
     assert AppService._normalize_map_layer_scopes(None) == frozenset(
         {"current", "planned", "previous", "published"}
     )
+    assert AppService._map_layer_requirements(scopes) == (False, True, False)
+    assert AppService._map_layer_requirements(frozenset({"previous", "published"})) == (
+        True,
+        False,
+        True,
+    )
 
 
 def test_json_safe_serializes_paths_tuples_and_objects():
