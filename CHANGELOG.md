@@ -4,7 +4,7 @@ All notable completed release and implementation history for the Hydro-Quebec Ou
 
 Keep active execution state in `PLANS.md` and source/evidence research in `NOTES.md`.
 
-## [Unreleased]
+## [v0.4.6] - 2026-07-29
 
 ### Fixed
 
@@ -15,6 +15,18 @@ Keep active execution state in `PLANS.md` and source/evidence research in `NOTES
 - Added `GET /api/health/ingestion`, an unauthenticated probe that returns `503` when ingestion is unhealthy so any external uptime monitor can alert without a secret or extra infrastructure. It reports snapshot age, last successful run, and the current failure streak, and treats a single failed run as noise while flagging a sustained streak or data older than three hours.
 - Added `src/ingestion-health.js` with the pure health-decision logic and direct tests, including the exact five-day-stall scenario, a single transient failure, a failure streak while data is still fresh, and runs that report `ok` while producing no new data.
 - The Hydro cron now evaluates the same health after each run and emits a greppable `INGESTION_UNHEALTHY` log line for Cloudflare log filters and Logpush.
+- Added a twice-hourly GitHub Actions monitor for the public ingestion-health endpoint.
+- Added private municipal archive completeness reporting, a conservative D1 retention/compaction ADR, and D1 indexes for scheduled run cleanup and primary archive-bin queries.
+
+### Changed
+
+- The scheduled Worker now expires `ingestion_runs` stuck in `running` for more than three hours and retains terminal run records for 30 days. Raw R2 inputs, archive bins, geometry, snapshots, and resolved events remain preserved.
+- Archive latest rows are de-duplicated by territory and observation time.
+- Stabilized the mobile sheet drag regression by waiting for its detent transition before measuring the grabber position in Playwright.
+
+### Verified
+
+- Passed pre-commit, 191 Python tests at 71.9% coverage, 57 Node unit tests, the complete 50-case desktop/mobile Playwright suite, and GitHub Quality, CodeQL, and browser-regression workflows.
 
 ## [v0.4.5] - 2026-07-20
 

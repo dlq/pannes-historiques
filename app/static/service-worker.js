@@ -1,4 +1,4 @@
-const CACHE_NAME = "pannes-historiques-v0.4.5-machine-readable-surface";
+const CACHE_NAME = "pannes-historiques-v0.4.6-archive-health";
 const APP_SHELL_URLS = [
   "/static/app.css",
   "/static/app.js",
