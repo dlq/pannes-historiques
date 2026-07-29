@@ -11,7 +11,7 @@ This is the active execution plan. Keep detailed evidence and research notes in 
 - Current production deployment: Worker version `bd062fab-3051-4a00-b790-f85c7b662d06`; container image rebuilt for the ingestion fix.
 - Ingestion incident 2026-07-15 to 2026-07-20: scheduled Hydro ingestion failed every 30 minutes for five days while the site returned `200` and served stale data. Cause was the durable collection path storing payload files without registering the `raw_snapshots` row the Worker's `/internal/raw-snapshot` callback resolves through. Fixed and verified: run 3630 completed `ok` and snapshots are current again. Two plausible-but-wrong hypotheses were ruled out by testing rather than by correlation — container ephemerality, and the `v0.4.3` CodeQL path-hardening, whose lookup was exercised directly against a real file and resolves correctly.
 - Monitoring gap this exposed: the only health surface was token-protected and pull-based, so nothing observed the failure. `GET /api/health/ingestion` now returns `503` when ingestion is stale or failing. The `Ingestion health monitor` GitHub Actions workflow probes it twice hourly.
-- Current implementation line: `main` has released and deployed `v0.4.5`; the next active product slice is `v0.4.6` archive health, retention, and D1 growth control.
+- Current implementation line: `main` has released and deployed `v0.4.6`; the next active product slice is `v0.4.7` Hydro Score / regional analytics framing.
 - Current frontend: one full-bleed MapLibre GL map plus a single sheet. The sheet owns search, domain navigation, address overview, scoped local/province views, detail cards, provenance, and browser-local comparison.
 - Current data plane: D1/R2-backed durable ingestion for current feed rows, previous-outage rows, raw Hydro-Quebec payloads, disclosure metadata, and runtime map-context layers.
 - Current container role: Flask/Jinja shell rendering, local-compatible fallback paths, and a baked SQLite snapshot. Container-local writes are ephemeral and must not become production state.
@@ -142,7 +142,7 @@ Keep the historical archive trustworthy and affordable as D1 grows.
 - [x] De-duplicate Archive latest rows by territory/time.
 - [x] Audit archive-bin completeness and classify expected boundary/out-of-territory cases separately from assignment failures.
 - [x] Define the first D1 retention and compaction policy in ADR 0005.
-- [ ] Deploy and verify the archive-health controls against production.
+- [x] Deploy and verify the archive-health controls against production.
 
 ### `v0.4.7`: Hydro Score / Regional Analytics Framing
 
