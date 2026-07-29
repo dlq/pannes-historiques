@@ -197,6 +197,7 @@ Routine command details live in `docs/contributing.md`; production and deploy ch
 - First-party JS modules improve maintainability but increase module requests; measure on Cloudflare before assuming native modules or bundling is better.
 - DAI/disclosure detail panels are data-rich and visually fragile; keep checking overlap, horizontal scrolling, and dense-row readability.
 - Bad in-app URLs and unhandled Flask exceptions still need minimal branded 404/500 pages.
+- Address queries are capped in the application, but configure a per-IP Cloudflare rate rule for `GET /autocomplete` before exposing a stable public API; browser debouncing is not an abuse control.
 - OpenFreeMap Liberty still includes non-Quebec labels at some zoom levels; solve only if it materially affects analytics or saved-area-adjacent workflows.
 - Do not speculate about Hydro-Quebec one-letter status-code meanings unless source documentation or payload context verifies them.
 

@@ -11,7 +11,7 @@ data/*
 .DS_Store
 .venv/
 .uv-cache/
-node_modules/
+node_modules
 dist/
 .wrangler/
 output/

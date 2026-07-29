@@ -9,7 +9,6 @@ import re
 import subprocess
 import urllib.parse
 import urllib.request
-import xml.etree.ElementTree as ET
 import zipfile
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -17,9 +16,17 @@ from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any
 
+from defusedxml import ElementTree as ET
+
 from .addressing import normalize_text
 from .db import open_db
 from .hydro import maybe_int
+from .safe_files import (
+    MAX_REMOTE_PAYLOAD_BYTES,
+    read_limited,
+    validate_payload_size,
+    validate_zip_archive,
+)
 
 ACCESS_ROOT = "https://www.hydroquebec.com/documents-donnees/loi-sur-acces/diffusion-informations/reponses-acces-information.html"
 LOGGER = logging.getLogger(__name__)
@@ -543,15 +550,15 @@ def fetch_bytes(url: str) -> tuple[bytes, int, str]:
     request = urllib.request.Request(url, headers={"User-Agent": "pannes-historiques/0.1"})
     try:
         with urllib.request.urlopen(request, timeout=30) as response:
-            return response.read(), response.getcode(), response.headers.get_content_type()
+            return read_limited(response), response.getcode(), response.headers.get_content_type()
     except Exception:
         completed = subprocess.run(
-            ["curl", "-fsSL", url],
+            ["curl", "-fsSL", "--max-filesize", str(MAX_REMOTE_PAYLOAD_BYTES), "--", url],
             check=True,
             capture_output=True,
             timeout=45,
         )
-        return completed.stdout, 200, content_type_from_url(url)
+        return validate_payload_size(completed.stdout), 200, content_type_from_url(url)
 
 
 _DISCLOSURE_EVENT_INSERT = """
@@ -1057,6 +1064,7 @@ class DisclosureCollector:
 
 def parse_xlsx(payload: bytes) -> dict[str, list[dict[str, Any]]]:
     with zipfile.ZipFile(PathLikeBytes(payload)) as archive:
+        validate_zip_archive(archive)
         shared_strings = read_shared_strings(archive)
         workbook = read_workbook(archive)
         relationships = read_workbook_relationships(archive)

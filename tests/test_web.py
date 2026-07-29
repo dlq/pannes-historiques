@@ -33,6 +33,24 @@ def test_address_index_keeps_radius_based_map_framing(app_client):
     assert payload["radiusM"] == 2000
 
 
+def test_address_query_length_is_bounded_for_search_and_autocomplete(app_client):
+    long_query = "x" * 300
+    app_client.get(f"/?q={long_query}")
+    service = app_client.application.config["APP_SERVICE"]
+    assert len(service.search_calls[-1]["query"]) == 256
+
+    observed = {}
+
+    def suggest(query, **_kwargs):
+        observed["query"] = query
+        return []
+
+    service.geocoder.suggest = suggest
+    response = app_client.get(f"/autocomplete?q={long_query}")
+    assert response.status_code == 200
+    assert len(observed["query"]) == 256
+
+
 def test_index_includes_pwa_metadata(app_client):
     response = app_client.get("/")
     html = response.get_data(as_text=True)
@@ -154,7 +172,7 @@ def test_about_page_renders_in_english(app_client):
     assert "OpenStreetMap&#39;s Nominatim" in html
     assert "local storage" in html
     assert "no accounts, advertising, analytics trackers, or application cookies" in html
-    assert "not yet an automatic expiry" in html
+    assert "deleted after 30 days" in html
     assert 'href="mailto:contact@pannes.ca"' in html
     assert "contact@pannes.ca" in html
     assert 'href="/?lang=en"' in html
@@ -170,7 +188,7 @@ def test_about_page_renders_in_french(app_client):
     assert "service Nominatim d&#39;OpenStreetMap" in html
     assert "stockage local de ce navigateur" in html
     assert "aucun compte, publicité, outil de suivi analytique ni témoin applicatif" in html
-    assert "Aucune expiration automatique" in html
+    assert "supprimées après 30 jours" in html
     assert 'href="mailto:contact@pannes.ca"' in html
     assert "contact@pannes.ca" in html
     assert 'href="/?lang=fr"' in html

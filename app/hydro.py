@@ -4,7 +4,6 @@ import hashlib
 import json
 import logging
 import urllib.request
-import xml.etree.ElementTree as ET
 import zipfile
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -12,7 +11,10 @@ from io import BytesIO
 from pathlib import Path
 from typing import Any
 
+from defusedxml import ElementTree as ET
+
 from .db import open_db
+from .safe_files import read_limited, validate_zip_archive
 
 HYDRO_ROOT = "https://pannes.hydroquebec.com/pannes/donnees/v3_0"
 LOGGER = logging.getLogger(__name__)
@@ -36,7 +38,7 @@ class Snapshot:
 def fetch_bytes(url: str) -> tuple[bytes, int, str]:
     request = urllib.request.Request(url, headers={"User-Agent": "pannes-historiques/0.1"})
     with urllib.request.urlopen(request, timeout=20) as response:
-        content = response.read()
+        content = read_limited(response)
         return content, response.getcode(), response.headers.get_content_type()
 
 
@@ -511,6 +513,7 @@ class HydroCollector:
     def _ingest_polygons(self, snapshot: Snapshot, payload: bytes) -> None:
         snapshot_id = self._snapshot_id(snapshot.payload_path)
         with zipfile.ZipFile(BytesIO(payload)) as archive:
+            validate_zip_archive(archive)
             kml_name = next((name for name in archive.namelist() if name.endswith(".kml")), None)
             if not kml_name:
                 return

@@ -5,6 +5,7 @@ description = "Map-first Hydro-Quebec outage history prototype."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+  "defusedxml>=0.7.1",
   "flask>=3.1.0",
   "gunicorn>=26.0.0",
   "pypdf>=6.14.2",
