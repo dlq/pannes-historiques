@@ -195,11 +195,13 @@ def test_service_worker_route_has_root_scope(app_client):
     assert response.status_code == 200
     assert response.headers["Service-Worker-Allowed"] == "/"
     assert response.headers["Cache-Control"] == "no-cache"
-    assert b"pannes-historiques-v0.4.6-archive-health" in response.data
+    assert b"pannes-historiques-v0.4.6-maplibre-v6" in response.data
     assert b"/static/app-icon-180.png" in response.data
     assert b"/static/icons.svg" in response.data
     assert b"/static/sheet.js" in response.data
-    assert b"/static/vendor/maplibre/maplibre-gl.js" in response.data
+    assert b"/static/vendor/maplibre/maplibre-gl.mjs" in response.data
+    assert b"/static/vendor/maplibre/maplibre-gl-shared.mjs" in response.data
+    assert b"/static/vendor/maplibre/maplibre-gl-worker.mjs" in response.data
     assert b"/static/vendor/maplibre/maplibre-gl.css" in response.data
     assert b"/static/ui-format.js" in response.data
     assert b"/static/offline.html" in response.data

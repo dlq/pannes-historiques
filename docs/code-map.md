@@ -40,7 +40,7 @@ Use this map before opening large files. Prefer targeted `rg` searches over read
 - `app/static/detail-panels.js`: disclosure/regional detail panel custom element.
 - `app/static/map-utils.js`: pure map helper functions.
 - `app/static/ui-format.js`: browser formatting/localization helpers.
-- `app/static/vendor/`: vendored third-party assets; usually exclude from source search.
+- `app/static/vendor/`: vendored third-party assets; MapLibre v6 ships as ESM entry, shared module, and worker files. Usually exclude this directory from source search.
 
 ## Worker Runtime
 
