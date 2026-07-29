@@ -39,7 +39,7 @@ checks. Responsibility for the project and its releases rests with its maintaine
   - a single sheet with peek/half/full detents on mobile and a floating panel on desktop; the search field lives in the sheet
   - a segmented `En cours / Planifiées / Archive / Contexte` control that drives both the sheet content and the visible map layer
   - explore-mode domain views: sorted current rows, a date-grouped planned schedule with calendar tiles, an archive report with 24 h/7 j/30 j/1 an windows, and a disclosure-document list framed as regional context
-  - address-mode overview answer stack: current/planned status lines with nearest-distance and next-window wording, a local-history hero card with a 14-month chart, a `5 km / Québec` scope toggle on pushed domain views, in-sheet detail cards, and a browser-local comparison tray
+  - address-mode overview answer stack: current/planned status lines with nearest-distance and next-window wording, a local-history hero card with a 14-month chart, a radius control (1/2/5/10 km, 2 km default for typed addresses), a `Local / Québec` scope toggle on pushed domain views, in-sheet detail cards, and a browser-local comparison tray
 - Historical disclosure and map context
   - access-to-information disclosure source registry plus XLSX and supported PDF extraction
   - DAI region outlines from OSM/Nominatim/Overpass with conservative fallback areas
@@ -70,8 +70,9 @@ User-facing URLs are intentionally small:
 - `/?lang=en&q=5220+Rue+Jeanne-Mance` opens an address search.
 - `/?lang=en&lat=45.5186&lon=-73.6027&accuracy_m=20` opens a coordinate/current-location search.
 
-Search scope is currently fixed server-side. Radius, time-window, and planned-interruption flags are
-not public URL parameters unless a future UI makes them user-controlled.
+Typed-address searches default to a 2 km local radius; coordinate and explore flows default to 5 km.
+The sheet offers 1, 2, 5, and 10 km choices and preserves a non-default radius in the `radius_m`
+URL parameter. Time window and planned-interruption flags are not public URL parameters.
 
 ## Deploy
 
@@ -79,7 +80,8 @@ Production is currently served at `pannes.ca` with Cloudflare Workers + Containe
 
 Current deployment status:
 
-- Current code and release line: `v0.4.4`.
+- Current code and release line: `v0.4.6` (archive health, retention, and D1 growth control),
+  released and deployed 2026-07-29.
 - The current interface uses vendored MapLibre GL JS with the OpenFreeMap Liberty style, a
   full-bleed map, and one responsive sheet for current, planned, archive, and context views.
 - Production is served through Cloudflare Workers + Containers with D1 and R2 durable storage.
@@ -191,7 +193,7 @@ falling back to local SQLite-derived layers. Previous outages without polygon ge
 as centroid markers instead of older outage polygons.
 
 For searched addresses, previous local evidence is capped to the nearest retained outage records
-within the fixed 5 km search radius. The current code summarizes that evidence in a plain-language
+within the selected local radius (2 km by default for typed addresses). The current code summarizes that evidence in a plain-language
 local stability card before the pushed domain views, including retained-record count, nearest retained
 record, most recent retained record, distance-band counts, and restrained source/coverage caveats.
 The mobile sheet keeps this local answer ahead of broader layer context and can store a small
@@ -209,8 +211,8 @@ uv run python scripts/build_region_geometry_asset.py
 
 ## DAI test addresses
 
-Searches use a fixed 5 km radius, a fixed 5-year window, and always include current planned
-interruptions.
+Typed-address searches start at 2 km and can use 1, 2, 5, or 10 km; coordinate and explore flows
+start at 5 km. Searches use a fixed 5-year history window and include current planned interruptions.
 
 Useful test queries:
 

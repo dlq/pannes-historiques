@@ -26,7 +26,16 @@ Do not deploy unless explicitly requested. For deployment-related changes, run a
 npx wrangler deploy --dry-run
 ```
 
-After every production deploy, verify the container image/version changed, not just the Worker version.
+For a release that changes `app/`, `pyproject.toml`, or other container image inputs, verify that
+the container image/version changed as well as the Worker version, and roll out the container
+immediately:
+
+```bash
+npx wrangler deploy --containers-rollout immediate
+```
+
+`--containers-rollout=none` is appropriate only for Worker-only changes. It leaves Flask-rendered
+pages and assets, including `/service-worker.js`, on the prior container image.
 
 ## Production Smoke Checks
 

@@ -1,21 +1,22 @@
 # Current Snapshot
 
-Last updated: 2026-07-17
+Last updated: 2026-07-29
 
 Read this first for quick orientation. Use `PLANS.md` for the active roadmap, `docs/architecture.md` for runtime boundaries, `docs/cost-containment.md` for cost strategy, and `CHANGELOG.md` for completed release history.
 
 ## Version And Deployment
 
-- Shipped release: `v0.4.4`.
-- Package metadata: `0.4.4` in `pyproject.toml` and `package.json`.
-- Production deployment: Worker version `4cc949c8-566d-411d-bce2-7d6092f640ed`; container image `pannes-historiques-pannescontainer:4cc949c8`.
-- Current development direction: `v0.4.5` machine-readable public surface and API posture.
+- Shipped release: `v0.4.6`.
+- Package metadata: `0.4.6` in `pyproject.toml` and `package.json`.
+- Production deployment: Worker version `184be6cc-8a00-49cf-81ad-acddceaec1c3`; container image digest `sha256:522384da1eefe4ef3630b1cb3aa615d3da77eeb8e305a0270f54822e99b7d0b3`.
+- Current development direction: `v0.4.7` Hydro Score / regional analytics framing, followed by privacy-preserving aggregate feature-use evidence in `v0.4.8`.
 
 ## Product Shape
 
 - Browser UI: one full-bleed MapLibre map plus one sheet.
 - Sheet modes: explore domains (`current`, `planned`, `archive`, `context`) and address overview.
 - Address overview includes current/planned status, local history, scoped local/province views, detail cards, provenance, and browser-local comparison.
+- Typed-address searches default to a 2 km local radius and offer 1/2/5/10 km choices; coordinate and explore flows default to 5 km.
 - Public positioning: retained outage observations and public disclosure context, not official Hydro-Quebec service certification.
 
 ## Runtime Shape
@@ -49,6 +50,6 @@ npx wrangler deploy --dry-run
 - The trusted Worker host is deployment configuration in `wrangler.jsonc`; keep it synchronized with
   the actual Worker host and avoid embedding it in runtime code.
 - Container-backed search/render paths still wake the container.
-- Archive health: stale ingestion rows, latest-row de-duplication, archive-bin completeness, and D1 retention.
-- Public/private JSON route posture needs a machine-readable/API-boundary pass.
+- Archive health controls are deployed: stale ingestion rows expire after three hours, terminal runs retain 30 days, latest rows are de-duplicated, and archive-bin completeness is privately auditable. Continue monitoring D1 growth against the ADR 0005 trigger.
+- All public JSON routes remain explicitly unstable until the `v0.5.0` API contract.
 - Browser proof gaps: real-device geolocation, visible freshness cues, dense data readability, and practical screen-reader checks.
