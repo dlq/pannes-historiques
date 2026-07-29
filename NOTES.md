@@ -14,6 +14,13 @@ Last updated: 2026-07-29
 - Released `v0.4.6` as Worker version `184be6cc-8a00-49cf-81ad-acddceaec1c3` with container image digest `sha256:522384da1eefe4ef3630b1cb3aa615d3da77eeb8e305a0270f54822e99b7d0b3`. The initial Worker-only rollout intentionally left the Flask-served service worker at v0.4.5; an immediate container rollout replaced it successfully.
 - Public smoke checks returned `200` for `/` and `/api/health/ingestion`. The ingestion endpoint was healthy, six minutes fresh, with no consecutive failures. A no-cache `/service-worker.js` request confirmed `pannes-historiques-v0.4.6-archive-health`.
 
+## Live WCAG regression pass, 2026-07-29
+
+- The live English and French home screens rendered meaningful page headings, named map and sheet regions, labeled search/language/source controls, and descriptive outage-row button names. Browser console output had no warnings or errors.
+- Keyboard interaction changed the Archive source, exposed the selected `aria-pressed` state and archive report content, then opened the provenance dialog. Focus moved to its Close button; Escape closed the dialog and returned focus to the `About this data` trigger. A keyboard-focused control rendered a `2px` blue outline.
+- Core text/control contrast meets WCAG AA for normal text: secondary ink on white `5.14:1`, interactive blue on white `4.69:1`, and the deep current/planned/archive/context text on their tinted backgrounds `6.13:1`, `5.87:1`, `7.60:1`, and `5.46:1` respectively. The static accessibility regression test and all 58 Node unit tests passed, as did Biome.
+- This is a focused live regression pass, not a conformance certification. The project still has no axe dependency or automated axe-style audit, no manual screen-reader pass, and no real phone validation. The in-app browser's requested `390 x 844` override remained at `1280 x 720`, so it could not prove the phone layout in this run.
+
 ## Archive health baseline, 2026-07-27
 
 - Read-only remote D1 inspection measured `1,578,500,096` bytes of storage. `ingestion_runs` had 3,957 rows: 3,685 `ok`, 268 `error`, and four stale `running` rows dating from 2026-06-19 through 2026-07-23.
