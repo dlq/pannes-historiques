@@ -1,18 +1,17 @@
 # User Stories For Next Product Slices
 
 Date: 2026-06-17
-Last reviewed: 2026-07-11
+Last reviewed: 2026-07-29
 
 This file captures practical user stories for focusing the next pannes.ca work. These are not implementation tasks by themselves. They are decision scenarios that should drive UI, copy, data, and test choices.
 
 ## Current Implementation Status
 
-As of deployed `v0.4.2` (2026-07-10) plus the 2026-07-11 accessibility and cache-refresh follow-ups,
-the current codebase has:
+As of deployed `v0.4.6` (2026-07-29), the current codebase has:
 
 - one full-bleed MapLibre map with a detent-based sheet (mobile) / floating panel (desktop) and search inside the sheet;
 - a segmented `En cours / Planifiées / Archive / Contexte` control that drives both sheet content and the visible map layer;
-- an address-mode overview answer stack: current/planned status lines with nearest-distance and next-window wording, a 14-month local-history hero chart, and doorways into domain views scoped by a `5 km / Québec` toggle;
+- an address-mode overview answer stack: current/planned status lines with nearest-distance and next-window wording, a 14-month local-history hero chart, and doorways into domain views scoped by a 1/2/5/10 km radius control (2 km default for typed addresses) and a `Local / Québec` toggle;
 - in-sheet detail cards with honest per-kind wording (estimated restoration for current, observed start/end/duration for archive, customers-to-be-affected for planned);
 - an archive report leading with named territory bins (production) plus day-grouped latest rows, all caps labeled;
 - a provenance card ("À propos de ces données") reachable from the hero info button and the explore footer, with GitHub and contact links;
@@ -42,7 +41,7 @@ Addresses sampled in the June 17 production audit:
 
 What the app should help answer:
 
-- How many retained outage records have been seen near this address within 5 km?
+- How many retained outage records have been seen near this address within the selected radius?
 - Are current outages affecting the broader area right now?
 - Are planned interruptions nearby or regionally relevant?
 - Does the evidence suggest one tested area has had more nearby interruptions than another?
@@ -65,13 +64,13 @@ Test queries:
 
 The app should answer:
 
-- Which address has more retained nearby outage records within 5 km?
+- Which address has more retained nearby outage records within the same selected radius?
 - Which has fewer records?
 - Whether the difference looks meaningful or just reflects sparse archive coverage.
 
 Success looks like:
 
-- A plain-language local stability card says something like: `5 retained records within 5 km in the current archive`.
+- A plain-language local stability card says something like: `5 retained records within 2 km in the current archive`.
 - The user can compare the same metric across addresses without learning the row structure.
 - The card includes a small coverage note, such as the archive window or latest capture date.
 
@@ -137,15 +136,15 @@ Test query:
 
 The app should answer:
 
-- How many retained previous outage records are within 5 km?
+- How many retained previous outage records are within the selected radius?
 - When were the most recent nearby records?
-- Were they clustered near the address or scattered around the 5 km radius?
+- Were they clustered near the address or scattered around the selected radius?
 
 Success looks like:
 
 - The address overview leads with a local-history answer, and the Archive pushed view shows the nearby retained records behind it.
 - The map shows retained nearby records without requiring the user to infer why they are listed.
-- The app avoids confusing `nearest records shown` with `all records within 5 km`.
+- The app avoids confusing `nearest records shown` with `all records within the selected radius`.
 
 Next product gap:
 
@@ -164,7 +163,7 @@ Test queries:
 
 The app should answer:
 
-- Does the local 5 km evidence look sparse or heavy relative to the surrounding region?
+- Does the local evidence look sparse or heavy relative to the surrounding region?
 - Are there disclosure or regional metrics that give broader context?
 - Is the region's historical burden from disclosures aligned with the local retained records?
 
@@ -296,12 +295,11 @@ Next product gap:
 - Validate the shipped WCAG behavior with manual screen-reader checks and an automated axe-style audit,
   including live-region status, focus order, sheet detent behavior, and detail-panel announcements.
 
-## Next Slice Candidates
+## Relevant Next Work
 
-The strongest next slices suggested by these stories are:
+The stories inform the current planned slices and ongoing proof work:
 
-1. Freshness and confidence: add archive-window, latest-capture, feed freshness, and clearer confidence language to the local stability card and Current/Planned summaries.
-2. Real-device current-location proof: verify permission acceptance/denial/recovery, address/coordinate confirmation, and the first visible answer state on a phone.
-3. Research/source-detail proof: improve and test mobile detail panels, source links, selected-row-to-map feedback, and dense disclosure/archive readability.
-4. Accessibility proof: run a practical keyboard/screen-reader pass for sheet state, segmented-control wording, row selection, live-region/status updates, and detail-panel announcements.
-5. Comparison workflow refinement: decide whether the local comparison tray should remain a lightweight local-storage helper or become a more explicit multi-address comparison view.
+1. `v0.4.7` Hydro Score framing: decide whether component metrics can communicate regional or local context without an unsupported reliability ranking.
+2. `v0.4.8` privacy-preserving usage evidence: measure aggregate use of substantive features before expanding the product surface.
+3. Ongoing browser proof: verify real-device location permission/recovery, freshness cues, dense data readability, and practical keyboard/screen-reader behavior.
+4. `v0.5.x` API and analytical expansion: only after readiness, cost, archive-health, and machine-readable-boundary gates are satisfied.

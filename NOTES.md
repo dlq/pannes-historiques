@@ -1,7 +1,7 @@
 # Research: Hydro-Québec Historic Outage Data
 
 Date: 2026-04-25
-Last updated: 2026-07-17
+Last updated: 2026-07-29
 
 ## v0.4.6 release verification, 2026-07-29
 

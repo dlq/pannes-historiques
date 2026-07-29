@@ -1,21 +1,21 @@
 # Plan: Hydro-Quebec Outage History App
 
 Date: 2026-04-25
-Last updated: 2026-07-27
+Last updated: 2026-07-29
 
 This is the active execution plan. Keep detailed evidence and research notes in `NOTES.md`, completed release history in `CHANGELOG.md`, operational runbooks in `docs/operations.md`, and long maintenance backlogs in `docs/maintenance-backlog.md`.
 
 ## Current State
 
-- Current shipped release: `v0.4.5`, machine-readable public surface and API posture, released and deployed 2026-07-20.
-- Current production deployment: Worker version `bd062fab-3051-4a00-b790-f85c7b662d06`; container image rebuilt for the ingestion fix.
+- Current shipped release: `v0.4.6`, archive health, retention, and D1 growth control, released and deployed 2026-07-29.
+- Current production deployment: Worker version `184be6cc-8a00-49cf-81ad-acddceaec1c3`; container image digest `sha256:522384da1eefe4ef3630b1cb3aa615d3da77eeb8e305a0270f54822e99b7d0b3`.
 - Ingestion incident 2026-07-15 to 2026-07-20: scheduled Hydro ingestion failed every 30 minutes for five days while the site returned `200` and served stale data. Cause was the durable collection path storing payload files without registering the `raw_snapshots` row the Worker's `/internal/raw-snapshot` callback resolves through. Fixed and verified: run 3630 completed `ok` and snapshots are current again. Two plausible-but-wrong hypotheses were ruled out by testing rather than by correlation — container ephemerality, and the `v0.4.3` CodeQL path-hardening, whose lookup was exercised directly against a real file and resolves correctly.
 - Monitoring gap this exposed: the only health surface was token-protected and pull-based, so nothing observed the failure. `GET /api/health/ingestion` now returns `503` when ingestion is stale or failing. The `Ingestion health monitor` GitHub Actions workflow probes it twice hourly.
 - Current implementation line: `main` has released and deployed `v0.4.6`; the next active product slice is `v0.4.7` Hydro Score / regional analytics framing.
 - Current frontend: one full-bleed MapLibre GL map plus a single sheet. The sheet owns search, domain navigation, address overview, scoped local/province views, detail cards, provenance, and browser-local comparison.
 - Current data plane: D1/R2-backed durable ingestion for current feed rows, previous-outage rows, raw Hydro-Quebec payloads, disclosure metadata, and runtime map-context layers.
 - Current container role: Flask/Jinja shell rendering, local-compatible fallback paths, and a baked SQLite snapshot. Container-local writes are ephemeral and must not become production state.
-- Current cost posture: normal public browsing/search should not produce recurring container/runtime overage. The next slice prioritizes cost containment before broader beta UX work.
+- Current cost posture: hybrid Worker/D1/R2 reads and the low-cost mode guardrail limit container exposure, but container-backed browser/search paths still need measured usage and cost evidence before any broader rendering migration.
 - Current public API posture: route stability tiers are now written down in `docs/api-posture.md` and summarized for machine readers at `/llms.txt`. Every JSON route is explicitly `unstable`; the first `stable` contract is still deferred to `v0.5.0`.
 - Resolved 2026-07-20 (was recorded here as a rotating mobile detail-close flake): the cause was not the suspected ghost `click` after a `pointerup` close — that hypothesis was wrong and three fixes built on it failed. The map's `load` handler replayed `pendingMapFocus() || activeMapFocus` through `focusMap()` with `remember` defaulting to true, re-running the selection side effects and re-opening a card the user had closed. Nothing clears `activeMapFocus` on close, so whenever the style finished loading after a close the card sprang back — a real mobile bug, not just a test artifact. It rotated across cases because they share that path, and never reproduced warm because `load` fires once. Fixed in `v0.4.5`; a pending focus still replays in full, an active focus re-applies camera/selection only. Guarded by a regression test.
 - Current contribution posture: contributor docs and a scoped issue map exist. GitHub Quality enforces Python branch coverage, while full Playwright runs on `main` and by manual dispatch.
@@ -112,7 +112,7 @@ Make the repository easier to approach and safely change for external contributo
 
 ## Roadmap
 
-Completed release history lives in `CHANGELOG.md`. Current planning starts from `v0.4.5`.
+Completed release history lives in `CHANGELOG.md`. The retained `v0.4.4` through `v0.4.6` sections document their completed scope; active planning starts at `v0.4.7`.
 
 ### `v0.4.4`: Contributor Readiness, CI Hardening, And Beta UX Follow-Up
 
@@ -190,10 +190,10 @@ Routine command details live in `docs/contributing.md`; production and deploy ch
 
 - Container-backed search/render paths still need measured cost evidence; the trusted Worker host is configured in `wrangler.jsonc`, not hardcoded in runtime policy.
 - Ordinary public reads should keep moving toward Worker/static/D1/R2 paths, but the right migration boundary is not yet proven.
-- Archive health is implemented but not yet deployed: stale run expiry, 30-day terminal-run retention, latest-row de-duplication, and classified archive-bin completeness are ready for production verification.
-- D1 measured `1,578,500,096` bytes (about `1.58 GB`) on 2026-07-27. The first compaction trigger is `3.5 GB`; a migration must begin before the 5 GB included-storage threshold. Raw R2 payloads, geometry, archive bins, and snapshot metadata remain out of scope for automatic deletion. See ADR 0005.
+- Archive health is deployed: stale run expiry, 30-day terminal-run retention, latest-row de-duplication, and classified archive-bin completeness. Keep monitoring the public ingestion-health endpoint and private completeness audit.
+- D1 measured `1,631,522,816` bytes (about `1.63 GB`) after the 2026-07-29 archive-health index migration. The first compaction trigger is `3.5 GB`; a migration must begin before the 5 GB included-storage threshold. Raw R2 payloads, geometry, archive bins, and snapshot metadata remain out of scope for automatic deletion. See ADR 0005.
 - Browser proof gaps remain: real-device geolocation/permission recovery, visible freshness/change cues, dense live-data readability, and practical keyboard/screen-reader checks.
-- The WCAG pass shipped contrast, reduced-motion, live-region, dialog-focus, and keyboard regression fixes; remaining proof gaps belong with `v0.4.5`.
+- The WCAG pass shipped contrast, reduced-motion, live-region, dialog-focus, and keyboard regression fixes; the remaining proof gaps are ongoing maintenance work, not an unfinished `v0.4.5` release item.
 - First-party JS modules improve maintainability but increase module requests; measure on Cloudflare before assuming native modules or bundling is better.
 - DAI/disclosure detail panels are data-rich and visually fragile; keep checking overlap, horizontal scrolling, and dense-row readability.
 - Bad in-app URLs and unhandled Flask exceptions still need minimal branded 404/500 pages.
