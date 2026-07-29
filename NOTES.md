@@ -3,6 +3,12 @@
 Date: 2026-04-25
 Last updated: 2026-07-17
 
+## v0.4.6 release verification, 2026-07-29
+
+- Applied `migrations/0011_archive_health_indexes.sql` to remote D1 before rollout. The index build completed successfully; D1 reported 933,618 rows read, 462,102 rows written, and a resulting database size of 1,631,522,816 bytes. No archival data was deleted by that migration.
+- Released `v0.4.6` as Worker version `184be6cc-8a00-49cf-81ad-acddceaec1c3` with container image digest `sha256:522384da1eefe4ef3630b1cb3aa615d3da77eeb8e305a0270f54822e99b7d0b3`. The initial Worker-only rollout intentionally left the Flask-served service worker at v0.4.5; an immediate container rollout replaced it successfully.
+- Public smoke checks returned `200` for `/` and `/api/health/ingestion`. The ingestion endpoint was healthy, six minutes fresh, with no consecutive failures. A no-cache `/service-worker.js` request confirmed `pannes-historiques-v0.4.6-archive-health`.
+
 ## Archive health baseline, 2026-07-27
 
 - Read-only remote D1 inspection measured `1,578,500,096` bytes of storage. `ingestion_runs` had 3,957 rows: 3,685 `ok`, 268 `error`, and four stale `running` rows dating from 2026-06-19 through 2026-07-23.
