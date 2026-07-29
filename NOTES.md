@@ -28,18 +28,18 @@ Last updated: 2026-07-29
 - Municipal archive baseline: 203,298 `bispoly` geometries; 203,084 have at least one archive bin; 202,351 have a primary bin. Of 947 unbinned polygons, 214 intersect an administrative territory candidate (assignment gaps); the remaining 733 are overlap-only rather than missing entirely.
 - The public `GET /api/health/ingestion` endpoint was healthy and 23 minutes fresh at inspection. GitHub Actions now probes it twice hourly. The private `GET /api/durable/runtime/municipal-archive/completeness` endpoint exposes the completeness classification for operators.
 
-## Current verification and deployment baseline, 2026-07-17
+## Historical v0.4.4 verification and deployment baseline, 2026-07-17
 
 - Release `v0.4.4` passed pre-commit, 182 Python tests at 70.5% combined line/branch coverage, 44 Node unit tests, the complete 50-case desktop/mobile Playwright suite, and a Wrangler dry-run. Its post-release mobile disclosure-close hotfix also passed the affected 58 Python tests, pre-commit, and the 50-case Playwright suite. The hotfix deployed on 2026-07-17 as Worker version `4cc949c8-566d-411d-bce2-7d6092f640ed` with container image `pannes-historiques-pannescontainer:4cc949c8`; public `/`, `/healthz`, `/sheet?lang=en&domain=archive&scope=province`, and `/service-worker.js` probes returned `200`. A no-cache service-worker fetch confirmed `pannes-historiques-v0.4.4-close-handler-fix`.
 - GitHub Quality enforces a 61.9% combined coverage floor. The v0.4.4 risk-based suite raised `hydro.py` to 63.3%, `disclosures.py` to 59.9% (rounded 60%), and `services.py` to 61.9% (rounded 62%).
 
-Measured locally against the current `v0.4.2` runtime code plus its post-release map, accessibility,
+Measured locally at that v0.4.4 release checkpoint, after the earlier map, accessibility,
 contributor-foundation, and cache-refresh follow-ups:
 
-- The current local test count is 182 Python tests and 44 Node unit tests. The release measurement is 70.5% combined coverage; strongest coverage remains in `addressing.py`, `config.py`, `db.py`, `i18n.py`, `perf.py`, `views.py`, `sheet_views.py`, and `web.py`.
+- The release checkpoint had 182 Python tests and 44 Node unit tests, with 70.5% combined coverage; strongest coverage was in `addressing.py`, `config.py`, `db.py`, `i18n.py`, `perf.py`, `views.py`, `sheet_views.py`, and `web.py`.
 - Playwright lists 50 cases across desktop and mobile Chromium. The full six-worker release run passed after the disclosure-detail close path was fixed to preserve its pointer target through the close gesture.
 - GitHub Quality runs pre-commit formatting/linting/module-boundary checks, coverage-gated pytest, and Node unit tests on pull requests and pushes to `main`. Full Playwright runs after pushes to `main` and on manual dispatch.
-- The current production Worker is `4cc949c8-566d-411d-bce2-7d6092f640ed`, deployed on 2026-07-17 with container image `pannes-historiques-pannescontainer:4cc949c8`. Live `/`, `/healthz`, `/sheet?lang=en&domain=archive&scope=province`, and `/service-worker.js` checks returned `200`; a no-cache service-worker probe advertises `pannes-historiques-v0.4.4-close-handler-fix`.
+- The v0.4.4 production Worker was `4cc949c8-566d-411d-bce2-7d6092f640ed`, deployed on 2026-07-17 with container image `pannes-historiques-pannescontainer:4cc949c8`. Live `/`, `/healthz`, `/sheet?lang=en&domain=archive&scope=province`, and `/service-worker.js` checks returned `200`; a no-cache service-worker probe advertised `pannes-historiques-v0.4.4-close-handler-fix`.
 - Highest-value next coverage work: record and ratchet a realistic coverage floor; test Worker/container orchestration; deepen Hydro/disclosure/service-path fixtures; and make the Playwright gating and flaky-test policy explicit.
 
 ## v0.4.2 public-beta readiness evidence, 2026-07-10
