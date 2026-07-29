@@ -1,8 +1,11 @@
 import io
+import json
 import zipfile
+from contextlib import nullcontext
 
 import pytest
 
+from app import disclosures
 from app.disclosures import (
     AccessResponsePageParser,
     DisclosureSource,
@@ -11,6 +14,9 @@ from app.disclosures import (
     content_type_from_url,
     discover_disclosure_sources,
     fallback_circle_polygon,
+    fetch_boundary_geometry,
+    fetch_overpass_boundary_geometry,
+    find_overpass_relation_id,
     first_value,
     geometry_bbox,
     is_outage_related_text,
@@ -52,6 +58,65 @@ def test_normalize_datetime_handles_empty_and_iso_t_values():
     assert normalize_datetime("") is None
     assert normalize_datetime(None) is None
     assert normalize_datetime("2025-01-01T12:34:56.789Z") == "2025-01-01 12:34:56"
+
+
+def test_boundary_fetch_prefers_relation_then_uses_nominatim_and_overpass_fallback(monkeypatch):
+    geometry = {"type": "Polygon", "coordinates": [[[-73.6, 45.5], [-73.5, 45.5], [-73.6, 45.5]]]}
+    monkeypatch.setattr(
+        disclosures,
+        "fetch_overpass_boundary_geometry",
+        lambda *_args: {"geometry": geometry, "raw": {"id": 1}},
+    )
+    assert fetch_boundary_geometry("Montreal", osm_relation_id=1)["geometry"] == geometry
+
+    monkeypatch.setattr(
+        disclosures.urllib.request,
+        "urlopen",
+        lambda _request, timeout: nullcontext(
+            io.BytesIO(json.dumps([{"geojson": geometry, "id": 2}]).encode("utf-8"))
+        ),
+    )
+    assert fetch_boundary_geometry("Montreal")["raw"]["id"] == 2
+
+    monkeypatch.setattr(
+        disclosures.urllib.request,
+        "urlopen",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError()),
+    )
+    assert fetch_boundary_geometry("Montreal") == {"geometry": geometry, "raw": {"id": 1}}
+
+
+def test_overpass_helpers_parse_relation_geometry_and_ids(monkeypatch):
+    relation = {
+        "type": "relation",
+        "id": 42,
+        "members": [
+            {
+                "role": "outer",
+                "geometry": [
+                    {"lon": -73.6, "lat": 45.5},
+                    {"lon": -73.5, "lat": 45.5},
+                    {"lon": -73.5, "lat": 45.6},
+                    {"lon": -73.6, "lat": 45.6},
+                ],
+            }
+        ],
+    }
+    monkeypatch.setattr(
+        disclosures,
+        "fetch_bytes",
+        lambda _url: (
+            json.dumps({"elements": [relation]}).encode("utf-8"),
+            200,
+            "application/json",
+        ),
+    )
+
+    boundary = fetch_overpass_boundary_geometry("Montreal", 42)
+    assert boundary is not None
+    assert boundary["geometry"]["type"] == "Polygon"
+    assert find_overpass_relation_id("Montreal, Quebec") == 42
+    assert find_overpass_relation_id("") is None
 
 
 def test_parse_xlsx_reads_inline_cells_and_sparse_data_rows():
