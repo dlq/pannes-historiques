@@ -18,7 +18,9 @@ async function runSearch(page: Page) {
 
 test("page loads in English and French with the sheet shell", async ({ page }) => {
   await page.goto("/?lang=en");
-  await expect(page.locator(".ph-brand-chip")).toHaveText("pannes.ca");
+  await expect(page.locator(".ph-brand-chip")).toHaveText("Outage History");
+  await expect(page.locator(".ph-brand-chip-mark")).toHaveAttribute("src", /app-icon\.svg/);
+  await expect(page.locator(".ph-brand-chip")).toHaveAttribute("aria-label", "Outage History");
   await expect(page).toHaveTitle("Outage History");
   await expect(page.locator("#address-input")).toBeVisible();
   await expect(page.locator("outage-map")).toBeVisible();
@@ -44,6 +46,7 @@ test("page loads in English and French with the sheet shell", async ({ page }) =
     .toBe(true);
 
   await page.goto("/?lang=fr");
+  await expect(page.locator(".ph-brand-chip")).toHaveText("Pannes Historiques");
   await expect(page.locator(".ph-segment.is-active")).toHaveText("En cours");
   await expect(page.locator("#address-input")).toBeVisible();
 });
