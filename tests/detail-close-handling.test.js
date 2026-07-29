@@ -14,6 +14,7 @@ const overviewSource = readFileSync(
 );
 const indexSource = readFileSync(new URL("../app/templates/index.html", import.meta.url), "utf8");
 const stylesSource = readFileSync(new URL("../app/static/app.css", import.meta.url), "utf8");
+const mapSource = readFileSync(new URL("../app/static/outage-map.js", import.meta.url), "utf8");
 
 test("detail close buttons are handled during capture for pointerup and click", () => {
   assert.match(
@@ -94,7 +95,6 @@ test("secondary text and motion respect the accessibility baseline", () => {
 });
 
 test("map load replays a pending focus but never re-runs an active focus's selection", () => {
-  const mapSource = readFileSync(new URL("../app/static/outage-map.js", import.meta.url), "utf8");
   // A pending focus was never delivered, so it must open its detail card.
   assert.match(mapSource, /const pending = pendingMapFocus\(\);/);
   assert.match(mapSource, /if \(pending\) \{\s*\n\s*focusMap\(pending\);/);
@@ -102,4 +102,10 @@ test("map load replays a pending focus but never re-runs an active focus's selec
   // re-run showOperational/showRegionalMetric and re-open a card the user just
   // closed -- which is what made mobile detail-close tests flake under load.
   assert.match(mapSource, /\} else if \(activeMapFocus\) \{\s*\n\s*focusMap\(activeMapFocus, \{ remember: false \}\);/);
+});
+
+test("map runtime uses the vendored MapLibre v6 ESM modules", () => {
+  assert.match(mapSource, /import \* as maplibregl from "\.\/vendor\/maplibre\/maplibre-gl\.mjs"/);
+  assert.doesNotMatch(mapSource, /window\.maplibregl/);
+  assert.doesNotMatch(indexSource, /vendor\/maplibre\/maplibre-gl\.js/);
 });

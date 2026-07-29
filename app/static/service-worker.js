@@ -1,4 +1,4 @@
-const CACHE_NAME = "pannes-historiques-v0.4.6-archive-health";
+const CACHE_NAME = "pannes-historiques-v0.4.6-maplibre-v6";
 const APP_SHELL_URLS = [
   "/static/app.css",
   "/static/app.js",
@@ -11,7 +11,9 @@ const APP_SHELL_URLS = [
   "/static/sheet.js",
   "/static/ui-format.js",
   "/static/vendor/maplibre/maplibre-gl.css",
-  "/static/vendor/maplibre/maplibre-gl.js",
+  "/static/vendor/maplibre/maplibre-gl.mjs",
+  "/static/vendor/maplibre/maplibre-gl-shared.mjs",
+  "/static/vendor/maplibre/maplibre-gl-worker.mjs",
   "/static/app-icon-180.png",
   "/static/app-icon-192.png",
   "/static/app-icon-512.png",

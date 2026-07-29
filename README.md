@@ -35,7 +35,7 @@ checks. Responsibility for the project and its releases rests with its maintaine
   - SQLite persistence plus raw Hydro-Quebec snapshot archival on local disk
   - Hydro feed parsing, address normalization, cached geocoding, spatial matching, and first-pass resolved-event deduplication
 - Map-first sheet interface
-  - one full-bleed MapLibre GL map (vendored `maplibre-gl`, OpenFreeMap Liberty vector style) with semantic domain colors: red current, amber planned, violet archive, teal published context
+  - one full-bleed MapLibre GL v6 map (vendored ESM modules and worker, OpenFreeMap Liberty vector style) with semantic domain colors: red current, amber planned, violet archive, teal published context
   - a single sheet with peek/half/full detents on mobile and a floating panel on desktop; the search field lives in the sheet
   - a segmented `En cours / Planifiées / Archive / Contexte` control that drives both the sheet content and the visible map layer
   - explore-mode domain views: sorted current rows, a date-grouped planned schedule with calendar tiles, an archive report with 24 h/7 j/30 j/1 an windows, and a disclosure-document list framed as regional context
@@ -82,7 +82,7 @@ Current deployment status:
 
 - Current code and release line: `v0.4.6` (archive health, retention, and D1 growth control),
   released and deployed 2026-07-29.
-- The current interface uses vendored MapLibre GL JS with the OpenFreeMap Liberty style, a
+- The current interface uses vendored MapLibre GL JS v6 ESM modules with the OpenFreeMap Liberty style, a
   full-bleed map, and one responsive sheet for current, planned, archive, and context views.
 - Production is served through Cloudflare Workers + Containers with D1 and R2 durable storage.
 - Exact deployment identifiers, smoke-check evidence, and current follow-up work are tracked in
