@@ -1,4 +1,4 @@
-import { clearPendingMapFocus, MAP_EVENTS, pendingMapFocus } from "./map-events.js?v=20260720a";
+import { clearPendingMapFocus, MAP_EVENTS, pendingMapFocus } from "./map-events.js?v=20260729b";
 import {
   boundsToLngLatBounds,
   contextLayerForKind,
@@ -7,7 +7,7 @@ import {
   itemRenderKey,
   normalizeMapPoint,
   radiusCirclePolygon,
-} from "./map-utils.js?v=20260720a";
+} from "./map-utils.js?v=20260729b";
 import * as maplibregl from "./vendor/maplibre/maplibre-gl.mjs";
 
 const LIBERTY_STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
