@@ -253,14 +253,12 @@ server. Python linting and formatting use Ruff. Jinja template linting and forma
 JavaScript linting and formatting for `app/static/` use Biome. Pre-commit runs the same local
 checks before commits once installed.
 
-The current Python baseline is 61.9% combined line/branch coverage across `app/`, enforced as a
-non-regressing CI floor. The suite has strong route, sheet/view, map-helper, and browser-workflow coverage, including
-desktop/mobile search, domain navigation, archive focus, detail cards, comparison, provenance, and
-simulated current location. Coverage remains uneven in collection and data-processing code: Hydro
-ingestion, disclosure parsing, service orchestration, the main Worker, and the container need deeper
-tests. The dated coverage baseline and CI gaps are recorded in `NOTES.md` and scheduled in
-`PLANS.md`. The full Playwright suite runs after pushes to `main`; browser-facing pull requests run
-the affected project locally.
+GitHub Quality enforces a 61.9% combined Python line/branch coverage floor across `app/`. The
+latest measured suite reached 78.0% across 199 Python tests; the dated measurement and remaining
+gaps are recorded in `NOTES.md`. The suite has strong route, sheet/view, map-helper, and
+browser-workflow coverage, including desktop/mobile search, domain navigation, archive focus,
+detail cards, comparison, provenance, and simulated current location. The full Playwright suite
+runs after pushes to `main`; browser-facing pull requests run the affected project locally.
 
 ## Notes
 
