@@ -538,6 +538,11 @@ def test_sheet_returns_localized_error_fragment_when_context_building_fails(
     assert response.status_code == 200
     assert "The content could not load. Try again." in response.get_data(as_text=True)
 
+    index_response = app_client.get("/?lang=en")
+
+    assert index_response.status_code == 200
+    assert "The content could not load. Try again." in index_response.get_data(as_text=True)
+
 
 def test_sheet_explore_domains_render(app_client):
     for domain, marker in [
