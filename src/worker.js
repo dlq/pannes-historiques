@@ -39,6 +39,7 @@ const ADMIN_TERRITORY_LAYER_URL =
   "https://servicescarto.mern.gouv.qc.ca/pes/rest/services/Territoire/SDA_WMS/MapServer/2/query";
 const ADMIN_TERRITORY_SOURCE_LAYER = "donnees_quebec_sda_municipalite";
 const ADMIN_TERRITORY_DISPLAY_MIN_WEIGHT = 0.00000002;
+const GEOCODE_CACHE_RETENTION_DAYS = 30;
 
 export default {
   async fetch(request, env) {
@@ -104,6 +105,7 @@ async function runHydroSchedule(env) {
     container: null,
     municipal_archive: null,
     archive_health: null,
+    geocode_cache: null,
     errors: [],
   };
   try {
@@ -127,6 +129,12 @@ async function runHydroSchedule(env) {
   } catch (error) {
     summary.archive_health = { error: String(error?.stack || error) };
     console.error("Archive-health cleanup failed", summary.archive_health);
+  }
+  try {
+    summary.geocode_cache = await cleanupGeocodeCache(env.DB);
+  } catch (error) {
+    summary.geocode_cache = { error: String(error?.stack || error) };
+    console.error("Geocode-cache cleanup failed", summary.geocode_cache);
   }
   const status = summary.errors.length ? "error" : "ok";
   await recordRunFinished(env.DB, run.meta.last_row_id, status, summary);
@@ -1463,6 +1471,17 @@ async function cleanupIngestionRuns(db, now = new Date()) {
     stale_run_before: staleRunBefore,
     retain_runs_after: retainRunsAfter,
   };
+}
+
+async function cleanupGeocodeCache(db, now = new Date()) {
+  const retainedAfter = new Date(
+    now.getTime() - GEOCODE_CACHE_RETENTION_DAYS * 24 * 60 * 60 * 1000,
+  ).toISOString();
+  const deleted = await db
+    .prepare("DELETE FROM runtime_geocode_cache WHERE updated_at < ?")
+    .bind(retainedAfter)
+    .run();
+  return { deleted: deleted.meta?.changes || 0, retained_after: retainedAfter };
 }
 
 function numberEnv(value) {

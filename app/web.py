@@ -85,6 +85,8 @@ SECURITY_HEADERS = {
     ),
 }
 
+MAX_ADDRESS_QUERY_LENGTH = 256
+
 
 def static_asset_version(static_root: Path) -> str:
     digest = sha256()
@@ -375,7 +377,7 @@ def create_app(settings: Settings | None = None) -> Flask:
         scope = source.get("scope", "local")
         if scope not in {"local", "province"}:
             scope = "local"
-        query = source.get("q", "")
+        query = source.get("q", "")[:MAX_ADDRESS_QUERY_LENGTH]
         latitude = parse_optional_float(source.get("lat") or source.get("latitude"))
         longitude = parse_optional_float(source.get("lon") or source.get("longitude"))
         accuracy_m = parse_optional_float(source.get("accuracy_m"))
@@ -686,7 +688,7 @@ def create_app(settings: Settings | None = None) -> Flask:
     def search():
         lang = choose_language(request.form.get("lang"))
         with current_timer().step("search.sheet"):
-            query = request.form.get("q", "")
+            query = request.form.get("q", "")[:MAX_ADDRESS_QUERY_LENGTH]
             sheet_context = address_sheet(
                 lang,
                 "overview",
@@ -835,9 +837,10 @@ def create_app(settings: Settings | None = None) -> Flask:
     @app.get("/autocomplete")
     def autocomplete():
         lang = choose_language(request.args.get("lang"))
+        query = request.args.get("q", "")[:MAX_ADDRESS_QUERY_LENGTH]
         with current_timer().step("autocomplete.suggest"):
             suggestions = service.geocoder.suggest(
-                request.args.get("q", ""),
+                query,
                 language=lang,
                 limit=6,
             )
