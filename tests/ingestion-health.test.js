@@ -59,6 +59,20 @@ test("a sustained failure streak is unhealthy even while data is still fresh", (
   assert.match(health.problems.join(" "), /consecutive failed/);
 });
 
+test("expired runs count as failures before snapshots become stale", () => {
+  // A run that never reaches recordRunFinished is later marked expired by the
+  // scheduled cleanup. It must alert like an explicit error rather than hiding
+  // a repeated interrupted-worker failure until the snapshot ages out.
+  const health = evaluateIngestionHealth({
+    newestSnapshot: minutesAgo(30),
+    recentStatuses: ["expired", "expired", "expired"],
+    now: NOW,
+  });
+  assert.equal(health.healthy, false);
+  assert.equal(health.consecutive_failures, 3);
+  assert.match(health.problems.join(" "), /consecutive failed/);
+});
+
 test("staleness alone is unhealthy even when runs report ok", () => {
   // Guards the subtler case: runs "succeed" but stop producing new data.
   const health = evaluateIngestionHealth({
@@ -80,6 +94,7 @@ test("a missing snapshot is unhealthy rather than silently passing", () => {
 
 test("consecutive failures count only the current streak", () => {
   assert.equal(countConsecutiveFailures(["error", "error", "ok", "error"]), 2);
+  assert.equal(countConsecutiveFailures(["expired", "error", "ok"]), 2);
   assert.equal(countConsecutiveFailures(["ok", "error"]), 0);
   assert.equal(countConsecutiveFailures([]), 0);
 });
