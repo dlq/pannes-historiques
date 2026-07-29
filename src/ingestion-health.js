@@ -19,7 +19,7 @@ export function countConsecutiveFailures(recentStatuses) {
   let failures = 0;
   for (const status of recentStatuses || []) {
     if (status === "ok") break;
-    if (status === "error") failures += 1;
+    if (status === "error" || status === "expired") failures += 1;
   }
   return failures;
 }
