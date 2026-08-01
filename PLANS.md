@@ -1,148 +1,30 @@
 # Plan: Hydro-Quebec Outage History App
 
 Date: 2026-04-25
-Last updated: 2026-07-29
+Last updated: 2026-08-01
 
 This is the active execution plan. Keep detailed evidence and research notes in `NOTES.md`, completed release history in `CHANGELOG.md`, operational runbooks in `docs/operations.md`, and long maintenance backlogs in `docs/maintenance-backlog.md`.
 
 ## Current State
 
-- Current shipped release: `v0.4.6`, archive health, retention, and D1 growth control, released and deployed 2026-07-29.
-- Current production deployment: Worker version `184be6cc-8a00-49cf-81ad-acddceaec1c3`; container image digest `sha256:522384da1eefe4ef3630b1cb3aa615d3da77eeb8e305a0270f54822e99b7d0b3`.
+- Current shipped release: `v0.4.6`, archive health, retention, and D1 growth control, released 2026-07-29.
+- Current production deployment: Worker version `8c80bf8a-f6f9-4bd3-8e71-2f0c51927dad`, deployed 2026-08-01 with the security/accessibility/legacy-URL fixes.
 - Ingestion incident 2026-07-15 to 2026-07-20: scheduled Hydro ingestion failed every 30 minutes for five days while the site returned `200` and served stale data. Cause was the durable collection path storing payload files without registering the `raw_snapshots` row the Worker's `/internal/raw-snapshot` callback resolves through. Fixed and verified: run 3630 completed `ok` and snapshots are current again. Two plausible-but-wrong hypotheses were ruled out by testing rather than by correlation — container ephemerality, and the `v0.4.3` CodeQL path-hardening, whose lookup was exercised directly against a real file and resolves correctly.
 - Monitoring gap this exposed: the only health surface was token-protected and pull-based, so nothing observed the failure. `GET /api/health/ingestion` now returns `503` when ingestion is stale or failing. The `Ingestion health monitor` GitHub Actions workflow probes it twice hourly.
-- Current implementation line: `main` has released and deployed `v0.4.6`; the next active product slice is `v0.4.7` Hydro Score / regional analytics framing.
+- Current implementation line: `main` has released `v0.4.6` and deployed the 2026-08-01 security/accessibility/legacy-URL follow-up; the next active product slice is `v0.4.7` Hydro Score / regional analytics framing.
 - Current frontend: one full-bleed MapLibre GL map plus a single sheet. The sheet owns search, domain navigation, address overview, scoped local/province views, detail cards, provenance, and browser-local comparison.
 - Current data plane: D1/R2-backed durable ingestion for current feed rows, previous-outage rows, raw Hydro-Quebec payloads, disclosure metadata, and runtime map-context layers.
 - Current container role: Flask/Jinja shell rendering, local-compatible fallback paths, and a baked SQLite snapshot. Container-local writes are ephemeral and must not become production state.
 - Current cost posture: hybrid Worker/D1/R2 reads and the low-cost mode guardrail limit container exposure, but container-backed browser/search paths still need measured usage and cost evidence before any broader rendering migration.
 - Current public API posture: route stability tiers are now written down in `docs/api-posture.md` and summarized for machine readers at `/llms.txt`. Every JSON route is explicitly `unstable`; the first `stable` contract is still deferred to `v0.5.0`.
-- Resolved 2026-07-20 (was recorded here as a rotating mobile detail-close flake): the cause was not the suspected ghost `click` after a `pointerup` close — that hypothesis was wrong and three fixes built on it failed. The map's `load` handler replayed `pendingMapFocus() || activeMapFocus` through `focusMap()` with `remember` defaulting to true, re-running the selection side effects and re-opening a card the user had closed. Nothing clears `activeMapFocus` on close, so whenever the style finished loading after a close the card sprang back — a real mobile bug, not just a test artifact. It rotated across cases because they share that path, and never reproduced warm because `load` fires once. Fixed in `v0.4.5`; a pending focus still replays in full, an active focus re-applies camera/selection only. Guarded by a regression test.
+- Resolved mobile detail-close flake: fixed in `v0.4.5` and guarded by regression tests. Keep the detailed root-cause notes in `NOTES.md` rather than this active plan.
 - Current contribution posture: contributor docs and a scoped issue map exist. GitHub Quality enforces Python branch coverage, while full Playwright runs on `main` and by manual dispatch.
 - Public-announcement state: the first beta feedback post is live in `r/HydroQuebec`; the broader `r/quebec` post remains blocked by that community's account-activity requirement.
 - Address-specific dispute boundary: pannes.ca can show retained observations near an address, not certify service at that residence. Direct certification requests belong with Hydro-Quebec's official past-outage form.
 
-## Completed Slice: `v0.4.3`
-
-### Goal
-
-Reduced normal public browsing/search dependence on the Python container, made runtime cost visible, and selected the near-term public-read architecture with evidence.
-
-### Scope
-
-- [x] Add response headers or `Server-Timing` markers that distinguish Worker/D1 from container responses on browser paths.
-- [x] Classify public routes as `edge-safe`, `container-needed`, or `internal-only` in `docs/architecture.md`.
-- [x] Choose the hybrid-renderer option while keeping Worker-first durable reads; defer a browser-shell rewrite until production markers justify it.
-- [x] Keep startup context, operational map layers, archive summaries, and disclosure summaries on the existing D1-backed runtime path; no Flask-shell rewrite in this slice.
-- [x] Make the trusted container-runtime Worker host configurable instead of hardcoding `dalaque.workers.dev`.
-- [x] Add a private cost-health/ops check for container state, latest scheduled run, optional D1/R2 dashboard estimates, ingestion status, and archive materialization.
-- [x] Add persistent `/sheet` exception attribution, a localized fallback fragment, stale Leaflet tombstones, favicon aliasing, and broader scanner blocking.
-- [x] Add a low-cost container-wake kill switch; durable APIs remain available while browser-shell routes deliberately return `503`.
-- [x] Add an adjustable nearby-outage radius with a smaller typed-address default, while preserving the clean public URL contract.
-- Keep broad CI hardening out of this slice except for tests needed to prove runtime policy and private cost-health behavior.
-- Keep broader search-contract changes out of this slice beyond the smaller typed-address default and radius control.
-
-### Production Navigation Cleanup
-
-Observed from Cloudflare request analytics on 2026-07-13:
-
-- Most public navigation and app interaction succeeds, but `/sheet` still produced a small number of user-facing `500` responses.
-- A few clients still request pre-MapLibre Leaflet assets, likely from stale cached app shells or old service-worker state.
-- Some `404` traffic is expected scanner noise or public hits to private runtime endpoints; keep those private rather than making them public to quiet analytics.
-
-Cleanup checklist:
-
-1. Add persistent `/sheet` exception attribution: request id, query params, domain, scope, language, address/current-location mode, and traceback.
-2. Add a defensive `/sheet` fallback that returns the localized sheet load-error fragment instead of a raw `500` when context building or rendering fails.
-3. Add compatibility tombstones for stale Leaflet URLs:
-   - `/static/vendor/leaflet/leaflet.css`
-   - `/static/vendor/leaflet/leaflet.js`
-4. Make the Leaflet JS tombstone clear old service-worker caches/unregister stale service workers and reload once, so old cached app shells converge to the MapLibre release.
-5. Add `/favicon.ico` as a redirect or alias to the current favicon.
-6. Tighten Worker scanner blocking for obvious WordPress/Joomla/PHP probe paths so those misses stay cheap and do not obscure real navigation errors.
-7. Keep private runtime endpoint `404`s private; only investigate if trusted Worker-proxied internal calls start failing.
-8. After deployment, compare the next 24h Cloudflare analytics for `/sheet` 500s, Leaflet 404s, favicon 404s, and scanner-path volume.
-
-Deployed 2026-07-17 as Worker version `9ddad2ec-ea03-4b4a-80d2-7bee40ddfa92`. Live probes confirmed `200` for the homepage, `/sheet`, and both Leaflet tombstones; `/favicon.ico` redirects to the SVG; and `/wp-login.php` returns a Worker-edge `404`. Keep the 24-hour analytics comparison as the remaining monitoring step.
-
-### Acceptance Criteria
-
-- Representative public paths report which runtime served them.
-- Search/sheet smoke checks show fewer container wakeups for ordinary user flows than `v0.4.1`.
-- `PLANS.md` or `docs/architecture.md` records the selected near-term architecture option and rejected alternatives.
-- The hardcoded Worker host is replaced by configuration with tests.
-- Cost-health output is private and operation-token protected.
-- The production navigation cleanup either eliminates `/sheet` 500s and stale asset 404s or records enough attribution to reproduce the remaining cases.
-
-### Non-Goals
-
-- No rewrite of the Flask shell.
-- No change to durable raw-data provenance.
-- No user-facing API versioning.
-- No saved areas, accounts, or notifications.
-
-## Architecture Options
-
-The cost-containment direction is detailed in `docs/cost-containment.md`. Keep the `v0.4.3` decision focused on these options:
-
-1. Worker-first public reads, container for parsing/batch/fallback.
-   Most aligned with cost containment; requires moving or replacing some Flask/Jinja public-read logic.
-2. Hybrid renderer: Flask remains canonical, Worker caches/materializes expensive reads.
-   Lowest migration risk; still needs strict caching and low-cost mode to avoid container wakeups.
-3. Static shell plus Worker APIs.
-   Cleanest long-term shape, but too much rewrite and API-contract pressure until evidence shows Flask/Jinja is the main cost problem.
-
-Decision: use option 2, the hybrid renderer with Worker-first durable reads. Avoid option 3 for now.
-
-## Completed Slice: `v0.4.4`
-
-### Goal
-
-Make the repository easier to approach and safely change for external contributors.
-
-### Scope
-
-- [x] Keep one current deployment/version summary; remove stale release-state duplication from docs.
-- [x] Replace private Flask-to-service calls with named public service methods and focused tests.
-- [x] Define named browser map/sheet events and move pending focus state out of `window`.
-- [x] Extract one independently testable Worker responsibility and add contract-focused tests around it.
-- [x] Add measured coverage reporting and a non-regressing floor.
-- [x] Decide whether full Playwright belongs on every pull request or protected main/release runs.
-- [x] Keep the first-contributor issue map current and add scoped follow-up issues as work is identified.
-
 ## Roadmap
 
-Completed release history lives in `CHANGELOG.md`. The retained `v0.4.4` through `v0.4.6` sections document their completed scope; active planning starts at `v0.4.7`.
-
-### `v0.4.4`: Contributor Readiness, CI Hardening, And Beta UX Follow-Up
-
-Make the repo easier for external contributors while addressing the smallest beta feedback that does not depend on unresolved cost architecture.
-
-- Coverage reporting has a 61.9% Python line/branch floor; ratchet it upward with focused risk-based tests.
-- Full Playwright runs after pushes to `main` and by manual dispatch; browser-facing pull requests run the affected project locally.
-- The contributor issue map defines bounded first tasks; keep the matching GitHub issues current.
-- Tighten contributor and architecture docs where the cost-containment work clarifies the Worker/container split.
-
-### `v0.4.5`: Machine-Readable Public Surface And API Posture
-
-Make the project easier for people and automated readers to understand without overstating authority, and start drawing the public/private API boundary before `v0.5.0`.
-
-- [x] Add appropriate `security.txt`, `humans.txt`, `llms.txt`, contact, and project metadata. `/.well-known/security.txt` generates its RFC 9116 `Expires` at request time so it cannot silently lapse; `/security.txt` redirects to it. `/llms.txt` leads with the data limits (not Hydro-Quebec, not official history, cannot certify an address) so automated readers cannot quote the archive as authoritative.
-- [x] Document existing public JSON/data routes as versioned candidates, available-but-unstable routes, or private/internal routes — see `docs/api-posture.md`. Every JSON route is tiered `unstable`; nothing is advertised as `stable` yet.
-- [x] Add compatible security headers. CSP is shaped to real needs and browser-verified: MapLibre's blob worker, the OpenFreeMap tile origin, and one inline `style` attribute (`unsafe-inline` for styles only, never scripts). `geolocation=(self)` is retained because current-location search depends on it.
-- Keep the full public API contract for `v0.5.0`.
-- Contact email moved from hardcoded template literals into `Settings.contact_email` (`APP_CONTACT_EMAIL`).
-
-### `v0.4.6`: Archive Health, Retention, And D1 Growth Control
-
-Keep the historical archive trustworthy and affordable as D1 grows.
-
-- [x] Wire external monitoring to the public ingestion-health endpoint.
-- [x] Expire stale `ingestion_runs` and retain terminal run records for 30 days.
-- [x] De-duplicate Archive latest rows by territory/time.
-- [x] Audit archive-bin completeness and classify expected boundary/out-of-territory cases separately from assignment failures.
-- [x] Define the first D1 retention and compaction policy in ADR 0005.
-- [x] Deploy and verify the archive-health controls against production.
+Completed release history lives in `CHANGELOG.md`; durable investigation details live in `NOTES.md`. Active planning starts at `v0.4.7`.
 
 ### `v0.4.7`: Hydro Score / Regional Analytics Framing
 
