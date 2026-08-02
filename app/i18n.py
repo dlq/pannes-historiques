@@ -197,9 +197,9 @@ STRINGS: dict[str, dict[str, str]] = {
     },
     "en": {
         "brand_title": "Outage History",
-        "app_title": "Outage History",
-        "app_h1": "Outage History map",
-        "page_description": "Explore current and planned Hydro-Quebec outages and retained pannes.ca observations near Quebec addresses.",
+        "app_title": "Quebec Power Outage Map & History | pannes.ca",
+        "app_h1": "Quebec Power Outage Map",
+        "page_description": "See current and planned Hydro-Quebec power outages, plus pannes.ca's observed outage history near addresses across Quebec.",
         "search_label": "Address",
         "address": "Address",
         "nearby_radius_label": "Nearby radius",
