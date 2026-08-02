@@ -19,6 +19,11 @@
     <meta name="twitter:description" content="{{ social_description }}">
     <title>{{ t(lang, "about_title") }}</title>
     <link rel="canonical" href="{{ canonical_url }}">
+    {% for alternate_lang, alternate_url in alternate_urls.items() %}
+      <link rel="alternate"
+            hreflang="{{ alternate_lang }}"
+            href="{{ alternate_url }}">
+    {% endfor %}
     <link rel="icon"
           type="image/svg+xml"
           href="{{ url_for('static', filename='favicon.svg') }}">

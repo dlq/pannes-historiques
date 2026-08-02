@@ -439,6 +439,13 @@ def create_app(settings: Settings | None = None) -> Flask:
         if has_address and radius_m != default_radius_m:
             canonical_query["radius_m"] = str(radius_m)
         canonical_url = absolute_public_url(settings, "/", canonical_query)
+        alternate_urls = {}
+        if not query and latitude is None and longitude is None:
+            alternate_urls = {
+                "fr": absolute_public_url(settings, "/", {"lang": "fr"}),
+                "en": absolute_public_url(settings, "/", {"lang": "en"}),
+                "x-default": absolute_public_url(settings, "/", {"lang": "fr"}),
+            }
         sheet_context = build_sheet_context_or_fallback(
             lang, domain, scope, query, latitude, longitude, accuracy_m, radius_m, has_address
         )
@@ -459,6 +466,7 @@ def create_app(settings: Settings | None = None) -> Flask:
                 settings=settings,
                 page_description=t(lang, "page_description"),
                 canonical_url=canonical_url,
+                alternate_urls=alternate_urls,
                 social_title=t(lang, "app_title"),
                 social_description=t(lang, "page_description"),
             )
@@ -489,12 +497,18 @@ def create_app(settings: Settings | None = None) -> Flask:
     @app.get("/about")
     def about():
         lang = choose_language(request.args.get("lang"))
+        alternate_urls = {
+            "fr": absolute_public_url(settings, "/about", {"lang": "fr"}),
+            "en": absolute_public_url(settings, "/about", {"lang": "en"}),
+            "x-default": absolute_public_url(settings, "/about", {"lang": "fr"}),
+        }
         return render_template(
             "about.html",
             lang=lang,
             settings=settings,
             page_description=t(lang, "about_description"),
             canonical_url=absolute_public_url(settings, "/about", {"lang": lang}),
+            alternate_urls=alternate_urls,
             social_title=t(lang, "about_title"),
             social_description=t(lang, "about_description"),
         )

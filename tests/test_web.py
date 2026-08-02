@@ -69,7 +69,7 @@ def test_index_includes_hidden_app_heading(app_client):
 
     assert response.status_code == 200
     assert '<main class="ph-app-main" aria-label="Outage History">' in html
-    assert '<h1 class="sr-only">Outage History map</h1>' in html
+    assert '<h1 class="sr-only">Quebec Power Outage Map</h1>' in html
 
 
 def test_search_map_legacy_url_redirects_to_current_search(app_client):
@@ -86,12 +86,25 @@ def test_index_includes_web_quality_metadata_and_no_tailwind_cdn(app_client):
     assert response.status_code == 200
     assert '<meta name="description"' in html
     assert (
-        'content="Explore current and planned Hydro-Quebec outages and retained pannes.ca observations near Quebec addresses."'
+        'content="See current and planned Hydro-Quebec power outages, plus pannes.ca&#39;s observed outage history near addresses across Quebec."'
         in html
     )
     assert '<link rel="canonical" href="https://pannes.ca/?lang=en">' in html
-    assert '<meta property="og:title" content="Outage History">' in html
+    assert "<title>Quebec Power Outage Map &amp; History | pannes.ca</title>" in html
+    assert (
+        '<meta property="og:title" content="Quebec Power Outage Map &amp; History | pannes.ca">'
+        in html
+    )
     assert '<meta property="og:url" content="https://pannes.ca/?lang=en">' in html
+    assert re.search(
+        r'<link rel="alternate"\s+hreflang="fr"\s+href="https://pannes.ca/\?lang=fr">', html
+    )
+    assert re.search(
+        r'<link rel="alternate"\s+hreflang="en"\s+href="https://pannes.ca/\?lang=en">', html
+    )
+    assert re.search(
+        r'<link rel="alternate"\s+hreflang="x-default"\s+href="https://pannes.ca/\?lang=fr">', html
+    )
     assert '<meta name="twitter:card" content="summary">' in html
     assert "cdn.tailwindcss.com" not in html
 
@@ -107,6 +120,7 @@ def test_search_index_canonical_metadata_preserves_query(app_client):
     assert (
         '<meta property="og:url" content="https://pannes.ca/?lang=en&amp;q=5220+Rue+Jeanne-Mance">'
     ) in html
+    assert 'hreflang="x-default"' not in html
 
 
 def test_about_page_includes_web_quality_metadata(app_client):
@@ -122,6 +136,16 @@ def test_about_page_includes_web_quality_metadata(app_client):
     assert '<link rel="canonical" href="https://pannes.ca/about?lang=en">' in html
     assert '<meta property="og:title" content="About Outage History">' in html
     assert '<meta name="twitter:card" content="summary">' in html
+    assert re.search(
+        r'<link rel="alternate"\s+hreflang="fr"\s+href="https://pannes.ca/about\?lang=fr">', html
+    )
+    assert re.search(
+        r'<link rel="alternate"\s+hreflang="en"\s+href="https://pannes.ca/about\?lang=en">', html
+    )
+    assert re.search(
+        r'<link rel="alternate"\s+hreflang="x-default"\s+href="https://pannes.ca/about\?lang=fr">',
+        html,
+    )
 
 
 def test_robots_txt_points_to_sitemap(app_client):
