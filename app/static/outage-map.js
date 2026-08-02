@@ -8,9 +8,10 @@ import {
   normalizeMapPoint,
   radiusCirclePolygon,
 } from "./map-utils.js?v=20260729b";
-import * as maplibregl from "./vendor/maplibre/maplibre-gl.mjs";
+import * as maplibregl from "./vendor/maplibre/maplibre-gl.mjs?v=6.0.0";
 
 const LIBERTY_STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
+const MAPLIBRE_VERSION = "6.0.0";
 
 // Rough envelope of Québec, used to keep the province-wide boot view from
 // being pulled outside the province by a stray or mis-geocoded coordinate.
@@ -34,12 +35,19 @@ export class OutageMap extends HTMLElement {
   connectedCallback() {
     const raw = this.getAttribute("data-map") || "{}";
     const data = JSON.parse(raw);
-    this.innerHTML = '<div class="ph-map-canvas"></div>';
-    const root = this.firstElementChild;
+    const loading = this.querySelector("[data-map-loading]");
+    const root = document.createElement("div");
+    root.className = "ph-map-canvas";
+    this.replaceChildren(root);
+    if (loading) this.append(loading);
     const labels = data.labels || {};
     const detailPanel = document.querySelector("dai-detail-panel");
     if (detailPanel) detailPanel.labels = labels;
     const center = data.center || [46.8, -71.2];
+    maplibregl.setWorkerUrl(
+      new URL(`./vendor/maplibre/maplibre-gl-worker.mjs?v=${MAPLIBRE_VERSION}`, import.meta.url)
+        .href,
+    );
     const map = new maplibregl.Map({
       container: root,
       style: LIBERTY_STYLE_URL,
@@ -346,6 +354,8 @@ export class OutageMap extends HTMLElement {
     };
 
     map.on("load", () => {
+      loading?.remove();
+      this.removeAttribute("aria-busy");
       styleReady = true;
       for (const sourceId of [
         "ph-context",
