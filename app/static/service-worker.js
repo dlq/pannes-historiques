@@ -1,28 +1,5 @@
-const CACHE_NAME = "pannes-historiques-v0.4.6-maplibre-v6";
-const APP_SHELL_URLS = [
-  "/static/app.css",
-  "/static/app.js",
-  "/static/detail-panels.js",
-  "/static/icons.svg",
-  "/static/icons.js",
-  "/static/map-utils.js",
-  "/static/outage-map.js",
-  "/static/search.js",
-  "/static/sheet.js",
-  "/static/ui-format.js",
-  "/static/vendor/maplibre/maplibre-gl.css",
-  "/static/vendor/maplibre/maplibre-gl.mjs",
-  "/static/vendor/maplibre/maplibre-gl-shared.mjs",
-  "/static/vendor/maplibre/maplibre-gl-worker.mjs",
-  "/static/app-icon-180.png",
-  "/static/app-icon-192.png",
-  "/static/app-icon-512.png",
-  "/static/app-icon.svg",
-  "/static/app-icon-maskable.svg",
-  "/static/favicon.svg",
-  "/static/manifest.webmanifest",
-  "/static/offline.html",
-];
+const CACHE_NAME = "pannes-historiques-v0.4.7-runtime-static";
+const APP_SHELL_URLS = ["/static/offline.html"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -61,11 +38,6 @@ self.addEventListener("fetch", (event) => {
   }
 
   if (url.pathname.startsWith("/static/")) {
-    if (url.search) {
-      event.respondWith(fetch(request).catch(() => caches.match(url.pathname)));
-      return;
-    }
-
     event.respondWith(
       caches.match(request).then((cachedResponse) => {
         if (cachedResponse) return cachedResponse;
