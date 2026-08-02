@@ -1,6 +1,9 @@
 import json
 import re
 from datetime import UTC, datetime
+from pathlib import Path
+
+from app.web import static_asset_version
 
 
 def test_index_renders(app_client):
@@ -8,6 +11,19 @@ def test_index_renders(app_client):
 
     assert response.status_code == 200
     assert "Pannes Historiques" in response.get_data(as_text=True)
+
+
+def test_static_asset_version_includes_nested_vendor_files(tmp_path: Path):
+    static_root = tmp_path / "static"
+    vendor_file = static_root / "vendor" / "maplibre" / "maplibre-gl.mjs"
+    vendor_file.parent.mkdir(parents=True)
+    (static_root / "app.css").write_text("body {}")
+    vendor_file.write_text("first")
+
+    first = static_asset_version(static_root)
+    vendor_file.write_text("second")
+
+    assert static_asset_version(static_root) != first
 
 
 def test_index_preserves_stable_overview_map_bounds(app_client):
@@ -245,16 +261,9 @@ def test_service_worker_route_has_root_scope(app_client):
     assert response.status_code == 200
     assert response.headers["Service-Worker-Allowed"] == "/"
     assert response.headers["Cache-Control"] == "no-cache"
-    assert b"pannes-historiques-v0.4.6-maplibre-v6" in response.data
-    assert b"/static/app-icon-180.png" in response.data
-    assert b"/static/icons.svg" in response.data
-    assert b"/static/sheet.js" in response.data
-    assert b"/static/vendor/maplibre/maplibre-gl.mjs" in response.data
-    assert b"/static/vendor/maplibre/maplibre-gl-shared.mjs" in response.data
-    assert b"/static/vendor/maplibre/maplibre-gl-worker.mjs" in response.data
-    assert b"/static/vendor/maplibre/maplibre-gl.css" in response.data
-    assert b"/static/ui-format.js" in response.data
+    assert b"pannes-historiques-v0.4.7-runtime-static" in response.data
     assert b"/static/offline.html" in response.data
+    assert b"maplibre-gl.mjs" not in response.data
 
 
 def test_search_route_uses_typed_address_defaults(app_client):
@@ -669,7 +678,8 @@ def test_security_headers_present_on_pages(app_client):
     assert response.headers["X-Frame-Options"] == "DENY"
     assert "geolocation=(self)" in response.headers["Permissions-Policy"]
     assert "camera=()" in response.headers["Permissions-Policy"]
-    assert response.headers["Strict-Transport-Security"].startswith("max-age=")
+    assert response.headers["Strict-Transport-Security"] == "max-age=63072000; includeSubDomains"
+    assert response.headers["Cross-Origin-Opener-Policy"] == "same-origin"
 
 
 def test_csp_allows_what_the_app_actually_needs(app_client):

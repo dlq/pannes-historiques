@@ -66,7 +66,8 @@ SECURITY_HEADERS = {
     "Referrer-Policy": "strict-origin-when-cross-origin",
     "X-Frame-Options": "DENY",
     "Permissions-Policy": "geolocation=(self), camera=(), microphone=(), payment=(), usb=()",
-    "Strict-Transport-Security": "max-age=15552000",
+    "Strict-Transport-Security": "max-age=63072000; includeSubDomains",
+    "Cross-Origin-Opener-Policy": "same-origin",
     "Content-Security-Policy": "; ".join(
         [
             "default-src 'self'",
@@ -90,9 +91,8 @@ MAX_ADDRESS_QUERY_LENGTH = 256
 
 def static_asset_version(static_root: Path) -> str:
     digest = sha256()
-    versioned_static_files = [static_root / "app.css", *static_root.glob("*.js")]
-    for path in sorted((path for path in versioned_static_files if path.exists()), key=str):
-        digest.update(path.name.encode("utf-8"))
+    for path in sorted((path for path in static_root.rglob("*") if path.is_file()), key=str):
+        digest.update(str(path.relative_to(static_root)).encode("utf-8"))
         digest.update(path.read_bytes())
     return digest.hexdigest()[:12]
 
