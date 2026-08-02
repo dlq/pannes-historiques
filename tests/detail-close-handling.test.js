@@ -109,6 +109,10 @@ test("map runtime uses the vendored MapLibre v6 ESM modules", () => {
     mapSource,
     /import \* as maplibregl from "\.\/vendor\/maplibre\/maplibre-gl\.mjs\?v=6\.0\.0"/,
   );
+  assert.match(
+    readFileSync(new URL("../app/static/vendor/maplibre/maplibre-gl.mjs", import.meta.url), "utf8"),
+    /from"\.\/maplibre-gl-shared\.mjs\?v=6\.0\.0"/,
+  );
   assert.doesNotMatch(mapSource, /window\.maplibregl/);
   assert.doesNotMatch(indexSource, /vendor\/maplibre\/maplibre-gl\.js/);
 });

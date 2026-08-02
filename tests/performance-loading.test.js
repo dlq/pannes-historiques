@@ -4,6 +4,7 @@ import test from "node:test";
 
 const app = readFileSync(new URL("../app/static/app.js", import.meta.url), "utf8");
 const index = readFileSync(new URL("../app/templates/index.html", import.meta.url), "utf8");
+const map = readFileSync(new URL("../app/static/outage-map.js", import.meta.url), "utf8");
 const serviceWorker = readFileSync(new URL("../app/static/service-worker.js", import.meta.url), "utf8");
 
 test("map code and stylesheet load after the initial sheet boot", () => {
@@ -23,4 +24,9 @@ test("service worker caches map assets on demand instead of preloading them", ()
   assert.doesNotMatch(serviceWorker, /maplibre-gl\.mjs/);
   assert.match(serviceWorker, /caches\.match\(request\)/);
   assert.match(serviceWorker, /cache\.put\(request, copy\)/);
+});
+
+test("the default map style omits decorative Natural Earth raster tiles", () => {
+  assert.match(map, /delete sources\.ne2_shaded/);
+  assert.match(map, /layer\.source !== "ne2_shaded"/);
 });
