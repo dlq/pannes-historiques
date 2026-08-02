@@ -200,6 +200,14 @@ def test_static_assets_have_version_aware_cache_headers(app_client):
     assert unversioned_response.headers["Cache-Control"] == "public, max-age=300"
 
 
+def test_vendored_maplibre_source_maps_are_available(app_client):
+    for filename in ("maplibre-gl.mjs.map", "maplibre-gl-shared.mjs.map"):
+        response = app_client.get(f"/static/vendor/maplibre/{filename}")
+        assert response.status_code == 200
+        assert response.mimetype == "application/json"
+        assert response.get_json()["version"] == 3
+
+
 def test_index_links_to_about_page(app_client):
     response = app_client.get("/?lang=en")
     html = response.get_data(as_text=True)
@@ -698,7 +706,7 @@ def test_csp_allows_what_the_app_actually_needs(app_client):
     assert directives["img-src"] == "'self' data: blob: https://tiles.openfreemap.org"
     # One template sets an inline style attribute; scripts never get unsafe-inline.
     assert "style-src 'self' 'unsafe-inline'" in csp
-    assert "script-src 'self'" in csp
+    assert "script-src 'self' https://static.cloudflareinsights.com" in csp
     assert "'unsafe-inline'" not in csp.split("script-src")[1].split(";")[0]
     assert "object-src 'none'" in csp
     assert "frame-ancestors 'none'" in csp

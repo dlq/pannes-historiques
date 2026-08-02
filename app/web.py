@@ -75,7 +75,7 @@ SECURITY_HEADERS = {
             "object-src 'none'",
             "frame-ancestors 'none'",
             "form-action 'self'",
-            "script-src 'self'",
+            "script-src 'self' https://static.cloudflareinsights.com",
             "style-src 'self' 'unsafe-inline'",
             "img-src 'self' data: blob: https://tiles.openfreemap.org",
             "connect-src 'self' https://tiles.openfreemap.org",
@@ -85,6 +85,8 @@ SECURITY_HEADERS = {
         ]
     ),
 }
+
+mimetypes.add_type("application/json", ".map")
 
 MAX_ADDRESS_QUERY_LENGTH = 256
 

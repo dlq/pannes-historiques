@@ -13,6 +13,25 @@ import * as maplibregl from "./vendor/maplibre/maplibre-gl.mjs?v=6.0.0";
 const LIBERTY_STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
 const MAPLIBRE_VERSION = "6.0.0";
 
+async function lightweightLibertyStyle() {
+  try {
+    const response = await fetch(LIBERTY_STYLE_URL, { cache: "force-cache" });
+    if (!response.ok) throw new Error(`Map style returned HTTP ${response.status}`);
+    const style = await response.json();
+    const sources = { ...(style.sources || {}) };
+    delete sources.ne2_shaded;
+    return {
+      ...style,
+      sources,
+      layers: (style.layers || []).filter((layer) => layer.source !== "ne2_shaded"),
+    };
+  } catch (error) {
+    // Keep the map usable if the optional optimization cannot fetch the style.
+    console.warn("Using the full map style", error);
+    return LIBERTY_STYLE_URL;
+  }
+}
+
 // Rough envelope of Québec, used to keep the province-wide boot view from
 // being pulled outside the province by a stray or mis-geocoded coordinate.
 const QUEBEC_BOUNDS = { minLon: -79.8, minLat: 44.9, maxLon: -57.0, maxLat: 62.6 };
@@ -32,7 +51,7 @@ const LAYER_SOURCE_BY_KEY = {
 };
 
 export class OutageMap extends HTMLElement {
-  connectedCallback() {
+  async connectedCallback() {
     const raw = this.getAttribute("data-map") || "{}";
     const data = JSON.parse(raw);
     const loading = this.querySelector("[data-map-loading]");
@@ -48,9 +67,10 @@ export class OutageMap extends HTMLElement {
       new URL(`./vendor/maplibre/maplibre-gl-worker.mjs?v=${MAPLIBRE_VERSION}`, import.meta.url)
         .href,
     );
+    const style = await lightweightLibertyStyle();
     const map = new maplibregl.Map({
       container: root,
-      style: LIBERTY_STYLE_URL,
+      style,
       center: [center[1], center[0]],
       zoom: data.zoom != null ? Math.max(0, data.zoom - 1) : 10,
       attributionControl: { compact: true },
