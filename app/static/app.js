@@ -1,5 +1,4 @@
 import { DaiDetailPanel } from "./detail-panels.js?v=20260729b";
-import { OutageMap } from "./outage-map.js?v=20260729b";
 import {
   registerServiceWorker,
   reloadOnHistoryNavigation,
@@ -11,8 +10,54 @@ if (!customElements.get("dai-detail-panel")) {
   customElements.define("dai-detail-panel", DaiDetailPanel);
 }
 
-if (!customElements.get("outage-map")) {
-  customElements.define("outage-map", OutageMap);
+function loadStylesheet(url) {
+  const existing = document.querySelector(`link[rel="stylesheet"][href="${url}"]`);
+  if (existing) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = url;
+    link.addEventListener("load", resolve, { once: true });
+    link.addEventListener("error", () => reject(new Error(`Could not load ${url}`)), {
+      once: true,
+    });
+    document.head.append(link);
+  });
+}
+
+async function loadMap() {
+  const mapElement = document.querySelector("outage-map");
+  if (!mapElement || customElements.get("outage-map")) return;
+  try {
+    const [{ OutageMap }] = await Promise.all([
+      import(mapElement.dataset.mapModuleUrl),
+      loadStylesheet(mapElement.dataset.mapStylesheetUrl),
+    ]);
+    if (!customElements.get("outage-map")) customElements.define("outage-map", OutageMap);
+  } catch (error) {
+    mapElement.dataset.mapLoadError = "1";
+    mapElement.removeAttribute("aria-busy");
+    const loading = mapElement.querySelector("[data-map-loading]");
+    if (loading) loading.textContent = mapElement.dataset.mapUnavailableLabel || "Map unavailable.";
+    console.error("Map loading failed", error);
+  }
+}
+
+function scheduleMapLoad() {
+  const start = () => {
+    window.setTimeout(() => {
+      if ("requestIdleCallback" in window) {
+        window.requestIdleCallback(() => void loadMap(), { timeout: 800 });
+      } else {
+        void loadMap();
+      }
+    }, 250);
+  };
+  if (document.readyState === "complete") {
+    start();
+  } else {
+    window.addEventListener("load", start, { once: true });
+  }
 }
 
 function boot() {
@@ -20,6 +65,7 @@ function boot() {
   reloadOnHistoryNavigation();
   restoreSearchInputFromUrl();
   initSheet();
+  scheduleMapLoad();
 }
 
 if (document.readyState === "loading") {
