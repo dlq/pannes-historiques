@@ -1,4 +1,10 @@
-import { dispatchMapEvent, MAP_EVENTS, requestMapFocus } from "./map-events.js?v=20260729b";
+import {
+  dispatchMapEvent,
+  MAP_EVENTS,
+  requestMapFocus,
+  updateMapAddress,
+  updateMapLayerItems,
+} from "./map-events.js?v=20260729b";
 import { contextLayerForKind } from "./map-utils.js?v=20260729b";
 import {
   attachAddressAutocomplete,
@@ -223,10 +229,10 @@ function applyMapUpdate(root) {
     if (groups[layerKey]) groups[layerKey].push(item);
   }
   for (const layerKey of LAYER_KEYS) {
-    dispatchMapEvent(MAP_EVENTS.layerItems, { layer: layerKey, matches: groups[layerKey] });
+    updateMapLayerItems({ layer: layerKey, matches: groups[layerKey] });
   }
   window.setTimeout(() => {
-    dispatchMapEvent(MAP_EVENTS.address, {
+    updateMapAddress({
       center: payload.center || null,
       radiusM: payload.radiusM || null,
       addressLabel: payload.addressLabel || "",

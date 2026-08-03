@@ -1,4 +1,4 @@
-const CACHE_NAME = "pannes-historiques-v0.4.7-runtime-static";
+const CACHE_NAME = "pannes-historiques-v0.4.7-runtime-static-2";
 const APP_SHELL_URLS = ["/static/offline.html"];
 
 self.addEventListener("install", (event) => {
@@ -42,9 +42,13 @@ self.addEventListener("fetch", (event) => {
       caches.match(request).then((cachedResponse) => {
         if (cachedResponse) return cachedResponse;
         return fetch(request).then((response) => {
+          if (!response.ok) return response;
           const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
-          return response;
+          return caches
+            .open(CACHE_NAME)
+            .then((cache) => cache.put(request, copy))
+            .catch(() => {})
+            .then(() => response);
         });
       }),
     );

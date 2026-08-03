@@ -1,4 +1,10 @@
-import { clearPendingMapFocus, MAP_EVENTS, pendingMapFocus } from "./map-events.js?v=20260729b";
+import {
+  clearPendingMapFocus,
+  latestMapAddress,
+  latestMapLayerItems,
+  MAP_EVENTS,
+  pendingMapFocus,
+} from "./map-events.js?v=20260729b";
 import {
   boundsToLngLatBounds,
   contextLayerForKind,
@@ -63,18 +69,31 @@ export class OutageMap extends HTMLElement {
     const detailPanel = document.querySelector("dai-detail-panel");
     if (detailPanel) detailPanel.labels = labels;
     const center = data.center || [46.8, -71.2];
-    maplibregl.setWorkerUrl(
-      new URL(`./vendor/maplibre/maplibre-gl-worker.mjs?v=${MAPLIBRE_VERSION}`, import.meta.url)
-        .href,
-    );
-    const style = await lightweightLibertyStyle();
-    const map = new maplibregl.Map({
-      container: root,
-      style,
-      center: [center[1], center[0]],
-      zoom: data.zoom != null ? Math.max(0, data.zoom - 1) : 10,
-      attributionControl: { compact: true },
-    });
+    const showUnavailable = (error) => {
+      if (!this.isConnected || this.dataset.mapLoadError === "1") return;
+      this.dataset.mapLoadError = "1";
+      this.removeAttribute("aria-busy");
+      if (loading) loading.textContent = this.dataset.mapUnavailableLabel || "Map unavailable.";
+      console.error("Map initialization failed", error);
+    };
+    let map;
+    try {
+      maplibregl.setWorkerUrl(
+        new URL(`./vendor/maplibre/maplibre-gl-worker.mjs?v=${MAPLIBRE_VERSION}`, import.meta.url)
+          .href,
+      );
+      const style = await lightweightLibertyStyle();
+      map = new maplibregl.Map({
+        container: root,
+        style,
+        center: [center[1], center[0]],
+        zoom: data.zoom != null ? Math.max(0, data.zoom - 1) : 10,
+        attributionControl: { compact: true },
+      });
+    } catch (error) {
+      showUnavailable(error);
+      return;
+    }
     this.map = map;
     map.touchPitch.disable();
     map.dragRotate.disable();
@@ -92,6 +111,9 @@ export class OutageMap extends HTMLElement {
     const featuresByLayerKey = new Map();
     let styleReady = false;
     const pendingStyleOps = [];
+    map.on("error", (event) => {
+      if (!styleReady) showUnavailable(event.error || event);
+    });
     const whenStyleReady = (operation) => {
       if (styleReady) {
         operation();
@@ -693,6 +715,9 @@ export class OutageMap extends HTMLElement {
     document.addEventListener(MAP_EVENTS.address, this.handleMapAddress);
     document.addEventListener(MAP_EVENTS.layerItems, this.handleMapLayerItems);
     document.addEventListener(MAP_EVENTS.sheetInsetChange, this.handleSheetInsetChange);
+    for (const detail of latestMapLayerItems()) this.handleMapLayerItems({ detail });
+    const latestAddress = latestMapAddress();
+    if (latestAddress) this.handleMapAddress({ detail: latestAddress });
 
     if ("ResizeObserver" in window) {
       this.resizeObserver = new ResizeObserver(() => {
