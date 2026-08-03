@@ -13,6 +13,8 @@ test("map code and stylesheet load after the initial sheet boot", () => {
   assert.doesNotMatch(app, /from "\.\/outage-map\.js/);
   assert.match(app, /import\(mapElement\.dataset\.mapModuleUrl\)/);
   assert.match(app, /loadStylesheet\(mapElement\.dataset\.mapStylesheetUrl\)/);
+  assert.match(app, /const ASSET_VERSION = new URL\(import\.meta\.url\)\.searchParams\.get\("v"\) \|\| ""/);
+  assert.match(app, /registerServiceWorker\(ASSET_VERSION\)/);
   assert.match(app, /requestIdleCallback\(loadOnce, \{ timeout: 250 \}\)/);
   assert.match(app, /window\.setTimeout\(loadOnce, 500\)/);
   assert.match(app, /if \(started\) return;/);

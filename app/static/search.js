@@ -2,10 +2,12 @@ import { formatRelativeTime } from "./ui-format.js?v=20260729b";
 
 let autocompleteTimer = null;
 
-export function registerServiceWorker() {
+export function registerServiceWorker(assetVersion = "") {
   if (!("serviceWorker" in navigator)) return;
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/service-worker.js").catch(() => {
+    const serviceWorkerUrl = new URL("/service-worker.js", window.location.origin);
+    if (assetVersion) serviceWorkerUrl.searchParams.set("v", assetVersion);
+    navigator.serviceWorker.register(serviceWorkerUrl).catch(() => {
       // Installability should never block the core search/map experience.
     });
   });

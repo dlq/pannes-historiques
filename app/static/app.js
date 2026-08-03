@@ -6,6 +6,8 @@ import {
 } from "./search.js?v=20260729b";
 import { initSheet } from "./sheet.js?v=20260729b";
 
+const ASSET_VERSION = new URL(import.meta.url).searchParams.get("v") || "";
+
 if (!customElements.get("dai-detail-panel")) {
   customElements.define("dai-detail-panel", DaiDetailPanel);
 }
@@ -67,7 +69,7 @@ function scheduleMapLoad() {
 }
 
 function boot() {
-  registerServiceWorker();
+  registerServiceWorker(ASSET_VERSION);
   reloadOnHistoryNavigation();
   restoreSearchInputFromUrl();
   initSheet();
