@@ -4,6 +4,20 @@ All notable completed release and implementation history for the Hydro-Quebec Ou
 
 Keep active execution state in `PLANS.md` and source/evidence research in `NOTES.md`.
 
+## [Unreleased]
+
+### Changed
+
+- Added post-`v0.4.6` production follow-ups: canonical HTTPS and legacy `/search-map` redirects, a semantic main application landmark, and stronger secondary-sheet text contrast.
+- Hardened raw-source file handling and upstream parser behavior, including counting expired ingestion runs in the health failure streak.
+- Added French/English/`x-default` alternate links for indexable pages, absolute social-image URLs, and clearer English search metadata.
+- Deferred non-essential map initialization work, reduced map payload work, and added diagnostics/regression coverage for the loading path.
+
+### Verified
+
+- Rewrote the CSP regression assertion to compare parsed directives exactly; the follow-up CodeQL run completed successfully with no open code-scanning alerts.
+- The security/accessibility/legacy-URL follow-up was deployed on 2026-08-01. Later commits on `main` remain unreleased until separately deployed and verified.
+
 ## [v0.4.6] - 2026-07-29
 
 ### Fixed

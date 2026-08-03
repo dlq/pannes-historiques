@@ -65,6 +65,7 @@ Worker-served and D1-backed. The most likely candidates to become the first
 | `GET /api/durable/hydro` | Current and planned feed rows. |
 | `GET /api/durable/nearby` | Current rows near a coordinate. |
 | `GET /api/durable/history-nearby` | Archived rows near a coordinate. |
+| `GET /api/health/ingestion` | Public freshness/health probe for external monitoring. Returns `200` when healthy and `503` when stale or in a sustained failure state; response fields remain unstable. |
 
 Consumers should assume: no pagination guarantees, no field-stability
 guarantees, no rate-limit guarantees, and no deprecation window.

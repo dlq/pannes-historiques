@@ -42,6 +42,7 @@ pages and assets, including `/service-worker.js`, on the prior container image.
 Include these after a deploy:
 
 - `/healthz`
+- `/api/health/ingestion` returns `200` and current freshness facts
 - homepage in English and French
 - representative address search
 - private durable status through an authorized operational check, not a public unauthenticated URL
@@ -63,10 +64,10 @@ The response distinguishes polygons with a municipal assignment, overlap-only po
 
 The normal Hydro schedule expires `ingestion_runs` left in `running` for more than three hours and purges terminal run records older than 30 days. It does not delete raw R2 inputs, D1 geometry, municipal archive bins, or resolved-event history. See [ADR 0005](adr/0005-d1-archive-retention-and-compaction.md).
 
-Before deploying a Worker release that includes a D1 migration, apply the reviewed migration explicitly, then run the Worker deployment. For this slice:
+Before deploying a Worker release that includes a D1 migration, apply only the reviewed migration file or files introduced by that release, then run the Worker deployment. Record the migration identifiers in the release evidence. Do not re-run an already-applied historical migration such as `0011_archive_health_indexes.sql`:
 
 ```bash
-npx wrangler d1 execute pannes-historiques --remote --file migrations/0011_archive_health_indexes.sql
+npx wrangler d1 execute pannes-historiques --remote --file migrations/NNNN_descriptive_name.sql
 ```
 
 ## Static Asset Performance Checks

@@ -34,6 +34,8 @@ The interface is one full-bleed MapLibre GL v6 map (OpenFreeMap Liberty vector s
 - `src/worker-routing.js` owns top-level Worker path classification.
 - `src/runtime-policy.js` owns private durable-runtime endpoint policy.
 - `src/durable-read-handlers.js` owns public D1-backed durable read responses and their spatial query helpers.
+- `src/ingestion-health.js` owns the pure freshness and failure-streak decision used by the public ingestion-health probe.
+- `src/archive-health.js` owns pure archive-run retention cutoffs and archive-completeness shaping.
 - `src/municipal-archive.js` owns pure municipal geometry helpers shared by Worker code and maintenance scripts.
 - `src/archive-summary.js` owns pure row-shaping helpers for the previous-outage archive summary.
 - `src/container-proxy.js` owns forwarding browser requests from the Worker to the Cloudflare Container instance.

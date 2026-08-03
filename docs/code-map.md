@@ -25,6 +25,7 @@ Use this map before opening large files. Prefer targeted `rg` searches over read
 - `app/geocoding.py`: geocoder integration and cache behavior.
 - `app/i18n.py`: UI labels and localization helpers.
 - `app/perf.py`: request timing/log helpers.
+- `app/safe_files.py`: path validation for retained raw-source files.
 
 ## Templates And Browser
 
@@ -51,6 +52,8 @@ Use this map before opening large files. Prefer targeted `rg` searches over read
 - `src/container-proxy.js`: Worker-to-container forwarding.
 - `src/container.js`: Cloudflare Container configuration.
 - `src/archive-summary.js`: previous-outage archive summary shaping.
+- `src/archive-health.js`: pure retention cutoffs and archive-completeness shaping.
+- `src/ingestion-health.js`: pure snapshot freshness and failure-streak health decisions.
 - `src/municipal-archive.js`: municipal geometry and archive-bin helpers.
 
 ## Data, Migrations, And Scripts

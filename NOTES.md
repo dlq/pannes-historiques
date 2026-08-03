@@ -1,7 +1,13 @@
 # Research: Hydro-Québec Historic Outage Data
 
 Date: 2026-04-25
-Last updated: 2026-07-29
+Last updated: 2026-08-03
+
+## Post-v0.4.6 implementation and deployment boundary, 2026-08-01 to 2026-08-03
+
+- Observed: the last recorded production follow-up deployed on 2026-08-01 as Worker version `8c80bf8a-f6f9-4bd3-8e71-2f0c51927dad`, covering the security, accessibility, and legacy-URL changes. The `v0.4.6` deployment evidence and container digest remain the release baseline above.
+- Observed: `main` subsequently received SEO and map-startup improvements. They are implementation history, not deployment evidence, until a production rollout and smoke checks are recorded.
+- Verified: CodeQL reanalyzed the exact-CSP-assertion follow-up successfully; the GitHub code-scanning alert list was empty after the run.
 
 ## Risk-based coverage uplift, 2026-07-29
 

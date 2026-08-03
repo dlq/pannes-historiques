@@ -3,8 +3,9 @@
 ## Reporting a vulnerability
 
 Please do not open a public issue for a suspected security vulnerability. Use GitHub's private
-security advisory reporting for this repository, or contact the repository owner privately through
-GitHub with a concise description and reproduction steps.
+security reporting when it is enabled for this repository; otherwise contact the repository owner
+privately through GitHub with a concise description and reproduction steps. Private vulnerability
+reporting is currently disabled, so private maintainer contact is the available route.
 
 Reports should avoid including real addresses, operation tokens, API keys, raw private data, or
 other sensitive information. We will acknowledge a credible report, assess its impact, and share a
