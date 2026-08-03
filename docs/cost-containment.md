@@ -30,27 +30,28 @@ This project has no current monetization model: no ads, subscriptions, paid API,
 
 Decision for `v0.4.3`: use option 2, with Worker-first durable reads. It preserves the settled Flask/Jinja interaction model while the Worker owns D1/R2 data routes, operational reads, and runtime attribution. Revisit option 1 only after production markers and monthly usage evidence show that normal shell traffic is a material recurring container cost. Option 3 remains deferred.
 
-## Execution Plan
+## Delivered Guardrails
 
-1. Public route/runtime audit.
-   - Classify production routes as `edge-safe`, `container-needed`, or `internal-only`.
-   - Add response headers or `Server-Timing` markers such as `x-pannes-runtime: worker` and `x-pannes-runtime: container` so production smoke tests can prove whether a browser path touched the container.
-   - Include `/`, `/sheet`, static assets, current/planned/archive/disclosure layer endpoints, language switching, address search, and current-location search.
-2. Cost health endpoint and monthly evidence.
-   - Add a private `/api/ops/cost-health` or equivalent operational check reporting container live-instance state, last container wake, last cron run, D1 size, R2 approximate storage/object counts where available, latest ingestion status, and archive-bin materialization status.
-   - Add a monthly bill/usage review checklist that compares Durable Object duration, container memory/vCPU/disk usage, D1 storage, D1 row reads/writes, and R2 storage/operations against the target posture.
-3. Move public reads off the container.
+- Production routes are classified as `edge-safe`, `container-needed`, or `internal-only` in `docs/architecture.md`. `X-Pannes-Runtime` and `Server-Timing` show whether a response used Worker/D1 or the container.
+- The private `/api/ops/cost-health` check reports container, ingestion, archive-materialization, table-count, and optionally dated D1/R2 size facts.
+- `PANNES_LOW_COST_MODE=1` stops public container wakes during an incident while durable public APIs continue to serve last-known D1/R2 data. It is an emergency guardrail, not a substitute browser shell.
+
+## Remaining Evidence And Migration Work
+
+1. Maintain dated monthly cost evidence.
+   - Compare Durable Object/container duration, container memory/vCPU/disk usage, D1 storage and operations, and R2 storage and operations against the target posture.
+   - Record the measurement date with any optional D1/R2 size values so a stale estimate is not treated as live telemetry.
+2. Prove the next public-read migration boundary.
+   - Use runtime markers and representative browser flows to measure whether shell requests, rather than durable reads, are a material recurring container cost.
+   - Include `/`, `/sheet`, static assets, language switching, typed-address search, current-location search, and current/planned/archive/disclosure layers.
+3. Move public reads off the container only when evidence justifies it.
    - Prioritize startup data, representative search, operational map layers, archive summaries, and disclosure summaries.
    - Keep D1 for indexed relational rows and compact materialized summaries.
    - Keep R2 for raw feeds, DAI/source files, and bulky precomputed geometry/map payload artifacts.
-4. Make cron/parser work bounded.
+4. Keep cron/parser work bounded as ingestion evolves.
    - Split scheduled ingestion into resumable phases: version check, raw download to R2, parse, D1 write, summary/materialization update, and cleanup.
    - Add max runtime, retry/backoff, and resume cursors for long parser jobs.
    - Incrementally bin only newly resolved outage sightings where possible instead of rebuilding global archive summaries on every run.
-5. Add low-cost production mode.
-   - Add a config switch where public routes refuse to call the container and serve last-known-good D1/R2 data.
-   - Allow scheduled ingestion/parser jobs to be paused without breaking public read-only access.
-   - Surface data freshness clearly in operational checks and, if needed, in the UI.
 
 ## Operating The Guardrails
 

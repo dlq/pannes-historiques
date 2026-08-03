@@ -1,6 +1,6 @@
 # Current Snapshot
 
-Last updated: 2026-07-29
+Last updated: 2026-08-03
 
 Read this first for quick orientation. Use `PLANS.md` for the active roadmap, `docs/architecture.md` for runtime boundaries, `docs/cost-containment.md` for cost strategy, and `CHANGELOG.md` for completed release history.
 
@@ -8,8 +8,10 @@ Read this first for quick orientation. Use `PLANS.md` for the active roadmap, `d
 
 - Shipped release: `v0.4.6`.
 - Package metadata: `0.4.6` in `pyproject.toml` and `package.json`.
-- Production deployment: Worker version `184be6cc-8a00-49cf-81ad-acddceaec1c3`; container image digest `sha256:522384da1eefe4ef3630b1cb3aa615d3da77eeb8e305a0270f54822e99b7d0b3`.
+- Last recorded production deployment: Worker version `8c80bf8a-f6f9-4bd3-8e71-2f0c51927dad`, deployed 2026-08-01 with security, accessibility, and legacy-URL follow-ups. The `v0.4.6` release deployment and container digest are retained in `NOTES.md`.
+- `main` also contains untagged SEO and map-startup follow-ups from 2026-08-02. Do not treat a merge to `main` as proof of production deployment; record deployment evidence in `PLANS.md` and `CHANGELOG.md`.
 - Current development direction: `v0.4.7` Hydro Score / regional analytics framing, followed by privacy-preserving aggregate feature-use evidence in `v0.4.8`.
+- `v0.5.0` remains gated on the score decision, bounded usage-data design, a dated cost review, healthy ingestion/archive operations, and an edge rate limit for `/autocomplete`.
 
 ## Product Shape
 

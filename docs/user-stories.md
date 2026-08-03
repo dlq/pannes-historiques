@@ -1,7 +1,7 @@
 # User Stories For Next Product Slices
 
 Date: 2026-06-17
-Last reviewed: 2026-07-29
+Last reviewed: 2026-08-03
 
 This file captures practical user stories for focusing the next pannes.ca work. These are not implementation tasks by themselves. They are decision scenarios that should drive UI, copy, data, and test choices.
 
@@ -302,4 +302,5 @@ The stories inform the current planned slices and ongoing proof work:
 1. `v0.4.7` Hydro Score framing: decide whether component metrics can communicate regional or local context without an unsupported reliability ranking.
 2. `v0.4.8` privacy-preserving usage evidence: measure aggregate use of substantive features before expanding the product surface.
 3. Ongoing browser proof: verify real-device location permission/recovery, freshness cues, dense data readability, and practical keyboard/screen-reader behavior.
-4. `v0.5.x` API and analytical expansion: only after readiness, cost, archive-health, and machine-readable-boundary gates are satisfied.
+4. Public-surface safeguards: add a per-IP edge rate rule for autocomplete and decide whether user-specific result pages need `noindex,follow`.
+5. `v0.5.x` API and analytical expansion: only after the score decision, bounded usage-data design, dated cost evidence, archive-health evidence, and public-surface safeguards are satisfied.

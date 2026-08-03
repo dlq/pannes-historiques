@@ -1,17 +1,17 @@
 # Plan: Hydro-Quebec Outage History App
 
 Date: 2026-04-25
-Last updated: 2026-08-01
+Last updated: 2026-08-03
 
 This is the active execution plan. Keep detailed evidence and research notes in `NOTES.md`, completed release history in `CHANGELOG.md`, operational runbooks in `docs/operations.md`, and long maintenance backlogs in `docs/maintenance-backlog.md`.
 
 ## Current State
 
 - Current shipped release: `v0.4.6`, archive health, retention, and D1 growth control, released 2026-07-29.
-- Current production deployment: Worker version `8c80bf8a-f6f9-4bd3-8e71-2f0c51927dad`, deployed 2026-08-01 with the security/accessibility/legacy-URL fixes.
+- Last recorded production deployment: Worker version `8c80bf8a-f6f9-4bd3-8e71-2f0c51927dad`, deployed 2026-08-01 with the security/accessibility/legacy-URL fixes. Subsequent `main` commits are not a release claim until separately deployed and verified.
 - Ingestion incident 2026-07-15 to 2026-07-20: scheduled Hydro ingestion failed every 30 minutes for five days while the site returned `200` and served stale data. Cause was the durable collection path storing payload files without registering the `raw_snapshots` row the Worker's `/internal/raw-snapshot` callback resolves through. Fixed and verified: run 3630 completed `ok` and snapshots are current again. Two plausible-but-wrong hypotheses were ruled out by testing rather than by correlation — container ephemerality, and the `v0.4.3` CodeQL path-hardening, whose lookup was exercised directly against a real file and resolves correctly.
 - Monitoring gap this exposed: the only health surface was token-protected and pull-based, so nothing observed the failure. `GET /api/health/ingestion` now returns `503` when ingestion is stale or failing. The `Ingestion health monitor` GitHub Actions workflow probes it twice hourly.
-- Current implementation line: `main` has released `v0.4.6` and deployed the 2026-08-01 security/accessibility/legacy-URL follow-up; the next active product slice is `v0.4.7` Hydro Score / regional analytics framing.
+- Current implementation line: `main` includes post-`v0.4.6` SEO and map-startup follow-ups; the next active product slice remains `v0.4.7` Hydro Score / regional analytics framing. See `docs/current-snapshot.md` for the concise code/deployment distinction.
 - Current frontend: one full-bleed MapLibre GL map plus a single sheet. The sheet owns search, domain navigation, address overview, scoped local/province views, detail cards, provenance, and browser-local comparison.
 - Current data plane: D1/R2-backed durable ingestion for current feed rows, previous-outage rows, raw Hydro-Quebec payloads, disclosure metadata, and runtime map-context layers.
 - Current container role: Flask/Jinja shell rendering, local-compatible fallback paths, and a baked SQLite snapshot. Container-local writes are ephemeral and must not become production state.
@@ -32,6 +32,7 @@ Decide whether a simple, well-disclosed "walkability score for Hydro reliability
 
 - Define candidate score inputs and disclosure rules before building anything.
 - Decide whether a score should be numeric, categorical, or avoided in favor of component metrics.
+- Record a go, revise, or defer decision with the evidence limits, intended audience, and wording that prevents an address-level reliability claim.
 - Confirm the readiness gates for the `v0.5.0` API contract.
 - Do not build saved areas or notifications in this slice.
 
@@ -49,6 +50,8 @@ Measure whether people reach and use the site's substantive functions before inv
 ### `0.5.x`: Public Data Product And Analytical Expansion
 
 Use `0.5.x` only after the `0.4.x` readiness, cost, archive-health, and machine-readable-surface slices are complete enough that broader public contracts will not lock in unstable architecture.
+
+Entry gates: `v0.4.7` must dispose of the Hydro Score concept without unsupported reliability claims; `v0.4.8` must define and test its bounded aggregate-data lifecycle; a dated cost review must confirm the public-read posture; ingestion health and archive completeness must be operating normally; and `/autocomplete` needs an edge rate limit before a stable API expands address-related traffic.
 
 - `v0.5.0`: historical data API contract with explicit public/private boundaries, response schemas, provenance/freshness metadata, rate limits, docs, and tests.
 - `v0.5.1`: public API consumer experience: examples, sample payloads, compatibility notes, caching/rate guidance, and contract tests that contributors can run locally.
@@ -80,7 +83,7 @@ Routine command details live in `docs/contributing.md`; production and deploy ch
 - First-party JS modules improve maintainability but increase module requests; measure on Cloudflare before assuming native modules or bundling is better.
 - DAI/disclosure detail panels are data-rich and visually fragile; keep checking overlap, horizontal scrolling, and dense-row readability.
 - Bad in-app URLs and unhandled Flask exceptions still need minimal branded 404/500 pages.
-- SEO announcement-readiness follow-ups from the 2026-08-01 production audit: emit `og:image` as `https://...`, add `hreflang` alternates for French/English plus `x-default`, and consider `noindex,follow` for user-entered address/current-location result pages so arbitrary searches do not become indexable landing pages.
+- SEO announcement-readiness follow-up: consider `noindex,follow` for user-entered address/current-location result pages so arbitrary searches do not become indexable landing pages. Absolute `og:image` URLs and French/English/`x-default` alternates are implemented on `main`; verify them in the next production deployment.
 - Address queries are capped in the application, but configure a per-IP Cloudflare rate rule for `GET /autocomplete` before exposing a stable public API; browser debouncing is not an abuse control.
 - OpenFreeMap Liberty still includes non-Quebec labels at some zoom levels; solve only if it materially affects analytics or saved-area-adjacent workflows.
 - Do not speculate about Hydro-Quebec one-letter status-code meanings unless source documentation or payload context verifies them.

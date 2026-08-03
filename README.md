@@ -80,8 +80,9 @@ Production is currently served at `pannes.ca` with Cloudflare Workers + Containe
 
 Current deployment status:
 
-- Current code and release line: `v0.4.6` (archive health, retention, and D1 growth control),
-  released and deployed 2026-07-29.
+- Current tagged release: `v0.4.6` (archive health, retention, and D1 growth control), released
+  2026-07-29. The last recorded production follow-up deployed 2026-08-01; see `PLANS.md` and
+  `CHANGELOG.md` for deployment evidence and unreleased follow-up work.
 - The current interface uses vendored MapLibre GL JS v6 ESM modules with the OpenFreeMap Liberty style, a
   full-bleed map, and one responsive sheet for current, planned, archive, and context views.
 - Production is served through Cloudflare Workers + Containers with D1 and R2 durable storage.

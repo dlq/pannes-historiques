@@ -23,6 +23,7 @@ Machine-readable summaries of the same posture live at `/llms.txt`,
 | Route | Notes |
 | --- | --- |
 | `GET /` | Map and search shell. `?lang=fr\|en`, `?q=`, `?lat=&lon=&accuracy_m=`. |
+| `GET /search-map` | Legacy `301` alias to `/`; preserves supported search parameters. |
 | `GET /about` | Sources, method, limits, privacy posture. |
 | `GET /healthz` | Liveness check. Returns `{"ok": true}`. |
 
