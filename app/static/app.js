@@ -45,10 +45,18 @@ async function loadMap() {
 
 function scheduleMapLoad() {
   const start = () => {
-    if ("requestIdleCallback" in window) {
-      window.requestIdleCallback(() => void loadMap(), { timeout: 250 });
+    let started = false;
+    const loadOnce = () => {
+      if (started) return;
+      started = true;
+      void loadMap();
+    };
+    if (typeof window.requestIdleCallback === "function") {
+      window.requestIdleCallback(loadOnce, { timeout: 250 });
+      // Safari can expose requestIdleCallback without delivering it promptly.
+      window.setTimeout(loadOnce, 500);
     } else {
-      window.setTimeout(() => void loadMap(), 0);
+      window.setTimeout(loadOnce, 0);
     }
   };
   if (document.readyState !== "loading") {
