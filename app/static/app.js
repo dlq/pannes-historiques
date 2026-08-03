@@ -45,18 +45,16 @@ async function loadMap() {
 
 function scheduleMapLoad() {
   const start = () => {
-    window.setTimeout(() => {
-      if ("requestIdleCallback" in window) {
-        window.requestIdleCallback(() => void loadMap(), { timeout: 800 });
-      } else {
-        void loadMap();
-      }
-    }, 250);
+    if ("requestIdleCallback" in window) {
+      window.requestIdleCallback(() => void loadMap(), { timeout: 250 });
+    } else {
+      window.setTimeout(() => void loadMap(), 0);
+    }
   };
-  if (document.readyState === "complete") {
+  if (document.readyState !== "loading") {
     start();
   } else {
-    window.addEventListener("load", start, { once: true });
+    document.addEventListener("DOMContentLoaded", start, { once: true });
   }
 }
 
