@@ -51,3 +51,8 @@ test("the default map style omits decorative Natural Earth raster tiles", () => 
   assert.match(map, /delete sources\.ne2_shaded/);
   assert.match(map, /layer\.source !== "ne2_shaded"/);
 });
+
+test("the map stops blocking the interface when its style is ready", () => {
+  assert.match(map, /map\.once\("style\.load"/);
+  assert.doesNotMatch(map, /map\.on\("load", \(\) => \{\s*loading\?\.remove\(\)/);
+});

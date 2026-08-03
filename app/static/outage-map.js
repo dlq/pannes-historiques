@@ -395,7 +395,9 @@ export class OutageMap extends HTMLElement {
       source.setData({ type: "FeatureCollection", features });
     };
 
-    map.on("load", () => {
+    // `load` waits for every initial remote tile. The map can render once its
+    // style is ready, so do not keep the whole interface behind the loader.
+    map.once("style.load", () => {
       loading?.remove();
       this.removeAttribute("aria-busy");
       styleReady = true;
