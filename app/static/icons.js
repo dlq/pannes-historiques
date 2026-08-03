@@ -1,4 +1,4 @@
-import { escapeHtml } from "./ui-format.js?v=20260729b";
+import { escapeHtml } from "./ui-format.js?v=20260803a";
 
 const ICON_SPRITE_URL = "/static/icons.svg?v=20260615info";
 
