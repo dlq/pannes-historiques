@@ -350,6 +350,8 @@ def create_app(settings: Settings | None = None) -> Flask:
         if token is not None:
             reset_current_timer(token)
             g.perf_token = None
+        if response.mimetype == "text/html" and not request.path.startswith("/static/"):
+            response.headers["Cache-Control"] = "no-store"
         if request.path.startswith("/static/") and request.path not in {
             "/static/service-worker.js",
             "/static/vendor/leaflet/leaflet.css",

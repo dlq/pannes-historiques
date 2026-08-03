@@ -36,21 +36,4 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(fetch(request).catch(() => caches.match("/static/offline.html")));
     return;
   }
-
-  if (url.pathname.startsWith("/static/")) {
-    event.respondWith(
-      caches.match(request).then((cachedResponse) => {
-        if (cachedResponse) return cachedResponse;
-        return fetch(request).then((response) => {
-          if (!response.ok) return response;
-          const copy = response.clone();
-          return caches
-            .open(CACHE_NAME)
-            .then((cache) => cache.put(request, copy))
-            .catch(() => {})
-            .then(() => response);
-        });
-      }),
-    );
-  }
 });

@@ -200,6 +200,14 @@ def test_static_assets_have_version_aware_cache_headers(app_client):
     assert unversioned_response.headers["Cache-Control"] == "public, max-age=300"
 
 
+def test_dynamic_html_is_not_cached(app_client):
+    for path in ("/", "/about?lang=en", "/sheet?lang=en&domain=current"):
+        response = app_client.get(path)
+
+        assert response.status_code == 200
+        assert response.headers["Cache-Control"] == "no-store"
+
+
 def test_vendored_maplibre_source_maps_are_available(app_client):
     for filename in ("maplibre-gl.mjs.map", "maplibre-gl-shared.mjs.map"):
         response = app_client.get(f"/static/vendor/maplibre/{filename}")
