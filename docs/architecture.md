@@ -4,12 +4,18 @@ Pannes Historiques is a Flask application deployed behind a Cloudflare Worker an
 
 Long-lived architectural choices are recorded in the [ADR index](adr/README.md). This document describes the current implementation; ADRs explain why consequential choices were made and when to revisit them.
 
-## Request Flow
+## Worker Route Boundaries
 
-- `container-needed`: `/`, `/about`, `GET /sheet`, static assets, and the POST `/search`/`/search-location` compatibility aliases enter the Worker and are forwarded to Flask. They report `X-Pannes-Runtime: container`; forwarded responses also report `worker-container` in `Server-Timing`.
-- `edge-safe`: `/api/durable/hydro`, `/api/durable/nearby`, and `/api/durable/history-nearby` are served directly from D1/R2 and report `X-Pannes-Runtime: worker-d1`.
-- `internal-only`: `/api/durable/status`, `/api/ops/cost-health`, private `/api/durable/runtime/*` operations, and `/internal/*`, `/cron/*`, `/collect*`, and `/debug/*` stay private or are blocked at the Worker edge. The operation token or the configured trusted container Worker host is required where applicable.
-- Obvious framework probes, including PHP, WordPress, Joomla, `.env`, `.git`, CGI, and PHPUnit paths, are rejected at the Worker edge.
+The Worker classifies every request before it can wake the container. The route rules live in [worker-routing.js](../src/worker-routing.js); [runtime-policy.js](../src/runtime-policy.js) owns the authorization policy for private durable-runtime operations.
+
+| Route group | Examples | Access | Owning runtime |
+| --- | --- | --- | --- |
+| Public page routes | `/`, `/about`, `GET /sheet`, static assets, `POST /search`, `POST /search-location` | Public; forwarded to Flask when needed | Worker and container |
+| Public durable APIs | `/api/durable/hydro`, `/api/durable/nearby`, `/api/durable/history-nearby`, `/api/health/ingestion` | Public read-only responses | Worker with D1/R2 |
+| Private runtime APIs | `/api/durable/status`, `/api/ops/cost-health`, private `/api/durable/runtime/*` | Authorized operations only | Worker with D1/R2 |
+| Blocked operational paths | `/internal/*`, `/cron/*`, `/collect*`, `/debug/*`, common framework probes | Rejected at the edge | Worker |
+
+Forwarded page responses report `X-Pannes-Runtime: container` and `worker-container` in `Server-Timing`; Worker-first durable reads report `X-Pannes-Runtime: worker-d1`.
 
 `PANNES_LOW_COST_MODE=1` is an emergency container-wake kill switch. Durable public data APIs keep serving last-known D1/R2 data; container-needed page routes return a marked `503` instead of waking Flask. It is deliberately not a substitute for a static browser shell.
 

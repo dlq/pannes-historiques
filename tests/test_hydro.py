@@ -1,10 +1,13 @@
 import json
+from pathlib import Path
 
 import pytest
 
 from app.config import Settings
 from app.db import initialize, open_db
 from app.hydro import HydroCollector, maybe_int, parse_centroid, parse_kml_polygons, safe_get
+
+FIXTURES = Path(__file__).parent / "fixtures" / "hydro"
 
 
 def test_maybe_int_handles_feed_nulls_and_numeric_strings():
@@ -194,6 +197,39 @@ def test_parse_version_rejects_unexpected_payload_shape():
 
     with pytest.raises(RuntimeError, match="unexpected version payload"):
         HydroCollector._parse_version(b"{}")
+
+
+def test_hydro_feed_fixtures_preserve_source_identifiers_and_reject_invalid_versions(tmp_path):
+    collector = HydroCollector(Settings(raw_dir=tmp_path / "raw", db_path=tmp_path / "app.db"))
+    initialize(collector.settings.db_path)
+    version_payload = (FIXTURES / "bis-version.json").read_bytes()
+    marker_payload = (FIXTURES / "bis-markers.json").read_bytes()
+    version = HydroCollector._parse_version(version_payload)
+    snapshot = collector._store_snapshot(
+        source_type="bismarkers",
+        version=version,
+        fetched_at="2026-07-17T10:00:00+00:00",
+        payload=marker_payload,
+        content_type="application/json",
+        extension="json",
+    )
+    collector._register_snapshot(snapshot)
+
+    collector._ingest_markers(snapshot, marker_payload)
+
+    with open_db(collector.settings.db_path) as connection:
+        record = connection.execute("SELECT * FROM outage_records").fetchone()
+        event = connection.execute("SELECT * FROM resolved_events").fetchone()
+    assert record is not None
+    assert event is not None
+    assert record["source_version"] == version
+    assert record["record_index"] == 0
+    assert event["source_versions"] == version
+    assert event["municipality_code"] == "fixture-municipality"
+    assert (record["centroid_lon"], record["centroid_lat"]) == (-73.6, 45.5)
+
+    with pytest.raises(RuntimeError, match="unexpected version payload"):
+        HydroCollector._parse_version((FIXTURES / "malformed-version.json").read_bytes())
 
 
 def test_collection_orchestration_keeps_successful_source_when_the_other_fails(

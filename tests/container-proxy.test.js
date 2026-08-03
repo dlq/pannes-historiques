@@ -40,3 +40,58 @@ test("proxies a container response and exposes timing and runtime markers", asyn
     console.log = originalLog;
   }
 });
+
+test("propagates a rejected container fetch", async () => {
+  const error = new Error("container unavailable");
+  const env = {
+    PANNES_CONTAINER: {
+      getByName() {
+        return { fetch: async () => Promise.reject(error) };
+      },
+    },
+  };
+
+  await assert.rejects(
+    fetchContainerRequest(new Request("https://pannes.ca/about"), env),
+    /container unavailable/,
+  );
+});
+
+test("preserves failed container responses while adding observability headers", async () => {
+  const env = {
+    PANNES_CONTAINER: {
+      getByName() {
+        return {
+          async fetch() {
+            return new Response("upstream failed", {
+              status: 502,
+              statusText: "Bad Gateway",
+              headers: {
+                "content-type": "text/plain",
+                "server-timing": "origin;dur=7",
+                "x-container": "failure",
+              },
+            });
+          },
+        };
+      },
+    },
+  };
+  const originalLog = console.log;
+  console.log = () => {};
+
+  try {
+    const response = await fetchContainerRequest(new Request("https://pannes.ca/about"), env);
+    assert.equal(response.status, 502);
+    assert.equal(response.statusText, "Bad Gateway");
+    assert.equal(response.headers.get("content-type"), "text/plain");
+    assert.equal(response.headers.get("x-container"), "failure");
+    assert.match(response.headers.get("server-timing"), /origin;dur=7/);
+    assert.match(response.headers.get("server-timing"), /worker-container;dur=\d+/);
+    assert.match(response.headers.get("x-pannes-worker-container-fetch-ms"), /^\d+$/);
+    assert.equal(response.headers.get("x-pannes-runtime"), "container");
+    assert.equal(await response.text(), "upstream failed");
+  } finally {
+    console.log = originalLog;
+  }
+});

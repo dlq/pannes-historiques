@@ -6,8 +6,11 @@ from contextlib import nullcontext
 import pytest
 
 from app import disclosures
+from app.config import Settings
+from app.db import initialize, open_db
 from app.disclosures import (
     AccessResponsePageParser,
+    DisclosureCollector,
     DisclosureSource,
     clean_cell,
     column_index,
@@ -228,6 +231,76 @@ def test_parse_xlsx_resolves_shared_strings():
 
     assert parse_xlsx(payload) == {
         "Pannes": [{"Date début interruption": "2025-01-02 03:04:05", "Clients": 42}]
+    }
+
+
+def test_xlsx_disclosure_fixture_preserves_source_reference_and_skips_incomplete_rows(tmp_path):
+    payload = xlsx_fixture(
+        {
+            "xl/workbook.xml": """
+                <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+                  xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+                  <sheets><sheet name="Pannes" sheetId="1" r:id="rId1" /></sheets>
+                </workbook>
+            """,
+            "xl/_rels/workbook.xml.rels": """
+                <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+                  <Relationship Id="rId1" Target="worksheets/sheet1.xml" />
+                </Relationships>
+            """,
+            "xl/worksheets/sheet1.xml": """
+                <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+                  <sheetData>
+                    <row r="1">
+                      <c r="A1" t="inlineStr"><is><t>Date début interruption</t></is></c>
+                      <c r="B1" t="inlineStr"><is><t>Clients</t></is></c>
+                      <c r="C1" t="inlineStr"><is><t>Municipalité</t></is></c>
+                    </row>
+                    <row r="2">
+                      <c r="A2" t="inlineStr"><is><t>2025-01-02 03:04:05</t></is></c>
+                      <c r="B2"><v>42</v></c><c r="C2" t="inlineStr"><is><t>Fixtureville</t></is></c>
+                    </row>
+                    <row r="3"><c r="B3"><v>7</v></c></row>
+                  </sheetData>
+                </worksheet>
+            """,
+        }
+    )
+    collector = DisclosureCollector(Settings(raw_dir=tmp_path / "raw", db_path=tmp_path / "app.db"))
+    initialize(collector.settings.db_path)
+    source = DisclosureSource(
+        dai_number="DAI-fixture-0001",
+        title="Fixture disclosure",
+        attachment_url="https://example.invalid/disclosures/fixture.xlsx",
+        source_url="https://example.invalid/disclosures",
+        format="xlsx",
+        geography_label="Fixtureville",
+        geography_type="municipality",
+        extraction_method="xlsx_rows",
+        precision_label="municipality_context",
+    )
+    source_id = collector._register_source(source)
+
+    assert collector._ingest_xlsx_rows(source_id, source, parse_xlsx(payload)) == 1
+
+    with open_db(collector.settings.db_path) as connection:
+        event = connection.execute(
+            """
+            SELECT disclosure_outage_events.source_row_id, disclosure_outage_events.start_time,
+                   disclosure_outage_events.customers_affected, disclosure_outage_events.geography_label,
+                   disclosure_sources.dai_number, disclosure_sources.source_url
+            FROM disclosure_outage_events
+            JOIN disclosure_sources ON disclosure_sources.id = disclosure_outage_events.source_id
+            """
+        ).fetchone()
+    assert event is not None
+    assert dict(event) == {
+        "source_row_id": "Pannes:1",
+        "start_time": "2025-01-02 03:04:05",
+        "customers_affected": 42,
+        "geography_label": "Fixtureville",
+        "dai_number": "DAI-fixture-0001",
+        "source_url": "https://example.invalid/disclosures",
     }
 
 
