@@ -107,11 +107,11 @@ test("map load replays a pending focus but never re-runs an active focus's selec
 test("map runtime uses the vendored MapLibre v6 ESM modules", () => {
   assert.match(
     mapSource,
-    /import \* as maplibregl from "\.\/vendor\/maplibre\/maplibre-gl\.mjs\?v=6\.0\.0"/,
+    /import \* as maplibregl from "\.\/vendor\/maplibre\/maplibre-gl\.mjs\?v=6\.1\.0"/,
   );
   assert.match(
     readFileSync(new URL("../app/static/vendor/maplibre/maplibre-gl.mjs", import.meta.url), "utf8"),
-    /from"\.\/maplibre-gl-shared\.mjs\?v=6\.0\.0"/,
+    /from"\.\/maplibre-gl-shared\.mjs\?v=6\.1\.0"/,
   );
   assert.doesNotMatch(mapSource, /window\.maplibregl/);
   assert.doesNotMatch(indexSource, /vendor\/maplibre\/maplibre-gl\.js/);

@@ -14,10 +14,10 @@ import {
   normalizeMapPoint,
   radiusCirclePolygon,
 } from "./map-utils.js?v=20260729b";
-import * as maplibregl from "./vendor/maplibre/maplibre-gl.mjs?v=6.0.0";
+import * as maplibregl from "./vendor/maplibre/maplibre-gl.mjs?v=6.1.0";
 
 const LIBERTY_STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
-const MAPLIBRE_VERSION = "6.0.0";
+const MAPLIBRE_VERSION = "6.1.0";
 
 async function lightweightLibertyStyle() {
   try {
