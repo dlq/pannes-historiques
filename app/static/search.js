@@ -4,6 +4,16 @@ let autocompleteTimer = null;
 
 export function registerServiceWorker(assetVersion = "") {
   if (!("serviceWorker" in navigator)) return;
+  const reloadKey = "pannesServiceWorkerVersion";
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    try {
+      if (sessionStorage.getItem(reloadKey) === assetVersion) return;
+      sessionStorage.setItem(reloadKey, assetVersion);
+      window.location.reload();
+    } catch {
+      // A worker update must not break browsers that block session storage.
+    }
+  });
   window.addEventListener("load", () => {
     const serviceWorkerUrl = new URL("/service-worker.js", window.location.origin);
     if (assetVersion) serviceWorkerUrl.searchParams.set("v", assetVersion);

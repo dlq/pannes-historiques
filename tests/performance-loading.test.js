@@ -7,6 +7,7 @@ const index = readFileSync(new URL("../app/templates/index.html", import.meta.ur
 const map = readFileSync(new URL("../app/static/outage-map.js", import.meta.url), "utf8");
 const mapEvents = readFileSync(new URL("../app/static/map-events.js", import.meta.url), "utf8");
 const sheet = readFileSync(new URL("../app/static/sheet.js", import.meta.url), "utf8");
+const search = readFileSync(new URL("../app/static/search.js", import.meta.url), "utf8");
 const serviceWorker = readFileSync(new URL("../app/static/service-worker.js", import.meta.url), "utf8");
 
 test("map code and stylesheet load after the initial sheet boot", () => {
@@ -15,6 +16,10 @@ test("map code and stylesheet load after the initial sheet boot", () => {
   assert.match(app, /loadStylesheet\(mapElement\.dataset\.mapStylesheetUrl\)/);
   assert.match(app, /const ASSET_VERSION = new URL\(import\.meta\.url\)\.searchParams\.get\("v"\) \|\| ""/);
   assert.match(app, /registerServiceWorker\(ASSET_VERSION\)/);
+  assert.match(
+    search,
+    /const reloadKey = "pannesServiceWorkerVersion"[\s\S]*navigator\.serviceWorker\.addEventListener\("controllerchange"/,
+  );
   assert.match(app, /requestIdleCallback\(loadOnce, \{ timeout: 250 \}\)/);
   assert.match(app, /window\.setTimeout\(loadOnce, 500\)/);
   assert.match(app, /if \(started\) return;/);
