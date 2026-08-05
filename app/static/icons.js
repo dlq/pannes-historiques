@@ -1,6 +1,6 @@
-import { escapeHtml } from "./ui-format.js?v=d157b3b2521c";
+import { escapeHtml } from "./ui-format.js?v=b772f9748181";
 
-const ICON_SPRITE_URL = "/static/icons.svg?v=d157b3b2521c";
+const ICON_SPRITE_URL = "/static/icons.svg?v=b772f9748181";
 
 export function phIcon(name, className = "") {
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");

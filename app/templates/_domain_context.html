@@ -1,5 +1,21 @@
 {% from "_macros.html" import ph_icon %}
 <p class="ph-context-intro">{{ sheet.body.intro }}</p>
+{% if sheet.body.legend %}
+  <figure class="ph-legend">
+    <figcaption class="ph-legend-title">{{ sheet.body.legend.title }}</figcaption>
+    <div class="ph-legend-scale"
+         role="img"
+         aria-label="{{ sheet.body.legend.title }}">
+      {% for stop in sheet.body.legend.stops %}
+        <span class="ph-legend-swatch" style="background: {{ stop }}"></span>
+      {% endfor %}
+    </div>
+    <div class="ph-legend-ends">
+      <span>{{ sheet.body.legend.low }}</span><span>{{ sheet.body.legend.high }}</span>
+    </div>
+    <p class="ph-legend-note">{{ sheet.body.legend.note }}</p>
+  </figure>
+{% endif %}
 {% if sheet.body.rows %}
   <ul class="ph-row-list" data-domain-rows="context">
     {% for row in sheet.body.rows %}

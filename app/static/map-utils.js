@@ -6,6 +6,14 @@ export const DOMAIN_COLORS = {
   address: "#2775c9",
 };
 
+// Sequential ramp for the regional choropleth, ordered least to most
+// interruption time. It starts in the Contexte domain's teal so the layer still
+// reads as published context, then moves through yellow to red. The hue order
+// stays distinguishable for red-green colour blindness because lightness also
+// falls monotonically across the ramp, so the shading survives as a value scale
+// even when the hues do not separate.
+export const CHOROPLETH_STOPS = ["#c7ead8", "#f2e3a3", "#f0bf72", "#df8b57", "#b8464a"];
+
 export function contextLayerForKind(kind) {
   if (kind === "outage") return "current";
   if (kind === "planned") return "planned";

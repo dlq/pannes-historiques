@@ -20,6 +20,10 @@ from .views import (
     default_map_payload,
 )
 
+# Mirrors CHOROPLETH_STOPS in app/static/map-utils.js. Kept in sync by
+# tests/test_sheet_views.py so the legend cannot drift from the map fill.
+CHOROPLETH_STOPS = ["#c7ead8", "#f2e3a3", "#f0bf72", "#df8b57", "#b8464a"]
+
 HISTORY_MONTHS = 14
 EXPLORE_ROW_LIMIT = 40
 
@@ -604,6 +608,17 @@ def explore_sheet_context(
                 "domain_context_empty" if context_available else "domain_context_unavailable",
             ),
             "degraded": bool(not rows and not context_available),
+            # The map shades regions by continuity index while these rows rank
+            # by outage count. Naming both prevents reading one as the other.
+            "legend": {
+                "title": t(lang, "choropleth_legend_title"),
+                "low": t(lang, "choropleth_legend_low"),
+                "high": t(lang, "choropleth_legend_high"),
+                "note": t(lang, "choropleth_legend_note"),
+                "stops": CHOROPLETH_STOPS,
+            }
+            if any(row.get("kind") == "regional_metric" for row in rows)
+            else None,
         }
     else:
         raise ValueError(f"unsupported explore domain: {domain}")

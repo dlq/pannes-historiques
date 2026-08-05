@@ -1377,3 +1377,42 @@ button {
     animation: none;
   }
 }
+
+/* Regional choropleth legend (Contexte) */
+
+.ph-legend {
+  margin: 10px 0 4px;
+}
+
+.ph-legend-title {
+  color: var(--ph-ink-2);
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+.ph-legend-scale {
+  display: flex;
+  margin-top: 5px;
+  overflow: hidden;
+  border-radius: 3px;
+}
+
+.ph-legend-swatch {
+  flex: 1;
+  height: 9px;
+}
+
+.ph-legend-ends {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 3px;
+  color: var(--ph-ink-3);
+  font-size: 0.68rem;
+}
+
+.ph-legend-note {
+  margin: 5px 0 0;
+  color: var(--ph-ink-3);
+  font-size: 0.7rem;
+  line-height: 1.4;
+}

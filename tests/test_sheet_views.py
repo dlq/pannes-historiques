@@ -396,3 +396,50 @@ def test_context_degraded_read_does_not_claim_no_documents():
     available = explore_sheet_context("fr", "context", context_available=True)
     assert available["body"]["degraded"] is False
     assert available["body"]["empty"] == t("fr", "domain_context_empty")
+
+
+def test_context_legend_names_the_metric_and_matches_the_map_palette():
+    """The map shades by continuity index while the rows rank by outage count.
+
+    Montérégie leads the list with 9,422 outages but shades pale (557 min),
+    while Lanaudière is the darkest region at 1,052 min and sits third. Without
+    a legend naming both measures, the shading reads as a ranking of the list.
+    """
+    import re
+    from pathlib import Path
+
+    from app.sheet_views import CHOROPLETH_STOPS
+
+    layers = [
+        {
+            "geography_label": "Lanaudière",
+            "centroid_lat": 46.0,
+            "centroid_lon": -73.4,
+            "source_dai": "DAI-1",
+            "source_title": "t",
+            "source_url": "u",
+            "source_dais": ["DAI-1"],
+            "year": 2025,
+            "period_label": "2025",
+            "outage_count": 3887,
+            "average_duration_minutes": 120,
+            "continuity_index_minutes": 1052,
+            "long_outage_count": None,
+            "metrics": [],
+        }
+    ]
+    context = explore_sheet_context("fr", "context", regional_layers=layers)
+    legend = context["body"]["legend"]
+    assert legend is not None
+    assert "client" in legend["title"].lower()
+    assert "pannes" in legend["note"].lower()
+    assert legend["stops"] == CHOROPLETH_STOPS
+
+    # The Python copy must match the map fill, or legend and map disagree.
+    js = Path("app/static/map-utils.js").read_text(encoding="utf-8")
+    js_stops = re.findall(r'"(#[0-9a-f]{6})"', js.split("CHOROPLETH_STOPS")[1])
+    assert js_stops[: len(CHOROPLETH_STOPS)] == CHOROPLETH_STOPS
+
+
+def test_context_legend_absent_without_regional_rows():
+    assert explore_sheet_context("fr", "context")["body"]["legend"] is None

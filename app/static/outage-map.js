@@ -4,16 +4,17 @@ import {
   latestMapLayerItems,
   MAP_EVENTS,
   pendingMapFocus,
-} from "./map-events.js?v=d157b3b2521c";
+} from "./map-events.js?v=b772f9748181";
 import {
   boundsToLngLatBounds,
+  CHOROPLETH_STOPS,
   contextLayerForKind,
   DOMAIN_COLORS,
   extendBoundsWithGeometry,
   itemRenderKey,
   normalizeMapPoint,
   radiusCirclePolygon,
-} from "./map-utils.js?v=d157b3b2521c";
+} from "./map-utils.js?v=b772f9748181";
 import * as maplibregl from "./vendor/maplibre/maplibre-gl.mjs?v=6.1.0";
 
 const LIBERTY_STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
@@ -190,12 +191,19 @@ export class OutageMap extends HTMLElement {
       const key = item.geometryKey || itemRenderKey(item);
       itemsByFeatureKeyByLayer.get(layerKey).set(key, item);
       const kindLayer = contextLayerForKind(item.kind);
+      // Hydro-Quebec's published continuity index: average interruption minutes
+      // per customer. It drives the regional choropleth because, unlike a raw
+      // outage count, it is already normalized for how many customers a region
+      // has. -1 means "no published figure", which is styled as neutral rather
+      // than as a good score.
+      const continuity = Number(item.continuityIndexMinutes);
       const properties = {
         __key: key,
         kind: item.kind,
         layerKey: kindLayer,
         customers: Number(item.customersAffected) || 0,
         isRegional: item.kind === "regional_metric",
+        continuityMinutes: Number.isFinite(continuity) && continuity > 0 ? continuity : -1,
       };
       if (item.geometry && ["Polygon", "MultiPolygon"].includes(item.geometry.type)) {
         return { type: "Feature", properties, geometry: item.geometry };
@@ -420,7 +428,35 @@ export class OutageMap extends HTMLElement {
         type: "fill",
         source: "ph-context",
         filter: ["==", ["geometry-type"], "Polygon"],
-        paint: { "fill-color": DOMAIN_COLORS.context, "fill-opacity": 0.08 },
+        paint: {
+          // Choropleth over Hydro-Quebec's continuity index (average
+          // interruption minutes per customer). Observed 2025 range across the
+          // 17 administrative regions is roughly 276-1052 minutes, so the stops
+          // below span that with room on either side. Regions without a
+          // published figure (-1) stay the neutral context green so an absent
+          // number never reads as a good score.
+          "fill-color": [
+            "case",
+            ["<", ["get", "continuityMinutes"], 0],
+            DOMAIN_COLORS.context,
+            [
+              "interpolate",
+              ["linear"],
+              ["get", "continuityMinutes"],
+              250,
+              CHOROPLETH_STOPS[0],
+              450,
+              CHOROPLETH_STOPS[1],
+              650,
+              CHOROPLETH_STOPS[2],
+              850,
+              CHOROPLETH_STOPS[3],
+              1050,
+              CHOROPLETH_STOPS[4],
+            ],
+          ],
+          "fill-opacity": ["case", ["<", ["get", "continuityMinutes"], 0], 0.08, 0.55],
+        },
       });
       map.addLayer({
         id: "ph-context-line",
