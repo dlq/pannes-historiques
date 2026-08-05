@@ -2458,6 +2458,7 @@ class AppService:
                 self._build_regional_metric_map_layers,
                 cache_none=False,
                 should_cache=lambda value: value is not None,
+                ttl_seconds=self.settings.durable_context_cache_ttl_seconds or None,
             )
             or []
         )
@@ -2549,6 +2550,9 @@ class AppService:
                 # it were a genuine "no disclosures" answer.
                 cache_none=False,
                 should_cache=lambda value: value is not None,
+                # Without a TTL this cache never expires, so a single bad read
+                # persisted for the whole container lifetime.
+                ttl_seconds=self.settings.durable_context_cache_ttl_seconds or None,
             )
             or []
         )
