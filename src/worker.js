@@ -4,7 +4,11 @@ export { ContainerProxy } from "@cloudflare/containers";
 export { PannesContainer } from "./container.js";
 
 import { archiveHealthCutoffs, summarizeArchiveCompleteness } from "./archive-health.js";
-import { isUsableArchiveSummary, municipalArchiveLatestRow } from "./archive-summary.js";
+import {
+  archiveSummaryIncoherences,
+  isUsableArchiveSummary,
+  municipalArchiveLatestRow,
+} from "./archive-summary.js";
 import { fetchContainerRequest } from "./container-proxy.js";
 import {
   clamp,
@@ -1348,10 +1352,36 @@ async function readIngestionHealth(db) {
   });
 }
 
+// Checks the summary that is actually being served, not a freshly built one,
+// because the served copy is materialized and can outlive the code that wrote
+// it. Reads one row.
+async function readArchiveCoherenceProblems(db) {
+  try {
+    const summary = await municipalArchiveSummary(db);
+    // A shape the code no longer recognises is rebuilt on the next request
+    // rather than served, so it is not a health problem.
+    if (!summary) return [];
+    return archiveSummaryIncoherences(summary);
+  } catch (error) {
+    return [`archive coherence check failed: ${String(error)}`];
+  }
+}
+
 async function ingestionHealthResponse(env) {
   let health;
   try {
     health = await readIngestionHealth(env.DB);
+    // The Archive tab served a count of municipalities as a count of outages
+    // for months while every probe reported healthy. Numbers that contradict
+    // each other are a data-plane fault, so they belong on the same alert.
+    const incoherences = await readArchiveCoherenceProblems(env.DB);
+    if (incoherences.length) {
+      health = {
+        ...health,
+        healthy: false,
+        problems: [...(health.problems || []), ...incoherences],
+      };
+    }
   } catch (error) {
     // A health probe that cannot read its own data plane is unhealthy.
     return jsonResponse(
