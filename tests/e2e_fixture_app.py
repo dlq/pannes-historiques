@@ -407,12 +407,12 @@ class E2EStubService:
             "windows": [
                 {
                     "key": "previous_archive_last_24h",
-                    "areas": 0,
+                    "outages": 0,
                     "totalCustomers": 0,
                 },
                 {
                     "key": "previous_archive_last_7d",
-                    "areas": 0,
+                    "outages": 0,
                     "totalCustomers": 0,
                 },
             ],

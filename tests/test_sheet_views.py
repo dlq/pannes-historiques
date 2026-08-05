@@ -563,7 +563,7 @@ def test_row_counts_are_thousands_grouped_like_customer_figures():
     numeric field for sorting and gain a display string for the template.
     """
     summary = {
-        "windows": [{"key": "1y", "areas": 2570, "totalCustomers": 287600}],
+        "windows": [{"key": "1y", "outages": 2570, "totalCustomers": 287600}],
         "territories": [
             {
                 "territoryId": "municipality:66023",
@@ -576,7 +576,7 @@ def test_row_counts_are_thousands_grouped_like_customer_figures():
         "latest": [],
     }
     body = explore_sheet_context("fr", "archive", archive_summary=summary)["body"]
-    assert body["windows"][0]["areas"] == "2 570"
+    assert body["windows"][0]["outages"] == "2 570"
     assert body["windows"][0]["customers"] == "287 600"
     assert body["territoryRows"][0]["countDisplay"] == "16 790"
     # The sort key stays numeric.

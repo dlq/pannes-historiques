@@ -81,7 +81,6 @@ STRINGS: dict[str, dict[str, str]] = {
         "top_causes": "Principales causes",
         "extracted_rows": "Lignes extraites",
         "rows": "lignes",
-        "areas": "secteurs",
         "disclosure_empty": "Aucun extrait historique publié ne correspond encore à ce secteur.",
         "source": "Source",
         "duration": "Durée",
@@ -142,7 +141,10 @@ STRINGS: dict[str, dict[str, str]] = {
         "explore_planned_window": "prochains jours",
         "explore_context_intro": "Documents obtenus d'Hydro-Québec par demandes d'accès à l'information — contexte régional, pas l'historique d'une adresse.",
         "archive_report_title": "Bilan des pannes observées",
-        "archive_report_customers": "≈ {customers} clients",
+        "archive_report_customers": "≈ {customers} clients (cumul)",
+        "archive_report_cumulative_note": (
+            "Un client touché par plusieurs pannes est compté une fois par panne."
+        ),
         "archive_largest_label": "La plus importante : {date} · {customers} clients",
         "archive_latest_heading": "Dernières pannes archivées",
         "archive_territories_heading": "Territoires les plus touchés",
@@ -273,7 +275,6 @@ STRINGS: dict[str, dict[str, str]] = {
         "top_causes": "Top causes",
         "extracted_rows": "Extracted rows",
         "rows": "rows",
-        "areas": "areas",
         "disclosure_empty": "No published historical extract currently matches this area.",
         "source": "Source",
         "duration": "Duration",
@@ -334,7 +335,10 @@ STRINGS: dict[str, dict[str, str]] = {
         "explore_planned_window": "coming days",
         "explore_context_intro": "Documents obtained from Hydro-Quebec through access-to-information requests — regional context, not the history of one address.",
         "archive_report_title": "Observed outage report",
-        "archive_report_customers": "≈ {customers} customers",
+        "archive_report_customers": "≈ {customers} customers (cumulative)",
+        "archive_report_cumulative_note": (
+            "A customer hit by several outages is counted once per outage."
+        ),
         "archive_largest_label": "Largest: {date} · {customers} customers",
         "archive_latest_heading": "Latest archived outages",
         "archive_territories_heading": "Most affected territories",

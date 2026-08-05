@@ -648,7 +648,7 @@ def test_durable_previous_archive_summary_uses_runtime_summary_endpoint(
         "windows": [
             {
                 "key": "previous_archive_last_24h",
-                "areas": 74,
+                "outages": 74,
                 "totalCustomers": 12604,
             }
         ],

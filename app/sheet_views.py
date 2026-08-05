@@ -631,7 +631,7 @@ def explore_sheet_context(
                 {
                     "key": window.get("key"),
                     "label": t(lang, window.get("key", "unknown")),
-                    "areas": _format_number(window.get("areas", 0)),
+                    "outages": _format_number(window.get("outages", 0)),
                     "customers": _format_number(window.get("totalCustomers")),
                 }
                 for window in windows

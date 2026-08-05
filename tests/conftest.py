@@ -163,10 +163,10 @@ class StubService:
     def previous_operational_archive_summary(self):
         return {
             "windows": [
-                {"key": "previous_archive_last_24h", "areas": 2, "totalCustomers": 51},
-                {"key": "previous_archive_last_7d", "areas": 5, "totalCustomers": 320},
-                {"key": "previous_archive_last_30d", "areas": 9, "totalCustomers": 941},
-                {"key": "previous_archive_last_1y", "areas": 30, "totalCustomers": 4200},
+                {"key": "previous_archive_last_24h", "outages": 2, "totalCustomers": 51},
+                {"key": "previous_archive_last_7d", "outages": 5, "totalCustomers": 320},
+                {"key": "previous_archive_last_30d", "outages": 9, "totalCustomers": 941},
+                {"key": "previous_archive_last_1y", "outages": 30, "totalCustomers": 4200},
             ],
             "largest": {
                 "key": "previous_archive_largest",

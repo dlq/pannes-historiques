@@ -49,11 +49,12 @@
       {% for window in sheet.body.windows %}
         <div class="ph-window-cell">
           <p class="ph-window-label">{{ window.label }}</p>
-          <p class="ph-window-value">{{ window.areas }}</p>
+          <p class="ph-window-value">{{ window.outages }}</p>
           <p class="ph-window-sub">{{ t(lang, "archive_report_customers", customers=window.customers) }}</p>
         </div>
       {% endfor %}
     </div>
+    <p class="ph-caveat">{{ t(lang, "archive_report_cumulative_note") }}</p>
   {% endif %}
   {% if sheet.body.largestLabel %}<p class="ph-callout">{{ sheet.body.largestLabel }}</p>{% endif %}
   {% if sheet.body.territoryRows %}

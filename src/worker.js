@@ -4,7 +4,7 @@ export { ContainerProxy } from "@cloudflare/containers";
 export { PannesContainer } from "./container.js";
 
 import { archiveHealthCutoffs, summarizeArchiveCompleteness } from "./archive-health.js";
-import { municipalArchiveLatestRow } from "./archive-summary.js";
+import { isUsableArchiveSummary, municipalArchiveLatestRow } from "./archive-summary.js";
 import { fetchContainerRequest } from "./container-proxy.js";
 import {
   clamp,
@@ -2405,7 +2405,7 @@ function previousArchiveWindow(items, key, cutoff) {
   const windowItems = items.filter((item) => item.startTime >= cutoff);
   return {
     key,
-    areas: windowItems.length,
+    outages: windowItems.length,
     totalCustomers: windowItems.reduce((total, item) => total + item.customersAffected, 0),
   };
 }
@@ -2471,7 +2471,9 @@ async function municipalArchiveSummary(db) {
         `,
       )
       .first();
-    return row?.summary_json ? JSON.parse(row.summary_json) : null;
+    if (!row?.summary_json) return null;
+    const summary = JSON.parse(row.summary_json);
+    return isUsableArchiveSummary(summary) ? summary : null;
   } catch (_error) {
     return null;
   }
@@ -2568,7 +2570,10 @@ async function municipalArchiveWindow(db, key, cutoff) {
   const row = await db
     .prepare(
       `
-      SELECT COUNT(DISTINCT territory_id) AS areas,
+      -- One primary row per outage polygon (overlap rows are excluded), so
+      -- summing event_count counts each outage once even when its footprint
+      -- crosses municipal boundaries.
+      SELECT SUM(COALESCE(event_count, 1)) AS outages,
              SUM(COALESCE(max_customers, 0)) AS total_customers
       FROM previous_outage_territory_bins
       WHERE assignment_type = 'primary'
@@ -2579,7 +2584,7 @@ async function municipalArchiveWindow(db, key, cutoff) {
     .first();
   return {
     key,
-    areas: Number(row?.areas || 0),
+    outages: Number(row?.outages || 0),
     totalCustomers: Number(row?.total_customers || 0),
   };
 }

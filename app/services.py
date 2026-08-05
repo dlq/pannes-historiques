@@ -1669,7 +1669,7 @@ class AppService:
             window_items = [item for item in items if start_time(item) >= cutoff]
             return {
                 "key": key,
-                "areas": len(window_items),
+                "outages": len(window_items),
                 "totalCustomers": sum(customer_count(item) for item in window_items),
             }
 
