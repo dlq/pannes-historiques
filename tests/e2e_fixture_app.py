@@ -435,6 +435,11 @@ class E2EStubService:
     def collect(self) -> dict[str, object]:
         return {"kind": "collect"}
 
+    def collect_changed_for_durable(
+        self, existing_versions: dict[str, object]
+    ) -> dict[str, object]:
+        return {"mode": "durable_fetch", "existing_versions": existing_versions}
+
     def collect_changed(self) -> dict[str, object]:
         return {"kind": "collect_changed"}
 

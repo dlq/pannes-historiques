@@ -20,7 +20,9 @@
 - Python: `uv run ruff check . --fix` and `uv run ruff format .`.
 - Templates: `uv run djlint app/templates --reformat` and `uv run djlint app/templates --lint`.
 - Static JS/CSS assets: `npm run format` and `npm run check`.
-- Prefer `uv run pre-commit run --all-files` when changes span multiple file types.
+- Prefer `uv run pre-commit run --all-files` when changes span multiple file types. Note that pre-commit runs linters and formatters only: it runs **no tests**. Passing it is not evidence that anything works.
+- Run the tests that cover what you touched, and say which you ran. There are three suites and they do not overlap: `uv run pytest -q` (Python), `node --test tests/*.test.js` (Node), and `npm run test:e2e` (Playwright).
+- Anything that changes a service method, a route, a template, or browser JS needs `npm run test:e2e` before handoff. The Playwright suite uses a *separate* service fake (`tests/e2e_fixture_app.py`) from the pytest one (`tests/conftest.py`), so pytest passing tells you nothing about whether the browser suite still works. `tests/test_stub_service_contract.py` guards the two fakes against drift, but only the browser suite exercises real page behaviour.
 - After editing `pyproject.toml` (version or dependencies), run `uv lock` and commit `uv.lock` in the same change: CI uses `uv sync --locked` and fails on a stale lockfile, while local `uv run` re-locks silently and hides the drift.
 - For UI/interface changes, start the local app and use browser inspection/screenshots at desktop and mobile viewport sizes before handoff. Check for responsive layout issues, overlapping text, broken interactions, console errors, and map/search regressions.
 

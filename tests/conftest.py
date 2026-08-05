@@ -71,6 +71,7 @@ class StubService:
         )
         self.search_calls: list[dict[str, object]] = []
         self.search_location_calls: list[dict[str, object]] = []
+        self.durable_fetch_calls: list[dict[str, object]] = []
         StubService.last_instance = self
 
     def search(self, **kwargs):
@@ -218,6 +219,10 @@ class StubService:
 
     def collect(self):
         return {"kind": "collect"}
+
+    def collect_changed_for_durable(self, existing_versions):
+        self.durable_fetch_calls.append(existing_versions)
+        return {"mode": "durable_fetch", "existing_versions": existing_versions}
 
     def collect_changed(self):
         return {"kind": "collect_changed"}

@@ -764,3 +764,26 @@ def test_metadata_routes_are_crawlable(app_client):
     robots = app_client.get("/robots.txt").get_data(as_text=True)
     for path in ("/llms.txt", "/humans.txt", "/.well-known/"):
         assert f"Disallow: {path}" not in robots
+
+
+def test_cron_durable_fetch_requires_scheduled_header(app_client):
+    """This route was never exercised: neither service fake implemented
+    collect_changed_for_durable, so any test touching it would have raised
+    AttributeError. Caught by tests/test_stub_service_contract.py."""
+    unauthorized = app_client.post("/cron/hydro/durable-fetch", json={"versions": {}})
+    assert unauthorized.status_code == 404
+
+    response = app_client.post(
+        "/cron/hydro/durable-fetch",
+        json={"versions": {"bis": "1", "aip": None}},
+        headers={"X-Cloudflare-Scheduled": "1"},
+    )
+    assert response.status_code == 200
+    assert response.get_json()["mode"] == "durable_fetch"
+
+    bad = app_client.post(
+        "/cron/hydro/durable-fetch",
+        json={"versions": "not-an-object"},
+        headers={"X-Cloudflare-Scheduled": "1"},
+    )
+    assert bad.status_code == 400

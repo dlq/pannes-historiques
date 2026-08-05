@@ -1,6 +1,12 @@
 name: Browser regression
 
 on:
+  # Also runs on pull requests. Previously this was push-to-main only, so a
+  # broken browser suite was only discovered after merging -- which is how the
+  # 2026-08-03 service-worker reload regression and a missing e2e service stub
+  # both reached main. Quality already runs on pull_request; this closes the
+  # matching gap for Playwright.
+  pull_request:
   push:
     branches:
       - main
