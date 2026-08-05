@@ -1,11 +1,18 @@
-import { formatRelativeTime } from "./ui-format.js?v=23e7467abe97";
+import { formatRelativeTime } from "./ui-format.js?v=d157b3b2521c";
 
 let autocompleteTimer = null;
 
 export function registerServiceWorker(assetVersion = "") {
   if (!("serviceWorker" in navigator)) return;
   const reloadKey = "pannesServiceWorkerVersion";
+  // On a first visit there is no controller yet, so the initial activation also
+  // fires controllerchange. Reloading then is a spurious reload for every new
+  // visitor -- and in Playwright it destroys the navigation mid-test. Only
+  // reload when an existing controller is being REPLACED, which is the actual
+  // "a new version took over" case this is meant to handle.
+  const hadController = Boolean(navigator.serviceWorker.controller);
   navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (!hadController) return;
     try {
       if (sessionStorage.getItem(reloadKey) === assetVersion) return;
       sessionStorage.setItem(reloadKey, assetVersion);

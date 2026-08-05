@@ -4,7 +4,7 @@ import {
   latestMapLayerItems,
   MAP_EVENTS,
   pendingMapFocus,
-} from "./map-events.js?v=23e7467abe97";
+} from "./map-events.js?v=d157b3b2521c";
 import {
   boundsToLngLatBounds,
   contextLayerForKind,
@@ -13,7 +13,7 @@ import {
   itemRenderKey,
   normalizeMapPoint,
   radiusCirclePolygon,
-} from "./map-utils.js?v=23e7467abe97";
+} from "./map-utils.js?v=d157b3b2521c";
 import * as maplibregl from "./vendor/maplibre/maplibre-gl.mjs?v=6.1.0";
 
 const LIBERTY_STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";

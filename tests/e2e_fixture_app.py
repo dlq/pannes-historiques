@@ -341,6 +341,9 @@ class E2EStubService:
             radius_m=kwargs["radius_m"],
         )
 
+    def published_context_available(self) -> bool:
+        return True
+
     def regional_metric_map_layers(self) -> list[dict[str, object]]:
         return _regional_metric_layers()
 
