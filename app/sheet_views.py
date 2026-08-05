@@ -66,6 +66,19 @@ WEEKDAYS = {
 }
 
 
+# Hydro crew states ordered by progress toward restoration, not severity.
+# Anything unrecognized stays neutral rather than guessing a state.
+STATUS_CHIP_CLASSES = {
+    "A": "ph-chip--status-queued",
+    "R": "ph-chip--status-moving",
+    "L": "ph-chip--status-active",
+}
+
+
+def _status_chip_class(status: str | None) -> str:
+    return STATUS_CHIP_CLASSES.get((status or "").strip().upper(), "ph-chip--status-idle")
+
+
 def _month_names(lang: str) -> list[str]:
     return MONTHS_SHORT[lang if lang in MONTHS_SHORT else "fr"]
 
@@ -223,6 +236,7 @@ def _current_rows(
             "startTime": item.get("startTime") or "",
             "statusLabel": item.get("statusLabel") or t(lang, "unknown"),
             "status": item.get("status") or "",
+            "statusChipClass": _status_chip_class(item.get("status")),
             "customers": _format_customers(item.get("customersAffected")),
             "customersLabel": t(lang, "clients"),
             "distanceKm": _format_distance_km(item.get("distanceM"), lang) if with_distance else "",
@@ -291,7 +305,6 @@ def _territory_rows(lang: str, territories: list[dict[str, Any]]) -> list[dict[s
             lang, "archive_area_code", code=item.get("municipalityCode") or "?"
         )
         sub_parts = [
-            item.get("designation") or "",
             t(
                 lang,
                 "archive_max_clients",
@@ -303,6 +316,7 @@ def _territory_rows(lang: str, territories: list[dict[str, Any]]) -> list[dict[s
             {
                 "title": title,
                 "sub": " · ".join(part for part in sub_parts if part),
+                "designation": item.get("designation") or "",
                 "count": item.get("eventCount") or 0,
                 # Carries the aggregate fields itself rather than relying on the
                 # map to match the row back to its feature: if that lookup ever
@@ -503,11 +517,7 @@ def _context_rows(lang: str, items: list[dict[str, Any]]) -> list[dict[str, Any]
                     "kind": "regional_metric",
                     "title": item.get("label") or t(lang, "unknown"),
                     "sourceTypeLabel": source_type_label(item),
-                    "subtitle": " · ".join(
-                        part
-                        for part in [source_type_label(item), item.get("periodLabel") or ""]
-                        if part
-                    ),
+                    "subtitle": item.get("periodLabel") or "",
                     "count": item.get("outageCount"),
                     "countLabel": t(lang, "outages"),
                     "focus": _focus_payload(item),
@@ -522,9 +532,7 @@ def _context_rows(lang: str, items: list[dict[str, Any]]) -> list[dict[str, Any]
                     "kind": "disclosure",
                     "title": item.get("label") or t(lang, "unknown"),
                     "sourceTypeLabel": source_type_label(item),
-                    "subtitle": " · ".join(
-                        part for part in [period, source_type_label(item)] if part
-                    ),
+                    "subtitle": period,
                     "count": item.get("recordCount"),
                     "countLabel": t(lang, "rows"),
                     "focus": _focus_payload(item),

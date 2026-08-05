@@ -26,7 +26,10 @@
           <span class="ph-doc-tile ph-doc-tile--{{ row.kind }}" aria-hidden="true">{{ ph_icon("map" if row.kind == "regional_metric" else "file-search") }}</span>
           <span class="ph-row-main">
             <span class="ph-row-title">{{ row.title }}</span>
-            {% if row.subtitle %}<span class="ph-row-sub">{{ row.subtitle }}</span>{% endif %}
+            <span class="ph-row-sub">
+              {% if row.sourceTypeLabel %}<span class="ph-chip ph-chip--context">{{ row.sourceTypeLabel }}</span>{% endif %}
+              {{ row.subtitle }}
+            </span>
           </span>
           {% if row.count is not none %}
             <span class="ph-row-metric">

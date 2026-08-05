@@ -1416,3 +1416,58 @@ button {
   font-size: 0.7rem;
   line-height: 1.4;
 }
+
+/* Row chips: categorical values lifted out of joined subtitle text */
+
+.ph-chip {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--ph-control);
+  color: var(--ph-ink-2);
+  font-size: 0.7rem;
+  font-weight: 500;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+/* Hydro crew states, tinted by progress toward restoration rather than by
+   severity: unspecified, then assigned, then on the way, then working.
+   All four pairs clear WCAG AA against their own background. */
+
+.ph-chip--status-idle {
+  background: #eeeef0;
+  color: #55555c;
+}
+
+.ph-chip--status-queued {
+  background: #faeeda;
+  color: #7a4a09;
+}
+
+.ph-chip--status-moving {
+  background: #e4eefb;
+  color: #1a5691;
+}
+
+.ph-chip--status-active {
+  background: #e1f5ee;
+  color: #0f6e56;
+}
+
+/* Source precision and territory type carry their domain's tint so the chip
+   reads as part of that layer rather than as another status. */
+
+.ph-chip--context {
+  background: var(--ph-context-soft);
+  color: var(--ph-context-deep);
+}
+
+.ph-chip--archive {
+  background: var(--ph-archive-soft);
+  color: var(--ph-archive-deep);
+}
+
+.ph-row-sub .ph-chip {
+  margin-right: 5px;
+}

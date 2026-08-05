@@ -30,9 +30,8 @@
           <span class="ph-row-main">
             <span class="ph-row-title" data-relative-time="{{ row.startTime }}">{{ row.startTime[:16] }}</span>
             <span class="ph-row-sub">
-              {%- if row.distanceKm %}{{ row.distanceKm }} km ·
-              {% endif -%}
-              {{ row.statusLabel }}
+              <span class="ph-chip {{ row.statusChipClass }}">{{ row.statusLabel }}</span>
+              {%- if row.distanceKm %}{{ row.distanceKm }} km{% endif -%}
             </span>
           </span>
           <span class="ph-row-metric">

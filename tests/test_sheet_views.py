@@ -498,3 +498,57 @@ def test_archive_territory_items_skip_unplaceable_bins():
     }
     context = explore_sheet_context("fr", "archive", archive_summary=summary)
     assert context["map_update"]["matches"] == []
+
+
+def test_current_rows_carry_status_chip_classes_by_progress():
+    """Crew states are tinted by progress toward restoration, not severity.
+
+    All four appear in live data, so each needs a distinct, deliberate class
+    rather than one generic style.
+    """
+    from app.sheet_views import _status_chip_class
+
+    assert _status_chip_class("A") == "ph-chip--status-queued"
+    assert _status_chip_class("R") == "ph-chip--status-moving"
+    assert _status_chip_class("L") == "ph-chip--status-active"
+    # Unknown or absent codes must stay neutral rather than guess a state.
+    assert _status_chip_class("N") == "ph-chip--status-idle"
+    assert _status_chip_class(None) == "ph-chip--status-idle"
+    assert _status_chip_class("zzz") == "ph-chip--status-idle"
+
+    context = explore_sheet_context(
+        "fr",
+        "current",
+        current_layers=[
+            {
+                "outage_kind": "outage",
+                "match_type": "current_feed_map",
+                "centroid_lat": 45.5,
+                "centroid_lon": -73.6,
+                "customers_affected": 10,
+                "status": "L",
+                "start_time": "2026-08-05 10:00:00",
+            }
+        ],
+    )
+    assert context["body"]["rows"][0]["statusChipClass"] == "ph-chip--status-active"
+
+
+def test_categorical_labels_are_separate_fields_not_joined_text():
+    """The chip values must not also remain inside the joined subtitle string,
+    or they render twice once the template lifts them out."""
+    rows = _context_rows(
+        "en",
+        [
+            {
+                "kind": "regional_metric",
+                "label": "Montreal",
+                "matchType": "administrative_region_context",
+                "periodLabel": "2025",
+                "outageCount": 3530,
+            }
+        ],
+    )
+    assert rows[0]["sourceTypeLabel"] == "Region"
+    assert rows[0]["subtitle"] == "2025"
+    assert "Region" not in rows[0]["subtitle"]

@@ -67,7 +67,10 @@
                   data-map-focus='{{ row.focus | tojson }}'>
             <span class="ph-row-main">
               <span class="ph-row-title">{{ row.title }}</span>
-              {% if row.sub %}<span class="ph-row-sub">{{ row.sub }}</span>{% endif %}
+              <span class="ph-row-sub">
+                {% if row.designation %}<span class="ph-chip ph-chip--archive">{{ row.designation }}</span>{% endif %}
+                {{ row.sub }}
+              </span>
             </span>
             <span class="ph-row-metric">
               <span class="ph-row-metric-value">{{ row.count }}</span>
