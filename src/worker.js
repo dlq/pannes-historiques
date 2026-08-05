@@ -2512,7 +2512,11 @@ async function buildMunicipalArchiveSummary(db) {
       WHERE b.assignment_type = 'primary'
         AND COALESCE(b.latest_start_time, b.last_seen_at, b.updated_at, '') >= ?
       GROUP BY b.territory_id
-      ORDER BY latest_start_time DESC, max_customers DESC
+      -- Rank by retained outages, which is what the Archive list says it
+      -- shows. Ordering by latest_start_time instead selected the 50 most
+      -- recently active territories, so every row reported today's date by
+      -- construction and the "latest observed" column carried no information.
+      ORDER BY event_count DESC, max_customers DESC
       LIMIT 50
       `,
       )

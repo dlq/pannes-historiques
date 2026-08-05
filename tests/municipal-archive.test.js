@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
 import {
@@ -229,4 +230,17 @@ test("orders Hydro polygon ids by source version and numeric polygon index", () 
     "bispoly:20260615193004:10",
     "bispoly:20260615193004:9",
   ]);
+});
+
+test("archive territory summary ranks by retained outages, not recency", () => {
+  const source = readFileSync(new URL("../src/worker.js", import.meta.url), "utf8");
+  const query = source.slice(
+    source.indexOf("FROM previous_outage_territory_bins b\n      LEFT JOIN admin_territories"),
+  );
+  const order = query.slice(query.indexOf("ORDER BY"), query.indexOf("LIMIT 50"));
+  // Ordering by latest_start_time selected the 50 most recently active
+  // territories, so every Archive row showed today's date by construction and
+  // the list contradicted its own "sorted by outage count" note.
+  assert.match(order, /ORDER BY event_count DESC/);
+  assert.doesNotMatch(order, /ORDER BY latest_start_time/);
 });
