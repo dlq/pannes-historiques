@@ -70,10 +70,35 @@ Saved areas, saved-area notifications, and web push notifications are deferred o
 - `v0.4.7`: test analytical framing with bounded fixture data only if a product concept survives review.
 - `v0.5.x`: add API contract, schema, freshness/provenance, rate-limit, analytical-summary, parser, and geocoder tests as each slice lands.
 
+### Regression guard: gated runtime endpoints (2026-08-05)
+
+The Contexte tab was empty for seven weeks and nobody noticed. `34fee84`
+(2026-06-17) gated both `GET /map-context` and `GET /previous-archive-summary`;
+the container cannot authenticate, so both broke that day. `7300355`
+(2026-06-20) ungated `previous-archive-summary` while working on the archive,
+which fixed Archive and left Contexte broken. The same bug was found and fixed
+once already, on a sibling endpoint, without anyone checking the siblings.
+
+Why every existing safeguard missed it:
+
+- The failure rendered as plausible content ("Aucun document publié disponible"), not as an error. A broken data path and a genuine empty result were indistinguishable.
+- The map still drew region outlines from the static geometry asset, so the tab looked alive.
+- The Worker logged `Ok`: returning `404` to an unauthorized caller is correct behaviour. Nothing looked wrong from either side.
+- `runtime-policy.test.js` asserted that the gate list contained what the gate list contained. That tautology passes regardless of whether the container can actually reach the endpoint.
+
+Rules that follow from this:
+
+1. Never let a failed read render as an authoritative empty state. Distinguish "the lookup failed" from "there is nothing", and say which. Applied to the published-context builders; apply it to any new remote read.
+2. Never cache a failed read. `_cached_context` without `ttl_seconds` caches forever, so one transient failure becomes permanent. Pass a TTL and a `should_cache` predicate.
+3. Adding an endpoint to `PRIVATE_RUNTIME_ENDPOINTS` requires proving the container can still reach it, because the container currently cannot authenticate at all.
+4. Prefer end-to-end assertions over policy-table assertions. A test that reads the same constant the code reads proves nothing about reachability.
+5. When fixing a broken endpoint, check its siblings for the same defect before closing the work.
+
 Routine command details live in `docs/contributing.md`; production and deploy checks live in `docs/operations.md`.
 
 ## Current Risks And Open Questions
 
+- The container cannot authenticate to the Worker at all. Confirmed 2026-08-05 by logging the gate outcome for the container's own request: `got_token_header: false`, `cf_worker: null`, while `has_env_token: true` on the Worker. `envVars` does not deliver `PANNES_OPERATION_TOKEN` to the container process, and Cloudflare does not stamp `cf-worker` on the internal hop, so `isTrustedContainerRuntimeProxyRequest` is effectively dead code. Any runtime endpoint listed in `PRIVATE_RUNTIME_ENDPOINTS` is unreachable from the container. Five endpoints the container calls are still gated and therefore still return `404` to it, verified against production 2026-08-05: `operational-map-layers`, `previous-groups`, `previous-map-layers`, `query-count`, `status`. Unlike `/map-context` these degrade to the container's baked SQLite fallback rather than an empty UI, so they show stale data instead of nothing, which is why they went unnoticed. `tests/runtime-policy.test.js` pins them as a shrink-only ratchet. Fix the token delivery before gating any endpoint the container needs, and do not assume the trusted-proxy path works.
 - Container-backed search/render paths still need measured cost evidence; the trusted Worker host is configured in `wrangler.jsonc`, not hardcoded in runtime policy.
 - Ordinary public reads should keep moving toward Worker/static/D1/R2 paths, but the right migration boundary is not yet proven.
 - Archive health is deployed: stale run expiry, 30-day terminal-run retention, latest-row de-duplication, and classified archive-bin completeness. Keep monitoring the public ingestion-health endpoint and private completeness audit.

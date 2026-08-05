@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
 import {
@@ -114,4 +115,52 @@ test("trusts only Cloudflare container proxy runtime requests for the configured
   });
   assert.equal(isTrustedContainerRuntimeProxyRequest(customWorker, "runtime.pannes.example"), true);
   assert.equal(isTrustedContainerRuntimeProxyRequest(customWorker, ""), false);
+});
+
+test("every runtime endpoint the container calls is reachable by the container", () => {
+  // The container cannot authenticate to the Worker: envVars does not deliver
+  // PANNES_OPERATION_TOKEN to the container process, and Cloudflare does not
+  // stamp cf-worker on the internal hop. So any endpoint the container calls
+  // must NOT be gated, or it silently 404s in production.
+  //
+  // This is the check that was missing when 34fee84 gated /map-context on
+  // 2026-06-17 and left the Contexte tab empty for seven weeks. It asserts
+  // reachability, not that the policy table matches itself.
+  const servicesSource = readFileSync(
+    new URL("../app/services.py", import.meta.url),
+    "utf8",
+  );
+  const called = new Set(
+    [...servicesSource.matchAll(/_durable_runtime_get\(\s*"([^"]+)"/g)].map((m) => m[1]),
+  );
+  assert.ok(called.size > 0, "expected to find durable runtime calls in services.py");
+
+  const gated = [...called].filter((path) =>
+    runtimeEndpointRequiresOperationToken(`/${path.replace(/^\//, "")}`, "GET"),
+  );
+  // Known-broken set, verified against production 2026-08-05: each returns 404
+  // to the container. Unlike /map-context these degrade to the container's
+  // baked SQLite fallback rather than an empty UI, which is why they went
+  // unnoticed. Tracked in PLANS.md. This list is a ratchet: it must only ever
+  // shrink. A NEW gated endpoint that the container calls fails this test.
+  const knownBroken = [
+    "operational-map-layers",
+    "previous-groups",
+    "previous-map-layers",
+    "query-count",
+    "status",
+  ];
+  const unexpected = gated.filter((path) => !knownBroken.includes(path));
+  assert.deepEqual(
+    unexpected,
+    [],
+    `these endpoints are called by the container but gated, so they 404 in production: ${unexpected.join(", ")}. ` +
+      "Either ungate them or fix container token delivery (see PLANS.md).",
+  );
+  const fixed = knownBroken.filter((path) => called.has(path) && !gated.includes(path));
+  assert.deepEqual(
+    fixed,
+    [],
+    `these endpoints were fixed but are still listed as known-broken: ${fixed.join(", ")}. Remove them from knownBroken.`,
+  );
 });
