@@ -39,13 +39,19 @@ test("allows public access to the materialized previous archive summary", () => 
   assert.equal(runtimeEndpointRequiresOperationToken("/previous-archive-summary", "GET"), false);
 });
 
+test("allows public access to published map context", () => {
+  // map-context returns only published access-to-information material. Gating
+  // it broke the Contexte tab, because the container reaches the Worker with
+  // neither a usable operation token nor a cf-worker header.
+  assert.equal(runtimeEndpointRequiresOperationToken("/map-context", "GET"), false);
+});
+
 test("requires operation token for runtime map and status reads", () => {
   for (const [suffix, method] of [
     ["/operational-map-layers", "GET"],
     ["/previous-map-layers", "GET"],
     ["/municipal-archive/completeness", "GET"],
     ["/status", "GET"],
-    ["/map-context", "GET"],
   ]) {
     assert.equal(runtimeEndpointRequiresOperationToken(suffix, method), true);
   }
