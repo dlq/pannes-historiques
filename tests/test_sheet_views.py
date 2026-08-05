@@ -576,9 +576,12 @@ def test_row_counts_are_thousands_grouped_like_customer_figures():
         "latest": [],
     }
     body = explore_sheet_context("fr", "archive", archive_summary=summary)["body"]
-    assert body["windows"][0]["outages"] == "2 570"
-    assert body["windows"][0]["customers"] == "287 600"
-    assert body["territoryRows"][0]["countDisplay"] == "16 790"
+    assert body["windows"][0]["outages"] == "2\u00a0570"
+    assert body["windows"][0]["customers"] == "287\u00a0600"
+    assert body["territoryRows"][0]["countDisplay"] == "16\u00a0790"
+    # A plain space would let the narrow window cells break a figure across
+    # two lines, which is how "234 216" wrapped once the counts grew.
+    assert " " not in body["windows"][0]["outages"]
     # The sort key stays numeric.
     assert body["territoryRows"][0]["count"] == 16790
 
@@ -608,4 +611,4 @@ def test_context_row_counts_are_grouped_after_sorting():
     )
 
     assert [row["title"] for row in rows] == ["Grande", "Petite"]
-    assert [row["countDisplay"] for row in rows] == ["12 000", "9 422"]
+    assert [row["countDisplay"] for row in rows] == ["12\u00a0000", "9\u00a0422"]

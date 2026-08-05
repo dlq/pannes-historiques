@@ -138,14 +138,19 @@ def _format_window(lang: str, start: str | None, end: str | None) -> str:
 
 
 def _format_number(value: int | float | None) -> str:
-    """Group thousands with a space, the French convention the UI uses.
+    """Group thousands with a no-break space, the French convention the UI uses.
 
     Applies to every figure the sheet renders — customers, outage counts,
     territory counts — so two numbers on the same card never follow
     different conventions.
+
+    The space is U+00A0 rather than a plain one because a grouped figure is a
+    single token: an ordinary space is a line-break opportunity, and the narrow
+    window cells split "234 216" across two lines once the archive counts grew
+    past four digits.
     """
     count = int(value or 0)
-    return f"{count:,}".replace(",", " ")
+    return f"{count:,}".replace(",", "\u00a0")
 
 
 def _map_update(
