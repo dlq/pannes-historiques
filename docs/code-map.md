@@ -51,7 +51,7 @@ Use this map before opening large files. Prefer targeted `rg` searches over read
 - `src/runtime-policy.js`: private durable-runtime access policy.
 - `src/container-proxy.js`: Worker-to-container forwarding.
 - `src/container.js`: Cloudflare Container configuration.
-- `src/archive-summary.js`: previous-outage archive summary shaping.
+- `src/archive-summary.js`: previous-outage archive summary shaping, plus the stored-payload shape guard and the cross-field coherence checks the health probe runs.
 - `src/archive-health.js`: pure retention cutoffs and archive-completeness shaping.
 - `src/ingestion-health.js`: pure snapshot freshness and failure-streak health decisions.
 - `src/municipal-archive.js`: municipal geometry and archive-bin helpers.

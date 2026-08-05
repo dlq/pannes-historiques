@@ -38,7 +38,7 @@ checks. Responsibility for the project and its releases rests with its maintaine
   - one full-bleed MapLibre GL v6 map (vendored ESM modules and worker, OpenFreeMap Liberty vector style) with semantic domain colors: red current, amber planned, violet archive, teal published context
   - a single sheet with peek/half/full detents on mobile and a floating panel on desktop; the search field lives in the sheet
   - a segmented `En cours / Planifiées / Archive / Contexte` control that drives both the sheet content and the visible map layer
-  - explore-mode domain views: sorted current rows, a date-grouped planned schedule with calendar tiles, an archive report with 24 h/7 j/30 j/1 an windows, and a disclosure-document list framed as regional context
+  - explore-mode domain views: sorted current rows, a date-grouped planned schedule with calendar tiles, an archive report with 24 h/7 j/30 j/1 an windows counting retained outages, alongside cumulative customer-interruption totals, and a disclosure-document list framed as regional context
   - address-mode overview answer stack: current/planned status lines with nearest-distance and next-window wording, a local-history hero card with a 14-month chart, a radius control (1/2/5/10 km, 2 km default for typed addresses), a `Local / Québec` scope toggle on pushed domain views, in-sheet detail cards, and a browser-local comparison tray
 - Historical disclosure and map context
   - access-to-information disclosure source registry plus XLSX and supported PDF extraction

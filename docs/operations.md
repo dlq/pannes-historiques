@@ -42,7 +42,7 @@ pages and assets, including `/service-worker.js`, on the prior container image.
 Include these after a deploy:
 
 - `/healthz`
-- `/api/health/ingestion` returns `200` and current freshness facts
+- `/api/health/ingestion` returns `200` with an empty `problems` array, covering both ingestion freshness and archive-summary coherence
 - homepage in English and French
 - representative address search
 - private durable status through an authorized operational check, not a public unauthenticated URL
@@ -51,7 +51,9 @@ Include these after a deploy:
 
 ## Ingestion Monitoring And Archive Health
 
-`GET /api/health/ingestion` is public, exposes only ingestion freshness facts, and returns `503` when the latest Hydro snapshot is stale or the recent failure streak is sustained. The `Ingestion health monitor` GitHub Actions workflow polls it at minute 17 and 47 of every hour; a failing run is the alert signal.
+`GET /api/health/ingestion` is public, exposes ingestion freshness facts, and returns `503` when the latest Hydro snapshot is stale or the recent failure streak is sustained. The `Ingestion health monitor` GitHub Actions workflow polls it at minute 17 and 47 of every hour; a failing run is the alert signal.
+
+It also returns `503` when the materialized archive summary contradicts itself — a shorter window exceeding the longer one containing it, a territory holding more outages than the whole year, or a largest single outage above the year's cumulative total. Those checks run against the summary actually being served, not a freshly built one. A failure here is a data-plane fault, not a freshness one: ingestion may be perfectly current while the Archive report shows impossible figures, which is exactly what happened before 2026-08-05. Read the `problems` array to tell the two apart.
 
 For the private archive audit, use an operation token to query:
 

@@ -1,16 +1,17 @@
 # Plan: Hydro-Quebec Outage History App
 
 Date: 2026-04-25
-Last updated: 2026-08-03
+Last updated: 2026-08-05
 
 This is the active execution plan. Keep detailed evidence and research notes in `NOTES.md`, completed release history in `CHANGELOG.md`, operational runbooks in `docs/operations.md`, and long maintenance backlogs in `docs/maintenance-backlog.md`.
 
 ## Current State
 
 - Current shipped release: `v0.4.6`, archive health, retention, and D1 growth control, released 2026-07-29.
-- Last recorded production deployment: Worker version `8c80bf8a-f6f9-4bd3-8e71-2f0c51927dad`, deployed 2026-08-01 with the security/accessibility/legacy-URL fixes. Subsequent `main` commits are not a release claim until separately deployed and verified.
+- Last recorded production deployment: Worker version `d62049e6-f4f3-468c-a0bc-98589a61c67e`, deployed 2026-08-05 with the Archive figure correction, the archive coherence checks, and the sheet number formatting. Subsequent `main` commits are not a release claim until separately deployed and verified.
 - Ingestion incident 2026-07-15 to 2026-07-20: scheduled Hydro ingestion failed every 30 minutes for five days while the site returned `200` and served stale data. Cause was the durable collection path storing payload files without registering the `raw_snapshots` row the Worker's `/internal/raw-snapshot` callback resolves through. Fixed and verified: run 3630 completed `ok` and snapshots are current again. Two plausible-but-wrong hypotheses were ruled out by testing rather than by correlation — container ephemerality, and the `v0.4.3` CodeQL path-hardening, whose lookup was exercised directly against a real file and resolves correctly.
 - Monitoring gap this exposed: the only health surface was token-protected and pull-based, so nothing observed the failure. `GET /api/health/ingestion` now returns `503` when ingestion is stale or failing. The `Ingestion health monitor` GitHub Actions workflow probes it twice hourly.
+- That probe now also fails when the served archive summary contradicts itself, after the Archive report spent months showing a count of municipalities as a count of outages while every health surface reported green. Freshness monitoring cannot see a figure that is current and wrong; coherence monitoring can.
 - Current implementation line: `main` includes post-`v0.4.6` SEO and map-startup follow-ups; the next active product slice remains `v0.4.7` Hydro Score / regional analytics framing. See `docs/current-snapshot.md` for the concise code/deployment distinction.
 - Current frontend: one full-bleed MapLibre GL map plus a single sheet. The sheet owns search, domain navigation, address overview, scoped local/province views, detail cards, provenance, and browser-local comparison.
 - Current data plane: D1/R2-backed durable ingestion for current feed rows, previous-outage rows, raw Hydro-Quebec payloads, disclosure metadata, and runtime map-context layers.
@@ -35,7 +36,7 @@ Decide whether a simple, well-disclosed "walkability score for Hydro reliability
 - Record a go, revise, or defer decision with the evidence limits, intended audience, and wording that prevents an address-level reliability claim.
 - Confirm the readiness gates for the `v0.5.0` API contract.
 - Do not build saved areas or notifications in this slice.
-- Decide the normalized archive metric, deferred here deliberately on 2026-08-05. The Archive tab now draws its municipal bins as flat outlines with no shading, because the only per-territory number available is the raw retained event count and that ranks as a population map: Montréal `16,790`, Gatineau `8,374`, Laval `7,799`, Québec `7,496`. Shading by it would repeat the mistake avoided on Contexte, where the published continuity index was chosen precisely because it is already normalized per customer. Two further blockers: 202 of 1,341 territories have no bins at all, so a pale territory would be indistinguishable between "few outages" and "never captured"; and no customers-per-territory denominator exists in the data. Real signal does survive underneath the population effect and is the reason this is worth doing rather than dropping — Val-des-Monts (`3,006`), Gracefield (`2,724`), Harrington (`2,535`) and La Pêche (`2,389`) are small rural Outaouais/Laurentides municipalities outranking Longueuil, which reflects forested terrain and overhead lines rather than population. Any archive choropleth needs a defensible denominator and an explicit coverage caveat first.
+- Decide the normalized archive metric, deferred here deliberately on 2026-08-05. The Archive tab now draws its municipal bins as flat outlines with no shading, because the only per-territory number available is the raw retained event count and that ranks as a population map: Montréal `16,790`, Gatineau `8,374`, Laval `7,799`, Québec `7,496`. Shading by it would repeat the mistake avoided on Contexte, where the published continuity index was chosen precisely because it is already normalized per customer. Two further blockers: 202 of 1,341 territories have no bins at all, so a pale territory would be indistinguishable between "few outages" and "never captured"; and no customers-per-territory denominator exists in the data. Real signal does survive underneath the population effect and is the reason this is worth doing rather than dropping — Val-des-Monts (`3,006`), Gracefield (`2,724`), Harrington (`2,535`) and La Pêche (`2,389`) are small rural Outaouais/Laurentides municipalities outranking Longueuil, which reflects forested terrain and overhead lines rather than population. Any archive choropleth needs a defensible denominator and an explicit coverage caveat first. Established 2026-08-05 and useful to whoever picks this up: the per-territory counts are free of geographic double counting, because the bins hold exactly one `primary` row per outage polygon (221 786 rows over 221 786 distinct polygons in production) and every archive query excludes the `overlap` rows. The missing piece is still a customers-per-territory denominator, not a cleaner numerator.
 
 ### `v0.4.8`: Privacy-Preserving Product Usage Evidence
 
@@ -69,6 +70,7 @@ Saved areas, saved-area notifications, and web push notifications are deferred o
 - `v0.4.5`: route/header tests, machine-readable metadata, public/private route documentation, and security headers shipped; preserve them as public-surface regressions.
 - `v0.4.6`: archive-health tests for stale ingestion-run cleanup, latest-row grouping, archive-bin completeness metrics, and retention behavior shipped; extend them before any compaction/offload migration.
 - `v0.4.7`: test analytical framing with bounded fixture data only if a product concept survives review.
+- Cross-field coherence: assert displayed figures against each other, not only against the query that produced them. Tests that check a number equals what its query returned cannot catch a query answering the wrong question, which is how the Archive window shipped a territory count under an outage heading. See the guard below.
 - `v0.5.x`: add API contract, schema, freshness/provenance, rate-limit, analytical-summary, parser, and geocoder tests as each slice lands.
 
 ### Regression guard: gated runtime endpoints (2026-08-05)
@@ -94,6 +96,29 @@ Rules that follow from this:
 3. Adding an endpoint to `PRIVATE_RUNTIME_ENDPOINTS` requires proving the container can still reach it, because the container currently cannot authenticate at all.
 4. Prefer end-to-end assertions over policy-table assertions. A test that reads the same constant the code reads proves nothing about reachability.
 5. When fixing a broken endpoint, check its siblings for the same defect before closing the work.
+
+### Regression guard: figures that contradict each other (2026-08-05)
+
+The Archive report showed a count of municipalities where it said outages. The
+`1 an` cell read `1 139` against 234 187 retained outages, and the customer sum
+beside it read 22 290 686 against roughly 4.5 million Hydro-Québec customers.
+Montréal's own row read 16 785 outages — a part larger than the stated whole,
+on the same screen, for months.
+
+Why every existing safeguard missed it:
+
+- Every test asserted a number equalled what its query returned, and every query returned exactly what it was asked for. A query answering the wrong question passes all of them.
+- The payload field was named `areas`. The other summary path filled that same key with a genuine outage count, so the name was honest for one caller and misleading for the other.
+- Local development runs the honest path, so local figures looked plausible while production did not. Any check performed only locally would have confirmed the bug as correct.
+- Nothing compared the figures to each other. Each was individually defensible; only their relationship was impossible.
+
+Rules that follow from this:
+
+1. Assert displayed figures against each other, not only against their source query. Self-comparison needs no expected values and no thresholds, so it survives data changes.
+2. A field name is part of the contract. If two code paths fill the same key, they must compute the same quantity — enforced for the archive windows by a test.
+3. Run coherence checks against real data, not only fixtures. Fixtures guard the code; only production data catches the data. These run inside `GET /api/health/ingestion`.
+4. Prefer invariants that cannot false-positive by construction (nested sets, part-versus-whole) over tuned plausibility bands, which go stale and get muted.
+5. State what a figure counts when it is not obvious. A sum over outages is not a count of people, and the label has to say so.
 
 Routine command details live in `docs/contributing.md`; production and deploy checks live in `docs/operations.md`.
 

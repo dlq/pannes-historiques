@@ -13,6 +13,18 @@ Keep active execution state in `PLANS.md` and source/evidence research in `NOTES
 - Added French/English/`x-default` alternate links for indexable pages, absolute social-image URLs, and clearer English search metadata.
 - Deferred non-essential map initialization work, reduced map payload work, and added diagnostics/regression coverage for the loading path.
 
+### Fixed
+
+- Corrected the Archive report windows, which counted municipalities and presented them as outages. The window cell ran `COUNT(DISTINCT territory_id)`, so the `1 an` figure read `1 139` where the year had actually retained `234 187` outages, and because Quebec has roughly 1 100 municipalities the number saturated: `30 j` to `1 an` moved `979` to `1 139` while the customer sum beside it went from 4.6M to 22.3M. The defect survived because the payload field was named `areas` and the other summary path filled that same key with a genuine outage count, so the label was correct for one caller and wrong for the other. Both paths now aggregate `event_count` over primary bin rows — one row per outage polygon, verified in production as 221 786 primary rows across 221 786 distinct polygons — and the field is named `outages`.
+- Relabelled the Archive customer figure, which sums peak customers per outage and so reached 22.3M against roughly 4.5M Hydro-Quebec customers. It now reads `(cumul)` / `(cumulative)` with a note that a customer is counted once per outage.
+- Grouped thousands in every figure the sheet renders. Counts were emitted ungrouped beside grouped customer figures, so one card showed `2570` above `≈ 287 600 clients`. The separator is a no-break space, because correcting the archive counts took them to six digits and an ordinary space let `234 216` wrap across two lines in the narrow window cells.
+
+### Added
+
+- Added cross-field coherence checks on the archive summary (`archiveSummaryIncoherences`): a shorter window cannot exceed the longer one containing it, no single territory can hold more outages than the whole year, and the largest single outage cannot exceed the year's cumulative total. They compare a summary against itself, so they need no expected values and no thresholds. Run against the payload production was serving, they report 27 violations; against the corrected figures, none.
+- Folded those checks into `GET /api/health/ingestion`, evaluated against the materialized summary actually being served. The existing half-hourly probe now alerts on incoherent figures.
+- Added a shape guard on the materialized archive summary (`isUsableArchiveSummary`). The stored payload was previously returned verbatim, so a renamed field would have left the old row in place and rendered every window as `0` rather than failing. An unrecognised shape is now treated as a cache miss, which callers already rebuild from.
+
 ### Verified
 
 - Rewrote the CSP regression assertion to compare parsed directives exactly; the follow-up CodeQL run completed successfully with no open code-scanning alerts.

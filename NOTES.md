@@ -1,7 +1,22 @@
 # Research: Hydro-Québec Historic Outage Data
 
 Date: 2026-04-25
-Last updated: 2026-08-03
+Last updated: 2026-08-05
+
+## What the Archive report figures actually measure, 2026-08-05
+
+- Measured in production D1: the municipal archive bins hold exactly one `primary` row per outage polygon — 221 786 primary rows across 221 786 distinct `hydro_polygon_id` values — plus 269 513 `overlap` rows that repeat a polygon once per additional municipality it touches. Every archive query filters `assignment_type = 'primary'`, so aggregating over those rows counts each outage once even when its footprint crosses municipal boundaries. Any future aggregate that drops that filter will silently inflate wide outages.
+- The Archive window number was `COUNT(DISTINCT territory_id)`, a count of municipalities, displayed under a heading that says outages. Measured for the same cutoffs on 2026-08-05: 24 h 130 territories against 1 714 outages, 7 j 593 against 14 104, 30 j 979 against 55 277, 1 an 1 139 against 234 187. Because Quebec has roughly 1 100 municipalities the territory count saturates, which is why `30 j` to `1 an` moved only 979 to 1 139 while the customer sum beside it went from 4.6M to 22.3M. Two different denominators on one card.
+- The defect was invisible for months because the payload field was named `areas` and the non-municipal summary path (`previousArchiveWindow` in `src/worker.js`, and the equivalent in `app/services.py`) filled that same key with a genuine outage count. The label was correct for one caller and wrong for the other, and local development runs the correct path — so local figures looked plausible while production did not. Same key, two incompatible quantities.
+- The Archive customer figure sums peak customers per outage polygon, so it counts a customer once per outage that hit them. Over one year that reached 22 290 686 against roughly 4.5 million Hydro-Québec customers. The arithmetic was never wrong; the label claimed distinct people. It is a cumulative customer-interruption measure and is now labelled as such.
+- Checked and found sound at the same time: the Contexte row counts are Hydro-Québec's own published `regional_metrics.outage_count`, not derived from our event data; the territory rows' "jusqu'à N clients" is a per-territory peak; and "La plus importante" is a maximum over primary rows, so it is not split across municipalities.
+
+## Coherence as a correctness check, 2026-08-05
+
+- Every test in place asserted that a number equalled what its query returned, and each query returned exactly what it was asked for, so a window counting municipalities passed all of them. The property never checked was whether the numbers on one card agree with each other: Montréal's row read 16 785 outages beside a `1 an` window reading 1 139 total — a part larger than the whole, on screen.
+- `archiveSummaryIncoherences` in `src/archive-summary.js` compares a summary against itself, so it needs no expected values and no thresholds: a shorter window cannot exceed the longer one containing it, no single territory can hold more outages than the whole year, and the largest single outage cannot exceed the year's cumulative total.
+- These cannot false-positive on real data. The window row sets nest structurally — a row passing the 24 h cutoff also passes the 7 d cutoff — and the annual total is a sum over all primary rows while a territory is a sum over a subset of them.
+- Run against the payload production was serving, the checks reported 27 violations, one per territory claiming more outages than the supposed annual total. Run against the corrected figures, zero. Both are pinned as tests, and the same check now runs against the materialized summary inside `GET /api/health/ingestion`, so incoherent figures fail the existing half-hourly probe instead of staying invisible.
 
 ## Post-v0.4.6 implementation and deployment boundary, 2026-08-01 to 2026-08-03
 
