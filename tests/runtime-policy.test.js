@@ -62,7 +62,13 @@ test("trusts only Cloudflare container proxy runtime requests for the configured
   });
   assert.equal(isTrustedContainerRuntimeProxyRequest(trusted, "dalaque.workers.dev"), true);
 
-  const publicHttps = new Request("https://pannes.ca/api/durable/runtime/address", {
+  // The container's outbound handler rewrites its own http: request to https:
+  // before it reaches this gate, so https must be trusted on the same terms.
+  // Requiring http: here silently rejected every proxied /map-context call and
+  // left the Contexte tab empty in production. Identity rests on cf-worker,
+  // which Cloudflare strips from client-supplied requests, so a public caller
+  // cannot reach this branch by setting the header itself.
+  const proxiedHttps = new Request("https://pannes.ca/api/durable/runtime/address", {
     method: "POST",
     headers: {
       "cf-worker": "dalaque.workers.dev",
@@ -70,7 +76,17 @@ test("trusts only Cloudflare container proxy runtime requests for the configured
       "user-agent": "pannes-historiques/0.1 (+https://pannes.ca)",
     },
   });
-  assert.equal(isTrustedContainerRuntimeProxyRequest(publicHttps, "dalaque.workers.dev"), false);
+  assert.equal(isTrustedContainerRuntimeProxyRequest(proxiedHttps, "dalaque.workers.dev"), true);
+
+  const wrongHost = new Request("https://pannes.ca/api/durable/runtime/address", {
+    method: "POST",
+    headers: {
+      "cf-worker": "dalaque.workers.dev",
+      host: "evil.example",
+      "user-agent": "pannes-historiques/0.1 (+https://pannes.ca)",
+    },
+  });
+  assert.equal(isTrustedContainerRuntimeProxyRequest(wrongHost, "dalaque.workers.dev"), false);
 
   const wrongWorker = new Request("http://pannes.ca/api/durable/runtime/address", {
     method: "POST",

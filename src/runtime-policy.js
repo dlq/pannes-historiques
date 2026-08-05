@@ -24,8 +24,12 @@ export function runtimeEndpointRequiresOperationToken(suffix, method) {
 
 export function isTrustedContainerRuntimeProxyRequest(request, trustedWorkerHost) {
   const url = new URL(request.url);
+  // Deliberately protocol-agnostic. The container's outbound handler rewrites
+  // its own http: request to https: before it reaches this gate, so requiring
+  // one protocol here silently rejects the very requests this is meant to
+  // trust. Identity still rests on the cf-worker, host and user-agent checks
+  // below, which a public client cannot forge.
   return (
-    url.protocol === "http:" &&
     url.pathname.startsWith("/api/durable/runtime") &&
     Boolean(trustedWorkerHost) &&
     request.headers.get("cf-worker") === trustedWorkerHost &&
