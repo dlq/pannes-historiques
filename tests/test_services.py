@@ -1635,3 +1635,20 @@ def test_raw_snapshot_payload_path_rejects_symlink_outside_raw_directory(tmp_pat
         )
 
     assert service.raw_snapshot_payload_path("bismarkers", "fixture") is None
+
+
+def test_published_context_caches_are_not_permanent(tmp_path):
+    """Published-context caches must expire.
+
+    They previously called _cached_context without ttl_seconds, so expires_at
+    was None and one transient durable failure pinned the Contexte tab to
+    "no published documents" for the container's whole lifetime.
+    """
+    import inspect
+
+    from app.services import AppService
+
+    for name in ("_disclosure_map_layers", "_regional_metric_map_layers"):
+        source = inspect.getsource(getattr(AppService, name))
+        assert "ttl_seconds=" in source, f"{name} must pass an explicit TTL"
+        assert "should_cache=" in source, f"{name} must not cache failed reads"
