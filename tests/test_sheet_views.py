@@ -443,3 +443,58 @@ def test_context_legend_names_the_metric_and_matches_the_map_palette():
 
 def test_context_legend_absent_without_regional_rows():
     assert explore_sheet_context("fr", "context")["body"]["legend"] is None
+
+
+def test_archive_map_draws_territory_bins_as_aggregates():
+    """The Archive tab drew nothing on the map before this.
+
+    In municipal-archive mode previous_map_layers is empty by design, so the
+    bins never reached map_update and the map stayed blank while the list named
+    territories. The items must also be marked as aggregates so the detail card
+    does not describe a whole territory with single-outage wording.
+    """
+    summary = {
+        "windows": [],
+        "territories": [
+            {
+                "territoryId": "municipality:66023",
+                "territoryName": "Montréal",
+                "designation": "Ville",
+                "eventCount": 16790,
+                "customersAffected": 2142,
+                "latestStartTime": "2026-08-01 09:00:00",
+                "geometryKey": "municipal_archive:municipality:66023",
+                "centroidLat": 45.52,
+                "centroidLon": -73.6,
+                "geometry": {"type": "Polygon", "coordinates": [[[0, 0], [1, 0], [1, 1], [0, 0]]]},
+            }
+        ],
+        "latest": [],
+    }
+    context = explore_sheet_context("fr", "archive", archive_summary=summary)
+    matches = context["map_update"]["matches"]
+    assert len(matches) == 1
+    item = matches[0]
+    assert item["aggregate"] == "territory"
+    assert item["kind"] == "previous_outage"
+    assert item["geometry"]["type"] == "Polygon"
+    assert item["eventCount"] == 16790
+    assert item["label"] == "Montréal"
+
+    # The sidebar row must carry the same aggregate fields, so a failed map
+    # lookup cannot fall back to single-outage wording.
+    focus = context["body"]["territoryRows"][0]["focus"]
+    assert focus["aggregate"] == "territory"
+    assert focus["eventCount"] == 16790
+
+
+def test_archive_territory_items_skip_unplaceable_bins():
+    summary = {
+        "windows": [],
+        "territories": [
+            {"territoryId": "x", "territoryName": "No location", "eventCount": 5},
+        ],
+        "latest": [],
+    }
+    context = explore_sheet_context("fr", "archive", archive_summary=summary)
+    assert context["map_update"]["matches"] == []

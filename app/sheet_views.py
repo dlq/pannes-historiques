@@ -304,19 +304,68 @@ def _territory_rows(lang: str, territories: list[dict[str, Any]]) -> list[dict[s
                 "title": title,
                 "sub": " · ".join(part for part in sub_parts if part),
                 "count": item.get("eventCount") or 0,
+                # Carries the aggregate fields itself rather than relying on the
+                # map to match the row back to its feature: if that lookup ever
+                # misses, the detail card would fall back to single-outage
+                # wording and misdescribe a whole territory.
                 "focus": {
                     "kind": "previous_outage",
+                    "aggregate": "territory",
                     "geometryKey": item.get("geometryKey") or item.get("territoryId"),
                     "geometry": item.get("geometry"),
                     "lat": item.get("centroidLat"),
                     "lon": item.get("centroidLon"),
                     "label": title,
+                    "designation": item.get("designation") or "",
+                    "eventCount": item.get("eventCount") or 0,
                     "startTime": item.get("latestStartTime"),
                     "customersAffected": item.get("customersAffected"),
                 },
             }
         )
     return rows
+
+
+def _territory_map_items(lang: str, territories: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Map features for the municipal archive bins.
+
+    These are the territories the service bins retained observations into. They
+    are drawn as flat outlines with no shading: the only per-territory number
+    available is a raw event count, which ranks as a population map, so shading
+    by it would imply a reliability comparison the data does not support. The
+    normalized metric is deferred to `v0.4.7` (see PLANS.md).
+
+    `aggregate` marks these as a container of many outages rather than a single
+    one, so the detail card does not describe a territory with single-event
+    wording like "observed start".
+    """
+    items = []
+    for item in territories:
+        geometry = item.get("geometry")
+        lat = item.get("centroidLat")
+        lon = item.get("centroidLon")
+        if not geometry and (lat is None or lon is None):
+            continue
+        title = item.get("territoryName") or t(
+            lang, "archive_area_code", code=item.get("municipalityCode") or "?"
+        )
+        items.append(
+            {
+                "kind": "previous_outage",
+                "aggregate": "territory",
+                "matchType": "municipal_archive_bin",
+                "geometryKey": item.get("geometryKey") or item.get("territoryId"),
+                "geometry": geometry,
+                "lat": lat,
+                "lon": lon,
+                "label": title,
+                "designation": item.get("designation") or "",
+                "eventCount": item.get("eventCount") or 0,
+                "customersAffected": item.get("customersAffected"),
+                "startTime": item.get("latestStartTime"),
+            }
+        )
+    return items
 
 
 def _latest_archive_groups(
@@ -516,6 +565,7 @@ def explore_sheet_context(
     context_available: bool = True,
 ) -> dict[str, Any]:
     """Build the sheet context for explore mode (no address)."""
+    map_matches: list[dict[str, Any]] | None = None
     if domain == "current":
         payload = default_map_payload(lang, current_map_layers=current_layers or [])
         items = [item for item in payload["matches"] if item["kind"] == "outage"]
@@ -551,6 +601,12 @@ def explore_sheet_context(
         )
         items = [item for item in payload["matches"] if item["kind"] == "previous_outage"]
         summary = archive_summary or {}
+        # The map was drawing nothing on this tab: in municipal-archive mode
+        # previous_map_layers is empty by design, so the bins never reached it.
+        territory_items = _territory_map_items(lang, summary.get("territories") or [])
+        if territory_items:
+            items = territory_items
+            map_matches = territory_items
         windows = summary.get("windows") or []
         largest = summary.get("largest")
         body = {
@@ -622,12 +678,14 @@ def explore_sheet_context(
         }
     else:
         raise ValueError(f"unsupported explore domain: {domain}")
+    if map_matches is None:
+        map_matches = payload["matches"]
     return {
         "mode": "explore",
         "domain": domain,
         "scope": "province",
         "body": body,
-        "map_update": _map_update(domain, payload["matches"]),
+        "map_update": _map_update(domain, map_matches),
         "map_labels": payload.get("labels") or {},
     }
 

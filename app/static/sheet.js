@@ -4,14 +4,14 @@ import {
   requestMapFocus,
   updateMapAddress,
   updateMapLayerItems,
-} from "./map-events.js?v=b772f9748181";
-import { contextLayerForKind } from "./map-utils.js?v=b772f9748181";
+} from "./map-events.js?v=da0a5a136623";
+import { contextLayerForKind } from "./map-utils.js?v=da0a5a136623";
 import {
   attachAddressAutocomplete,
   attachComparisonTray,
   hydrateTimeLabels,
   updateSearchUrl,
-} from "./search.js?v=b772f9748181";
+} from "./search.js?v=da0a5a136623";
 import {
   escapeHtml,
   formatDistanceKm,
@@ -19,7 +19,7 @@ import {
   formatPreviousTimeParts,
   hasDistanceValue,
   label,
-} from "./ui-format.js?v=b772f9748181";
+} from "./ui-format.js?v=da0a5a136623";
 
 const DETENTS = ["peek", "half", "full"];
 // The sheet height transition in app.css runs 280ms; wait slightly longer
@@ -473,7 +473,58 @@ export async function fetchSheet(updates = {}, { pushUrl = true, focus = null } 
   }
 }
 
+function territoryDetailHtml(item) {
+  // A municipal archive bin aggregates many outages, so single-event wording
+  // like "observed start" would misdescribe it. Report the count, the peak, and
+  // when the most recent one was seen, with the retained-observation caveat.
+  const latest = formatPreviousTimeParts(item.startTime, mapLabels);
+  const facts = [];
+  const pushFact = (labelKey, fallback, value) => {
+    if (value === "" || value === null || value === undefined) return;
+    facts.push(
+      `<li><span class="ph-detail-fact-label">${escapeHtml(label(mapLabels, labelKey, fallback))}</span>` +
+        `<span class="ph-detail-fact-value">${escapeHtml(String(value))}</span></li>`,
+    );
+  };
+  pushFact("archive_bin_events", "Retained outages", item.eventCount ?? "");
+  pushFact(
+    "archive_bin_peak",
+    "Peak customers affected",
+    item.customersAffected != null ? String(item.customersAffected) : "",
+  );
+  pushFact(
+    "archive_bin_latest",
+    "Latest observed",
+    latest.time ? `${latest.date} · ${latest.time}` : latest.date,
+  );
+  const closeLabel = escapeHtml(label(mapLabels, "detail_close", "Close"));
+  return `
+    <header class="ph-sheet-header">
+      <div class="ph-sheet-header-text">
+        <h2 id="sheet-detail-title" class="ph-sheet-title">${escapeHtml(item.label || "")}</h2>
+        <p class="ph-sheet-subtitle">${escapeHtml(
+          [label(mapLabels, "archive_bin_title", "Archive area"), item.designation || ""]
+            .filter(Boolean)
+            .join(" · "),
+        )}</p>
+      </div>
+      <button class="ph-round-button" type="button" data-detail-close aria-label="${closeLabel}">
+        <svg class="ph-icon" aria-hidden="true" focusable="false"><use href="/static/icons.svg#ph-icon-x"></use></svg>
+      </button>
+    </header>
+    <ul class="ph-detail-facts">${facts.join("")}</ul>
+    <p class="ph-detail-source-note">${escapeHtml(
+      label(
+        mapLabels,
+        "archive_bin_caveat",
+        "Observations retained by pannes.ca for this area, not Hydro-Quebec's complete official history.",
+      ),
+    )}</p>
+  `;
+}
+
 function operationalDetailHtml(item) {
+  if (item.aggregate === "territory") return territoryDetailHtml(item);
   const isPlanned = item.kind === "planned";
   const startParts = formatPreviousTimeParts(item.startTime, mapLabels);
   const endParts = formatPreviousTimeParts(item.endTime, mapLabels);
