@@ -94,6 +94,9 @@ class StubService:
         )
         return result
 
+    def published_context_available(self):
+        return True
+
     def regional_metric_map_layers(self):
         return []
 

@@ -509,6 +509,7 @@ def explore_sheet_context(
     archive_summary: dict[str, Any] | None = None,
     regional_layers: list[dict[str, Any]] | None = None,
     disclosure_layers: list[dict[str, Any]] | None = None,
+    context_available: bool = True,
 ) -> dict[str, Any]:
     """Build the sheet context for explore mode (no address)."""
     if domain == "current":
@@ -592,10 +593,17 @@ def explore_sheet_context(
         published = [
             item for item in payload["matches"] if item["kind"] in {"disclosure", "regional_metric"}
         ]
+        rows = _context_rows(lang, published)
         body = {
             "intro": t(lang, "explore_context_intro"),
-            "rows": _context_rows(lang, published),
-            "empty": t(lang, "domain_context_empty"),
+            "rows": rows,
+            # Only claim there are no documents when the lookup actually
+            # succeeded and returned nothing.
+            "empty": t(
+                lang,
+                "domain_context_empty" if context_available else "domain_context_unavailable",
+            ),
+            "degraded": bool(not rows and not context_available),
         }
     else:
         raise ValueError(f"unsupported explore domain: {domain}")

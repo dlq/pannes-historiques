@@ -1,6 +1,7 @@
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
+from app.i18n import t
 from app.sheet_views import (
     HISTORY_MONTHS,
     _context_rows,
@@ -377,3 +378,21 @@ def test_non_marker_parentheticals_survive_count():
     assert "(up to 50 shown)" in text
     text_fr = t("fr", "archive_bins_note", count=1)
     assert "(50 au maximum)" in text_fr
+
+
+def test_context_degraded_read_does_not_claim_no_documents():
+    """A failed durable read must not render as an authoritative empty state.
+
+    Production showed "Aucun document publié disponible" on 2026-08-05 while D1
+    held 32 disclosure sources and 238 regional metrics: the durable map-context
+    read failed and was flattened to []. Users were told the documents did not
+    exist.
+    """
+    context = explore_sheet_context("fr", "context", context_available=False)
+    assert context["body"]["degraded"] is True
+    assert context["body"]["empty"] == t("fr", "domain_context_unavailable")
+    assert "Aucun document publié disponible" not in context["body"]["empty"]
+
+    available = explore_sheet_context("fr", "context", context_available=True)
+    assert available["body"]["degraded"] is False
+    assert available["body"]["empty"] == t("fr", "domain_context_empty")

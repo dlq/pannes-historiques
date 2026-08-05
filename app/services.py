@@ -1468,6 +1468,17 @@ class AppService:
     def disclosure_map_layers(self) -> list[dict[str, Any]]:
         return self._disclosure_map_layers()
 
+    def published_context_available(self) -> bool:
+        """Whether published context could actually be read.
+
+        Distinguishes a genuine "no documents" answer from a failed durable
+        read, so the UI never claims documents do not exist when the lookup
+        simply broke.
+        """
+        if not self.settings.durable_runtime_url:
+            return True
+        return self._durable_runtime_get("map-context") is not None
+
     def _current_operational_map_layers(self, include_planned: bool) -> list[dict[str, Any]]:
         if self.settings.durable_runtime_url or self.settings.durable_nearby_url:
             return self._build_current_operational_map_layers(include_planned)
@@ -2441,17 +2452,24 @@ class AppService:
         }.get(match_type, 0)
 
     def _regional_metric_map_layers(self) -> list[dict[str, Any]]:
-        return self._cached_context(
-            "regional_metric_map_layers",
-            self._build_regional_metric_map_layers,
+        return (
+            self._cached_context(
+                "regional_metric_map_layers",
+                self._build_regional_metric_map_layers,
+                cache_none=False,
+                should_cache=lambda value: value is not None,
+            )
+            or []
         )
 
-    def _build_regional_metric_map_layers(self) -> list[dict[str, Any]]:
+    def _build_regional_metric_map_layers(self) -> list[dict[str, Any]] | None:
         if self.settings.durable_runtime_url:
             payload = self._durable_runtime_get("map-context")
             if payload and "regional_metric_layers" in payload:
                 return payload["regional_metric_layers"]
-            return []
+            # See _build_disclosure_map_layers: a failed read must not be cached
+            # or presented as an authoritative empty result.
+            return None
         with open_db(self.settings.db_path) as connection:
             rows = connection.execute(
                 """
@@ -2523,14 +2541,27 @@ class AppService:
         return sorted(layers_by_region.values(), key=lambda item: item["geography_label"])
 
     def _disclosure_map_layers(self) -> list[dict[str, Any]]:
-        return self._cached_context("disclosure_map_layers", self._build_disclosure_map_layers)
+        return (
+            self._cached_context(
+                "disclosure_map_layers",
+                self._build_disclosure_map_layers,
+                # A failed durable read yields None, which must not be cached as if
+                # it were a genuine "no disclosures" answer.
+                cache_none=False,
+                should_cache=lambda value: value is not None,
+            )
+            or []
+        )
 
-    def _build_disclosure_map_layers(self) -> list[dict[str, Any]]:
+    def _build_disclosure_map_layers(self) -> list[dict[str, Any]] | None:
         if self.settings.durable_runtime_url:
             payload = self._durable_runtime_get("map-context")
             if payload and "disclosure_layers" in payload:
                 return payload["disclosure_layers"]
-            return []
+            # Returning [] here would render as "no published documents", which
+            # is a false statement to users when the durable read simply failed.
+            # Return None so the caller reports degraded context instead.
+            return None
         with open_db(self.settings.db_path) as connection:
             rows = connection.execute(
                 """

@@ -169,6 +169,7 @@ def create_app(settings: Settings | None = None) -> Flask:
                 "context",
                 regional_layers=service.regional_metric_map_layers(),
                 disclosure_layers=service.disclosure_map_layers(),
+                context_available=service.published_context_available(),
             )
         return explore_sheet_context(
             lang, "current", current_layers=operational_layers_for_scope(CURRENT_MAP_LAYER_SCOPE)
