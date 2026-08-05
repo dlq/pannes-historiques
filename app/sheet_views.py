@@ -137,7 +137,13 @@ def _format_window(lang: str, start: str | None, end: str | None) -> str:
     return ""
 
 
-def _format_customers(value: int | float | None) -> str:
+def _format_number(value: int | float | None) -> str:
+    """Group thousands with a space, the French convention the UI uses.
+
+    Applies to every figure the sheet renders — customers, outage counts,
+    territory counts — so two numbers on the same card never follow
+    different conventions.
+    """
     count = int(value or 0)
     return f"{count:,}".replace(",", " ")
 
@@ -237,7 +243,7 @@ def _current_rows(
             "statusLabel": item.get("statusLabel") or t(lang, "unknown"),
             "status": item.get("status") or "",
             "statusChipClass": _status_chip_class(item.get("status")),
-            "customers": _format_customers(item.get("customersAffected")),
+            "customers": _format_number(item.get("customersAffected")),
             "customersLabel": t(lang, "clients"),
             "distanceKm": _format_distance_km(item.get("distanceM"), lang) if with_distance else "",
             "focus": _focus_payload(item),
@@ -272,7 +278,7 @@ def _planned_groups(
             {
                 "kind": "planned",
                 "window": _format_window(lang, item.get("startTime"), item.get("endTime")),
-                "customers": _format_customers(item.get("customersAffected")),
+                "customers": _format_number(item.get("customersAffected")),
                 "customersLabel": t(lang, "clients"),
                 "distanceKm": _format_distance_km(item.get("distanceM"), lang)
                 if with_distance
@@ -308,7 +314,7 @@ def _territory_rows(lang: str, territories: list[dict[str, Any]]) -> list[dict[s
             t(
                 lang,
                 "archive_max_clients",
-                customers=_format_customers(item.get("customersAffected")),
+                customers=_format_number(item.get("customersAffected")),
             ),
             _format_date_label(lang, item.get("latestStartTime")),
         ]
@@ -318,6 +324,7 @@ def _territory_rows(lang: str, territories: list[dict[str, Any]]) -> list[dict[s
                 "sub": " · ".join(part for part in sub_parts if part),
                 "designation": item.get("designation") or "",
                 "count": item.get("eventCount") or 0,
+                "countDisplay": _format_number(item.get("eventCount") or 0),
                 # Carries the aggregate fields itself rather than relying on the
                 # map to match the row back to its feature: if that lookup ever
                 # misses, the detail card would fall back to single-outage
@@ -433,7 +440,7 @@ def _latest_archive_groups(
                 "tile": _date_tile(lang, item.get("startTime")),
                 "startTime": item.get("startTime") or "",
                 "territoryName": territory_name,
-                "customers": _format_customers(item.get("customersAffected")),
+                "customers": _format_number(item.get("customersAffected")),
                 "focus": {key: value for key, value in focus.items() if value is not None},
             }
         )
@@ -481,7 +488,7 @@ def _previous_rows(
                 "dateLabel": _format_date_label(lang, item.get("startTime")),
                 "tile": _date_tile(lang, item.get("startTime")),
                 "statusLabel": item.get("statusLabel") or "",
-                "customers": _format_customers(item.get("customersAffected")),
+                "customers": _format_number(item.get("customersAffected")),
                 "customersLabel": t(lang, "clients"),
                 "distanceKm": _format_distance_km(item.get("distanceM"), lang)
                 if with_distance
@@ -539,6 +546,8 @@ def _context_rows(lang: str, items: list[dict[str, Any]]) -> list[dict[str, Any]
                 }
             )
     rows.sort(key=lambda row: -(row["count"] or 0))
+    for row in rows:
+        row["countDisplay"] = _format_number(row["count"]) if row["count"] is not None else None
     return rows
 
 
@@ -582,7 +591,7 @@ def explore_sheet_context(
         body = {
             "summary": t(lang, "explore_current_summary", count=len(items)),
             "customers": t(
-                lang, "explore_current_customers", customers=_format_customers(total_customers)
+                lang, "explore_current_customers", customers=_format_number(total_customers)
             ),
             "rows": rows,
             "rowsNote": _rows_shown_note(lang, len(rows), len(items)),
@@ -622,8 +631,8 @@ def explore_sheet_context(
                 {
                     "key": window.get("key"),
                     "label": t(lang, window.get("key", "unknown")),
-                    "areas": window.get("areas", 0),
-                    "customers": _format_customers(window.get("totalCustomers")),
+                    "areas": _format_number(window.get("areas", 0)),
+                    "customers": _format_number(window.get("totalCustomers")),
                 }
                 for window in windows
             ],
@@ -631,7 +640,7 @@ def explore_sheet_context(
                 lang,
                 "archive_largest_label",
                 date=_format_date_label(lang, largest.get("startTime")),
-                customers=_format_customers(largest.get("customersAffected")),
+                customers=_format_number(largest.get("customersAffected")),
             )
             if largest
             else "",

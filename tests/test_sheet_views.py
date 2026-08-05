@@ -552,3 +552,60 @@ def test_categorical_labels_are_separate_fields_not_joined_text():
     assert rows[0]["sourceTypeLabel"] == "Region"
     assert rows[0]["subtitle"] == "2025"
     assert "Region" not in rows[0]["subtitle"]
+
+
+def test_row_counts_are_thousands_grouped_like_customer_figures():
+    """Counts rendered ungrouped next to grouped customer figures.
+
+    The Archive window card showed "2570" directly above "≈ 287 600 clients",
+    and a busy territory or region rendered "16790" / "9422", so the two
+    numbers on the same card followed different conventions. Counts keep a
+    numeric field for sorting and gain a display string for the template.
+    """
+    summary = {
+        "windows": [{"key": "1y", "areas": 2570, "totalCustomers": 287600}],
+        "territories": [
+            {
+                "territoryId": "municipality:66023",
+                "territoryName": "Montréal",
+                "eventCount": 16790,
+                "centroidLat": 45.52,
+                "centroidLon": -73.6,
+            }
+        ],
+        "latest": [],
+    }
+    body = explore_sheet_context("fr", "archive", archive_summary=summary)["body"]
+    assert body["windows"][0]["areas"] == "2 570"
+    assert body["windows"][0]["customers"] == "287 600"
+    assert body["territoryRows"][0]["countDisplay"] == "16 790"
+    # The sort key stays numeric.
+    assert body["territoryRows"][0]["count"] == 16790
+
+
+def test_context_row_counts_are_grouped_after_sorting():
+    """_context_rows sorts on count, so the display string is added after.
+
+    Formatting in place would have turned the sort key into a string and
+    ordered the regions lexically.
+    """
+    rows = _context_rows(
+        "fr",
+        [
+            {
+                "kind": "regional_metric",
+                "label": "Petite",
+                "matchType": "administrative_region_context",
+                "outageCount": 9422,
+            },
+            {
+                "kind": "regional_metric",
+                "label": "Grande",
+                "matchType": "administrative_region_context",
+                "outageCount": 12000,
+            },
+        ],
+    )
+
+    assert [row["title"] for row in rows] == ["Grande", "Petite"]
+    assert [row["countDisplay"] for row in rows] == ["12 000", "9 422"]

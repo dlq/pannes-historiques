@@ -80,6 +80,42 @@ button {
   vertical-align: -0.15em;
 }
 
+/* Line-breaking hints. Both properties are progressive enhancement: browsers
+   that do not support them ignore the declaration and wrap as before, and
+   neither one changes the text itself, so nothing here affects what a screen
+   reader announces. Short headings balance so a title never drops a single
+   trailing word onto its own line; running copy uses `pretty`, which only
+   avoids orphans and keeps the greedy wrapping everywhere else. */
+.ph-sheet-title,
+.ph-domain-title,
+.ph-domain-summary-title,
+.ph-row-title,
+.ph-status-title,
+.ph-legend-title,
+.ph-about-title,
+.ph-about-heading {
+  text-wrap: balance;
+}
+
+.ph-sheet-subtitle,
+.ph-row-sub,
+.ph-status-text,
+.ph-context-intro,
+.ph-empty,
+.ph-legend-note,
+.ph-detail-source-note,
+.ph-about-lede {
+  text-wrap: pretty;
+}
+
+/* Figures that share a column or stack down a list line up when their digits
+   are the same width, so every element that renders a number opts in — not
+   just the metric column. */
+.ph-row-sub,
+.ph-window-sub {
+  font-variant-numeric: tabular-nums;
+}
+
 /* Full-bleed map */
 
 .ph-app {
