@@ -6,6 +6,7 @@ export { PannesContainer } from "./container.js";
 import { archiveHealthCutoffs, summarizeArchiveCompleteness } from "./archive-health.js";
 import {
   archiveSummaryIncoherences,
+  archiveWindow,
   isUsableArchiveSummary,
   municipalArchiveLatestRow,
 } from "./archive-summary.js";
@@ -1373,11 +1374,15 @@ async function readArchiveCoherenceProblems(db) {
 async function ingestionHealthResponse(env) {
   let health;
   try {
-    health = await readIngestionHealth(env.DB);
     // The Archive tab served a count of municipalities as a count of outages
     // for months while every probe reported healthy. Numbers that contradict
     // each other are a data-plane fault, so they belong on the same alert.
-    const incoherences = await readArchiveCoherenceProblems(env.DB);
+    // The two reads are independent.
+    let incoherences;
+    [health, incoherences] = await Promise.all([
+      readIngestionHealth(env.DB),
+      readArchiveCoherenceProblems(env.DB),
+    ]);
     if (incoherences.length) {
       health = {
         ...health,
@@ -2435,11 +2440,10 @@ function previousArchiveItem(row) {
 
 function previousArchiveWindow(items, key, cutoff) {
   const windowItems = items.filter((item) => item.startTime >= cutoff);
-  return {
-    key,
+  return archiveWindow(key, {
     outages: windowItems.length,
     totalCustomers: windowItems.reduce((total, item) => total + item.customersAffected, 0),
-  };
+  });
 }
 
 function previousArchiveLargest(items) {
@@ -2614,11 +2618,7 @@ async function municipalArchiveWindow(db, key, cutoff) {
     )
     .bind(cutoff)
     .first();
-  return {
-    key,
-    outages: Number(row?.outages || 0),
-    totalCustomers: Number(row?.total_customers || 0),
-  };
+  return archiveWindow(key, { outages: row?.outages, totalCustomers: row?.total_customers });
 }
 
 async function municipalArchiveLargest(db, cutoff) {

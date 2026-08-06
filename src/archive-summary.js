@@ -13,12 +13,11 @@ export function municipalArchiveLatestRow(row) {
 // as missing -- every window silently showing 0 rather than an error. Callers
 // treat false as a cache miss and rebuild, so a shape change heals itself on
 // the first request after deploy.
-// Both numeric fields are required, not just `outages`: the coherence checks
-// below read `totalCustomers` too, and a payload carrying one without the other
-// would pass this guard and then fail those. An empty array is rejected for the
-// same reason -- every builder emits one window per key, so no windows means a
-// malformed payload rather than a quiet period, and it would leave the checks
-// with nothing to compare.
+//
+// Both numeric fields are required and an empty array is rejected, because the
+// coherence checks below read `totalCustomers` as well and look the widest
+// window up by key. A payload satisfying less than this would pass the guard
+// and then give those checks nothing to compare.
 export function isUsableArchiveSummary(summary) {
   if (!Array.isArray(summary?.windows) || summary.windows.length === 0) return false;
   return summary.windows.every(
@@ -26,12 +25,27 @@ export function isUsableArchiveSummary(summary) {
   );
 }
 
-// Windows run back from now, so each one contains the shorter ones.
+// Both summary paths build this shape, and they diverged once already: the
+// field was called `areas`, and one path filled it with an outage count while
+// the other filled it with a territory count. Building it in one place makes
+// that drift structurally impossible instead of something a test greps for.
+export function archiveWindow(key, { outages, totalCustomers }) {
+  return {
+    key,
+    outages: Number(outages || 0),
+    totalCustomers: Number(totalCustomers || 0),
+  };
+}
+
+// Windows run back from now, so each one contains the shorter ones. The widest
+// is also the ceiling every territory figure is checked against, so it is named
+// rather than repeated as a literal further down.
+const YEAR_WINDOW = "previous_archive_last_1y";
 const WINDOW_ORDER = [
   "previous_archive_last_24h",
   "previous_archive_last_7d",
   "previous_archive_last_30d",
-  "previous_archive_last_1y",
+  YEAR_WINDOW,
 ];
 
 // Cross-field checks on a built summary. These compare the payload against
@@ -55,8 +69,8 @@ export function archiveSummaryIncoherences(summary) {
     const shorter = ordered[i - 1];
     const longer = ordered[i];
     for (const field of ["outages", "totalCustomers"]) {
-      const inner = Number(shorter?.[field] ?? 0);
-      const outer = Number(longer?.[field] ?? 0);
+      const inner = Number(shorter[field] ?? 0);
+      const outer = Number(longer[field] ?? 0);
       if (inner > outer) {
         problems.push(
           `${shorter.key}.${field} (${inner}) exceeds ${longer.key}.${field} (${outer}), ` +
@@ -66,41 +80,38 @@ export function archiveSummaryIncoherences(summary) {
     }
   }
 
-  // The territory list is drawn from the same one-year cutoff as the widest
-  // window, so no single territory can hold more outages than the year.
-  const year = byKey.get("previous_archive_last_1y");
+  // Every territory figure is drawn from the same primary rows the summary
+  // totals are, so each one has a ceiling elsewhere in the payload. A missing
+  // ceiling means there is nothing to compare against, not a violation.
+  const year = byKey.get(YEAR_WINDOW);
   const territories = Array.isArray(summary?.territories) ? summary.territories : [];
-  if (year && typeof year.outages === "number") {
+  const flagTerritoriesAbove = (field, ceiling, describe) => {
+    if (typeof ceiling !== "number") return;
     for (const territory of territories) {
-      const events = Number(territory?.eventCount ?? 0);
-      if (events > year.outages) {
-        problems.push(
-          `territory ${territory?.territoryName || territory?.territoryId} reports ` +
-            `${events} outages, more than the ${year.outages} in the whole year`,
-        );
+      const value = Number(territory?.[field] ?? 0);
+      if (value > ceiling) {
+        const name = territory?.territoryName || territory?.territoryId || "unknown";
+        problems.push(`territory ${name} ${describe(value, ceiling)}`);
       }
     }
-  }
+  };
 
-  // `largest` is the peak over every primary row, and a territory's
-  // customersAffected is the peak over its own subset of those rows, so no
-  // territory can exceed it. This binds tightly -- the top territory usually
-  // IS the largest outage, making it equality rather than slack -- which is
-  // why it replaced a comparison of the largest single outage against the
-  // year's cumulative sum. That one held with roughly a thousandfold margin
-  // and so could never have failed on anything.
-  const largest = summary?.largest?.customersAffected;
-  if (typeof largest === "number") {
-    for (const territory of territories) {
-      const peak = Number(territory?.customersAffected ?? 0);
-      if (peak > largest) {
-        problems.push(
-          `territory ${territory?.territoryName || territory?.territoryId} peaks at ` +
-            `${peak} customers, above the ${largest} of the largest single outage`,
-        );
-      }
-    }
-  }
+  flagTerritoriesAbove(
+    "eventCount",
+    year?.outages,
+    (value, ceiling) => `reports ${value} outages, more than the ${ceiling} in the whole year`,
+  );
+  // `largest` is the peak over every primary row and a territory's peak is the
+  // maximum over its own subset of them. This binds tightly -- the top
+  // territory usually IS the largest outage, so it holds at equality -- unlike
+  // comparing that single outage against the year's cumulative sum, which had
+  // roughly a thousandfold margin and so could never have failed.
+  flagTerritoriesAbove(
+    "customersAffected",
+    summary?.largest?.customersAffected,
+    (value, ceiling) =>
+      `peaks at ${value} customers, above the ${ceiling} of the largest single outage`,
+  );
 
   return problems;
 }

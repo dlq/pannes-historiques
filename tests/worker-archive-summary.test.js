@@ -4,6 +4,7 @@ import { test } from "node:test";
 
 import {
   archiveSummaryIncoherences,
+  archiveWindow,
   isUsableArchiveSummary,
   municipalArchiveLatestRow,
 } from "../src/archive-summary.js";
@@ -62,13 +63,29 @@ test("archive window counts outages, not municipalities", () => {
   assert.match(sql, /assignment_type = 'primary'/);
 });
 
-test("both archive summary paths publish the same window field", () => {
-  const source = readFileSync(new URL("../src/worker.js", import.meta.url), "utf8");
-  assert.equal(
-    source.match(/^\s*(?:outages|areas):/gm).filter((line) => line.includes("areas")).length,
-    0,
-    "`areas` meant outages in one path and territories in the other; keep one name",
-  );
+test("both archive summary paths build their windows through one constructor", () => {
+  // `areas` meant outages in one path and territories in the other. This used
+  // to be a grep of worker.js for that specific old name, which would have
+  // missed a third one; both paths now go through archiveWindow, so the shape
+  // cannot drift and only the constructor needs pinning.
+  assert.deepEqual(archiveWindow("previous_archive_last_1y", { outages: 5, totalCustomers: 9 }), {
+    key: "previous_archive_last_1y",
+    outages: 5,
+    totalCustomers: 9,
+  });
+
+  // It owns the coercion, so a D1 row's null or string columns cannot reach
+  // the payload as-is and read as a missing figure downstream.
+  assert.deepEqual(archiveWindow("k", { outages: null, totalCustomers: undefined }), {
+    key: "k",
+    outages: 0,
+    totalCustomers: 0,
+  });
+  assert.deepEqual(archiveWindow("k", { outages: "42", totalCustomers: "7" }), {
+    key: "k",
+    outages: 42,
+    totalCustomers: 7,
+  });
 });
 
 test("a stored summary from an older payload shape is treated as a cache miss", () => {
