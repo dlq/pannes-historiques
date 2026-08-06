@@ -3,6 +3,13 @@
 Date: 2026-04-25
 Last updated: 2026-08-05
 
+## Why package.json pins undici, 2026-08-05
+
+- Five Dependabot alerts (one high, four medium, all fixed in `undici` 7.29.0) resolved against `undici` 7.28.0, reached only as a transitive development dependency: `wrangler` -> `miniflare` -> `undici`. Nothing ships it. The Worker runs on Cloudflare's runtime and the container is Python, so the exposure is local development and CI.
+- `npm audit fix --force` resolves it by downgrading `wrangler` from 4.117.0 to 4.35.0, which is the tool the project deploys with. That trade is not worth taking for a dev-only advisory.
+- The lockfile is pinned instead, with `"overrides": { "undici": "^7.29.0" }` in `package.json`. It stays within the same major, so miniflare's own range is still satisfied. Verified afterwards: `npm audit` reports 0 vulnerabilities, `wrangler --version` still reports 4.117.0, `wrangler deploy --dry-run` still builds the container, and all three suites pass.
+- Remove the override once `wrangler` ships a release whose `miniflare` depends on `undici` >= 7.29.0. It exists only because JSON cannot carry the comment.
+
 ## What the Archive report figures actually measure, 2026-08-05
 
 - Measured in production D1: the municipal archive bins hold exactly one `primary` row per outage polygon — 221 786 primary rows across 221 786 distinct `hydro_polygon_id` values — plus 269 513 `overlap` rows that repeat a polygon once per additional municipality it touches. Every archive query filters `assignment_type = 'primary'`, so aggregating over those rows counts each outage once even when its footprint crosses municipal boundaries. Any future aggregate that drops that filter will silently inflate wide outages.
