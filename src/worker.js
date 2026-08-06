@@ -1363,7 +1363,10 @@ async function readArchiveCoherenceProblems(db) {
     if (!summary) return [];
     return archiveSummaryIncoherences(summary);
   } catch (error) {
-    return [`archive coherence check failed: ${String(error)}`];
+    // This body is public, so the detail goes to the log and the caller gets a
+    // fixed string. A D1 error can name tables and columns.
+    console.error("archive coherence check failed", error);
+    return ["archive coherence check failed"];
   }
 }
 
@@ -1383,11 +1386,10 @@ async function ingestionHealthResponse(env) {
       };
     }
   } catch (error) {
-    // A health probe that cannot read its own data plane is unhealthy.
-    return jsonResponse(
-      { healthy: false, problems: [`health check failed: ${String(error)}`] },
-      { status: 503 },
-    );
+    // A health probe that cannot read its own data plane is unhealthy. The
+    // detail is logged rather than returned, because this body is public.
+    console.error("ingestion health check failed", error);
+    return jsonResponse({ healthy: false, problems: ["health check failed"] }, { status: 503 });
   }
   return jsonResponse(
     { generated_at: new Date().toISOString(), ...health },

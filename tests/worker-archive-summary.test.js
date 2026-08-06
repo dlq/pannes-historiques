@@ -46,19 +46,20 @@ test("archive window counts outages, not municipalities", () => {
   );
   assert.ok(query.length > 0, "municipalArchiveWindow not found");
 
-  assert.match(
-    query,
-    /SUM\(COALESCE\(event_count, 1\)\) AS outages/,
-    "the window number must aggregate outages",
-  );
-  assert.doesNotMatch(
-    query,
-    /COUNT\(DISTINCT territory_id\) AS outages/,
-    "counting territories saturates near Quebec's ~1100 municipalities",
-  );
+  // Collapse whitespace first so reformatting the SQL cannot fail this on
+  // spelling. What is pinned is which column feeds the window number, not how
+  // the query is laid out.
+  const sql = query.replace(/\s+/g, " ");
+
+  assert.match(sql, /SUM\(\s*COALESCE\(\s*event_count[^)]*\)\s*\) AS outages/, [
+    "the window number must aggregate outages.",
+    "It ran COUNT(DISTINCT territory_id), so it counted municipalities and",
+    "saturated near Quebec's ~1100 of them while claiming to count outages.",
+  ].join(" "));
+  assert.doesNotMatch(sql, /COUNT\([^)]*territory_id[^)]*\) AS outages/);
   // Overlap rows repeat a polygon once per municipality it touches, so
   // dropping this filter would inflate the count for every wide outage.
-  assert.match(query, /assignment_type = 'primary'/);
+  assert.match(sql, /assignment_type = 'primary'/);
 });
 
 test("both archive summary paths publish the same window field", () => {
@@ -93,7 +94,7 @@ test("a stored summary from an older payload shape is treated as a cache miss", 
   assert.equal(isUsableArchiveSummary(rebuilt), true);
 
   // Zero is a real answer for a quiet window and must not look like a miss.
-  assert.equal(isUsableArchiveSummary({ windows: [{ outages: 0 }] }), true);
+  assert.equal(isUsableArchiveSummary({ windows: [{ outages: 0, totalCustomers: 0 }] }), true);
   assert.equal(isUsableArchiveSummary(null), false);
   assert.equal(isUsableArchiveSummary({}), false);
 });
@@ -158,4 +159,50 @@ test("an empty or quiet summary raises nothing", () => {
     }),
     [],
   );
+});
+
+// Review findings on the guards themselves, 2026-08-05.
+test("a summary missing totalCustomers is rejected rather than half-checked", () => {
+  // It previously passed the shape guard on `outages` alone, and then the
+  // coherence checks read totalCustomers as 0 and reported the largest outage
+  // as exceeding the year -- a false 503 on a public endpoint that pages the
+  // half-hourly monitor.
+  const summary = { windows: [{ key: "previous_archive_last_1y", outages: 10 }] };
+  assert.equal(isUsableArchiveSummary(summary), false);
+});
+
+test("a summary with no windows is rejected", () => {
+  // [].every() is true, so this used to be "usable": it rendered no window
+  // grid and silently disabled every territory check, because the checks look
+  // the annual window up by key and found nothing.
+  assert.equal(isUsableArchiveSummary({ windows: [] }), false);
+  assert.deepEqual(
+    archiveSummaryIncoherences({
+      windows: [],
+      territories: [{ territoryName: "Somewhere", eventCount: 99999 }],
+    }),
+    [],
+    "with no annual window there is nothing to compare against",
+  );
+});
+
+test("a territory cannot peak above the largest single outage", () => {
+  const base = {
+    windows: [{ key: "previous_archive_last_1y", outages: 500, totalCustomers: 9000 }],
+    largest: { customersAffected: 4116 },
+  };
+  assert.deepEqual(
+    archiveSummaryIncoherences({
+      ...base,
+      territories: [{ territoryName: "Saint-Hyacinthe", customersAffected: 4116 }],
+    }),
+    [],
+    "equality is the normal case: the top territory usually is the largest outage",
+  );
+  const problems = archiveSummaryIncoherences({
+    ...base,
+    territories: [{ territoryName: "Impossible", customersAffected: 4117 }],
+  });
+  assert.equal(problems.length, 1);
+  assert.match(problems[0], /Impossible peaks at 4117 customers, above the 4116/);
 });

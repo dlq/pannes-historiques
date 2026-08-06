@@ -13,9 +13,17 @@ export function municipalArchiveLatestRow(row) {
 // as missing -- every window silently showing 0 rather than an error. Callers
 // treat false as a cache miss and rebuild, so a shape change heals itself on
 // the first request after deploy.
+// Both numeric fields are required, not just `outages`: the coherence checks
+// below read `totalCustomers` too, and a payload carrying one without the other
+// would pass this guard and then fail those. An empty array is rejected for the
+// same reason -- every builder emits one window per key, so no windows means a
+// malformed payload rather than a quiet period, and it would leave the checks
+// with nothing to compare.
 export function isUsableArchiveSummary(summary) {
-  if (!Array.isArray(summary?.windows)) return false;
-  return summary.windows.every((window) => typeof window?.outages === "number");
+  if (!Array.isArray(summary?.windows) || summary.windows.length === 0) return false;
+  return summary.windows.every(
+    (window) => typeof window?.outages === "number" && typeof window?.totalCustomers === "number",
+  );
 }
 
 // Windows run back from now, so each one contains the shorter ones.
@@ -74,13 +82,24 @@ export function archiveSummaryIncoherences(summary) {
     }
   }
 
-  // The largest single outage is one of the outages summed into the year.
-  const largest = Number(summary?.largest?.customersAffected ?? 0);
-  if (year && largest > Number(year.totalCustomers ?? 0)) {
-    problems.push(
-      `largest single outage (${largest} customers) exceeds the year's cumulative ` +
-        `total (${year.totalCustomers})`,
-    );
+  // `largest` is the peak over every primary row, and a territory's
+  // customersAffected is the peak over its own subset of those rows, so no
+  // territory can exceed it. This binds tightly -- the top territory usually
+  // IS the largest outage, making it equality rather than slack -- which is
+  // why it replaced a comparison of the largest single outage against the
+  // year's cumulative sum. That one held with roughly a thousandfold margin
+  // and so could never have failed on anything.
+  const largest = summary?.largest?.customersAffected;
+  if (typeof largest === "number") {
+    for (const territory of territories) {
+      const peak = Number(territory?.customersAffected ?? 0);
+      if (peak > largest) {
+        problems.push(
+          `territory ${territory?.territoryName || territory?.territoryId} peaks at ` +
+            `${peak} customers, above the ${largest} of the largest single outage`,
+        );
+      }
+    }
   }
 
   return problems;
