@@ -1,16 +1,16 @@
 # Current Snapshot
 
-Last updated: 2026-08-05
+Last updated: 2026-08-08
 
 Read this first for quick orientation. Use `PLANS.md` for the active roadmap, `docs/architecture.md` for runtime boundaries, `docs/cost-containment.md` for cost strategy, and `CHANGELOG.md` for completed release history.
 
 ## Version And Deployment
 
-- Shipped release: `v0.4.6`.
-- Package metadata: `0.4.6` in `pyproject.toml` and `package.json`.
-- Last recorded production deployment: Worker version `d62049e6-f4f3-468c-a0bc-98589a61c67e`, deployed 2026-08-05 with the Archive figure correction, archive coherence checks, and sheet number formatting. The `v0.4.6` release deployment and container digest are retained in `NOTES.md`.
-- `main` also contains untagged SEO and map-startup follow-ups from 2026-08-02, plus the UI redesign work and Archive corrections through 2026-08-05. Do not treat a merge to `main` as proof of production deployment; record deployment evidence in `PLANS.md` and `CHANGELOG.md`.
-- Current development direction: `v0.4.7` Hydro Score / regional analytics framing, followed by privacy-preserving aggregate feature-use evidence in `v0.4.8`.
+- Shipped release: `v0.4.7`.
+- Package metadata: `0.4.7` in `pyproject.toml` and `package.json`.
+- Last recorded production deployment: Worker version `f79b2eac-a1f8-4ade-93cf-3bcc08d47420`, deployed 2026-08-08 from `main` commit `9d68829` with the Search Console URL consolidation and MapLibre startup/performance follow-ups. The `v0.4.6` release deployment and container digest are retained in `NOTES.md`.
+- Do not treat a merge to `main` as proof of production deployment; record deployment evidence in `PLANS.md` and `CHANGELOG.md`.
+- Current development direction: privacy-preserving aggregate feature-use evidence in `v0.4.8`.
 - `v0.5.0` remains gated on the score decision, bounded usage-data design, a dated cost review, healthy ingestion/archive operations, and an edge rate limit for `/autocomplete`.
 
 ## Product Shape
@@ -29,12 +29,10 @@ Read this first for quick orientation. Use `PLANS.md` for the active roadmap, `d
 - D1/R2: durable production state and raw/source archives.
 - Container: still renders public Flask pages and keeps a baked SQLite snapshot; container-local writes are ephemeral.
 
-## Active Decision
+## Active Decisions
 
-`v0.4.3` selected the hybrid renderer: Flask/Jinja still renders browser pages while the Worker
-owns D1/R2 durable reads, operational map layers, and runtime attribution. Revisit a Worker-first
-browser shell only if measured traffic shows container-rendered pages are the material recurring
-cost.
+- `v0.4.3` selected the hybrid renderer: Flask/Jinja still renders browser pages while the Worker owns D1/R2 durable reads, operational map layers, and runtime attribution. Revisit a Worker-first browser shell only if measured traffic shows container-rendered pages are the material recurring cost.
+- `v0.4.7` rejects a composite Hydro Score with current evidence. Show Hydro's normalized annual continuity index only at regional granularity, and describe local retained observations without grading an address or municipality. See ADR 0006.
 
 ## Useful Commands
 

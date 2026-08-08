@@ -456,6 +456,8 @@ test("regional context rows open the regional metric card", async ({ page }) => 
   await expect(panel.locator(".ph-sheet-title")).toHaveText("Montreal");
   await expect(panel.locator(".ph-detail-facts")).toContainText("184");
   await expect(panel.locator(".ph-detail-facts")).toContainText("DAI source");
+  await expect(panel.locator(".ph-detail-facts")).toContainText("Continuity index");
+  await expect(panel.locator(".ph-detail-facts")).toContainText("12.4 min/client");
   await panel.locator("[data-dai-detail-close]").click();
   await expect(panel).toBeHidden();
 });

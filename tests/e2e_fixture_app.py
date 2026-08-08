@@ -182,8 +182,17 @@ def _regional_metric_layers() -> list[dict[str, object]]:
             "continuity_index_minutes": 12.4,
             "long_outage_count": 7,
             "metrics": [
-                {"label": "Outages", "value": 184},
-                {"label": "Average duration", "value": 86},
+                {
+                    "source_dai": "DAI-2026-0077",
+                    "source_title": "Administrative region summary",
+                    "source_url": "https://example.invalid/dai-2026-0077",
+                    "year": 2025,
+                    "period_label": "2025",
+                    "outage_count": 184,
+                    "average_duration_minutes": 86,
+                    "continuity_index_minutes": 12.4,
+                    "long_outage_count": 7,
+                }
             ],
         }
     ]

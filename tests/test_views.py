@@ -112,7 +112,7 @@ def test_result_context_summarizes_local_previous_evidence_for_address():
     context = result_context("en", result)
 
     assert context["map_payload"]["previousLocalSummary"] == {
-        "title": "Local stability evidence",
+        "title": "Local outage observations",
         "body": "2 retained outages within 5 km. More rows mean more interruptions observed near here.",
         "meta": "All retained records within 5 km shown",
         "caveat": "This is not an official complete Hydro-Quebec address history.",

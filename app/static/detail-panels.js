@@ -1,11 +1,11 @@
-import { phIconMarkup } from "./icons.js?v=1e697d3d5d8e";
+import { phIconMarkup } from "./icons.js?v=f6eba225c299";
 import {
   escapeHtml,
   formatDuration,
   formatPreviousTimeParts,
   label,
   localizeCause,
-} from "./ui-format.js?v=1e697d3d5d8e";
+} from "./ui-format.js?v=f6eba225c299";
 
 const DETAIL_EXTRACTED_ROW_LIMIT = 80;
 
@@ -207,6 +207,10 @@ export class DaiDetailPanel extends HTMLElement {
         label(labels, "average_duration", "Average duration"),
         item.averageDurationMinutes != null ? `${item.averageDurationMinutes} min` : "",
       ),
+      factRow(
+        label(labels, "continuity_index", "Continuity index"),
+        item.continuityIndexMinutes != null ? `${item.continuityIndexMinutes} min/client` : "",
+      ),
       factRow(label(labels, "outages_over_8h", "Outages > 8 h"), item.longOutageCount ?? ""),
     ]);
     const otherMetrics = (item.metrics || []).filter((metric) => {
@@ -235,7 +239,7 @@ export class DaiDetailPanel extends HTMLElement {
       .join("");
     this.hidden = false;
     this.innerHTML = detailShell({
-      title: item.label || label(labels, "regional_colour_legend", "Regional outage burden"),
+      title: item.label || label(labels, "regional_colour_legend", "Regional continuity index"),
       subtitle: joinParts([
         `${sourceCount} ${sourceLabel}`,
         `${label(labels, "latest_map_source", "latest shown on map")}: ${item.sourceDai || unknownLabel}`,

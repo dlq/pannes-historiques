@@ -6,8 +6,12 @@ Keep active execution state in `PLANS.md` and source/evidence research in `NOTES
 
 ## [Unreleased]
 
+## [v0.4.7] - 2026-08-08
+
 ### Changed
 
+- Reframed the proposed Hydro Score as explicit component metrics: Hydro-Quebec's normalized annual continuity index remains regional, while local archive results are labelled as retained observations rather than a stability index or address-level rating.
+- Recorded the evidence and reconsideration gates in ADR 0006. A composite score remains deferred until matching customer denominators, complete multi-season coverage, major-event treatment, external validation, and uncertainty disclosures exist.
 - Added post-`v0.4.6` production follow-ups: canonical HTTPS and legacy `/search-map` redirects, a semantic main application landmark, and stronger secondary-sheet text contrast.
 - Hardened raw-source file handling and upstream parser behavior, including counting expired ingestion runs in the health failure streak.
 - Added French/English/`x-default` alternate links for indexable pages, absolute social-image URLs, and clearer English search metadata.
@@ -21,14 +25,16 @@ Keep active execution state in `PLANS.md` and source/evidence research in `NOTES
 
 ### Added
 
+- Added the continuity-index value to regional detail cards so the selected region exposes the same normalized metric used to color the map.
 - Added cross-field coherence checks on the archive summary (`archiveSummaryIncoherences`): a shorter window cannot exceed the longer one containing it, no single territory can hold more outages than the whole year, and the largest single outage cannot exceed the year's cumulative total. They compare a summary against itself, so they need no expected values and no thresholds. Run against the payload production was serving, they report 27 violations; against the corrected figures, none.
 - Folded those checks into `GET /api/health/ingestion`, evaluated against the materialized summary actually being served. The existing half-hourly probe now alerts on incoherent figures.
 - Added a shape guard on the materialized archive summary (`isUsableArchiveSummary`). The stored payload was previously returned verbatim, so a renamed field would have left the old row in place and rendered every window as `0` rather than failing. An unrecognised shape is now treated as a cache miss, which callers already rebuild from.
 
 ### Verified
 
+- Passed pre-commit, 227 Python tests, 84 Node unit tests, the complete 50-case desktop/mobile Playwright suite, responsive visual inspection, and a Wrangler deployment dry-run for `v0.4.7`.
 - Rewrote the CSP regression assertion to compare parsed directives exactly; the follow-up CodeQL run completed successfully with no open code-scanning alerts.
-- The security/accessibility/legacy-URL follow-up was deployed on 2026-08-01. Later commits on `main` remain unreleased until separately deployed and verified.
+- The Search Console URL consolidation and MapLibre startup/performance follow-ups were deployed on 2026-08-08 as Worker version `f79b2eac-a1f8-4ade-93cf-3bcc08d47420` from `main` commit `9d68829`.
 
 ## [v0.4.6] - 2026-07-29
 

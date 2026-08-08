@@ -202,6 +202,7 @@ def _map_labels(lang: str) -> dict[str, str]:
             "average_duration",
             "clients",
             "close",
+            "continuity_index",
             "dai_source",
             "dai_sources",
             "detail_age",

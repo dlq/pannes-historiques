@@ -1,7 +1,17 @@
 # Research: Hydro-Québec Historic Outage Data
 
 Date: 2026-04-25
-Last updated: 2026-08-05
+Last updated: 2026-08-08
+
+## v0.4.7 reliability-metric evidence, 2026-08-08
+
+- Production archive coverage: 238,493 retained primary events across 225,523 distinct outage polygons, observed from 2026-05-12 09:00:06 through 2026-08-08 14:30:03. This is about 88 days, not a complete annual or multi-season sample.
+- Territorial coverage: 1,143 of 1,341 administrative territories had at least one primary archive bin (85.2%). Coverage by administrative region ranged from 20.6% in Nord-du-Québec to 100% in Laval. A zero or pale municipal count cannot distinguish few observed outages from missing capture.
+- Denominator: `admin_territories` has area and geometry but no customers or service points. `max_customers` is the peak affected by an individual outage, not the population at risk. Raw event counts cannot become a per-customer reliability measure.
+- Hydro-Quebec's disclosed gross continuity index is already normalized as interruption minutes per customer. Full-year values exist for all 17 administrative regions for 2019-2025, but only at regional granularity.
+- Annual volatility: adjacent-year Spearman rank correlations for the regional continuity index were 0.088, 0.449, 0.657, 0.083, 0.615, and 0.478 from 2019-2025. The 2025 ranking correlated 0.701 with each region's seven-year median rank. A single year's permanent-looking score would hide substantial event and weather sensitivity.
+- Conclusion: preserve the published continuity index and related source metrics as named regional components. Present local archive evidence only as retained observations with coverage caveats. Do not publish a composite numeric or categorical Hydro Score under current evidence. ADR 0006 records the decision and reconsideration gates.
+- Production state measured alongside this review: D1 size `1,806,331,904` bytes; archive summary cursor `bispoly:20260808143003:55`, generated 2026-08-08T18:38:32Z.
 
 ## Why package.json pins undici, 2026-08-05
 
