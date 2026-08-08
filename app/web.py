@@ -353,6 +353,8 @@ def create_app(settings: Settings | None = None) -> Flask:
             g.perf_token = None
         if response.mimetype == "text/html" and not request.path.startswith("/static/"):
             response.headers["Cache-Control"] = "no-store"
+        if request.path == "/sheet":
+            response.headers["X-Robots-Tag"] = "noindex, nofollow"
         if request.path.startswith("/static/") and request.path not in {
             "/static/service-worker.js",
             "/static/vendor/leaflet/leaflet.css",
@@ -428,11 +430,13 @@ def create_app(settings: Settings | None = None) -> Flask:
 
     @app.get("/")
     def index():
+        if request.args.get("lang") == "fr" and len(request.args) == 1:
+            return redirect(url_for("index"), code=301)
         lang, domain, scope, query, latitude, longitude, accuracy_m, radius_m, has_address = (
             sheet_request_params()
         )
         initial_query = query
-        canonical_query = {"lang": lang}
+        canonical_query = {} if lang == "fr" else {"lang": lang}
         if query:
             canonical_query["q"] = query
         elif latitude is not None and longitude is not None:
@@ -444,12 +448,18 @@ def create_app(settings: Settings | None = None) -> Flask:
         if has_address and radius_m != default_radius_m:
             canonical_query["radius_m"] = str(radius_m)
         canonical_url = absolute_public_url(settings, "/", canonical_query)
+        has_private_state = any(
+            key in request.args
+            for key in ("q", "lat", "lon", "latitude", "longitude", "accuracy_m", "radius_m")
+        )
+        has_panel_state = any(key in request.args for key in ("domain", "scope"))
+        robots_content = "noindex, follow" if has_private_state or has_panel_state else None
         alternate_urls = {}
         if not query and latitude is None and longitude is None:
             alternate_urls = {
-                "fr": absolute_public_url(settings, "/", {"lang": "fr"}),
+                "fr": absolute_public_url(settings, "/"),
                 "en": absolute_public_url(settings, "/", {"lang": "en"}),
-                "x-default": absolute_public_url(settings, "/", {"lang": "fr"}),
+                "x-default": absolute_public_url(settings, "/"),
             }
         sheet_context = build_sheet_context_or_fallback(
             lang, domain, scope, query, latitude, longitude, accuracy_m, radius_m, has_address
@@ -471,6 +481,7 @@ def create_app(settings: Settings | None = None) -> Flask:
                 settings=settings,
                 page_description=t(lang, "page_description"),
                 canonical_url=canonical_url,
+                robots_content=robots_content,
                 alternate_urls=alternate_urls,
                 social_title=t(lang, "app_title"),
                 social_description=t(lang, "page_description"),
@@ -478,7 +489,8 @@ def create_app(settings: Settings | None = None) -> Flask:
 
     @app.get("/search-map")
     def search_map_alias():
-        query = {"lang": choose_language(request.args.get("lang"))}
+        lang = choose_language(request.args.get("lang"))
+        query = {} if lang == "fr" else {"lang": lang}
         if request.args.get("q"):
             query["q"] = request.args.get("q", "")[:MAX_ADDRESS_QUERY_LENGTH]
         for key in ("lat", "lon", "accuracy_m", "radius_m"):
@@ -501,18 +513,22 @@ def create_app(settings: Settings | None = None) -> Flask:
 
     @app.get("/about")
     def about():
+        if request.args.get("lang") == "fr" and len(request.args) == 1:
+            return redirect(url_for("about"), code=301)
         lang = choose_language(request.args.get("lang"))
         alternate_urls = {
-            "fr": absolute_public_url(settings, "/about", {"lang": "fr"}),
+            "fr": absolute_public_url(settings, "/about"),
             "en": absolute_public_url(settings, "/about", {"lang": "en"}),
-            "x-default": absolute_public_url(settings, "/about", {"lang": "fr"}),
+            "x-default": absolute_public_url(settings, "/about"),
         }
         return render_template(
             "about.html",
             lang=lang,
             settings=settings,
             page_description=t(lang, "about_description"),
-            canonical_url=absolute_public_url(settings, "/about", {"lang": lang}),
+            canonical_url=absolute_public_url(
+                settings, "/about", {} if lang == "fr" else {"lang": lang}
+            ),
             alternate_urls=alternate_urls,
             social_title=t(lang, "about_title"),
             social_description=t(lang, "about_description"),
@@ -541,9 +557,9 @@ def create_app(settings: Settings | None = None) -> Flask:
     @app.get("/sitemap.xml")
     def sitemap_xml():
         urls = [
-            absolute_public_url(settings, "/", {"lang": "fr"}),
+            absolute_public_url(settings, "/"),
             absolute_public_url(settings, "/", {"lang": "en"}),
-            absolute_public_url(settings, "/about", {"lang": "fr"}),
+            absolute_public_url(settings, "/about"),
             absolute_public_url(settings, "/about", {"lang": "en"}),
         ]
         items = "\n".join(

@@ -7,6 +7,7 @@
     <meta name="theme-color" content="#ffffff">
     <meta name="application-name" content="{{ t(lang, 'brand_title') }}">
     <meta name="description" content="{{ page_description }}">
+    {% if robots_content %}<meta name="robots" content="{{ robots_content }}">{% endif %}
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="{{ t(lang, 'brand_title') }}">
     <meta property="og:title" content="{{ social_title }}">
@@ -49,7 +50,7 @@
       <div class="ph-map-visual-center" data-map-loading>{{ t(lang, "map_loading") }}</div>
       </outage-map>
       <a class="ph-brand-chip"
-         href="{{ url_for('index', lang=lang) }}"
+         href="{{ url_for('index', lang=lang if lang == 'en' else none) }}"
          aria-label="{{ t(lang, 'brand_title') }}">
         <img class="ph-brand-chip-mark"
              src="{{ url_for('static', filename='app-icon.svg', v=static_version) }}"
@@ -137,12 +138,12 @@
             <li>
               <span class="ph-detail-fact-label">{{ t(lang, "about_link") }}</span>
               <a class="ph-detail-fact-value ph-provenance-link"
-                 href="{{ url_for('about', lang=lang) }}">pannes.ca/about</a>
+                 href="{{ url_for('about', lang=lang if lang == 'en' else none) }}">pannes.ca/about</a>
             </li>
             <li>
               <span class="ph-detail-fact-label">{{ t(lang, "provenance_privacy") }}</span>
               <a class="ph-detail-fact-value ph-provenance-link"
-                 href="{{ url_for('about', lang=lang) }}#privacy">pannes.ca/about#privacy</a>
+                 href="{{ url_for('about', lang=lang if lang == 'en' else none) }}#privacy">pannes.ca/about#privacy</a>
             </li>
           </ul>
         </div>

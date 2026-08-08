@@ -5,6 +5,7 @@ import test from "node:test";
 const app = readFileSync(new URL("../app/static/app.js", import.meta.url), "utf8");
 const index = readFileSync(new URL("../app/templates/index.html", import.meta.url), "utf8");
 const map = readFileSync(new URL("../app/static/outage-map.js", import.meta.url), "utf8");
+const mapStyle = readFileSync(new URL("../app/static/map-style.js", import.meta.url), "utf8");
 const mapEvents = readFileSync(new URL("../app/static/map-events.js", import.meta.url), "utf8");
 const sheet = readFileSync(new URL("../app/static/sheet.js", import.meta.url), "utf8");
 const search = readFileSync(new URL("../app/static/search.js", import.meta.url), "utf8");
@@ -58,8 +59,9 @@ test("service worker limits its cache to the offline navigation fallback", () =>
 });
 
 test("the default map style omits decorative Natural Earth raster tiles", () => {
-  assert.match(map, /delete sources\.ne2_shaded/);
-  assert.match(map, /layer\.source !== "ne2_shaded"/);
+  assert.match(map, /optimizeBaseMapStyle\(await response\.json\(\)\)/);
+  assert.match(mapStyle, /delete sources\.ne2_shaded/);
+  assert.match(mapStyle, /layer\.source === "ne2_shaded"/);
 });
 
 test("the map stops blocking the interface when its style is ready", () => {
