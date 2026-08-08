@@ -35,9 +35,10 @@
   <body class="ph-about-page">
     <div class="ph-about-shell">
       <header class="ph-about-top">
-        <a href="{{ url_for('index', lang=lang) }}" class="ph-about-brand">pannes.ca</a>
+        <a href="{{ url_for('index', lang=lang if lang == 'en' else none) }}"
+           class="ph-about-brand">pannes.ca</a>
         <a class="ph-lang-button"
-           href="{{ url_for('about', lang='en' if lang == 'fr' else 'fr') }}"
+           href="{{ url_for('about', lang='en' if lang == 'fr' else none) }}"
            aria-label="{{ t(lang, 'language') }}">{{ "EN" if lang == "fr" else "FR" }}</a>
       </header>
       <main class="ph-about-card">
@@ -72,7 +73,7 @@
           <p>{{ t(lang, "about_limitations_body") }}</p>
         </section>
         <div class="ph-overview-actions">
-          <a href="{{ url_for('index', lang=lang) }}"
+          <a href="{{ url_for('index', lang=lang if lang == 'en' else none) }}"
              class="ph-action-button ph-action-button--primary ph-about-action">{{ t(lang, "about_back") }}</a>
           <a href="{{ settings.app_repo_url }}"
              target="_blank"

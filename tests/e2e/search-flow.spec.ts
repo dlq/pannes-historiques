@@ -45,7 +45,7 @@ test("page loads in English and French with the sheet shell", async ({ page }) =
     )
     .toBe(true);
 
-  await page.goto("/?lang=fr");
+  await page.goto("/");
   await expect(page.locator(".ph-brand-chip")).toHaveText("Pannes Historiques");
   await expect(page).toHaveTitle("Historique des pannes Hydro-Québec");
   await expect(page.locator(".ph-segment.is-active")).toHaveText("En cours");
@@ -430,7 +430,7 @@ test("language switch preserves the current query", async ({ page }) => {
   await clearResponse;
 
   await page.locator("[data-lang-switch]").click();
-  await expect(page).toHaveURL(/lang=fr/);
+  await expect(page).toHaveURL(/\/$/);
   await expect(page.locator(".ph-segment.is-active")).toHaveText("En cours");
 });
 

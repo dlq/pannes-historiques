@@ -90,9 +90,12 @@ def test_index_includes_hidden_app_heading(app_client):
 
 def test_search_map_legacy_url_redirects_to_current_search(app_client):
     response = app_client.get("/search-map?lang=en&q=5220%20Rue%20Jeanne-Mance&radius_m=500")
+    french_response = app_client.get("/search-map?lang=fr&q=5220%20Rue%20Jeanne-Mance&radius_m=500")
 
     assert response.status_code == 301
     assert response.headers["Location"] == "/?lang=en&q=5220+Rue+Jeanne-Mance&radius_m=500"
+    assert french_response.status_code == 301
+    assert french_response.headers["Location"] == "/?q=5220+Rue+Jeanne-Mance&radius_m=500"
 
 
 def test_index_includes_web_quality_metadata_and_no_tailwind_cdn(app_client):
@@ -112,14 +115,12 @@ def test_index_includes_web_quality_metadata_and_no_tailwind_cdn(app_client):
         in html
     )
     assert '<meta property="og:url" content="https://pannes.ca/?lang=en">' in html
-    assert re.search(
-        r'<link rel="alternate"\s+hreflang="fr"\s+href="https://pannes.ca/\?lang=fr">', html
-    )
+    assert re.search(r'<link rel="alternate"\s+hreflang="fr"\s+href="https://pannes.ca/">', html)
     assert re.search(
         r'<link rel="alternate"\s+hreflang="en"\s+href="https://pannes.ca/\?lang=en">', html
     )
     assert re.search(
-        r'<link rel="alternate"\s+hreflang="x-default"\s+href="https://pannes.ca/\?lang=fr">', html
+        r'<link rel="alternate"\s+hreflang="x-default"\s+href="https://pannes.ca/">', html
     )
     assert '<meta name="twitter:card" content="summary">' in html
     assert "cdn.tailwindcss.com" not in html
@@ -136,6 +137,7 @@ def test_search_index_canonical_metadata_preserves_query(app_client):
     assert (
         '<meta property="og:url" content="https://pannes.ca/?lang=en&amp;q=5220+Rue+Jeanne-Mance">'
     ) in html
+    assert '<meta name="robots" content="noindex, follow">' in html
     assert 'hreflang="x-default"' not in html
 
 
@@ -153,15 +155,53 @@ def test_about_page_includes_web_quality_metadata(app_client):
     assert '<meta property="og:title" content="About Outage History">' in html
     assert '<meta name="twitter:card" content="summary">' in html
     assert re.search(
-        r'<link rel="alternate"\s+hreflang="fr"\s+href="https://pannes.ca/about\?lang=fr">', html
+        r'<link rel="alternate"\s+hreflang="fr"\s+href="https://pannes.ca/about">', html
     )
     assert re.search(
         r'<link rel="alternate"\s+hreflang="en"\s+href="https://pannes.ca/about\?lang=en">', html
     )
     assert re.search(
-        r'<link rel="alternate"\s+hreflang="x-default"\s+href="https://pannes.ca/about\?lang=fr">',
+        r'<link rel="alternate"\s+hreflang="x-default"\s+href="https://pannes.ca/about">',
         html,
     )
+
+
+def test_default_french_pages_use_clean_canonical_urls(app_client):
+    index_response = app_client.get("/")
+    index_html = index_response.get_data(as_text=True)
+    about_response = app_client.get("/about")
+    about_html = about_response.get_data(as_text=True)
+
+    assert index_response.status_code == 200
+    assert '<link rel="canonical" href="https://pannes.ca/">' in index_html
+    assert 'href="/?lang=fr"' not in index_html
+    assert about_response.status_code == 200
+    assert '<link rel="canonical" href="https://pannes.ca/about">' in about_html
+    assert 'href="/about?lang=fr"' not in about_html
+
+
+def test_explicit_default_language_pages_redirect_to_clean_urls(app_client):
+    index_response = app_client.get("/?lang=fr")
+    about_response = app_client.get("/about?lang=fr")
+
+    assert index_response.status_code == 301
+    assert index_response.headers["Location"] == "/"
+    assert about_response.status_code == 301
+    assert about_response.headers["Location"] == "/about"
+
+
+def test_private_and_panel_state_pages_are_not_indexable(app_client):
+    for path in (
+        "/?lang=en&q=5220+Rue+Jeanne-Mance",
+        "/?lat=45.5&lon=-73.56",
+        "/?domain=archive",
+    ):
+        response = app_client.get(path)
+        assert response.status_code == 200
+        assert '<meta name="robots" content="noindex, follow">' in response.get_data(as_text=True)
+
+    public_response = app_client.get("/")
+    assert '<meta name="robots"' not in public_response.get_data(as_text=True)
 
 
 def test_robots_txt_points_to_sitemap(app_client):
@@ -183,9 +223,9 @@ def test_sitemap_xml_lists_public_pages(app_client):
 
     assert response.status_code == 200
     assert response.mimetype == "application/xml"
-    assert "<loc>https://pannes.ca/?lang=fr</loc>" in body
+    assert "<loc>https://pannes.ca/</loc>" in body
     assert "<loc>https://pannes.ca/?lang=en</loc>" in body
-    assert "<loc>https://pannes.ca/about?lang=fr</loc>" in body
+    assert "<loc>https://pannes.ca/about</loc>" in body
     assert "<loc>https://pannes.ca/about?lang=en</loc>" in body
     assert response.headers["Cache-Control"] == "public, max-age=3600"
 
@@ -243,7 +283,7 @@ def test_about_page_renders_in_english(app_client):
 
 
 def test_about_page_renders_in_french(app_client):
-    response = app_client.get("/about?lang=fr")
+    response = app_client.get("/about")
     html = response.get_data(as_text=True)
 
     assert response.status_code == 200
@@ -255,7 +295,7 @@ def test_about_page_renders_in_french(app_client):
     assert "supprimées après 30 jours" in html
     assert 'href="mailto:contact@pannes.ca"' in html
     assert "contact@pannes.ca" in html
-    assert 'href="/?lang=fr"' in html
+    assert 'href="/"' in html
 
 
 def test_manifest_route_exposes_installability_metadata(app_client):
@@ -634,6 +674,13 @@ def test_sheet_explore_domains_render(app_client):
         assert marker in html
         assert 'data-mode="explore"' in html
         assert "data-map-update" in html
+
+
+def test_sheet_fragments_are_not_indexable(app_client):
+    response = app_client.get("/sheet?lang=en&domain=current")
+
+    assert response.status_code == 200
+    assert response.headers["X-Robots-Tag"] == "noindex, nofollow"
 
 
 def test_sheet_archive_lists_territory_bins(app_client):
