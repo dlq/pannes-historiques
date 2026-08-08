@@ -33,6 +33,7 @@ Keep active execution state in `PLANS.md` and source/evidence research in `NOTES
 ### Verified
 
 - Passed pre-commit, 227 Python tests, 84 Node unit tests, the complete 50-case desktop/mobile Playwright suite, responsive visual inspection, and a Wrangler deployment dry-run for `v0.4.7`.
+- Deployed `v0.4.7` on 2026-08-08 as Worker version `87dc841e-ca99-4adf-952f-4adc9df6baba` with container digest `sha256:e868f2c313acc7bff04152d585c54f1ebaf239b16f67afcf7399c8fa5477f6b8`. Live checks confirmed the `v0.4.7` service-worker marker, regional continuity payload, and healthy ingestion with no consecutive failures.
 - Rewrote the CSP regression assertion to compare parsed directives exactly; the follow-up CodeQL run completed successfully with no open code-scanning alerts.
 - The Search Console URL consolidation and MapLibre startup/performance follow-ups were deployed on 2026-08-08 as Worker version `f79b2eac-a1f8-4ade-93cf-3bcc08d47420` from `main` commit `9d68829`.
 

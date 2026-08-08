@@ -5,6 +5,7 @@ Last updated: 2026-08-08
 
 ## v0.4.7 reliability-metric evidence, 2026-08-08
 
+- Release deployment: tagged merge commit `32ce9f6` deployed as Worker version `87dc841e-ca99-4adf-952f-4adc9df6baba` with container image digest `sha256:e868f2c313acc7bff04152d585c54f1ebaf239b16f67afcf7399c8fa5477f6b8`. The first registry push failed with transient TLS `bad record MAC`; the immediate retry reused the built layers and completed. Live checks returned `200` for `/`, `/service-worker.js`, `/sheet?lang=en&domain=context&scope=province`, and `/api/health/ingestion`; the service worker identified `pannes-historiques-v0.4.7-runtime-static-2`, the regional payload named the continuity index, and ingestion was healthy with zero consecutive failures.
 - Production archive coverage: 238,493 retained primary events across 225,523 distinct outage polygons, observed from 2026-05-12 09:00:06 through 2026-08-08 14:30:03. This is about 88 days, not a complete annual or multi-season sample.
 - Territorial coverage: 1,143 of 1,341 administrative territories had at least one primary archive bin (85.2%). Coverage by administrative region ranged from 20.6% in Nord-du-Québec to 100% in Laval. A zero or pale municipal count cannot distinguish few observed outages from missing capture.
 - Denominator: `admin_territories` has area and geometry but no customers or service points. `max_customers` is the peak affected by an individual outage, not the population at risk. Raw event counts cannot become a per-customer reliability measure.

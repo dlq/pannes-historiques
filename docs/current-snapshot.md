@@ -8,7 +8,7 @@ Read this first for quick orientation. Use `PLANS.md` for the active roadmap, `d
 
 - Shipped release: `v0.4.7`.
 - Package metadata: `0.4.7` in `pyproject.toml` and `package.json`.
-- Last recorded production deployment: Worker version `f79b2eac-a1f8-4ade-93cf-3bcc08d47420`, deployed 2026-08-08 from `main` commit `9d68829` with the Search Console URL consolidation and MapLibre startup/performance follow-ups. The `v0.4.6` release deployment and container digest are retained in `NOTES.md`.
+- Last recorded production deployment: Worker version `87dc841e-ca99-4adf-952f-4adc9df6baba`, deployed 2026-08-08 from tagged release commit `32ce9f6` with container digest `sha256:e868f2c313acc7bff04152d585c54f1ebaf239b16f67afcf7399c8fa5477f6b8`.
 - Do not treat a merge to `main` as proof of production deployment; record deployment evidence in `PLANS.md` and `CHANGELOG.md`.
 - Current development direction: privacy-preserving aggregate feature-use evidence in `v0.4.8`.
 - `v0.5.0` remains gated on the score decision, bounded usage-data design, a dated cost review, healthy ingestion/archive operations, and an edge rate limit for `/autocomplete`.
