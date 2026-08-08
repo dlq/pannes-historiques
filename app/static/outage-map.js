@@ -4,7 +4,8 @@ import {
   latestMapLayerItems,
   MAP_EVENTS,
   pendingMapFocus,
-} from "./map-events.js?v=da0a5a136623";
+} from "./map-events.js?v=1e697d3d5d8e";
+import { optimizeBaseMapStyle } from "./map-style.js?v=1e697d3d5d8e";
 import {
   boundsToLngLatBounds,
   CHOROPLETH_STOPS,
@@ -14,7 +15,7 @@ import {
   itemRenderKey,
   normalizeMapPoint,
   radiusCirclePolygon,
-} from "./map-utils.js?v=da0a5a136623";
+} from "./map-utils.js?v=1e697d3d5d8e";
 import * as maplibregl from "./vendor/maplibre/maplibre-gl.mjs?v=6.1.0";
 
 const LIBERTY_STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
@@ -24,14 +25,7 @@ async function lightweightLibertyStyle() {
   try {
     const response = await fetch(LIBERTY_STYLE_URL, { cache: "force-cache" });
     if (!response.ok) throw new Error(`Map style returned HTTP ${response.status}`);
-    const style = await response.json();
-    const sources = { ...(style.sources || {}) };
-    delete sources.ne2_shaded;
-    return {
-      ...style,
-      sources,
-      layers: (style.layers || []).filter((layer) => layer.source !== "ne2_shaded"),
-    };
+    return optimizeBaseMapStyle(await response.json());
   } catch (error) {
     // Keep the map usable if the optional optimization cannot fetch the style.
     console.warn("Using the full map style", error);
