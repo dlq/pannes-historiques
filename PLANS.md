@@ -1,18 +1,18 @@
 # Plan: Hydro-Quebec Outage History App
 
 Date: 2026-04-25
-Last updated: 2026-08-05
+Last updated: 2026-08-08
 
 This is the active execution plan. Keep detailed evidence and research notes in `NOTES.md`, completed release history in `CHANGELOG.md`, operational runbooks in `docs/operations.md`, and long maintenance backlogs in `docs/maintenance-backlog.md`.
 
 ## Current State
 
-- Current shipped release: `v0.4.6`, archive health, retention, and D1 growth control, released 2026-07-29.
-- Last recorded production deployment: Worker version `d62049e6-f4f3-468c-a0bc-98589a61c67e`, deployed 2026-08-05 with the Archive figure correction, the archive coherence checks, and the sheet number formatting. Subsequent `main` commits are not a release claim until separately deployed and verified.
+- Current shipped release: `v0.4.7`, regional reliability framing and explicit component metrics, released 2026-08-08.
+- Last recorded production deployment: Worker version `f79b2eac-a1f8-4ade-93cf-3bcc08d47420`, deployed 2026-08-08 from `main` commit `9d68829` with the Search Console URL consolidation and MapLibre startup/performance follow-ups. Subsequent commits are not a release claim until separately deployed and verified.
 - Ingestion incident 2026-07-15 to 2026-07-20: scheduled Hydro ingestion failed every 30 minutes for five days while the site returned `200` and served stale data. Cause was the durable collection path storing payload files without registering the `raw_snapshots` row the Worker's `/internal/raw-snapshot` callback resolves through. Fixed and verified: run 3630 completed `ok` and snapshots are current again. Two plausible-but-wrong hypotheses were ruled out by testing rather than by correlation — container ephemerality, and the `v0.4.3` CodeQL path-hardening, whose lookup was exercised directly against a real file and resolves correctly.
 - Monitoring gap this exposed: the only health surface was token-protected and pull-based, so nothing observed the failure. `GET /api/health/ingestion` now returns `503` when ingestion is stale or failing. The `Ingestion health monitor` GitHub Actions workflow probes it twice hourly.
 - That probe now also fails when the served archive summary contradicts itself, after the Archive report spent months showing a count of municipalities as a count of outages while every health surface reported green. Freshness monitoring cannot see a figure that is current and wrong; coherence monitoring can.
-- Current implementation line: `main` includes post-`v0.4.6` SEO and map-startup follow-ups; the next active product slice remains `v0.4.7` Hydro Score / regional analytics framing. See `docs/current-snapshot.md` for the concise code/deployment distinction.
+- Current implementation line: `v0.4.7` implements the component-metric decision recorded in ADR 0006. The next active product slice is `v0.4.8` privacy-preserving usage evidence. See `docs/current-snapshot.md` for the concise code/deployment distinction.
 - Current frontend: one full-bleed MapLibre GL map plus a single sheet. The sheet owns search, domain navigation, address overview, scoped local/province views, detail cards, provenance, and browser-local comparison.
 - Current data plane: D1/R2-backed durable ingestion for current feed rows, previous-outage rows, raw Hydro-Quebec payloads, disclosure metadata, and runtime map-context layers.
 - Current container role: Flask/Jinja shell rendering, local-compatible fallback paths, and a baked SQLite snapshot. Container-local writes are ephemeral and must not become production state.
@@ -25,18 +25,7 @@ This is the active execution plan. Keep detailed evidence and research notes in 
 
 ## Roadmap
 
-Completed release history lives in `CHANGELOG.md`; durable investigation details live in `NOTES.md`. Active planning starts at `v0.4.7`.
-
-### `v0.4.7`: Hydro Score / Regional Analytics Framing
-
-Decide whether a simple, well-disclosed "walkability score for Hydro reliability" style concept can communicate regional or address-area outage context without overclaiming precision.
-
-- Define candidate score inputs and disclosure rules before building anything.
-- Decide whether a score should be numeric, categorical, or avoided in favor of component metrics.
-- Record a go, revise, or defer decision with the evidence limits, intended audience, and wording that prevents an address-level reliability claim.
-- Confirm the readiness gates for the `v0.5.0` API contract.
-- Do not build saved areas or notifications in this slice.
-- Decide the normalized archive metric, deferred here deliberately on 2026-08-05. The Archive tab now draws its municipal bins as flat outlines with no shading, because the only per-territory number available is the raw retained event count and that ranks as a population map: Montréal `16,790`, Gatineau `8,374`, Laval `7,799`, Québec `7,496`. Shading by it would repeat the mistake avoided on Contexte, where the published continuity index was chosen precisely because it is already normalized per customer. Two further blockers: 202 of 1,341 territories have no bins at all, so a pale territory would be indistinguishable between "few outages" and "never captured"; and no customers-per-territory denominator exists in the data. Real signal does survive underneath the population effect and is the reason this is worth doing rather than dropping — Val-des-Monts (`3,006`), Gracefield (`2,724`), Harrington (`2,535`) and La Pêche (`2,389`) are small rural Outaouais/Laurentides municipalities outranking Longueuil, which reflects forested terrain and overhead lines rather than population. Any archive choropleth needs a defensible denominator and an explicit coverage caveat first. Established 2026-08-05 and useful to whoever picks this up: the per-territory counts are free of geographic double counting, because the bins hold exactly one `primary` row per outage polygon (221 786 rows over 221 786 distinct polygons in production) and every archive query excludes the `overlap` rows. The missing piece is still a customers-per-territory denominator, not a cleaner numerator.
+Completed release history lives in `CHANGELOG.md`; durable investigation details live in `NOTES.md`. Active planning starts at `v0.4.8`. The `v0.4.7` evidence and no-score decision are preserved in ADR 0006 and `NOTES.md`.
 
 ### `v0.4.8`: Privacy-Preserving Product Usage Evidence
 
@@ -69,7 +58,7 @@ Saved areas, saved-area notifications, and web push notifications are deferred o
 - `v0.4.4`: GitHub Quality enforces a combined Python coverage floor; complete desktop/mobile browser regression runs after changes reach `main` or on manual dispatch; focused browser and contract tests remain the default for feature work.
 - `v0.4.5`: route/header tests, machine-readable metadata, public/private route documentation, and security headers shipped; preserve them as public-surface regressions.
 - `v0.4.6`: archive-health tests for stale ingestion-run cleanup, latest-row grouping, archive-bin completeness metrics, and retention behavior shipped; extend them before any compaction/offload migration.
-- `v0.4.7`: test analytical framing with bounded fixture data only if a product concept survives review.
+- `v0.4.7`: regional continuity-index detail and no-score terminology are covered by Python and desktop/mobile browser regressions.
 - Cross-field coherence: assert displayed figures against each other, not only against the query that produced them. Tests that check a number equals what its query returned cannot catch a query answering the wrong question, which is how the Archive window shipped a territory count under an outage heading. See the guard below.
 - `v0.5.x`: add API contract, schema, freshness/provenance, rate-limit, analytical-summary, parser, and geocoder tests as each slice lands.
 
@@ -129,7 +118,7 @@ Routine command details live in `docs/contributing.md`; production and deploy ch
 - Ordinary public reads should keep moving toward Worker/static/D1/R2 paths, but the right migration boundary is not yet proven.
 - Archive health is deployed: stale run expiry, 30-day terminal-run retention, latest-row de-duplication, and classified archive-bin completeness. Keep monitoring the public ingestion-health endpoint and private completeness audit.
 - The materialized archive summary has no staleness check and needs one. `municipalArchiveSummary` in `src/worker.js` returns whatever is stored in `municipal_archive_summaries` and only falls through to a rebuild when the row is absent, so a stored summary is served indefinitely. Nothing expires it; only the archive backfill cron refreshes it. If that cron stalls, the Archive tab keeps serving old counts and dates while every surface reports healthy — the same silent-staleness shape as the 2026-07-15 ingestion incident, where the site returned `200` for five days on stale data. Encountered concretely on 2026-08-05: an ordering fix in the summary query appeared not to deploy because the pre-fix summary was still being served, and clearing the single derived row (`DELETE FROM municipal_archive_summaries WHERE summary_key='previous_archive_summary'`) made it rebuild immediately and correctly. Two candidate fixes, both cheap: compare the stored `source_cursor` against the current `bispoly` cursor and rebuild on mismatch, or treat `generated_at` older than a threshold as stale. Prefer the cursor comparison, since it also invalidates whenever the summary query itself changes. Fold the result into `/api/health/ingestion` so a stalled refresh is alertable rather than invisible. Partially addressed on 2026-08-05: `municipalArchiveSummary` now rejects a stored payload whose windows lack the `outages` key (`isUsableArchiveSummary` in `src/archive-summary.js`) and falls through to a rebuild, so a payload *shape* change heals itself on the first request after deploy. That guard only catches shape drift — a summary of the right shape but stale *contents* is still served indefinitely, so the cursor comparison above is still needed.
-- D1 measured `1,631,522,816` bytes (about `1.63 GB`) after the 2026-07-29 archive-health index migration. The first compaction trigger is `3.5 GB`; a migration must begin before the 5 GB included-storage threshold. Raw R2 payloads, geometry, archive bins, and snapshot metadata remain out of scope for automatic deletion. See ADR 0005.
+- D1 measured `1,806,331,904` bytes (about `1.81 GB`) on 2026-08-08. The first compaction trigger is `3.5 GB`; a migration must begin before the 5 GB included-storage threshold. Raw R2 payloads, geometry, archive bins, and snapshot metadata remain out of scope for automatic deletion. See ADR 0005.
 - Browser proof gaps remain: real-device geolocation/permission recovery, visible freshness/change cues, dense live-data readability, and practical keyboard/screen-reader checks.
 - The WCAG pass shipped contrast, reduced-motion, live-region, dialog-focus, and keyboard regression fixes; the remaining proof gaps are ongoing maintenance work, not an unfinished `v0.4.5` release item.
 - First-party JS modules improve maintainability but increase module requests; measure on Cloudflare before assuming native modules or bundling is better.

@@ -1,13 +1,13 @@
 # User Stories For Next Product Slices
 
 Date: 2026-06-17
-Last reviewed: 2026-08-03
+Last reviewed: 2026-08-08
 
 This file captures practical user stories for focusing the next pannes.ca work. These are not implementation tasks by themselves. They are decision scenarios that should drive UI, copy, data, and test choices.
 
 ## Current Implementation Status
 
-As of deployed `v0.4.6` (2026-07-29), the current codebase has:
+As of `v0.4.7` (2026-08-08), the current codebase has:
 
 - one full-bleed MapLibre map with a detent-based sheet (mobile) / floating panel (desktop) and search inside the sheet;
 - a segmented `En cours / Planifiées / Archive / Contexte` control that drives both sheet content and the visible map layer;
@@ -299,7 +299,7 @@ Next product gap:
 
 The stories inform the current planned slices and ongoing proof work:
 
-1. `v0.4.7` Hydro Score framing: decide whether component metrics can communicate regional or local context without an unsupported reliability ranking.
+1. `v0.4.7` regional reliability framing: implement ADR 0006 by exposing named regional component metrics and local retained observations without an unsupported reliability ranking.
 2. `v0.4.8` privacy-preserving usage evidence: measure aggregate use of substantive features before expanding the product surface.
 3. Ongoing browser proof: verify real-device location permission/recovery, freshness cues, dense data readability, and practical keyboard/screen-reader behavior.
 4. Public-surface safeguards: add a per-IP edge rate rule for autocomplete and decide whether user-specific result pages need `noindex,follow`.
