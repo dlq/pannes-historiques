@@ -299,8 +299,8 @@ Next product gap:
 
 The stories inform the current planned slices and ongoing proof work:
 
-1. `v0.4.7` regional reliability framing: implement ADR 0006 by exposing named regional component metrics and local retained observations without an unsupported reliability ranking.
-2. `v0.4.8` privacy-preserving usage evidence: measure aggregate use of substantive features before expanding the product surface.
+1. `v0.4.8` cost and operational guardrails: make archive freshness alertable, decide the container-to-Worker runtime boundary, establish a dated cost baseline, and configure autocomplete abuse protection.
+2. `v0.4.9` privacy-preserving usage evidence: measure bounded aggregate use of substantive features before expanding the product surface.
 3. Ongoing browser proof: verify real-device location permission/recovery, freshness cues, dense data readability, and practical keyboard/screen-reader behavior.
-4. Public-surface safeguards: add a per-IP edge rate rule for autocomplete and decide whether user-specific result pages need `noindex,follow`.
-5. `v0.5.x` API and analytical expansion: only after the score decision, bounded usage-data design, dated cost evidence, archive-health evidence, and public-surface safeguards are satisfied.
+4. Public-surface safeguards: decide whether user-specific result pages need `noindex,follow`.
+5. `v0.5.x` API and analytical expansion: only after the cost/operational exit evidence, bounded usage-data lifecycle, archive-health observation window, and public-surface safeguards are satisfied.
