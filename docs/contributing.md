@@ -83,6 +83,10 @@ Full local pre-commit check:
 uv run pre-commit run --all-files
 ```
 
+Pre-commit runs formatters and linters only; it does not execute tests. Python, Node, and Playwright
+tests cover different layers, so run the suites relevant to the change. Any service method, route,
+template, or browser-JavaScript change requires the full `npm run test:e2e` suite before handoff.
+
 Module-boundary check:
 
 ```bash
@@ -113,5 +117,5 @@ Keep production runtime dependencies one-way. Flask code under `app/` should not
 
 GitHub Quality runs formatting, linting, module-boundary checks, Python branch coverage with a
 non-regressing floor, and Node unit tests for pull requests and pushes to `main`. The full desktop and
-mobile Playwright suite runs after pushes to `main` and on manual workflow dispatch; run the affected
-browser project locally for browser-facing pull requests and describe any skipped or flaky case.
+mobile Playwright suite runs on pull requests, after pushes to `main`, and on manual workflow dispatch;
+run the full suite locally for browser-facing pull requests and describe any skipped or flaky case.

@@ -80,9 +80,9 @@ Production is currently served at `pannes.ca` with Cloudflare Workers + Containe
 
 Current deployment status:
 
-- Current tagged release: `v0.4.6` (archive health, retention, and D1 growth control), released
-  2026-07-29. The last recorded production follow-up deployed 2026-08-01; see `PLANS.md` and
-  `CHANGELOG.md` for deployment evidence and unreleased follow-up work.
+- Current tagged release: `v0.4.7` (regional reliability framing and archive-summary coherence
+  checks), released and deployed 2026-08-08. The same-day search/performance follow-up is also
+  deployed; see `CHANGELOG.md` for exact Worker versions and release evidence.
 - The current interface uses vendored MapLibre GL JS v6 ESM modules with the OpenFreeMap Liberty style, a
   full-bleed map, and one responsive sheet for current, planned, archive, and context views.
 - Production is served through Cloudflare Workers + Containers with D1 and R2 durable storage.
@@ -111,13 +111,14 @@ D1/R2 are now used for durable production ingestion:
 - R2 stores raw Hydro-Quebec feed payloads and raw DAI/access-to-information source files.
 - The Worker exposes D1-backed lookup endpoints for current nearby matches and accumulated
   previous-outage nearby matches.
-- Private Worker runtime endpoints provide current/planned operational layers and previous-outage
-  context layers with Hydro polygon geometry to the Flask/container path when the operation token is
-  configured.
+- `GET /api/durable/runtime/map-context` is a public Worker read containing only published
+  disclosure/regional context. Protected runtime endpoints remain operator-only; the container
+  currently falls back to public durable reads or its local-compatible paths when it cannot reach one.
 - Operational-only Worker runtime endpoints import official territories, backfill municipal archive
   bins, and report municipal archive status.
-- Debug, collection, cron, internal file/export, direct status, and durable runtime endpoints are not
-  public entry points; use the CLI locally and Worker scheduled/internal paths in production.
+- Debug, collection, cron, internal file/export, direct status, and protected durable runtime
+  endpoints are not public entry points; `GET /api/durable/runtime/map-context` is the published
+  context exception. Use the CLI locally and Worker scheduled/internal paths in production.
 
 Production disables automatic Hydro-Quebec refreshes during address search (`AUTO_REFRESH_ON_SEARCH=0`).
 The Worker cron handles changed-feed ingestion and calls the container refresh endpoint so user
@@ -232,15 +233,16 @@ For a repo map and contributor workflow, see [docs/architecture.md](docs/archite
 
 ```bash
 uv sync --locked
-uv run pytest -q --cov
+uv run pytest -q
 npx playwright install chromium
+npm run test:unit
 npm run test:e2e
 npm run test:e2e:mobile
-uv run ruff check .
+uv run ruff check . --fix
 uv run ruff format .
 uv run djlint app/templates --lint
 uv run djlint app/templates --reformat
-npm install
+npm ci
 npm run format
 npm run check
 npx wrangler deploy --dry-run
@@ -251,15 +253,15 @@ uv run pre-commit run --all-files
 Python dependencies and commands are managed by `uv`. Automated Python tests run with `pytest`.
 Repo-owned browser regression tests run with Playwright against a deterministic local fixture
 server. Python linting and formatting use Ruff. Jinja template linting and formatting use djLint.
-JavaScript linting and formatting for `app/static/` use Biome. Pre-commit runs the same local
-checks before commits once installed.
+JavaScript linting and formatting for `app/static/` use Biome. Pre-commit runs formatters and
+linters only; it does not run tests.
 
-GitHub Quality enforces a 61.9% combined Python line/branch coverage floor across `app/`. The
-latest measured suite reached 78.0% across 199 Python tests; the dated measurement and remaining
-gaps are recorded in `NOTES.md`. The suite has strong route, sheet/view, map-helper, and
-browser-workflow coverage, including desktop/mobile search, domain navigation, archive focus,
-detail cards, comparison, provenance, and simulated current location. The full Playwright suite
-runs after pushes to `main`; browser-facing pull requests run the affected project locally.
+Run the relevant Python, Node, and Playwright suites separately; they cover different layers. Any
+service method, route, template, or browser-JavaScript change needs `npm run test:e2e` before
+handoff. GitHub Quality enforces a 61.9% combined Python line/branch coverage floor across `app/`
+and runs on pull requests and pushes to `main`; the full Playwright suite also runs on pull requests,
+pushes to `main`, and manual dispatch. Release verification evidence and dated coverage measurements
+belong in `CHANGELOG.md` and `NOTES.md`.
 
 ## Notes
 

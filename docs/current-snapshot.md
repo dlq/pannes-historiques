@@ -31,7 +31,7 @@ Read this first for quick orientation. Use `PLANS.md` for the active roadmap, `d
 
 ## Active Decisions
 
-- `v0.4.3` selected the hybrid renderer: Flask/Jinja still renders browser pages while the Worker owns D1/R2 durable reads, operational map layers, and runtime attribution. Revisit a Worker-first browser shell only if measured traffic shows container-rendered pages are the material recurring cost.
+- `v0.4.3` selected the hybrid renderer: Flask/Jinja still renders browser pages while the Worker owns D1/R2 durable reads and runtime attribution. Revisit a Worker-first browser shell only if measured traffic shows container-rendered pages are the material recurring cost.
 - `v0.4.7` rejects a composite Hydro Score with current evidence. Show Hydro's normalized annual continuity index only at regional granularity, and describe local retained observations without grading an address or municipality. See ADR 0006.
 
 ## Useful Commands
@@ -40,15 +40,21 @@ Read this first for quick orientation. Use `PLANS.md` for the active roadmap, `d
 git status --short --branch
 git describe --tags --always --dirty
 uv run pre-commit run --all-files
+uv run pytest -q
 npm run test:unit
 npm run test:e2e
 npx wrangler deploy --dry-run
 ```
 
+Pre-commit runs formatters and linters only. Run the relevant Python, Node, and Playwright suites
+separately; any service method, route, template, or browser-JavaScript change requires `npm run test:e2e`.
+
 ## Known Risk Areas
 
 - The trusted Worker host is deployment configuration in `wrangler.jsonc`; keep it synchronized with
   the actual Worker host and avoid embedding it in runtime code.
+- The container cannot currently authenticate to protected Worker runtime endpoints, so those calls
+  fall back to public durable reads or local-compatible paths. `map-context` is deliberately public.
 - Container-backed search/render paths still wake the container.
 - Archive health controls are deployed: stale ingestion rows expire after three hours, terminal runs retain 30 days, latest rows are de-duplicated, and archive-bin completeness is privately auditable. Continue monitoring D1 growth against the ADR 0005 trigger.
 - All public JSON routes remain explicitly unstable until the `v0.5.0` API contract.

@@ -55,7 +55,7 @@ Saved areas, saved-area notifications, and web push notifications are deferred o
 
 - Keep Python tests, Node tests, module-boundary checks, template linting, and Biome checks green for every release slice.
 - `v0.4.3`: Worker/runtime-policy tests cover configurable container host checks, private cost-health endpoints, and runtime markers.
-- `v0.4.4`: GitHub Quality enforces a combined Python coverage floor; complete desktop/mobile browser regression runs after changes reach `main` or on manual dispatch; focused browser and contract tests remain the default for feature work.
+- `v0.4.4`: GitHub Quality enforces a combined Python coverage floor; the complete desktop/mobile browser regression suite runs on pull requests, after changes reach `main`, and on manual dispatch; focused browser and contract tests remain the default for feature work.
 - `v0.4.5`: route/header tests, machine-readable metadata, public/private route documentation, and security headers shipped; preserve them as public-surface regressions.
 - `v0.4.6`: archive-health tests for stale ingestion-run cleanup, latest-row grouping, archive-bin completeness metrics, and retention behavior shipped; extend them before any compaction/offload migration.
 - `v0.4.7`: regional continuity-index detail and no-score terminology are covered by Python and desktop/mobile browser regressions.

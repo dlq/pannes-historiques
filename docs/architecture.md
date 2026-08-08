@@ -12,7 +12,8 @@ The Worker classifies every request before it can wake the container. The route 
 | --- | --- | --- | --- |
 | Public page routes | `/`, `/about`, `GET /sheet`, static assets, `POST /search`, `POST /search-location` | Public; forwarded to Flask when needed | Worker and container |
 | Public durable APIs | `/api/durable/hydro`, `/api/durable/nearby`, `/api/durable/history-nearby`, `/api/health/ingestion` | Public read-only responses | Worker with D1/R2 |
-| Private runtime APIs | `/api/durable/status`, `/api/ops/cost-health`, private `/api/durable/runtime/*` | Authorized operations only | Worker with D1/R2 |
+| Public published context | `GET /api/durable/runtime/map-context` | Public read-only published disclosure/regional context | Worker with D1/R2 |
+| Private runtime APIs | `/api/durable/status`, `/api/ops/cost-health`, protected `/api/durable/runtime/*` endpoints | Authorized operations only | Worker with D1/R2 |
 | Blocked operational paths | `/internal/*`, `/cron/*`, `/collect*`, `/debug/*`, common framework probes | Rejected at the edge | Worker |
 
 Forwarded page responses report `X-Pannes-Runtime: container` and `worker-container` in `Server-Timing`; Worker-first durable reads report `X-Pannes-Runtime: worker-d1`.
@@ -33,7 +34,7 @@ The interface is one full-bleed MapLibre GL v6 map (OpenFreeMap Liberty vector s
 
 ## Runtime Ownership
 
-- `app/` owns Flask routes, search orchestration, Jinja rendering, local SQLite fallback paths, and Python collectors. `app/sheet_views.py` builds the sheet fragment contexts. `app/durable_runtime.py` owns the `DurableRuntimeClient` that talks to the Worker's private durable-runtime endpoints.
+- `app/` owns Flask routes, search orchestration, Jinja rendering, local SQLite fallback paths, and Python collectors. `app/sheet_views.py` builds the sheet fragment contexts. `app/durable_runtime.py` owns the `DurableRuntimeClient` for Worker runtime reads; `map-context` is public, while protected calls currently fall back when the container cannot authenticate.
 - `app/static/` owns browser behavior as plain ES modules: `sheet.js` (detents, domain navigation, detail cards), `outage-map.js` (MapLibre element), `map-events.js` (map/sheet event contract), `map-utils.js` (pure helpers), `search.js` (autocomplete, comparison tray, history), `detail-panels.js` (disclosure/regional detail rendering).
 - `src/worker.js` owns Worker fetch/scheduled entrypoints and D1/R2 runtime behavior.
 - `src/container.js` owns Cloudflare Container configuration.
@@ -67,9 +68,9 @@ The checker runs in pre-commit and has focused regression coverage in `tests/tes
 
 The GitHub Quality workflow runs pre-commit formatting, linting, module-boundary checks, Python
 branch coverage with a non-regressing floor, and Node unit tests on pull requests and pushes to
-`main`. The full Playwright desktop/mobile suite runs after pushes to `main` and by manual dispatch;
-browser-facing pull requests still require focused local browser verification. The measured baseline
-is recorded in `NOTES.md`.
+`main`. The full Playwright desktop/mobile suite runs on pull requests, after pushes to `main`, and
+by manual dispatch; browser-facing pull requests still require focused local browser verification.
+The measured baseline is recorded in `NOTES.md`.
 
 ## Data Stores
 
