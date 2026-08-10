@@ -8,12 +8,12 @@ dependencies = [
   "defusedxml>=0.7.1",
   "flask>=3.1.0",
   "gunicorn>=26.0.0",
-  "pypdf>=6.14.2",
+  "pypdf>=6.15.0",
 ]
 
 [dependency-groups]
 dev = [
-  "djlint>=1.43.1",
+  "djlint>=1.44.1",
   "geopandas>=1.1.4",
   "pre-commit>=4.6.1",
   "pytest>=9.1.1",
