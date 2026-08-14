@@ -420,6 +420,16 @@ test("autocomplete suggestions appear under the sheet search field", async ({ pa
   await expect(page.locator("#address-suggestions button").first()).toBeVisible();
 });
 
+test("autocomplete rate limits leave a concise retry message", async ({ page }) => {
+  await page.goto("/?lang=en");
+  await page.route("**/autocomplete**", (route) =>
+    route.fulfill({ status: 429, contentType: "application/json", body: '{"error":"rate limited"}' }),
+  );
+
+  await page.locator("#address-input").fill("5220");
+  await expect(page.locator("#address-suggestions")).toContainText("Try again in a minute.");
+});
+
 test("language switch preserves the current query", async ({ page }) => {
   await runSearch(page);
 

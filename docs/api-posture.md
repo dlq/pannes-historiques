@@ -67,9 +67,12 @@ Worker-served and D1-backed. The most likely candidates to become the first
 | `GET /api/durable/history-nearby` | Archived rows near a coordinate. |
 | `GET /api/health/ingestion` | Public freshness/health probe for external monitoring. Returns `200` when healthy and `503` when stale, in a sustained failure state, or when the materialized archive summary fails its internal coherence checks; response fields remain unstable. |
 | `GET /api/durable/runtime/map-context` | Public published disclosure/regional context. It is an intentional public-read exception under the runtime path prefix. |
+| `GET /api/durable/runtime/previous-archive-summary` | Public materialized archive summary. It is an intentional public-read exception under the runtime path prefix. |
 
 Consumers should assume: no pagination guarantees, no field-stability
-guarantees, no rate-limit guarantees, and no deprecation window.
+guarantees, and no deprecation window. `GET /autocomplete` is the exception:
+it is limited per IP by a Cloudflare zone rule and may return `429`; see
+`docs/operations.md` for the current policy.
 
 ## Private routes — `private`
 
@@ -83,7 +86,7 @@ public and should not be probed.
 | `/collect*` | Debug flag or internal/scheduled header. |
 | `/debug/*` | Debug flag. |
 | `/api/durable/status`, `/api/ops/cost-health` | Operation token. |
-| Protected `/api/durable/runtime/*` endpoints (except `GET /api/durable/runtime/map-context`) | Operation token. The container currently cannot authenticate to these endpoints and falls back rather than relying on them. |
+| Protected `/api/durable/runtime/*` endpoints (except `GET /api/durable/runtime/map-context` and `GET /api/durable/runtime/previous-archive-summary`) | Operation token. The Flask container deliberately calls neither protected reads nor writes; it uses local-compatible fallbacks. |
 
 ## Security headers
 

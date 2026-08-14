@@ -165,7 +165,7 @@ def test_local_address_query_job_and_disclosure_export_paths(service_factory, mo
     )
 
 
-def test_durable_address_and_query_persistence_degrades_cleanly(service_factory, monkeypatch):
+def test_private_runtime_work_uses_local_storage(service_factory):
     service = service_factory(durable_runtime_url="https://worker.invalid/runtime")
     normalized = NormalizedAddress(
         original="1 Test Street",
@@ -176,19 +176,12 @@ def test_durable_address_and_query_persistence_degrades_cleanly(service_factory,
         postal_code="",
         unit="",
     )
-    calls = []
-
-    def fake_post(path, payload):
-        calls.append((path, payload))
-        return {"address_id": 42, "cache_hit": True} if path == "address" else {"count": 3}
-
-    monkeypatch.setattr(service, "_durable_runtime_post", fake_post)
-    monkeypatch.setattr(service, "_durable_runtime_get", lambda _path, _query: {"count": 4})
-
-    assert service._upsert_address(normalized, fake_montreal_geocode()) == (42, True)
+    address_id, cache_hit = service._upsert_address(normalized, fake_montreal_geocode())
+    assert address_id is not None
+    assert cache_hit is False
     assert (
         service._record_query(
-            address_id=42,
+            address_id=address_id,
             original_query=normalized.original,
             normalized_query=normalized.normalized_line,
             language="fr",
@@ -197,28 +190,9 @@ def test_durable_address_and_query_persistence_degrades_cleanly(service_factory,
             include_planned=False,
             cache_hit=True,
         )
-        == 3
+        == 1
     )
-    assert service._query_count(42) == 4
-    assert [path for path, _payload in calls] == ["address", "query"]
-
-    monkeypatch.setattr(service, "_durable_runtime_post", lambda *_args: None)
-    monkeypatch.setattr(service, "_durable_runtime_get", lambda *_args: None)
-    assert service._upsert_address(normalized, fake_montreal_geocode()) == (None, False)
-    assert (
-        service._record_query(
-            address_id=42,
-            original_query=normalized.original,
-            normalized_query=normalized.normalized_line,
-            language="fr",
-            radius_m=2000,
-            days=365,
-            include_planned=False,
-            cache_hit=False,
-        )
-        == 0
-    )
-    assert service._query_count(42) == 0
+    assert service._query_count(address_id) == 1
 
 
 def test_disclosure_payload_collection_handles_unknown_and_pending_sources(
@@ -618,26 +592,17 @@ def test_search_location_uses_operational_map_layers_with_durable_nearby(
     assert result.normalized.normalized_line == "current location 45.50000,-73.56000"
 
 
-def test_durable_runtime_operational_and_previous_map_layers(service_factory, monkeypatch):
+def test_private_runtime_map_reads_use_local_fallback(service_factory, monkeypatch):
     service = service_factory(durable_runtime_url="https://example.invalid")
 
-    def fake_runtime_get(path, query=None):
-        if path == "operational-map-layers":
-            assert query == {"include_planned": "1"}
-            return {"layers": [{"outage_kind": "outage", "geometry_geojson": {}}]}
-        if path == "previous-map-layers":
-            assert query == {"limit": "12"}
-            return {"layers": [{"outage_kind": "previous_outage"}]}
-        raise AssertionError(path)
+    monkeypatch.setattr(
+        service,
+        "_durable_runtime_get",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("private read")),
+    )
 
-    monkeypatch.setattr(service, "_durable_runtime_get", fake_runtime_get)
-
-    assert service._build_current_operational_map_layers(True) == [
-        {"outage_kind": "outage", "geometry_geojson": {}}
-    ]
-    assert service._build_previous_operational_map_layers(12) == [
-        {"outage_kind": "previous_outage"}
-    ]
+    assert service._build_current_operational_map_layers(True) == []
+    assert service._build_previous_operational_map_layers(12) == []
 
 
 def test_durable_previous_archive_summary_uses_runtime_summary_endpoint(
@@ -723,26 +688,25 @@ def test_durable_runtime_get_caches_context_reads(service_factory, monkeypatch):
 
     monkeypatch.setattr(service, "_durable_runtime_get_uncached", fake_uncached)
 
-    first = service._durable_runtime_get("previous-map-layers", {"limit": "120"})
-    second = service._durable_runtime_get("previous-map-layers", {"limit": "120"})
-    other_query = service._durable_runtime_get("previous-map-layers", {"limit": "60"})
-    uncached_path = service._durable_runtime_get("query-count", {"address_id": "1"})
+    first = service._durable_runtime_get("map-context", {"scope": "province"})
+    second = service._durable_runtime_get("map-context", {"scope": "province"})
+    other_query = service._durable_runtime_get("map-context", {"scope": "local"})
+    uncached_path = service._durable_runtime_get("previous-archive-summary")
 
     assert first == {"value": 1}
     assert second == {"value": 1}
     assert other_query == {"value": 2}
     assert uncached_path == {"value": 3}
     assert calls == [
-        ("previous-map-layers", {"limit": "120"}),
-        ("previous-map-layers", {"limit": "60"}),
-        ("query-count", {"address_id": "1"}),
+        ("map-context", {"scope": "province"}),
+        ("map-context", {"scope": "local"}),
+        ("previous-archive-summary", None),
     ]
 
 
-def test_durable_runtime_requests_include_operation_token(service_factory, monkeypatch):
+def test_durable_runtime_requests_are_limited_to_public_reads(service_factory, monkeypatch):
     service = service_factory(
         durable_runtime_url="https://example.invalid",
-        durable_runtime_operation_token="secret-token",
         durable_context_cache_ttl_seconds=0,
     )
     seen_headers = []
@@ -763,19 +727,11 @@ def test_durable_runtime_requests_include_operation_token(service_factory, monke
 
     monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
 
-    assert service._durable_runtime_get("status") == {"ok": True}
-    assert service._durable_runtime_post("query", {"address_id": 1}) == {"ok": True}
+    assert service._durable_runtime_get("map-context") == {"ok": True}
+    assert service._durable_runtime_get("status") is None
 
     assert seen_headers == [
-        {
-            "User-agent": "pannes-historiques/0.1 (+https://pannes.ca)",
-            "X-pannes-operation-token": "secret-token",
-        },
-        {
-            "Content-type": "application/json",
-            "User-agent": "pannes-historiques/0.1 (+https://pannes.ca)",
-            "X-pannes-operation-token": "secret-token",
-        },
+        {"User-agent": "pannes-historiques/0.1 (+https://pannes.ca)"},
     ]
 
 
@@ -793,11 +749,11 @@ def test_durable_runtime_get_does_not_cache_failed_context_reads(service_factory
 
     monkeypatch.setattr(service, "_durable_runtime_get_uncached", fake_uncached)
 
-    assert service._durable_runtime_get("previous-map-layers", {"limit": "48"}) is None
-    assert service._durable_runtime_get("previous-map-layers", {"limit": "48"}) == {"layers": []}
+    assert service._durable_runtime_get("map-context", {"scope": "province"}) is None
+    assert service._durable_runtime_get("map-context", {"scope": "province"}) == {"layers": []}
     assert calls == [
-        ("previous-map-layers", {"limit": "48"}),
-        ("previous-map-layers", {"limit": "48"}),
+        ("map-context", {"scope": "province"}),
+        ("map-context", {"scope": "province"}),
     ]
 
 

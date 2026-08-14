@@ -86,7 +86,7 @@ export default {
 };
 
 function operationalRequest(request, env) {
-  return isOperationalRequest(request, env.PANNES_OPERATION_TOKEN, env.PANNES_TRUSTED_WORKER_HOST);
+  return isOperationalRequest(request, env.PANNES_OPERATION_TOKEN);
 }
 
 function isLowCostMode(env) {

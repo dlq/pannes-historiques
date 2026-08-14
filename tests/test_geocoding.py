@@ -4,7 +4,8 @@ from contextlib import nullcontext
 from types import SimpleNamespace
 
 from app.addressing import NormalizedAddress
-from app.geocoding import GeocodingService, haversine_meters
+from app.db import initialize
+from app.geocoding import GeocodeResult, GeocodingService, haversine_meters
 
 
 def test_suggest_aggregates_candidates_and_uses_cache(monkeypatch):
@@ -248,47 +249,34 @@ def test_haversine_meters_is_zero_for_identical_points():
     assert haversine_meters(45.5, -73.6, 45.5, -73.6) == 0
 
 
-def test_durable_cache_round_trip_and_network_failures_are_non_fatal(monkeypatch):
+def test_geocoding_uses_local_cache_when_public_runtime_is_configured(tmp_path, monkeypatch):
     settings = SimpleNamespace(
         nominatim_url="https://example.invalid/search",
         nominatim_user_agent="pannes-historiques-test",
         durable_runtime_url="https://worker.invalid/runtime",
-        db_path=":memory:",
+        db_path=tmp_path / "app.db",
     )
+    initialize(settings.db_path)
     service = GeocodingService(settings)
-    row = {
-        "provider": "durable",
-        "confidence": 0.9,
-        "quality": "address",
-        "latitude": 45.5,
-        "longitude": -73.6,
-        "city": "Montreal",
-        "province": "Quebec",
-        "postal_code": "H2V 4G7",
-        "raw_json": json.dumps({"source": "cache"}),
-    }
-    requests = []
-
-    def fake_urlopen(request, timeout):
-        requests.append((request, timeout))
-        return nullcontext(io.BytesIO(json.dumps({"item": row}).encode("utf-8")))
-
-    monkeypatch.setattr("app.geocoding.urllib.request.urlopen", fake_urlopen)
-
-    cached = service._from_durable_cache("5220 rue jeanne-mance")
-    assert cached is not None
-    assert cached.provider == "durable"
-
-    service._store_durable_cache("5220 rue jeanne-mance", cached)
-    assert requests[0][0].full_url.endswith("normalized_query=5220+%5B%5D") is False
-    assert requests[1][0].method == "POST"
+    cached = GeocodeResult(
+        provider="local",
+        confidence=0.9,
+        quality="address",
+        latitude=45.5,
+        longitude=-73.6,
+        city="Montreal",
+        province="Quebec",
+        postal_code="H2V 4G7",
+        raw_json={"source": "cache"},
+    )
+    service._store_cache("5220 rue jeanne-mance", cached)
+    assert service._from_cache("5220 rue jeanne-mance") == cached
 
     monkeypatch.setattr(
         "app.geocoding.urllib.request.urlopen",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError()),
     )
-    assert service._from_durable_cache("missing") is None
-    service._store_durable_cache("missing", cached)
+    assert service._from_cache("missing") is None
 
 
 def test_nominatim_search_and_result_normalization_use_http_payload(monkeypatch):

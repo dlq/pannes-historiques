@@ -13,7 +13,6 @@ DURABLE_HISTORY_URL = os.environ.get("DURABLE_HISTORY_URL", "") or (
     DURABLE_NEARBY_URL.replace("/nearby", "/history-nearby") if DURABLE_NEARBY_URL else ""
 )
 DURABLE_RUNTIME_URL = os.environ.get("DURABLE_RUNTIME_URL", "")
-DURABLE_RUNTIME_OPERATION_TOKEN = os.environ.get("DURABLE_RUNTIME_OPERATION_TOKEN", "")
 
 
 @dataclass(frozen=True)
@@ -44,7 +43,6 @@ class Settings:
     durable_nearby_url: str = DURABLE_NEARBY_URL
     durable_history_url: str = DURABLE_HISTORY_URL
     durable_runtime_url: str = DURABLE_RUNTIME_URL
-    durable_runtime_operation_token: str = DURABLE_RUNTIME_OPERATION_TOKEN
     durable_context_cache_ttl_seconds: int = int(
         os.environ.get("DURABLE_CONTEXT_CACHE_TTL_SECONDS", "120")
     )

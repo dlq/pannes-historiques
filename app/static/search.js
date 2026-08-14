@@ -1,4 +1,4 @@
-import { formatRelativeTime } from "./ui-format.js?v=f6eba225c299";
+import { formatRelativeTime } from "./ui-format.js?v=4337eb7ad7ad";
 
 let autocompleteTimer = null;
 
@@ -185,6 +185,7 @@ export function attachAddressAutocomplete() {
       autocompleteTimer = null;
     }
     panel.classList.add("hidden");
+    panel.classList.remove("ph-suggestions-message");
     panel.innerHTML = "";
   };
 
@@ -194,6 +195,7 @@ export function attachAddressAutocomplete() {
       return;
     }
     panel.innerHTML = "";
+    panel.classList.remove("ph-suggestions-message");
     for (const item of items) {
       const button = document.createElement("button");
       button.type = "button";
@@ -216,6 +218,12 @@ export function attachAddressAutocomplete() {
     panel.classList.remove("hidden");
   };
 
+  const renderRateLimitMessage = () => {
+    panel.textContent = input.dataset.autocompleteRateLimitLabel || "Try again in a minute.";
+    panel.classList.add("ph-suggestions-message");
+    panel.classList.remove("hidden");
+  };
+
   const fetchSuggestions = async () => {
     const query = input.value.trim();
     if (query.length < 3) {
@@ -230,7 +238,8 @@ export function attachAddressAutocomplete() {
         headers: { Accept: "application/json" },
       });
       if (!response.ok) {
-        closePanel();
+        if (response.status === 429) renderRateLimitMessage();
+        else closePanel();
         return;
       }
       const payload = await response.json();

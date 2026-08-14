@@ -398,6 +398,12 @@ button {
   border-bottom: 0;
 }
 
+.ph-suggestions-message {
+  padding: 10px 14px;
+  color: var(--ph-ink-2);
+  font-size: 0.84rem;
+}
+
 .ph-suggestions button:hover,
 .ph-suggestions button:focus-visible {
   background: var(--ph-card);

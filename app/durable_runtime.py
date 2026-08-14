@@ -7,15 +7,17 @@ from typing import Any
 
 from .perf import current_timer
 
+PUBLIC_DURABLE_RUNTIME_READS = frozenset({"map-context", "previous-archive-summary"})
+
 
 class DurableRuntimeClient:
-    """Small HTTP client for the Worker endpoints used by the Flask runtime."""
+    """HTTP client for public, materialized Worker reads used by Flask."""
 
     def __init__(self, settings: Any) -> None:
         self.settings = settings
 
     def get(self, path: str, query: dict[str, str] | None = None) -> dict[str, Any] | None:
-        if not self.settings.durable_runtime_url:
+        if not self.supports_read(path):
             return None
         suffix = f"/{path.lstrip('/')}"
         encoded = f"?{urllib.parse.urlencode(query)}" if query else ""
@@ -25,22 +27,15 @@ class DurableRuntimeClient:
         )
         return self._request_json(request, path)
 
-    def post(self, path: str, payload: dict[str, Any]) -> dict[str, Any] | None:
-        if not self.settings.durable_runtime_url:
-            return None
-        request = urllib.request.Request(
-            f"{self.settings.durable_runtime_url}/{path.lstrip('/')}",
-            data=json.dumps(payload, ensure_ascii=True).encode("utf-8"),
-            headers={"Content-Type": "application/json", **self.headers()},
-            method="POST",
+    def supports_read(self, path: str) -> bool:
+        return (
+            bool(self.settings.durable_runtime_url)
+            and path.strip("/") in PUBLIC_DURABLE_RUNTIME_READS
         )
-        return self._request_json(request, path)
 
-    def headers(self) -> dict[str, str]:
-        headers = {"User-Agent": "pannes-historiques/0.1 (+https://pannes.ca)"}
-        if self.settings.durable_runtime_operation_token:
-            headers["X-Pannes-Operation-Token"] = self.settings.durable_runtime_operation_token
-        return headers
+    @staticmethod
+    def headers() -> dict[str, str]:
+        return {"User-Agent": "pannes-historiques/0.1 (+https://pannes.ca)"}
 
     @staticmethod
     def _request_json(request: urllib.request.Request, path: str) -> dict[str, Any] | None:

@@ -33,12 +33,12 @@ Completed release history lives in `CHANGELOG.md`; durable investigation details
 Make the public-read path measurable, bounded, and trustworthy before collecting product-use evidence or committing to a stable public API.
 
 - Cursor-aware materialized archive reads and ingestion-health failure are implemented: a source-cursor mismatch or a missing summary for a non-empty archive rebuilds on the next Archive request and makes the health probe unhealthy. Focused tests cover matching, mismatch, and missing cursors. Verify the live transition after the next deployment.
-- Make one explicit decision about protected container-to-Worker calls: deliver a supported credential path, or retire the unreachable calls in favor of their public/local fallbacks. Do not leave a dead authentication path as an assumed optimization.
+- Protected container-to-Worker calls are retired. The Flask container now calls only public `map-context` and `previous-archive-summary` reads; all former protected reads and writes use local-compatible fallbacks directly. The invalid proxy-token path and trusted-host variable are removed, and focused Node/Python tests prevent a protected endpoint from being reintroduced as a container dependency.
 - A private billing review confirms that the container and Durable Objects investigation thresholds have been crossed, but cannot attribute cost to routes or wakeups. The billing artifact and account-specific figures are excluded from the repository. Complete the authenticated dashboard measurement with daily Container/Durable Objects usage, Worker request volume, route mix, D1/R2 usage, and representative public-read timings before deciding between retaining the hybrid shell, changing idling, or moving one named public read.
-- Configure and verify a per-IP Cloudflare rate rule for `GET /autocomplete`, including the public failure response and an operational rollback path.
+- The `GET /autocomplete` rate-limit policy, rollback, and tested browser `429` response are documented. Install and verify the zone rule once a credential with Zone WAF/rulesets write permission is available: 60 requests per IP per minute, one-minute `429` block. The current Workers OAuth credential cannot create it.
 - Establish a monthly D1-size review against the 3.5 GB compaction trigger; record the measured size and expected headroom in the dated cost review.
 
-Exit evidence: archive freshness is cursor-checked and alertable; the container-runtime decision is tested; the autocomplete rate rule is live and documented; and the dated cost review records both measurements and the next architecture decision.
+Exit evidence still required: deploy and verify cursor-aware archive freshness; install and verify the autocomplete zone rate rule; and complete the authenticated dashboard measurement before recording the next architecture decision. The container-runtime decision is implemented and tested.
 
 ### `v0.4.9`: Privacy-Preserving Product Usage Evidence
 
@@ -75,7 +75,7 @@ Saved areas, saved-area notifications, and web push notifications are deferred o
 - `v0.4.6`: archive-health tests for stale ingestion-run cleanup, latest-row grouping, archive-bin completeness metrics, and retention behavior shipped; extend them before any compaction/offload migration.
 - `v0.4.7`: regional continuity-index detail and no-score terminology are covered by Python and desktop/mobile browser regressions.
 - Cross-field coherence: assert displayed figures against each other, not only against the query that produced them. Tests that check a number equals what its query returned cannot catch a query answering the wrong question, which is how the Archive window shipped a territory count under an outage heading. See the guard below.
-- `v0.4.8`: add archive-cursor freshness, health-failure, protected-runtime decision, rate-rule, and cost-baseline verification before closing the slice.
+- `v0.4.8`: archive-cursor freshness and the protected-runtime retirement are implemented and covered. Before closing the slice, deploy/verify the cursor transition, install/verify the autocomplete zone rule, and complete the authenticated cost-measurement review.
 - `v0.4.9`: add aggregate-schema, expiry, bot-classification, private-readout, and public-nonexposure tests before collecting usage evidence.
 - `v0.5.x`: add API contract, schema, freshness/provenance, rate-limit, analytical-summary, parser, and geocoder tests as each slice lands.
 
@@ -130,7 +130,7 @@ Routine command details live in `docs/contributing.md`; production and deploy ch
 
 ## Current Risks And Open Questions
 
-- The container cannot authenticate to the Worker at all. Confirmed 2026-08-05 by logging the gate outcome for the container's own request: `got_token_header: false`, `cf_worker: null`, while `has_env_token: true` on the Worker. `envVars` does not deliver `PANNES_OPERATION_TOKEN` to the container process, and Cloudflare does not stamp `cf-worker` on the internal hop, so `isTrustedContainerRuntimeProxyRequest` is effectively dead code. Five container calls still return `404` and fall back without a visible defect. `v0.4.8` owns the explicit repair-or-retirement decision; do not add another protected endpoint until that decision is implemented and tested.
+- The container-to-Worker authentication path is deliberately retired: Cloudflare did not deliver a usable token or internal Worker identity, so Flask now calls only two public materialized reads and uses local-compatible fallbacks for former protected calls. Do not add a protected runtime endpoint as a container dependency without a separately designed, tested credential path.
 - A private cost review establishes a threshold-crossing signal but not route attribution. Obtain authenticated Cloudflare dashboard usage and route evidence before changing container idling or selecting the next public-read migration. The trusted Worker host is configured in `wrangler.jsonc`, not hardcoded in runtime policy.
 - Ordinary public reads should keep moving toward Worker/static/D1/R2 paths, but the right migration boundary is not yet proven.
 - Archive health is deployed: stale run expiry, 30-day terminal-run retention, latest-row de-duplication, and classified archive-bin completeness. Keep monitoring the public ingestion-health endpoint and private completeness audit.
@@ -142,7 +142,7 @@ Routine command details live in `docs/contributing.md`; production and deploy ch
 - DAI/disclosure detail panels are data-rich and visually fragile; keep checking overlap, horizontal scrolling, and dense-row readability.
 - Bad in-app URLs and unhandled Flask exceptions still need minimal branded 404/500 pages.
 - SEO announcement-readiness follow-up: consider `noindex,follow` for user-entered address/current-location result pages so arbitrary searches do not become indexable landing pages. Absolute `og:image` URLs and French/English/`x-default` alternates are implemented on `main`; verify them in the next production deployment.
-- Address queries are capped in the application, but configure a per-IP Cloudflare rate rule for `GET /autocomplete` in `v0.4.8`; browser debouncing is not an abuse control.
+- Address queries are capped in the application and the browser handles `429`, but the Cloudflare `GET /autocomplete` per-IP rate rule is not live: current CLI OAuth lacks Zone WAF/rulesets write permission. Install the documented 60-per-minute, one-minute rule before closing `v0.4.8`; browser debouncing is not an abuse control.
 - OpenFreeMap Liberty still includes non-Quebec labels at some zoom levels; solve only if it materially affects analytics or saved-area-adjacent workflows.
 - Do not speculate about Hydro-Quebec one-letter status-code meanings unless source documentation or payload context verifies them.
 

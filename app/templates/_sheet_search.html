@@ -14,6 +14,7 @@
            value="{{ initial_query if initial_query is defined else '' }}"
            autocomplete="off"
            data-autocomplete-url="{{ url_for('autocomplete') }}"
+           data-autocomplete-rate-limit-label="{{ t(lang, 'autocomplete_rate_limited') }}"
            data-lang="{{ lang }}"
            placeholder="{{ t(lang, 'sheet_search_placeholder') }}">
   </label>
@@ -22,4 +23,6 @@
      data-lang-switch
      aria-label="{{ t(lang, 'language') }}">{{ "EN" if lang == "fr" else "FR" }}</a>
 </form>
-<div id="address-suggestions" class="ph-suggestions hidden"></div>
+<div id="address-suggestions"
+     class="ph-suggestions hidden"
+     aria-live="polite"></div>

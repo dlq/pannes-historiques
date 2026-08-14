@@ -54,9 +54,9 @@ separately; any service method, route, template, or browser-JavaScript change re
 
 - The trusted Worker host is deployment configuration in `wrangler.jsonc`; keep it synchronized with
   the actual Worker host and avoid embedding it in runtime code.
-- The container cannot currently authenticate to protected Worker runtime endpoints, so those calls
-  fall back to public durable reads or local-compatible paths. `v0.4.8` owns the repair-or-retirement
-  decision. `map-context` is deliberately public.
+- The attempted protected container-to-Worker authentication path is retired. The container calls
+  only public materialized `map-context` and `previous-archive-summary` reads; former protected
+  runtime work takes local-compatible paths. `map-context` is deliberately public.
 - Container-backed search/render paths still wake the container.
 - Archive health controls are deployed: stale ingestion rows expire after three hours, terminal runs retain 30 days, latest rows are de-duplicated, and archive-bin completeness is privately auditable. Continue monitoring D1 growth against the ADR 0005 trigger.
 - All public JSON routes remain explicitly unstable until the `v0.5.0` API contract.

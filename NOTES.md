@@ -9,6 +9,13 @@ Last updated: 2026-08-14
 - The billing document does not attribute container time to scheduled ingestion, public shell/search wakeups, uptime monitoring, or a particular route. Its resource dimensions also do not establish one reliable instance-uptime estimate. Do not change `sleepAfter` from billing arithmetic alone.
 - Decision: retain the hybrid shell temporarily. Before selecting a Worker/static migration or changing container idling, obtain the authenticated dashboard's daily Container and Durable Objects usage, Worker request volume, route mix, D1/R2 usage, representative public-read timings, and runtime markers. The available Codex browser was not authenticated to Cloudflare on 2026-08-14, so this account-only measurement remains outstanding.
 
+## v0.4.8 container runtime boundary, 2026-08-14
+
+- Decision: retire the attempted authenticated container-to-Worker runtime path. Cloudflare Container `envVars` did not provide the operation token and the internal hop did not carry a usable Worker identity, so protected calls failed in production and then fell back, sometimes after a timeout.
+- The Flask container now calls only the two intentional public materialized reads: `map-context` and `previous-archive-summary`. Address, query-history, geocode-cache, status, private map-layer, and match persistence work use the baked SQLite local-compatible path directly. Protected Worker endpoints remain operation-token gated for real operational callers.
+- The generic proxy trust predicate, token injection, and trusted Worker-host deployment variable were removed. Node and Python tests assert that no protected runtime endpoint is called by the container, and that local storage is used when the public runtime URL is configured.
+- The configured Cloudflare CLI OAuth credential has Workers deployment access but lacks zone WAF/rulesets write permission. The required autocomplete rate rule is documented and browser behavior for `429` is tested, but edge installation and verification remain an account-permission prerequisite.
+
 ## v0.4.7 reliability-metric evidence, 2026-08-08
 
 - Release deployment: tagged merge commit `32ce9f6` deployed as Worker version `87dc841e-ca99-4adf-952f-4adc9df6baba` with container image digest `sha256:e868f2c313acc7bff04152d585c54f1ebaf239b16f67afcf7399c8fa5477f6b8`. The first registry push failed with transient TLS `bad record MAC`; the immediate retry reused the built layers and completed. Live checks returned `200` for `/`, `/service-worker.js`, `/sheet?lang=en&domain=context&scope=province`, and `/api/health/ingestion`; the service worker identified `pannes-historiques-v0.4.7-runtime-static-2`, the regional payload named the continuity index, and ingestion was healthy with zero consecutive failures.

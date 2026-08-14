@@ -34,7 +34,7 @@ The interface is one full-bleed MapLibre GL v6 map (OpenFreeMap Liberty vector s
 
 ## Runtime Ownership
 
-- `app/` owns Flask routes, search orchestration, Jinja rendering, local SQLite fallback paths, and Python collectors. `app/sheet_views.py` builds the sheet fragment contexts. `app/durable_runtime.py` owns the `DurableRuntimeClient` for Worker runtime reads; `map-context` is public, while protected calls currently fall back when the container cannot authenticate.
+- `app/` owns Flask routes, search orchestration, Jinja rendering, local SQLite fallback paths, and Python collectors. `app/sheet_views.py` builds the sheet fragment contexts. `app/durable_runtime.py` owns the public-read-only `DurableRuntimeClient` for materialized `map-context` and `previous-archive-summary` reads; protected Worker endpoints are not container dependencies.
 - `app/static/` owns browser behavior as plain ES modules: `sheet.js` (detents, domain navigation, detail cards), `outage-map.js` (MapLibre element), `map-events.js` (map/sheet event contract), `map-utils.js` (pure helpers), `search.js` (autocomplete, comparison tray, history), `detail-panels.js` (disclosure/regional detail rendering).
 - `src/worker.js` owns Worker fetch/scheduled entrypoints and D1/R2 runtime behavior.
 - `src/container.js` owns Cloudflare Container configuration.

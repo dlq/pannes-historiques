@@ -24,10 +24,7 @@ LOGGER = logging.getLogger(__name__)
 
 DURABLE_RUNTIME_CACHEABLE_PATHS = {
     "map-context",
-    "operational-map-layers",
     "previous-archive-summary",
-    "previous-map-layers",
-    "status",
 }
 DEFAULT_PREVIOUS_MAP_LAYER_LIMIT = 48
 SEARCH_READ_WORKERS = 4
@@ -150,7 +147,7 @@ class AppService:
     def _durable_runtime_get(
         self, path: str, query: dict[str, str] | None = None
     ) -> dict[str, Any] | None:
-        if not self.settings.durable_runtime_url:
+        if not self.durable_runtime.supports_read(path):
             return None
         normalized_path = path.strip("/")
         if (
@@ -170,9 +167,6 @@ class AppService:
         self, path: str, query: dict[str, str] | None = None
     ) -> dict[str, Any] | None:
         return self.durable_runtime.get(path, query)
-
-    def _durable_runtime_post(self, path: str, payload: dict[str, Any]) -> dict[str, Any] | None:
-        return self.durable_runtime.post(path, payload)
 
     def _submit_search_read(self, executor: ThreadPoolExecutor, name: str, fn) -> Future[Any]:
         timer = current_timer()
@@ -902,11 +896,6 @@ class AppService:
         return self._cached_context("collector_status", self._collector_status)
 
     def _collector_status(self) -> dict[str, Any]:
-        if self.settings.durable_runtime_url:
-            payload = self._durable_runtime_get("status")
-            if payload and payload.get("collector"):
-                return payload["collector"]
-            return {"snapshot_count": 0, "latest": None, "earliest": None}
         with open_db(self.settings.db_path) as connection:
             count = connection.execute("SELECT COUNT(*) AS count FROM raw_snapshots").fetchone()[
                 "count"
@@ -927,23 +916,6 @@ class AppService:
         return self._cached_context("coverage_stats", self._coverage_stats)
 
     def _coverage_stats(self) -> dict[str, Any]:
-        if self.settings.durable_runtime_url:
-            payload = self._durable_runtime_get("status")
-            if payload and payload.get("coverage"):
-                return payload["coverage"]
-            return {
-                "outage_count": 0,
-                "planned_count": 0,
-                "event_count": 0,
-                "geometry_count": 0,
-                "outage_min_time": None,
-                "outage_max_time": None,
-                "planned_min_time": None,
-                "planned_max_time": None,
-                "disclosure_source_count": 0,
-                "disclosure_event_count": 0,
-                "disclosure_metric_count": 0,
-            }
         with open_db(self.settings.db_path) as connection:
             outage_count = connection.execute(
                 "SELECT COUNT(*) AS count FROM outage_records"
@@ -1006,15 +978,6 @@ class AppService:
         self, normalized: NormalizedAddress, geocode: dict[str, Any]
     ) -> tuple[int | None, bool]:
         geocode = self._geocode_dict(geocode)
-        if self.settings.durable_runtime_url:
-            payload = self._durable_runtime_post(
-                "address",
-                {"normalized": vars(normalized), "geocode": geocode},
-            )
-            if payload:
-                return int(payload["address_id"]), bool(payload["cache_hit"])
-            current_timer().set("search.address_runtime_unavailable", True)
-            return None, False
         with open_db(self.settings.db_path) as connection:
             existing = connection.execute(
                 "SELECT id FROM addresses WHERE normalized_line = ?",
@@ -1078,23 +1041,6 @@ class AppService:
         include_planned: bool,
         cache_hit: bool,
     ) -> int:
-        if self.settings.durable_runtime_url:
-            payload = self._durable_runtime_post(
-                "query",
-                {
-                    "address_id": address_id,
-                    "original_query": original_query,
-                    "normalized_query": normalized_query,
-                    "language": language,
-                    "radius_m": radius_m,
-                    "days": days,
-                    "include_planned": include_planned,
-                    "cache_hit": cache_hit,
-                },
-            )
-            if payload:
-                return int(payload["count"])
-            return 0
         with open_db(self.settings.db_path) as connection:
             connection.execute(
                 """
@@ -1120,11 +1066,6 @@ class AppService:
         return int(count_row["count"])
 
     def _query_count(self, address_id: int) -> int:
-        if self.settings.durable_runtime_url:
-            payload = self._durable_runtime_get("query-count", {"address_id": str(address_id)})
-            if payload:
-                return int(payload["count"])
-            return 0
         with open_db(self.settings.db_path) as connection:
             count_row = connection.execute(
                 "SELECT COUNT(*) AS count FROM query_history WHERE address_id = ?",
@@ -1475,12 +1416,12 @@ class AppService:
         read, so the UI never claims documents do not exist when the lookup
         simply broke.
         """
-        if not self.settings.durable_runtime_url:
+        if not self.durable_runtime.supports_read("map-context"):
             return True
         return self._durable_runtime_get("map-context") is not None
 
     def _current_operational_map_layers(self, include_planned: bool) -> list[dict[str, Any]]:
-        if self.settings.durable_runtime_url or self.settings.durable_nearby_url:
+        if self.settings.durable_nearby_url:
             return self._build_current_operational_map_layers(include_planned)
         return self._cached_context(
             f"current_operational_map_layers:{int(include_planned)}",
@@ -1490,19 +1431,12 @@ class AppService:
     def _previous_operational_map_layers(
         self, limit: int = DEFAULT_PREVIOUS_MAP_LAYER_LIMIT
     ) -> list[dict[str, Any]]:
-        if self.settings.durable_runtime_url:
-            return self._build_previous_operational_map_layers(limit)
         return self._cached_context(
             f"previous_operational_map_layers:{limit}",
             lambda: self._build_previous_operational_map_layers(limit),
         )
 
     def _build_previous_operational_map_layers(self, limit: int) -> list[dict[str, Any]]:
-        if self.settings.durable_runtime_url:
-            payload = self._durable_runtime_get("previous-map-layers", {"limit": str(limit)})
-            if payload:
-                return payload.get("layers", [])
-            return []
         with open_db(self.settings.db_path) as connection:
             current_rows = connection.execute(
                 """
@@ -1571,7 +1505,7 @@ class AppService:
         cutoff_7d = (now - timedelta(days=7)).strftime("%Y-%m-%d %H:%M:%S")
         cutoff_30d = (now - timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
         cutoff_1y = (now - timedelta(days=365)).strftime("%Y-%m-%d %H:%M:%S")
-        durable_expected = bool(self.settings.durable_runtime_url)
+        durable_expected = self.durable_runtime.supports_read("previous-archive-summary")
         if durable_expected:
             payload = self._durable_runtime_get("previous-archive-summary")
             if payload:
@@ -1741,14 +1675,6 @@ class AppService:
         }
 
     def _build_current_operational_map_layers(self, include_planned: bool) -> list[dict[str, Any]]:
-        if self.settings.durable_runtime_url:
-            payload = self._durable_runtime_get(
-                "operational-map-layers",
-                {"include_planned": "1" if include_planned else "0"},
-            )
-            if payload:
-                return payload.get("layers", [])
-
         if self.settings.durable_nearby_url:
             layers = self._durable_current_operational_map_layers()
             if layers:
@@ -2198,17 +2124,6 @@ class AppService:
         )
 
     def _save_matches(self, address_id: int, matches: list[dict[str, Any]]) -> None:
-        if self.settings.durable_runtime_url:
-            payload_matches = [
-                {**item, "event_key": self._outage_event_key(item)}
-                for item in matches
-                if item["outage_kind"] == "outage"
-            ]
-            self._durable_runtime_post(
-                "matches",
-                {"address_id": address_id, "matches": payload_matches},
-            )
-            return
         with open_db(self.settings.db_path) as connection:
             for item in matches:
                 if item["outage_kind"] != "outage":
@@ -2243,22 +2158,6 @@ class AppService:
     def _previous_outage_groups(
         self, *, address_id: int, exclude_event_keys: set[tuple[Any, ...]]
     ) -> list[dict[str, Any]]:
-        if self.settings.durable_runtime_url:
-            payload = self._durable_runtime_get("previous-groups", {"address_id": str(address_id)})
-            if payload:
-                groups = []
-                for group in payload.get("groups", []):
-                    events = [
-                        event
-                        for event in group.get("events", [])
-                        if self._outage_display_key(event) not in exclude_event_keys
-                    ]
-                    if not events:
-                        continue
-                    group = {**group, "events": events, "event_count": len(events)}
-                    groups.append(group)
-                return groups
-            return []
         with open_db(self.settings.db_path) as connection:
             rows = connection.execute(
                 """
@@ -2464,7 +2363,7 @@ class AppService:
         )
 
     def _build_regional_metric_map_layers(self) -> list[dict[str, Any]] | None:
-        if self.settings.durable_runtime_url:
+        if self.durable_runtime.supports_read("map-context"):
             payload = self._durable_runtime_get("map-context")
             if payload and "regional_metric_layers" in payload:
                 return payload["regional_metric_layers"]
@@ -2558,7 +2457,7 @@ class AppService:
         )
 
     def _build_disclosure_map_layers(self) -> list[dict[str, Any]] | None:
-        if self.settings.durable_runtime_url:
+        if self.durable_runtime.supports_read("map-context"):
             payload = self._durable_runtime_get("map-context")
             if payload and "disclosure_layers" in payload:
                 return payload["disclosure_layers"]
