@@ -20,14 +20,14 @@
     "test:e2e:mobile": "playwright test --project=mobile-chromium"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.6",
+    "@biomejs/biome": "^2.5.7",
     "@cloudflare/containers": "^0.3.7",
     "@playwright/test": "^1.62.1",
-    "wrangler": "^4.117.0"
+    "wrangler": "^4.120.0"
   },
   "dependencies": {
     "fflate": "^0.8.3",
-    "maplibre-gl": "^6.1.0",
+    "maplibre-gl": "^6.2.0",
     "topojson-client": "^3.1.0",
     "topojson-server": "^3.0.1",
     "topojson-simplify": "^3.0.3"
