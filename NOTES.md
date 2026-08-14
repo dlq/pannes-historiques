@@ -1,7 +1,13 @@
 # Research: Hydro-Québec Historic Outage Data
 
 Date: 2026-04-25
-Last updated: 2026-08-08
+Last updated: 2026-08-14
+
+## v0.4.8 private cost review, 2026-08-14
+
+- A private Cloudflare billing review confirmed that the project's container and Durable Objects investigation thresholds have been crossed. The invoice and its account-specific amounts, quantities, dates, and tax details are intentionally excluded from the repository.
+- The billing document does not attribute container time to scheduled ingestion, public shell/search wakeups, uptime monitoring, or a particular route. Its resource dimensions also do not establish one reliable instance-uptime estimate. Do not change `sleepAfter` from billing arithmetic alone.
+- Decision: retain the hybrid shell temporarily. Before selecting a Worker/static migration or changing container idling, obtain the authenticated dashboard's daily Container and Durable Objects usage, Worker request volume, route mix, D1/R2 usage, representative public-read timings, and runtime markers. The available Codex browser was not authenticated to Cloudflare on 2026-08-14, so this account-only measurement remains outstanding.
 
 ## v0.4.7 reliability-metric evidence, 2026-08-08
 

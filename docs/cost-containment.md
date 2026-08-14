@@ -36,6 +36,11 @@ Decision for `v0.4.3`: use option 2, with Worker-first durable reads. It preserv
 - The private `/api/ops/cost-health` check reports container, ingestion, archive-materialization, table-count, and optionally dated D1/R2 size facts.
 - `PANNES_LOW_COST_MODE=1` stops public container wakes during an incident while durable public APIs continue to serve last-known D1/R2 data. It is an emergency guardrail, not a substitute browser shell.
 
+## Current Baseline
+
+- A private billing review has crossed this project's container and Durable Objects investigation thresholds. The account document and its billing figures are intentionally not kept in the repository.
+- This is a cost signal, not route attribution. It cannot establish whether public shell traffic, scheduled ingestion, or another workload drove the usage, and it does not justify changing container idling by itself. The resulting decision and measurement gap are in `NOTES.md`.
+
 ## Remaining Evidence And Migration Work
 
 1. Maintain dated monthly cost evidence.
@@ -58,7 +63,7 @@ Decision for `v0.4.3`: use option 2, with Worker-first durable reads. It preserv
 - `X-Pannes-Runtime` and `Server-Timing` distinguish Worker/D1 from container responses in smoke checks and live-tail investigation.
 - `/api/ops/cost-health` is operation-token protected. It exposes live container state, the latest ingestion run, archive materialization state, table counts, and optional manually refreshed D1/R2 size estimates.
 - Keep `PANNES_LOW_COST_MODE=0` normally. Set it to `1` only to stop public container wakes during an incident; durable APIs remain available, while Flask-shell routes return `503` rather than claiming a partial browser experience is complete.
-- Once each month, record the Cloudflare dashboard's Durable Object/container duration, D1 storage and operations, and R2 storage and operations. Refresh the optional size fields only with that dated check.
+- Once each month, record the Cloudflare dashboard's daily Durable Object/container usage, Worker request volume, D1 storage and operations, and R2 storage and operations. Reconcile any billed quantity against the applicable included allowance before treating it as a workload estimate. Refresh the optional size fields only with that dated check.
 - For the dated review, also record Worker request volume, representative public-read timings, route runtime markers, and the resulting decision: retain the hybrid shell or prioritize one named Worker/static migration. Store the evidence and decision in `NOTES.md`, not in this standing policy.
 
 ## Follow-Up Thresholds

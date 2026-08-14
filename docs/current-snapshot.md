@@ -1,6 +1,6 @@
 # Current Snapshot
 
-Last updated: 2026-08-08
+Last updated: 2026-08-14
 
 Read this first for quick orientation. Use `PLANS.md` for the active roadmap, `docs/architecture.md` for runtime boundaries, `docs/cost-containment.md` for cost strategy, and `CHANGELOG.md` for completed release history.
 
@@ -11,7 +11,7 @@ Read this first for quick orientation. Use `PLANS.md` for the active roadmap, `d
 - Tagged-release deployment: Worker version `87dc841e-ca99-4adf-952f-4adc9df6baba`, deployed 2026-08-08 from tagged release commit `32ce9f6` with container digest `sha256:e868f2c313acc7bff04152d585c54f1ebaf239b16f67afcf7399c8fa5477f6b8`.
 - Latest recorded production follow-up: Worker version `f79b2eac-a1f8-4ade-93cf-3bcc08d47420`, deployed 2026-08-08 from `main` commit `9d68829` for Search Console URL consolidation and MapLibre startup/performance work.
 - Do not treat a merge to `main` as proof of production deployment; record deployment evidence in `PLANS.md` and `CHANGELOG.md`.
-- Current development direction: cost and operational guardrails in `v0.4.8`, then privacy-preserving aggregate feature-use evidence in `v0.4.9`.
+- Current development direction: cost and operational guardrails in `v0.4.8`, including attribution of a private threshold-crossing container cost signal, then privacy-preserving aggregate feature-use evidence in `v0.4.9`.
 - `v0.5.0` remains gated on `v0.4.8` cost/operational exit evidence, `v0.4.9`'s bounded usage-data lifecycle, healthy cursor-fresh archive operations, and an edge rate limit for `/autocomplete`.
 
 ## Product Shape
