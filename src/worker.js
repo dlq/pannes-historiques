@@ -5,6 +5,7 @@ export { PannesContainer } from "./container.js";
 
 import { archiveHealthCutoffs, summarizeArchiveCompleteness } from "./archive-health.js";
 import {
+  archiveSummaryFreshnessProblem,
   archiveSummaryIncoherences,
   archiveWindow,
   isUsableArchiveSummary,
@@ -1355,19 +1356,28 @@ async function readIngestionHealth(db) {
 
 // Checks the summary that is actually being served, not a freshly built one,
 // because the served copy is materialized and can outlive the code that wrote
-// it. Reads one row.
-async function readArchiveCoherenceProblems(db) {
+// it. Its source cursor must still match the archive rows it summarizes.
+async function readArchiveSummaryProblems(db) {
   try {
-    const summary = await municipalArchiveSummary(db);
-    // A shape the code no longer recognises is rebuilt on the next request
-    // rather than served, so it is not a health problem.
-    if (!summary) return [];
-    return archiveSummaryIncoherences(summary);
+    const [stored, currentCursor] = await Promise.all([
+      readStoredMunicipalArchiveSummary(db),
+      municipalArchiveCursor(db),
+    ]);
+    const freshnessProblem = archiveSummaryFreshnessProblem({
+      hasSummary: Boolean(stored),
+      storedCursor: stored?.sourceCursor || "",
+      currentCursor,
+    });
+    if (!stored) return freshnessProblem ? [freshnessProblem] : [];
+    return [
+      ...(freshnessProblem ? [freshnessProblem] : []),
+      ...archiveSummaryIncoherences(stored.summary),
+    ];
   } catch (error) {
     // This body is public, so the detail goes to the log and the caller gets a
     // fixed string. A D1 error can name tables and columns.
-    console.error("archive coherence check failed", error);
-    return ["archive coherence check failed"];
+    console.error("archive summary health check failed", error);
+    return ["archive summary health check failed"];
   }
 }
 
@@ -1378,16 +1388,16 @@ async function ingestionHealthResponse(env) {
     // for months while every probe reported healthy. Numbers that contradict
     // each other are a data-plane fault, so they belong on the same alert.
     // The two reads are independent.
-    let incoherences;
-    [health, incoherences] = await Promise.all([
+    let archiveProblems;
+    [health, archiveProblems] = await Promise.all([
       readIngestionHealth(env.DB),
-      readArchiveCoherenceProblems(env.DB),
+      readArchiveSummaryProblems(env.DB),
     ]);
-    if (incoherences.length) {
+    if (archiveProblems.length) {
       health = {
         ...health,
         healthy: false,
-        problems: [...(health.problems || []), ...incoherences],
+        problems: [...(health.problems || []), ...archiveProblems],
       };
     }
   } catch (error) {
@@ -2460,14 +2470,19 @@ function previousArchiveLargest(items) {
 }
 
 async function runtimeMunicipalPreviousArchiveSummaryResponse(env) {
-  const materialized = await municipalArchiveSummary(env.DB);
-  if (materialized) return jsonResponse(materialized);
+  const [stored, currentCursor] = await Promise.all([
+    readStoredMunicipalArchiveSummary(env.DB),
+    municipalArchiveCursor(env.DB),
+  ]);
+  const freshnessProblem = archiveSummaryFreshnessProblem({
+    hasSummary: Boolean(stored),
+    storedCursor: stored?.sourceCursor || "",
+    currentCursor,
+  });
+  if (stored && !freshnessProblem) return jsonResponse(stored.summary);
+
   const summary = await buildMunicipalArchiveSummary(env.DB);
-  await storeMunicipalArchiveSummary(
-    env.DB,
-    summary,
-    await latestMunicipalArchiveHydroPolygonId(env.DB),
-  );
+  await storeMunicipalArchiveSummary(env.DB, summary, currentCursor);
   return jsonResponse(summary);
 }
 
@@ -2495,24 +2510,21 @@ async function storeMunicipalArchiveSummary(db, summary, sourceCursor = "") {
     .run();
 }
 
-async function municipalArchiveSummary(db) {
-  try {
-    const row = await db
-      .prepare(
-        `
-        SELECT summary_json
-        FROM municipal_archive_summaries
-        WHERE summary_key = 'previous_archive_summary'
-        LIMIT 1
-        `,
-      )
-      .first();
-    if (!row?.summary_json) return null;
-    const summary = JSON.parse(row.summary_json);
-    return isUsableArchiveSummary(summary) ? summary : null;
-  } catch (_error) {
-    return null;
-  }
+async function readStoredMunicipalArchiveSummary(db) {
+  const row = await db
+    .prepare(
+      `
+      SELECT summary_json, source_cursor
+      FROM municipal_archive_summaries
+      WHERE summary_key = 'previous_archive_summary'
+      LIMIT 1
+      `,
+    )
+    .first();
+  if (!row?.summary_json) return null;
+  const summary = JSON.parse(row.summary_json);
+  if (!isUsableArchiveSummary(summary)) return null;
+  return { summary, sourceCursor: row.source_cursor || "" };
 }
 
 async function buildMunicipalArchiveSummary(db) {

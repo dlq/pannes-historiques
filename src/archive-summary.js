@@ -25,6 +25,24 @@ export function isUsableArchiveSummary(summary) {
   );
 }
 
+// `source_cursor` identifies the newest municipal-archive row incorporated
+// into a materialized summary. A valid JSON payload is not enough to serve: a
+// newer cursor means the summary is a coherent but stale view of the archive.
+// Keep this decision pure because both the request path and the public health
+// probe must apply exactly the same rule.
+export function archiveSummaryFreshnessProblem({
+  storedCursor = "",
+  currentCursor = "",
+  hasSummary,
+}) {
+  if (!currentCursor) return null;
+  if (!hasSummary) return "archive summary is missing for the current archive cursor";
+  if (storedCursor !== currentCursor) {
+    return "archive summary cursor does not match the current archive cursor";
+  }
+  return null;
+}
+
 // Both summary paths build this shape, and they diverged once already: the
 // field was called `areas`, and one path filled it with an outage count while
 // the other filled it with a territory count. Building it in one place makes

@@ -62,4 +62,4 @@ separately; any service method, route, template, or browser-JavaScript change re
 - All public JSON routes remain explicitly unstable until the `v0.5.0` API contract.
 - Browser proof gaps: real-device geolocation, visible freshness cues, dense data readability, and practical screen-reader checks.
 - Displayed figures are now checked against each other, not only against their source queries, after the Archive report presented a count of municipalities as a count of outages while every test and health probe passed. The checks run in `GET /api/health/ingestion`; see the regression guard in `PLANS.md`.
-- The materialized archive summary is still served indefinitely when its contents go stale. `v0.4.8` owns cursor-based invalidation and a corresponding health failure; the current shape guard catches only payload-format drift.
+- Archive-summary cursor checks are implemented on `main` pending production verification: a cursor mismatch or missing summary for a non-empty archive makes the summary a rebuildable cache miss and fails ingestion health. The shape guard still handles format drift separately.

@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
 import {
+  archiveSummaryFreshnessProblem,
   archiveSummaryIncoherences,
   archiveWindow,
   isUsableArchiveSummary,
@@ -114,6 +115,34 @@ test("a stored summary from an older payload shape is treated as a cache miss", 
   assert.equal(isUsableArchiveSummary({ windows: [{ outages: 0, totalCustomers: 0 }] }), true);
   assert.equal(isUsableArchiveSummary(null), false);
   assert.equal(isUsableArchiveSummary({}), false);
+});
+
+test("a materialized summary is usable only at its current archive cursor", () => {
+  assert.equal(
+    archiveSummaryFreshnessProblem({
+      hasSummary: true,
+      storedCursor: "bis-202608140700:42",
+      currentCursor: "bis-202608140700:42",
+    }),
+    null,
+  );
+  assert.match(
+    archiveSummaryFreshnessProblem({
+      hasSummary: true,
+      storedCursor: "bis-202608140700:41",
+      currentCursor: "bis-202608140700:42",
+    }),
+    /does not match/,
+  );
+  assert.match(
+    archiveSummaryFreshnessProblem({ hasSummary: false, currentCursor: "bis-202608140700:42" }),
+    /is missing/,
+  );
+  assert.equal(
+    archiveSummaryFreshnessProblem({ hasSummary: false, currentCursor: "" }),
+    null,
+    "an empty archive has no cursor for a summary to lag",
+  );
 });
 
 test("coherence checks catch the payload production actually served", () => {

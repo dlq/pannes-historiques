@@ -32,7 +32,7 @@ Completed release history lives in `CHANGELOG.md`; durable investigation details
 
 Make the public-read path measurable, bounded, and trustworthy before collecting product-use evidence or committing to a stable public API.
 
-- Invalidate the materialized archive summary when its source cursor changes, and expose a stale-summary condition through the existing ingestion-health surface. Cover cursor matching, mismatch/rebuild, and health failure with focused tests and a production verification.
+- Cursor-aware materialized archive reads and ingestion-health failure are implemented: a source-cursor mismatch or a missing summary for a non-empty archive rebuilds on the next Archive request and makes the health probe unhealthy. Focused tests cover matching, mismatch, and missing cursors. Verify the live transition after the next deployment.
 - Make one explicit decision about protected container-to-Worker calls: deliver a supported credential path, or retire the unreachable calls in favor of their public/local fallbacks. Do not leave a dead authentication path as an assumed optimization.
 - Record a dated Cloudflare cost baseline: available container request/wake indicators, Worker request volume, D1/R2 storage and operations, route mix, and representative public-read timings. State whether the measured result supports retaining the hybrid shell or prioritizing a narrower Worker/static migration.
 - Configure and verify a per-IP Cloudflare rate rule for `GET /autocomplete`, including the public failure response and an operational rollback path.
@@ -134,7 +134,7 @@ Routine command details live in `docs/contributing.md`; production and deploy ch
 - Container-backed search/render paths still need measured cost evidence; the trusted Worker host is configured in `wrangler.jsonc`, not hardcoded in runtime policy.
 - Ordinary public reads should keep moving toward Worker/static/D1/R2 paths, but the right migration boundary is not yet proven.
 - Archive health is deployed: stale run expiry, 30-day terminal-run retention, latest-row de-duplication, and classified archive-bin completeness. Keep monitoring the public ingestion-health endpoint and private completeness audit.
-- The materialized archive summary has no content-staleness check. `v0.4.8` owns a cursor comparison and health failure so a stalled refresh is alertable rather than silently served. The existing payload-shape guard catches only format drift, not stale contents.
+- Cursor-aware archive-summary checks are implemented but not yet production-verified: a summary is rebuilt when its stored cursor differs from the archive cursor, and the public ingestion-health endpoint reports the mismatch until it is repaired. The existing payload-shape guard still handles format drift separately.
 - D1 measured `1,806,331,904` bytes (about `1.81 GB`) on 2026-08-08. The first compaction trigger is `3.5 GB`; a migration must begin before the 5 GB included-storage threshold. `v0.4.8` establishes the monthly measurement cadence. Raw R2 payloads, geometry, archive bins, and snapshot metadata remain out of scope for automatic deletion. See ADR 0005.
 - Browser proof gaps remain: real-device geolocation/permission recovery, visible freshness/change cues, dense live-data readability, and practical keyboard/screen-reader checks.
 - The WCAG pass shipped contrast, reduced-motion, live-region, dialog-focus, and keyboard regression fixes; the remaining proof gaps are ongoing maintenance work, not an unfinished `v0.4.5` release item.

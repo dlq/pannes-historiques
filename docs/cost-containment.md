@@ -59,6 +59,7 @@ Decision for `v0.4.3`: use option 2, with Worker-first durable reads. It preserv
 - `/api/ops/cost-health` is operation-token protected. It exposes live container state, the latest ingestion run, archive materialization state, table counts, and optional manually refreshed D1/R2 size estimates.
 - Keep `PANNES_LOW_COST_MODE=0` normally. Set it to `1` only to stop public container wakes during an incident; durable APIs remain available, while Flask-shell routes return `503` rather than claiming a partial browser experience is complete.
 - Once each month, record the Cloudflare dashboard's Durable Object/container duration, D1 storage and operations, and R2 storage and operations. Refresh the optional size fields only with that dated check.
+- For the dated review, also record Worker request volume, representative public-read timings, route runtime markers, and the resulting decision: retain the hybrid shell or prioritize one named Worker/static migration. Store the evidence and decision in `NOTES.md`, not in this standing policy.
 
 ## Follow-Up Thresholds
 
