@@ -7,14 +7,15 @@ Last updated: 2026-08-14
 
 - A private Cloudflare billing review confirmed that the project's container and Durable Objects investigation thresholds have been crossed. The invoice and its account-specific amounts, quantities, dates, and tax details are intentionally excluded from the repository.
 - The billing document does not attribute container time to scheduled ingestion, public shell/search wakeups, uptime monitoring, or a particular route. Its resource dimensions also do not establish one reliable instance-uptime estimate. Do not change `sleepAfter` from billing arithmetic alone.
-- Decision: retain the hybrid shell temporarily. Before selecting a Worker/static migration or changing container idling, obtain the authenticated dashboard's daily Container and Durable Objects usage, Worker request volume, route mix, D1/R2 usage, representative public-read timings, and runtime markers. The available Codex browser was not authenticated to Cloudflare on 2026-08-14, so this account-only measurement remains outstanding.
+- Authenticated dashboard review completed on 2026-08-14. It confirmed active container and Durable Object usage, a healthy Worker error rate, current D1 storage/operation posture, and the existing R2 review surface. Dashboard values and the billing artifact remain private and are not committed. Aggregate views do not attribute container activity to a particular route or wakeup.
+- Decision: retain the hybrid shell temporarily. Do not change `sleepAfter` from aggregate billing or dashboard figures. Use route/runtime markers and representative public-read timings to identify one named Worker/static migration only when it is justified by attributable container exposure.
 
 ## v0.4.8 container runtime boundary, 2026-08-14
 
 - Decision: retire the attempted authenticated container-to-Worker runtime path. Cloudflare Container `envVars` did not provide the operation token and the internal hop did not carry a usable Worker identity, so protected calls failed in production and then fell back, sometimes after a timeout.
 - The Flask container now calls only the two intentional public materialized reads: `map-context` and `previous-archive-summary`. Address, query-history, geocode-cache, status, private map-layer, and match persistence work use the baked SQLite local-compatible path directly. Protected Worker endpoints remain operation-token gated for real operational callers.
 - The generic proxy trust predicate, token injection, and trusted Worker-host deployment variable were removed. Node and Python tests assert that no protected runtime endpoint is called by the container, and that local storage is used when the public runtime URL is configured.
-- The configured Cloudflare CLI OAuth credential has Workers deployment access but lacks zone WAF/rulesets write permission. The required autocomplete rate rule is documented and browser behavior for `429` is tested, but edge installation and verification remain an account-permission prerequisite.
+- The zone rule `autocomplete per IP` was installed through the authenticated dashboard on 2026-08-14. It is active for `GET /autocomplete`, counts by IP, and blocks after 10 matching requests in 10 seconds for 10 seconds. This is the only period and mitigation duration available to the Free plan. Browser behavior for `429` is covered by Playwright; follow `docs/operations.md` for a controlled live-threshold check.
 
 ## v0.4.7 reliability-metric evidence, 2026-08-08
 

@@ -78,13 +78,12 @@ Cloudflare, not Flask, enforces the public abuse boundary for `GET /autocomplete
 
 - expression: `http.request.method eq "GET" and http.request.uri.path eq "/autocomplete"`
 - counting characteristic: IP
-- threshold: 60 requests per 1 minute
-- action: Block, status `429`, mitigation timeout 1 minute
-- custom response, where the plan supports it: JSON body `{"error":"rate_limited"}` and `Content-Type: application/json`
+- threshold: 10 requests per 10 seconds
+- action: Block, status `429`, mitigation timeout 10 seconds
 
-Create it in **Security rules** > **Create rule** > **Rate limiting rules**. Do not apply it to cached assets. The browser shows a concise retry message for `429`; non-browser callers receive Cloudflare's block response. Roll back by disabling this named rule. Do not lower its threshold by editing a live rule during an incident: deploy a second, stricter rule, wait for the original one-minute mitigation window to expire, then remove the old rule.
+This is the Free-plan-compatible equivalent of the intended per-minute boundary: that plan exposes only a 10-second counting period and mitigation duration. Create it in **Security rules** > **Create rule** > **Rate limiting rules**. Do not apply it to cached assets. The browser shows a concise retry message for `429`; non-browser callers receive Cloudflare's block response. Roll back by disabling this named rule. Do not lower its threshold by editing a live rule during an incident: deploy a second, stricter rule, wait for the original 10-second mitigation window to expire, then remove the old rule.
 
-Verify after deployment from an operator-controlled test IP: confirm a normal request returns `200`, then exceed the threshold within one minute and confirm the next request returns `429`; wait one minute and confirm the same request returns `200` again. Record only the date, rule name, and outcome in `NOTES.md`; do not commit dashboard exports or account data.
+Verify after deployment from an operator-controlled test IP: confirm a normal request returns `200`, then exceed the threshold within 10 seconds and confirm the next request returns `429`; wait 10 seconds and confirm the same request returns `200` again. Record only the date, rule name, and outcome in `NOTES.md`; do not commit dashboard exports or account data.
 
 ## Static Asset Performance Checks
 

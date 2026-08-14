@@ -427,7 +427,7 @@ test("autocomplete rate limits leave a concise retry message", async ({ page }) 
   );
 
   await page.locator("#address-input").fill("5220");
-  await expect(page.locator("#address-suggestions")).toContainText("Try again in a minute.");
+  await expect(page.locator("#address-suggestions")).toContainText("Try again shortly.");
 });
 
 test("language switch preserves the current query", async ({ page }) => {

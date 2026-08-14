@@ -1,7 +1,7 @@
 # Plan: Hydro-Quebec Outage History App
 
 Date: 2026-04-25
-Last updated: 2026-08-08
+Last updated: 2026-08-14
 
 This is the active execution plan. Keep detailed evidence and research notes in `NOTES.md`, completed release history in `CHANGELOG.md`, operational runbooks in `docs/operations.md`, and long maintenance backlogs in `docs/maintenance-backlog.md`.
 
@@ -34,11 +34,11 @@ Make the public-read path measurable, bounded, and trustworthy before collecting
 
 - Cursor-aware materialized archive reads and ingestion-health failure are implemented: a source-cursor mismatch or a missing summary for a non-empty archive rebuilds on the next Archive request and makes the health probe unhealthy. Focused tests cover matching, mismatch, and missing cursors. Verify the live transition after the next deployment.
 - Protected container-to-Worker calls are retired. The Flask container now calls only public `map-context` and `previous-archive-summary` reads; all former protected reads and writes use local-compatible fallbacks directly. The invalid proxy-token path and trusted-host variable are removed, and focused Node/Python tests prevent a protected endpoint from being reintroduced as a container dependency.
-- A private billing review confirms that the container and Durable Objects investigation thresholds have been crossed, but cannot attribute cost to routes or wakeups. The billing artifact and account-specific figures are excluded from the repository. Complete the authenticated dashboard measurement with daily Container/Durable Objects usage, Worker request volume, route mix, D1/R2 usage, and representative public-read timings before deciding between retaining the hybrid shell, changing idling, or moving one named public read.
-- The `GET /autocomplete` rate-limit policy, rollback, and tested browser `429` response are documented. Install and verify the zone rule once a credential with Zone WAF/rulesets write permission is available: 60 requests per IP per minute, one-minute `429` block. The current Workers OAuth credential cannot create it.
+- The authenticated Cloudflare dashboard review confirms sustained container and Durable Objects usage, Worker requests without Worker errors, and D1/R2 storage posture. It does not attribute container time to a route or wakeup, so retain the hybrid shell and do not change idling from aggregate billing evidence. The billing artifact and account-specific figures remain excluded from the repository. Use route/runtime markers and representative timings to choose one named public-read migration in a later slice.
+- The `GET /autocomplete` zone rule is active and the browser has a tested `429` response. The Free plan supports a 10-second window only, so `autocomplete per IP` blocks an IP after 10 matching requests in 10 seconds for 10 seconds. The rollback procedure is documented in `docs/operations.md`.
 - Establish a monthly D1-size review against the 3.5 GB compaction trigger; record the measured size and expected headroom in the dated cost review.
 
-Exit evidence still required: deploy and verify cursor-aware archive freshness; install and verify the autocomplete zone rate rule; and complete the authenticated dashboard measurement before recording the next architecture decision. The container-runtime decision is implemented and tested.
+Exit evidence still required: deploy and verify cursor-aware archive freshness. The authenticated measurement, cost decision, autocomplete protection, and container-runtime decision are complete and recorded.
 
 ### `v0.4.9`: Privacy-Preserving Product Usage Evidence
 
@@ -75,7 +75,7 @@ Saved areas, saved-area notifications, and web push notifications are deferred o
 - `v0.4.6`: archive-health tests for stale ingestion-run cleanup, latest-row grouping, archive-bin completeness metrics, and retention behavior shipped; extend them before any compaction/offload migration.
 - `v0.4.7`: regional continuity-index detail and no-score terminology are covered by Python and desktop/mobile browser regressions.
 - Cross-field coherence: assert displayed figures against each other, not only against the query that produced them. Tests that check a number equals what its query returned cannot catch a query answering the wrong question, which is how the Archive window shipped a territory count under an outage heading. See the guard below.
-- `v0.4.8`: archive-cursor freshness and the protected-runtime retirement are implemented and covered. Before closing the slice, deploy/verify the cursor transition, install/verify the autocomplete zone rule, and complete the authenticated cost-measurement review.
+- `v0.4.8`: archive-cursor freshness and the protected-runtime retirement are implemented and covered. Before closing the slice, deploy and verify the cursor transition.
 - `v0.4.9`: add aggregate-schema, expiry, bot-classification, private-readout, and public-nonexposure tests before collecting usage evidence.
 - `v0.5.x`: add API contract, schema, freshness/provenance, rate-limit, analytical-summary, parser, and geocoder tests as each slice lands.
 

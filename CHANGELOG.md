@@ -6,6 +6,23 @@ Keep active execution state in `PLANS.md` and source/evidence research in `NOTES
 
 ## [Unreleased]
 
+## [v0.4.8] - 2026-08-14
+
+### Changed
+
+- Retired the unusable protected container-to-Worker proxy. Flask now uses only the deliberate public materialized reads for map context and the previous archive summary; protected operations use their local-compatible path rather than timing out and falling back.
+- Made the archive summary cursor-aware: missing or source-cursor-mismatched summaries rebuild on the next Archive read and make ingestion health fail until they are current.
+- Added a concise, localized browser response when edge protection returns `429` for autocomplete.
+
+### Added
+
+- Installed the active Cloudflare Free-plan rate rule `autocomplete per IP`: `GET /autocomplete`, counted by IP, blocks after 10 requests in 10 seconds for 10 seconds. The runbook documents the rule and rollback.
+- Recorded the sanitized cost-review decision: retained hybrid rendering pending attributable route/runtime evidence, rather than changing container idling from aggregate billing data.
+
+### Verified
+
+- Passed pre-commit, 227 Python tests, 84 Node unit tests, and the complete 52-case desktop/mobile Playwright suite. A Wrangler deployment dry-run built the Worker and Container.
+
 ## [v0.4.7] - 2026-08-08
 
 ### Changed
