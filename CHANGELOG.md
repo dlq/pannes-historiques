@@ -22,6 +22,7 @@ Keep active execution state in `PLANS.md` and source/evidence research in `NOTES
 ### Verified
 
 - Passed pre-commit, 227 Python tests, 84 Node unit tests, and the complete 52-case desktop/mobile Playwright suite. A Wrangler deployment dry-run built the Worker and Container.
+- Deployed `v0.4.8` on 2026-08-14 as Worker version `e6fe9a87-df8f-4cf4-a82b-b0dcdc07fa4c`. Homepage, Archive, autocomplete, and ingestion-health probes returned `200`; health had zero consecutive failures and no archive-summary problem.
 
 ## [v0.4.7] - 2026-08-08
 

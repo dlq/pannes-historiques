@@ -7,13 +7,12 @@ This is the active execution plan. Keep detailed evidence and research notes in 
 
 ## Current State
 
-- Current shipped release: `v0.4.7`, regional reliability framing and explicit component metrics, released 2026-08-08.
-- Tagged-release deployment: Worker version `87dc841e-ca99-4adf-952f-4adc9df6baba`, deployed 2026-08-08 from tagged release commit `32ce9f6` with container digest `sha256:e868f2c313acc7bff04152d585c54f1ebaf239b16f67afcf7399c8fa5477f6b8`.
-- Latest recorded production follow-up: Worker version `f79b2eac-a1f8-4ade-93cf-3bcc08d47420`, deployed 2026-08-08 from `main` commit `9d68829` for Search Console URL consolidation and MapLibre startup/performance work. Subsequent commits are not a release claim until separately deployed and verified.
+- Current shipped release: `v0.4.8`, cost and operational guardrails, released 2026-08-14.
+- Tagged-release deployment: Worker version `e6fe9a87-df8f-4cf4-a82b-b0dcdc07fa4c`, deployed 2026-08-14 from tagged release commit `f6df621` with the `pannes-historiques-pannescontainer:e6fe9a87` image.
 - Ingestion incident 2026-07-15 to 2026-07-20: scheduled Hydro ingestion failed every 30 minutes for five days while the site returned `200` and served stale data. Cause was the durable collection path storing payload files without registering the `raw_snapshots` row the Worker's `/internal/raw-snapshot` callback resolves through. Fixed and verified: run 3630 completed `ok` and snapshots are current again. Two plausible-but-wrong hypotheses were ruled out by testing rather than by correlation — container ephemerality, and the `v0.4.3` CodeQL path-hardening, whose lookup was exercised directly against a real file and resolves correctly.
 - Monitoring gap this exposed: the only health surface was token-protected and pull-based, so nothing observed the failure. `GET /api/health/ingestion` now returns `503` when ingestion is stale or failing. The `Ingestion health monitor` GitHub Actions workflow probes it twice hourly.
 - That probe now also fails when the served archive summary contradicts itself, after the Archive report spent months showing a count of municipalities as a count of outages while every health surface reported green. Freshness monitoring cannot see a figure that is current and wrong; coherence monitoring can.
-- Current implementation line: `v0.4.7` implements the component-metric decision recorded in ADR 0006. The next active slice is `v0.4.8` cost and operational guardrails, followed by `v0.4.9` privacy-preserving usage evidence. See `docs/current-snapshot.md` for the concise code/deployment distinction.
+- Current implementation line: `v0.4.8` implements the cost/operational guardrails and retains ADR 0006's component-metric decision. The next active slice is `v0.4.9` privacy-preserving usage evidence. See `docs/current-snapshot.md` for the concise code/deployment distinction.
 - Current frontend: one full-bleed MapLibre GL map plus a single sheet. The sheet owns search, domain navigation, address overview, scoped local/province views, detail cards, provenance, and browser-local comparison.
 - Current data plane: D1/R2-backed durable ingestion for current feed rows, previous-outage rows, raw Hydro-Quebec payloads, disclosure metadata, and runtime map-context layers.
 - Current container role: Flask/Jinja shell rendering, local-compatible fallback paths, and a baked SQLite snapshot. Container-local writes are ephemeral and must not become production state.
@@ -26,7 +25,7 @@ This is the active execution plan. Keep detailed evidence and research notes in 
 
 ## Roadmap
 
-Completed release history lives in `CHANGELOG.md`; durable investigation details live in `NOTES.md`. Active planning starts with cost and operational guardrails in `v0.4.8`. The `v0.4.7` evidence and no-score decision are preserved in ADR 0006 and `NOTES.md`.
+Completed release history lives in `CHANGELOG.md`; durable investigation details live in `NOTES.md`. Active planning starts with privacy-preserving usage evidence in `v0.4.9`. The `v0.4.7` evidence and no-score decision are preserved in ADR 0006 and `NOTES.md`.
 
 ### `v0.4.8`: Cost And Operational Guardrails
 
@@ -38,7 +37,7 @@ Make the public-read path measurable, bounded, and trustworthy before collecting
 - The `GET /autocomplete` zone rule is active and the browser has a tested `429` response. The Free plan supports a 10-second window only, so `autocomplete per IP` blocks an IP after 10 matching requests in 10 seconds for 10 seconds. The rollback procedure is documented in `docs/operations.md`.
 - Establish a monthly D1-size review against the 3.5 GB compaction trigger; record the measured size and expected headroom in the dated cost review.
 
-Exit evidence still required: deploy and verify cursor-aware archive freshness. The authenticated measurement, cost decision, autocomplete protection, and container-runtime decision are complete and recorded.
+Exit evidence is complete. `v0.4.8` deployed as Worker `e6fe9a87-df8f-4cf4-a82b-b0dcdc07fa4c`; public homepage, Archive, autocomplete, and ingestion-health probes returned `200`. The health payload was healthy with zero consecutive failures and no archive-summary problems, which verifies the cursor-aware served-summary path.
 
 ### `v0.4.9`: Privacy-Preserving Product Usage Evidence
 
@@ -75,7 +74,7 @@ Saved areas, saved-area notifications, and web push notifications are deferred o
 - `v0.4.6`: archive-health tests for stale ingestion-run cleanup, latest-row grouping, archive-bin completeness metrics, and retention behavior shipped; extend them before any compaction/offload migration.
 - `v0.4.7`: regional continuity-index detail and no-score terminology are covered by Python and desktop/mobile browser regressions.
 - Cross-field coherence: assert displayed figures against each other, not only against the query that produced them. Tests that check a number equals what its query returned cannot catch a query answering the wrong question, which is how the Archive window shipped a territory count under an outage heading. See the guard below.
-- `v0.4.8`: archive-cursor freshness and the protected-runtime retirement are implemented and covered. Before closing the slice, deploy and verify the cursor transition.
+- `v0.4.8`: cursor-aware archive freshness, protected-runtime retirement, cost decision, and autocomplete abuse protection shipped and are covered.
 - `v0.4.9`: add aggregate-schema, expiry, bot-classification, private-readout, and public-nonexposure tests before collecting usage evidence.
 - `v0.5.x`: add API contract, schema, freshness/provenance, rate-limit, analytical-summary, parser, and geocoder tests as each slice lands.
 
@@ -131,10 +130,10 @@ Routine command details live in `docs/contributing.md`; production and deploy ch
 ## Current Risks And Open Questions
 
 - The container-to-Worker authentication path is deliberately retired: Cloudflare did not deliver a usable token or internal Worker identity, so Flask now calls only two public materialized reads and uses local-compatible fallbacks for former protected calls. Do not add a protected runtime endpoint as a container dependency without a separately designed, tested credential path.
-- A private cost review establishes a threshold-crossing signal but not route attribution. Obtain authenticated Cloudflare dashboard usage and route evidence before changing container idling or selecting the next public-read migration. The trusted Worker host is configured in `wrangler.jsonc`, not hardcoded in runtime policy.
+- A private cost review establishes a threshold-crossing signal but not route attribution. The authenticated dashboard measurement supports retaining the hybrid shell; obtain route/runtime evidence before changing container idling or selecting the next public-read migration.
 - Ordinary public reads should keep moving toward Worker/static/D1/R2 paths, but the right migration boundary is not yet proven.
 - Archive health is deployed: stale run expiry, 30-day terminal-run retention, latest-row de-duplication, and classified archive-bin completeness. Keep monitoring the public ingestion-health endpoint and private completeness audit.
-- Cursor-aware archive-summary checks are implemented but not yet production-verified: a summary is rebuilt when its stored cursor differs from the archive cursor, and the public ingestion-health endpoint reports the mismatch until it is repaired. The existing payload-shape guard still handles format drift separately.
+- Cursor-aware archive-summary checks are deployed and production-verified: the served summary was healthy with no cursor or coherence problem after the `v0.4.8` release. The existing payload-shape guard still handles format drift separately.
 - D1 measured `1,806,331,904` bytes (about `1.81 GB`) on 2026-08-08. The first compaction trigger is `3.5 GB`; a migration must begin before the 5 GB included-storage threshold. `v0.4.8` establishes the monthly measurement cadence. Raw R2 payloads, geometry, archive bins, and snapshot metadata remain out of scope for automatic deletion. See ADR 0005.
 - Browser proof gaps remain: real-device geolocation/permission recovery, visible freshness/change cues, dense live-data readability, and practical keyboard/screen-reader checks.
 - The WCAG pass shipped contrast, reduced-motion, live-region, dialog-focus, and keyboard regression fixes; the remaining proof gaps are ongoing maintenance work, not an unfinished `v0.4.5` release item.
@@ -142,7 +141,7 @@ Routine command details live in `docs/contributing.md`; production and deploy ch
 - DAI/disclosure detail panels are data-rich and visually fragile; keep checking overlap, horizontal scrolling, and dense-row readability.
 - Bad in-app URLs and unhandled Flask exceptions still need minimal branded 404/500 pages.
 - SEO announcement-readiness follow-up: consider `noindex,follow` for user-entered address/current-location result pages so arbitrary searches do not become indexable landing pages. Absolute `og:image` URLs and French/English/`x-default` alternates are implemented on `main`; verify them in the next production deployment.
-- Address queries are capped in the application and the browser handles `429`, but the Cloudflare `GET /autocomplete` per-IP rate rule is not live: current CLI OAuth lacks Zone WAF/rulesets write permission. Install the documented 60-per-minute, one-minute rule before closing `v0.4.8`; browser debouncing is not an abuse control.
+- Address queries are capped in the application and protected at the edge by the active Cloudflare Free-plan `autocomplete per IP` rule: 10 matching requests per IP in 10 seconds trigger a 10-second block. Browser debouncing is not treated as an abuse control.
 - OpenFreeMap Liberty still includes non-Quebec labels at some zoom levels; solve only if it materially affects analytics or saved-area-adjacent workflows.
 - Do not speculate about Hydro-Quebec one-letter status-code meanings unless source documentation or payload context verifies them.
 

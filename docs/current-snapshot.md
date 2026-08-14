@@ -6,13 +6,12 @@ Read this first for quick orientation. Use `PLANS.md` for the active roadmap, `d
 
 ## Version And Deployment
 
-- Shipped release: `v0.4.7`.
-- Package metadata: `0.4.7` in `pyproject.toml` and `package.json`.
-- Tagged-release deployment: Worker version `87dc841e-ca99-4adf-952f-4adc9df6baba`, deployed 2026-08-08 from tagged release commit `32ce9f6` with container digest `sha256:e868f2c313acc7bff04152d585c54f1ebaf239b16f67afcf7399c8fa5477f6b8`.
-- Latest recorded production follow-up: Worker version `f79b2eac-a1f8-4ade-93cf-3bcc08d47420`, deployed 2026-08-08 from `main` commit `9d68829` for Search Console URL consolidation and MapLibre startup/performance work.
+- Shipped release: `v0.4.8`.
+- Package metadata: `0.4.8` in `pyproject.toml` and `package.json`.
+- Tagged-release deployment: Worker version `e6fe9a87-df8f-4cf4-a82b-b0dcdc07fa4c`, deployed 2026-08-14 from tagged release commit `f6df621` with the `pannes-historiques-pannescontainer:e6fe9a87` image.
 - Do not treat a merge to `main` as proof of production deployment; record deployment evidence in `PLANS.md` and `CHANGELOG.md`.
-- Current development direction: cost and operational guardrails in `v0.4.8`, including attribution of a private threshold-crossing container cost signal, then privacy-preserving aggregate feature-use evidence in `v0.4.9`.
-- `v0.5.0` remains gated on `v0.4.8` cost/operational exit evidence, `v0.4.9`'s bounded usage-data lifecycle, healthy cursor-fresh archive operations, and an edge rate limit for `/autocomplete`.
+- Current development direction: privacy-preserving aggregate feature-use evidence in `v0.4.9`. `v0.4.8` completed the authenticated cost decision, container-runtime retirement, archive cursor health guard, and autocomplete edge protection.
+- `v0.5.0` remains gated on `v0.4.9`'s bounded usage-data lifecycle and a 14-day observation window with healthy ingestion, cursor-fresh archive summaries, and no unexplained archive-completeness regression.
 
 ## Product Shape
 
@@ -52,8 +51,6 @@ separately; any service method, route, template, or browser-JavaScript change re
 
 ## Known Risk Areas
 
-- The trusted Worker host is deployment configuration in `wrangler.jsonc`; keep it synchronized with
-  the actual Worker host and avoid embedding it in runtime code.
 - The attempted protected container-to-Worker authentication path is retired. The container calls
   only public materialized `map-context` and `previous-archive-summary` reads; former protected
   runtime work takes local-compatible paths. `map-context` is deliberately public.
@@ -62,4 +59,4 @@ separately; any service method, route, template, or browser-JavaScript change re
 - All public JSON routes remain explicitly unstable until the `v0.5.0` API contract.
 - Browser proof gaps: real-device geolocation, visible freshness cues, dense data readability, and practical screen-reader checks.
 - Displayed figures are now checked against each other, not only against their source queries, after the Archive report presented a count of municipalities as a count of outages while every test and health probe passed. The checks run in `GET /api/health/ingestion`; see the regression guard in `PLANS.md`.
-- Archive-summary cursor checks are implemented on `main` pending production verification: a cursor mismatch or missing summary for a non-empty archive makes the summary a rebuildable cache miss and fails ingestion health. The shape guard still handles format drift separately.
+- Archive-summary cursor checks are production-verified: a cursor mismatch or missing summary for a non-empty archive makes the summary a rebuildable cache miss and fails ingestion health. The shape guard still handles format drift separately.
