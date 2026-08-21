@@ -9,9 +9,9 @@ Read this first for quick orientation. Use `PLANS.md` for the active roadmap, `d
 - Shipped release: `v0.4.8`.
 - Development package metadata: `0.4.9` in `pyproject.toml` and `package.json`; the latest shipped/tagged release remains `v0.4.8`.
 - Tagged-release deployment: Worker version `e6fe9a87-df8f-4cf4-a82b-b0dcdc07fa4c`, deployed 2026-08-14 from tagged release commit `f6df621` with the `pannes-historiques-pannescontainer:e6fe9a87` image.
-- Latest production deployment: post-release `main` commit `e212841`, deployed 2026-08-21 as Worker version `6aebc224-ee26-4be4-b7a1-a9add596f98a` with container image digest `sha256:f7e3b21ecabb44ced653c8c5c7ad263cfd8d64ce49495e76a865b4977111e985`. The live canonical social preview and large-card metadata are verified.
+- Latest production deployment: post-release `main` commit `3a514fb`, deployed 2026-08-21 as Worker version `2b10afde-09d0-4e33-a58a-5f933d09d134` with container image digest `sha256:c0294e12aa6203a2713e493fc658d66f877e71b213ddf1488bdcab9ea818e500`. The `v0.4.9` usage-evidence path, D1 aggregate, browser module, and shared edge rate rule are production-verified.
 - Do not treat a merge to `main` as proof of production deployment; record deployment evidence in `PLANS.md` and `CHANGELOG.md`.
-- Current development direction: the `v0.4.9` identifier-free daily feature/action evidence candidate is implemented and locally verified, with 90-day retention and a private readout. Production migration `0012` and the shared interaction-endpoint edge rule are active; deployment and smoke checks remain release gates. `v0.4.8` completed the authenticated cost decision, container-runtime retirement, archive cursor health guard, and autocomplete edge protection.
+- Current development direction: the `v0.4.9` identifier-free daily feature/action evidence candidate is deployed, with 90-day retention, a private readout, migration `0012`, and the shared interaction-endpoint edge rule active. The bounded observation period and written decision remain. `v0.4.8` completed the authenticated cost decision, container-runtime retirement, archive cursor health guard, and autocomplete edge protection.
 - `v0.5.0` remains gated on `v0.4.9`'s bounded usage-data lifecycle and a 14-day observation window with healthy ingestion, cursor-fresh archive summaries, and no unexplained archive-completeness regression.
 
 ## Product Shape
@@ -59,7 +59,7 @@ separately; any service method, route, template, or browser-JavaScript change re
 - Container-backed search/render paths still wake the container.
 - Archive health controls are deployed: stale ingestion rows expire after three hours, terminal runs retain 30 days, latest rows are de-duplicated, and archive-bin completeness is privately auditable. Continue monitoring D1 growth against the ADR 0005 trigger.
 - All public JSON routes remain explicitly unstable until the `v0.5.0` API contract.
-- Usage collection is not yet active in production. Migration `0012` and the `autocomplete and usage per IP` Cloudflare rule are active; verify the write-only response, private readout, and retention heartbeat after deployment.
+- Usage collection is active in production. The write-only response, public `404` on the private readout, daily D1 aggregate, active collection heartbeat, browser module, and `autocomplete and usage per IP` Cloudflare rule are verified; continue watching classification quality and the 90-day lifecycle during the observation period.
 - Browser proof gaps: real-device geolocation, visible freshness cues, dense data readability, and practical screen-reader checks.
 - Displayed figures are now checked against each other, not only against their source queries, after the Archive report presented a count of municipalities as a count of outages while every test and health probe passed. The checks run in `GET /api/health/ingestion`; see the regression guard in `PLANS.md`.
 - Archive-summary cursor checks are production-verified: a cursor mismatch or missing summary for a non-empty archive makes the summary a rebuildable cache miss and fails ingestion health. The shape guard still handles format drift separately.

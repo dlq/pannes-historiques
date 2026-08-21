@@ -21,6 +21,7 @@ Keep active execution state in `PLANS.md` and source/evidence research in `NOTES
 
 - The `v0.4.9` candidate passed pre-commit, 229 Python tests, 96 Node tests, the complete 54-case desktop/mobile Playwright suite, a real-SQLite migration smoke test, and a Wrangler Worker/Container dry-run.
 - Applied production D1 migration `0012_usage_evidence.sql` and verified the combined interaction-endpoint rate rule is active before deployment.
+- Deployed `main` commit `3a514fb` on 2026-08-21 as Worker version `2b10afde-09d0-4e33-a58a-5f933d09d134` with container digest `sha256:c0294e12aa6203a2713e493fc658d66f877e71b213ddf1488bdcab9ea818e500`. Homepage, ingestion health, and the new browser module returned `200`; ingestion was healthy with no problems. A valid bounded write returned `204`, an invalid pair returned `400`, the private readout returned public `404`, and D1 contained only the intended daily aggregate plus active heartbeat. Ten invalid non-writing probes reached the Worker, probes 11–12 returned edge `429`, and service recovered after 10 seconds.
 - Passed pre-commit, 78 focused Python web tests, the complete 52-case desktop/mobile Playwright suite, and a Wrangler Worker/Container dry-run.
 - Deployed post-release `main` commit `e212841` on 2026-08-21 as Worker version `6aebc224-ee26-4be4-b7a1-a9add596f98a` with container image digest `sha256:f7e3b21ecabb44ced653c8c5c7ad263cfd8d64ce49495e76a865b4977111e985`. Production serves `summary_large_image` metadata, and the live 1200 x 630 PNG matches the committed asset byte for byte.
 

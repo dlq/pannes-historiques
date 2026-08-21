@@ -8,6 +8,8 @@ Last updated: 2026-08-21
 - Production D1 migration `0012_usage_evidence.sql` completed successfully before deployment.
 - Cloudflare Free exposes one rate-limiting-rule slot for the zone. The existing `autocomplete per IP` rule was expanded and renamed `autocomplete and usage per IP`; it is active for `GET /autocomplete` or `POST /api/usage`, counts by IP at the edge, and blocks after 10 combined matching requests in 10 seconds for 10 seconds. The application does not persist that IP in usage evidence.
 - The stricter shared threshold preserves the shipped autocomplete boundary and bounds D1 usage writes without a paid-plan upgrade. The current runbook and release documents describe the combined rule; the older note below records its original autocomplete-only state.
+- Deployment: `main` commit `3a514fb` deployed as Worker version `2b10afde-09d0-4e33-a58a-5f933d09d134` with container digest `sha256:c0294e12aa6203a2713e493fc658d66f877e71b213ddf1488bdcab9ea818e500`. Homepage, ingestion health, and `usage-evidence.js` returned `200`; health was clean. The bounded write returned `204`, an invalid pair returned `400`, and the private report returned unauthenticated `404`.
+- The production D1 check showed one `2026-08-21 archive/open` human interaction and no non-human count, plus the active daily collection heartbeat; no raw event or request context exists. A non-writing rate probe produced ten Worker `415` responses, edge `429` on requests 11–12, and Worker `415` again after the 10-second mitigation window.
 
 ## v0.4.8 private cost review, 2026-08-14
 
