@@ -1,5 +1,6 @@
 import json
 import re
+import struct
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -79,6 +80,32 @@ def test_index_includes_pwa_metadata(app_client):
     assert 'href="/static/app-icon-180.png"' in html
 
 
+def test_public_pages_include_large_social_preview_metadata(app_client):
+    for path in ("/?lang=en", "/about"):
+        response = app_client.get(path)
+        html = response.get_data(as_text=True)
+
+        assert response.status_code == 200
+        assert 'property="og:image"' in html
+        assert "https://pannes.ca/static/og-image.png" in html
+        assert '<meta property="og:image:width" content="1200">' in html
+        assert '<meta property="og:image:height" content="630">' in html
+        assert '<meta property="og:image:type" content="image/png">' in html
+        assert '<meta name="twitter:card" content="summary_large_image">' in html
+        assert 'name="twitter:image"' in html
+        assert "image:alt" in html
+
+
+def test_social_preview_asset_has_open_graph_dimensions(app_client):
+    response = app_client.get("/static/og-image.png")
+    payload = response.data
+
+    assert response.status_code == 200
+    assert response.content_type == "image/png"
+    assert payload[:8] == b"\x89PNG\r\n\x1a\n"
+    assert struct.unpack(">II", payload[16:24]) == (1200, 630)
+
+
 def test_index_includes_hidden_app_heading(app_client):
     response = app_client.get("/?lang=en")
     html = response.get_data(as_text=True)
@@ -122,7 +149,7 @@ def test_index_includes_web_quality_metadata_and_no_tailwind_cdn(app_client):
     assert re.search(
         r'<link rel="alternate"\s+hreflang="x-default"\s+href="https://pannes.ca/">', html
     )
-    assert '<meta name="twitter:card" content="summary">' in html
+    assert '<meta name="twitter:card" content="summary_large_image">' in html
     assert "cdn.tailwindcss.com" not in html
 
 
@@ -153,7 +180,7 @@ def test_about_page_includes_web_quality_metadata(app_client):
     )
     assert '<link rel="canonical" href="https://pannes.ca/about?lang=en">' in html
     assert '<meta property="og:title" content="About Outage History">' in html
-    assert '<meta name="twitter:card" content="summary">' in html
+    assert '<meta name="twitter:card" content="summary_large_image">' in html
     assert re.search(
         r'<link rel="alternate"\s+hreflang="fr"\s+href="https://pannes.ca/about">', html
     )

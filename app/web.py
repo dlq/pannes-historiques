@@ -485,6 +485,7 @@ def create_app(settings: Settings | None = None) -> Flask:
                 alternate_urls=alternate_urls,
                 social_title=t(lang, "app_title"),
                 social_description=t(lang, "page_description"),
+                social_image_url=absolute_public_url(settings, "/static/og-image.png"),
             )
 
     @app.get("/search-map")
@@ -532,6 +533,7 @@ def create_app(settings: Settings | None = None) -> Flask:
             alternate_urls=alternate_urls,
             social_title=t(lang, "about_title"),
             social_description=t(lang, "about_description"),
+            social_image_url=absolute_public_url(settings, "/static/og-image.png"),
         )
 
     @app.get("/robots.txt")

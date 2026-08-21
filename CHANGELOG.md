@@ -6,6 +6,10 @@ Keep active execution state in `PLANS.md` and source/evidence research in `NOTES
 
 ## [Unreleased]
 
+### Added
+
+- Added a purpose-built 1200 x 630 social preview for shared links, with canonical Open Graph and large Twitter card metadata plus localized alternative text.
+
 ## [v0.4.8] - 2026-08-14
 
 ### Changed

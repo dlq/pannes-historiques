@@ -12,11 +12,17 @@
     <meta property="og:title" content="{{ social_title }}">
     <meta property="og:description" content="{{ social_description }}">
     <meta property="og:url" content="{{ canonical_url }}">
-    <meta property="og:image"
-          content="{{ url_for('static', filename='app-icon-512.png', _external=True) }}">
-    <meta name="twitter:card" content="summary">
+    <meta property="og:image" content="{{ social_image_url }}">
+    <meta property="og:image:secure_url" content="{{ social_image_url }}">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="{{ t(lang, 'social_image_alt') }}">
+    <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="{{ social_title }}">
     <meta name="twitter:description" content="{{ social_description }}">
+    <meta name="twitter:image" content="{{ social_image_url }}">
+    <meta name="twitter:image:alt" content="{{ t(lang, 'social_image_alt') }}">
     <title>{{ t(lang, "about_title") }}</title>
     <link rel="canonical" href="{{ canonical_url }}">
     {% for alternate_lang, alternate_url in alternate_urls.items() %}
