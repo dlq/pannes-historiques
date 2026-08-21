@@ -4,14 +4,14 @@ import {
   requestMapFocus,
   updateMapAddress,
   updateMapLayerItems,
-} from "./map-events.js?v=4337eb7ad7ad";
-import { contextLayerForKind } from "./map-utils.js?v=4337eb7ad7ad";
+} from "./map-events.js?v=ffde99f66c23";
+import { contextLayerForKind } from "./map-utils.js?v=ffde99f66c23";
 import {
   attachAddressAutocomplete,
   attachComparisonTray,
   hydrateTimeLabels,
   updateSearchUrl,
-} from "./search.js?v=4337eb7ad7ad";
+} from "./search.js?v=ffde99f66c23";
 import {
   escapeHtml,
   formatDistanceKm,
@@ -19,7 +19,8 @@ import {
   formatPreviousTimeParts,
   hasDistanceValue,
   label,
-} from "./ui-format.js?v=4337eb7ad7ad";
+} from "./ui-format.js?v=ffde99f66c23";
+import { recordUsage } from "./usage-evidence.js?v=ffde99f66c23";
 
 const DETENTS = ["peek", "half", "full"];
 // The sheet height transition in app.css runs 280ms; wait slightly longer
@@ -421,7 +422,10 @@ function showSheetError() {
 
 let sheetFetchSequence = 0;
 
-export async function fetchSheet(updates = {}, { pushUrl = true, focus = null } = {}) {
+export async function fetchSheet(
+  updates = {},
+  { pushUrl = true, focus = null, usageEvent = null } = {},
+) {
   const previousState = { ...sheetState };
   Object.assign(sheetState, updates);
   const sheet = sheetElement();
@@ -461,6 +465,7 @@ export async function fetchSheet(updates = {}, { pushUrl = true, focus = null } 
         radiusM: sheetState.radiusM,
       });
     }
+    if (usageEvent) void recordUsage(usageEvent.feature, usageEvent.action);
   } catch (_error) {
     if (!isCurrentRequest()) return;
     Object.assign(sheetState, previousState);
@@ -677,7 +682,13 @@ function bindGlobalHandlers() {
       event.preventDefault();
       closeDetailCards();
       const nextScope = domainLink.dataset.scopeLink || sheetState.scope;
-      fetchSheet({ domain: domainLink.dataset.domainLink, scope: nextScope }, { focus: "domain" });
+      fetchSheet(
+        { domain: domainLink.dataset.domainLink, scope: nextScope },
+        {
+          focus: "domain",
+          usageEvent: { feature: domainLink.dataset.domainLink, action: "open" },
+        },
+      );
       return;
     }
     const scopeLink = event.target.closest("[data-scope-link]");
@@ -738,24 +749,38 @@ function bindGlobalHandlers() {
         domain: "overview",
         scope: "local",
       },
-      { focus: "result" },
+      { focus: "result", usageEvent: { feature: "address", action: "answer" } },
     );
   });
 
   document.body.addEventListener("change", (event) => {
     const radius = event.target.closest("[data-nearby-radius]");
     if (!radius) return;
-    fetchSheet({ radiusM: radius.value }, { focus: "result" });
+    fetchSheet(
+      { radiusM: radius.value },
+      { focus: "result", usageEvent: { feature: "address", action: "answer" } },
+    );
   });
 
   document.body.addEventListener(MAP_EVENTS.operationalLayerSelected, (event) => {
-    if (event.detail) showOperationalDetail(event.detail);
+    if (!event.detail) return;
+    showOperationalDetail(event.detail);
+    const feature =
+      event.detail.kind === "outage"
+        ? "current"
+        : event.detail.kind === "planned"
+          ? "planned"
+          : event.detail.kind === "previous_outage"
+            ? "archive"
+            : "";
+    if (feature) void recordUsage(feature, "detail");
   });
   for (const eventName of [MAP_EVENTS.daiSelected, MAP_EVENTS.regionalMetricSelected]) {
     document.body.addEventListener(eventName, () => {
       clearOperationalDetail();
       openDetailCardForEvent(detailPanel());
       if (isMobileLayout() && currentDetent() === "peek") setDetent("half");
+      void recordUsage("context", "detail");
     });
   }
 
@@ -814,15 +839,18 @@ function attachLocationSearch() {
         const accuracy = Number.isFinite(position.coords.accuracy)
           ? String(position.coords.accuracy)
           : "";
-        await fetchSheet({
-          q: "",
-          lat: String(position.coords.latitude),
-          lon: String(position.coords.longitude),
-          accuracy,
-          radiusM: "5000",
-          domain: "overview",
-          scope: "local",
-        });
+        await fetchSheet(
+          {
+            q: "",
+            lat: String(position.coords.latitude),
+            lon: String(position.coords.longitude),
+            accuracy,
+            radiusM: "5000",
+            domain: "overview",
+            scope: "local",
+          },
+          { usageEvent: { feature: "address", action: "answer" } },
+        );
         const input = document.querySelector("#address-input");
         if (input) input.value = button.dataset.currentLocationLabel || "Current location";
         button.disabled = false;

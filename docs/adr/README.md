@@ -21,3 +21,4 @@ Use an ADR when a decision materially constrains future design, operations, publ
 | [0004](0004-unversioned-public-json-is-unstable.md) | Accepted | Treat public JSON routes as unstable until a versioned API contract exists. |
 | [0005](0005-d1-archive-retention-and-compaction.md) | Accepted | Retain bounded operational history while deferring archive-data deletion until a tested rollup or offload exists. |
 | [0006](0006-use-regional-components-not-a-hydro-score.md) | Accepted | Show normalized regional components and local observations without manufacturing a Hydro Score. |
+| [0007](0007-bounded-first-party-usage-evidence.md) | Accepted | Count allowlisted daily interactions without identifiers, raw events, or a public readout. |

@@ -13,7 +13,7 @@ This is the active execution plan. Keep detailed evidence and research notes in 
 - Ingestion incident 2026-07-15 to 2026-07-20: scheduled Hydro ingestion failed every 30 minutes for five days while the site returned `200` and served stale data. Cause was the durable collection path storing payload files without registering the `raw_snapshots` row the Worker's `/internal/raw-snapshot` callback resolves through. Fixed and verified: run 3630 completed `ok` and snapshots are current again. Two plausible-but-wrong hypotheses were ruled out by testing rather than by correlation — container ephemerality, and the `v0.4.3` CodeQL path-hardening, whose lookup was exercised directly against a real file and resolves correctly.
 - Monitoring gap this exposed: the only health surface was token-protected and pull-based, so nothing observed the failure. `GET /api/health/ingestion` now returns `503` when ingestion is stale or failing. The `Ingestion health monitor` GitHub Actions workflow probes it twice hourly.
 - That probe now also fails when the served archive summary contradicts itself, after the Archive report spent months showing a count of municipalities as a count of outages while every health surface reported green. Freshness monitoring cannot see a figure that is current and wrong; coherence monitoring can.
-- Current implementation line: `v0.4.8` implements the cost/operational guardrails and retains ADR 0006's component-metric decision. The next active slice is `v0.4.9` privacy-preserving usage evidence. See `docs/current-snapshot.md` for the concise code/deployment distinction.
+- Current implementation line: the `v0.4.9` privacy-preserving usage-evidence candidate is complete locally and retains ADR 0006's component-metric decision. The shipped/tagged release remains `v0.4.8`; migration `0012`, the edge rate rule, and production verification remain release gates. See `docs/current-snapshot.md` for the concise code/deployment distinction.
 - Current frontend: one full-bleed MapLibre GL map plus a single sheet. The sheet owns search, domain navigation, address overview, scoped local/province views, detail cards, provenance, and browser-local comparison.
 - Current data plane: D1/R2-backed durable ingestion for current feed rows, previous-outage rows, raw Hydro-Quebec payloads, disclosure metadata, and runtime map-context layers.
 - Current container role: Flask/Jinja shell rendering, local-compatible fallback paths, and a baked SQLite snapshot. Container-local writes are ephemeral and must not become production state.
@@ -26,7 +26,7 @@ This is the active execution plan. Keep detailed evidence and research notes in 
 
 ## Roadmap
 
-Completed release history lives in `CHANGELOG.md`; durable investigation details live in `NOTES.md`. Active planning starts with privacy-preserving usage evidence in `v0.4.9`. The `v0.4.7` evidence and no-score decision are preserved in ADR 0006 and `NOTES.md`.
+Completed release history lives in `CHANGELOG.md`; durable investigation details live in `NOTES.md`. Active execution is closing the `v0.4.9` migration, edge-rule, and production-verification gates for the locally complete privacy-preserving usage-evidence candidate. The `v0.4.7` evidence and no-score decision are preserved in ADR 0006 and `NOTES.md`.
 
 ### `v0.4.8`: Cost And Operational Guardrails
 
@@ -44,14 +44,15 @@ Exit evidence is complete. `v0.4.8` deployed as Worker `e6fe9a87-df8f-4cf4-a82b-
 
 Measure aggregate use of substantive functions only after the operational collection boundary is explicit.
 
-- Define a fixed daily aggregate schema: UTC date, feature, action, human-interaction count, separately classified non-human count, and collection status. Counts are interactions, never people or unique visitors.
-- Retain daily aggregates for 90 rolling days, then delete them. Do not persist addresses, query strings, IP addresses, user identifiers, raw interaction logs, or browser fingerprints.
-- Count only the substantive functions: current outages, planned interruptions, Archive, DAI/Context, address answers, and comparison. Separately classify obvious scanners, monitors, and bots so route probes do not become product demand.
-- Add a private operational readout with metric definitions, collection-status indicators, retention status, and no public usage-data response surface.
-- Revisit Cloudflare Browser Insights only if the exact product question cannot be answered by the bounded aggregates. Keep it disabled otherwise; enabling it requires reconciling CSP, the About-page "no analytics trackers" copy, and the retention policy first.
+- Implemented on the `privacy-usage-evidence` branch: a fixed UTC daily aggregate schema, separate human/non-human interaction counts, and a daily collection-status heartbeat. Counts are interactions, never people or unique visitors.
+- Implemented: 90-day expiry on the existing maintenance schedule. No address, query string, coordinate, IP address, user identifier, raw interaction log, user agent, or browser fingerprint is persisted.
+- Implemented: allowlisted current, planned, Archive, DAI/Context, address-answer, and comparison actions. The browser sends only feature/action, omits the referrer and credentials, and respects GPC/DNT; the Worker separately classifies obvious automation and missing interaction signals.
+- Implemented: token-protected operational readout with metric definitions, collection coverage, retention status, and no public usage-data response surface. The public endpoint is write-only.
+- Deployment gate: apply migration `0012_usage_evidence.sql` and activate the documented `usage evidence per IP` edge rate rule before enabling collection in production.
+- Cloudflare Browser Insights remains disabled. Revisit it only if a specific question cannot be answered by the bounded aggregates; enabling it would require a new privacy/CSP/retention decision.
 - After eight complete weekly observations, record a written continue/change/stop decision. It must distinguish feature demand from infrastructure traffic and must not infer audience size or individual behavior.
 
-Exit evidence: schema and expiry are test-covered; the private readout proves no public exposure; bot classification is test-covered; and the eight-week decision record is added to `NOTES.md`.
+Implementation exit evidence: schema and expiry are test-covered; the private readout proves no public exposure; classification and browser payload boundaries are test-covered. Release exit still requires the migration, edge rule, production smoke checks, and the later eight-week decision record in `NOTES.md`.
 
 ### `0.5.x`: Public Data Product And Analytical Expansion
 
@@ -76,7 +77,7 @@ Saved areas, saved-area notifications, and web push notifications are deferred o
 - `v0.4.7`: regional continuity-index detail and no-score terminology are covered by Python and desktop/mobile browser regressions.
 - Cross-field coherence: assert displayed figures against each other, not only against the query that produced them. Tests that check a number equals what its query returned cannot catch a query answering the wrong question, which is how the Archive window shipped a territory count under an outage heading. See the guard below.
 - `v0.4.8`: cursor-aware archive freshness, protected-runtime retirement, cost decision, and autocomplete abuse protection shipped and are covered.
-- `v0.4.9`: add aggregate-schema, expiry, bot-classification, private-readout, and public-nonexposure tests before collecting usage evidence.
+- `v0.4.9`: aggregate-schema, expiry, classification, private-readout, browser-payload, and public-nonexposure tests are implemented; preserve them through deployment and the observation period.
 - `v0.5.x`: add API contract, schema, freshness/provenance, rate-limit, analytical-summary, parser, and geocoder tests as each slice lands.
 
 ### Regression guard: gated runtime endpoints (2026-08-05)
@@ -143,6 +144,7 @@ Routine command details live in `docs/contributing.md`; production and deploy ch
 - Bad in-app URLs and unhandled Flask exceptions still need minimal branded 404/500 pages.
 - SEO announcement-readiness follow-up: consider `noindex,follow` for user-entered address/current-location result pages so arbitrary searches do not become indexable landing pages. Absolute social-image URLs, large-card metadata, and French/English/`x-default` alternates are implemented and production-verified.
 - Address queries are capped in the application and protected at the edge by the active Cloudflare Free-plan `autocomplete per IP` rule: 10 matching requests per IP in 10 seconds trigger a 10-second block. Browser debouncing is not treated as an abuse control.
+- Usage collection must not deploy before migration `0012` and the `usage evidence per IP` edge rule are active; otherwise the write-only endpoint would either fail every interaction or expose an unbounded D1 write path.
 - OpenFreeMap Liberty still includes non-Quebec labels at some zoom levels; solve only if it materially affects analytics or saved-area-adjacent workflows.
 - Do not speculate about Hydro-Quebec one-letter status-code meanings unless source documentation or payload context verifies them.
 

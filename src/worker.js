@@ -32,6 +32,11 @@ import {
   territoryFromFeature,
 } from "./municipal-archive.js";
 import { isOperationalRequest, runtimeEndpointRequiresOperationToken } from "./runtime-policy.js";
+import {
+  cleanupUsageEvidence,
+  usageCollectionResponse,
+  usageEvidenceResponse,
+} from "./usage-evidence.js";
 import { workerRouteForPath } from "./worker-routing.js";
 
 const DISCLOSURE_CRONS = new Set(["0 10 */14 * *", "13 10 */14 * *"]);
@@ -61,6 +66,10 @@ export default {
       if (!operationalRequest(request, env)) return new Response("Not found", { status: 404 });
       return costHealthResponse(env);
     }
+    if (route === "usage_evidence") {
+      return usageEvidenceResponse(env.DB, { authorized: operationalRequest(request, env) });
+    }
+    if (route === "usage_collection") return usageCollectionResponse(request, env.DB);
     if (route === "ingestion_health") return ingestionHealthResponse(env);
     if (route === "durable_hydro") return durableHydroResponse(env);
     if (route === "durable_status") {
@@ -113,6 +122,7 @@ async function runHydroSchedule(env) {
     municipal_archive: null,
     archive_health: null,
     geocode_cache: null,
+    usage_evidence: null,
     errors: [],
   };
   try {
@@ -142,6 +152,12 @@ async function runHydroSchedule(env) {
   } catch (error) {
     summary.geocode_cache = { error: String(error?.stack || error) };
     console.error("Geocode-cache cleanup failed", summary.geocode_cache);
+  }
+  try {
+    summary.usage_evidence = await cleanupUsageEvidence(env.DB);
+  } catch (error) {
+    summary.usage_evidence = { error: String(error?.stack || error) };
+    console.error("Usage-evidence cleanup failed", summary.usage_evidence);
   }
   const status = summary.errors.length ? "error" : "ok";
   await recordRunFinished(env.DB, run.meta.last_row_id, status, summary);

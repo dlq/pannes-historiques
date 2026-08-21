@@ -52,6 +52,7 @@ checks. Responsibility for the project and its releases rests with its maintaine
   - Worker + container deployment for `pannes.ca`
   - durable D1/R2-backed ingestion for current-feed rows, previous-outage rows, and raw archives
   - Worker-backed lookup/runtime map-layer endpoints and scheduled refresh/disclosure archival
+  - bounded, identifier-free daily feature/action counts with a private operational readout (`v0.4.9` development candidate; not yet enabled in production)
 
 ## Local development
 
@@ -60,6 +61,10 @@ You can also run the Flask app directly:
 ```bash
 uv run flask --app app run --debug --host 127.0.0.1 --port 8000
 ```
+
+The standalone Flask server does not emulate Worker/D1 usage aggregation. Browser calls to
+`POST /api/usage` therefore return `404` locally unless the Worker runtime is in front of Flask;
+the interface deliberately ignores that optional evidence-write failure.
 
 ## URL interface
 
@@ -80,9 +85,11 @@ Production is currently served at `pannes.ca` with Cloudflare Workers + Containe
 
 Current deployment status:
 
-- Current tagged release: `v0.4.7` (regional reliability framing and archive-summary coherence
-  checks), released and deployed 2026-08-08. The same-day search/performance follow-up is also
-  deployed; see `CHANGELOG.md` for exact Worker versions and release evidence.
+- Current tagged release: `v0.4.8` (cost and operational guardrails), released and deployed
+  2026-08-14. Post-release `main` changes are also deployed; see `docs/current-snapshot.md` and
+  `CHANGELOG.md` for the exact code/deployment distinction and Worker versions.
+- Development package metadata is `0.4.9`. Its privacy-preserving usage evidence is implemented
+  locally but remains gated on D1 migration `0012` and the documented Cloudflare edge rate rule.
 - The current interface uses vendored MapLibre GL JS v6 ESM modules with the OpenFreeMap Liberty style, a
   full-bleed map, and one responsive sheet for current, planned, archive, and context views.
 - Production is served through Cloudflare Workers + Containers with D1 and R2 durable storage.
@@ -107,7 +114,8 @@ D1/R2 are now used for durable production ingestion:
 
 - D1 stores normalized feed versions, current outage rows, planned-interruption rows, resolved
   previous-outage rows, disclosure metadata, event rows, annual metrics, municipal archive bins,
-  and geometry metadata.
+  geometry metadata, and (after migration `0012`) 90 days of identifier-free daily feature/action
+  counts.
 - R2 stores raw Hydro-Quebec feed payloads and raw DAI/access-to-information source files.
 - The Worker exposes D1-backed lookup endpoints for current nearby matches and accumulated
   previous-outage nearby matches.
@@ -116,9 +124,10 @@ D1/R2 are now used for durable production ingestion:
   currently falls back to public durable reads or its local-compatible paths when it cannot reach one.
 - Operational-only Worker runtime endpoints import official territories, backfill municipal archive
   bins, and report municipal archive status.
-- Debug, collection, cron, internal file/export, direct status, and protected durable runtime
-  endpoints are not public entry points; `GET /api/durable/runtime/map-context` is the published
-  context exception. Use the CLI locally and Worker scheduled/internal paths in production.
+- Debug, Hydro collection, cron, internal file/export, direct status, and protected durable runtime
+  endpoints are not public entry points. `GET /api/durable/runtime/map-context` is the published
+  context exception; `POST /api/usage` is a bounded write-only counter that returns no aggregate
+  data. Use the CLI locally and Worker scheduled/internal paths in production.
 
 Production disables automatic Hydro-Quebec refreshes during address search (`AUTO_REFRESH_ON_SEARCH=0`).
 The Worker cron handles changed-feed ingestion and calls the container refresh endpoint so user

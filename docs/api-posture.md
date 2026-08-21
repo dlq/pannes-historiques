@@ -54,6 +54,7 @@ for third-party consumption, and change whenever the UI changes.
 | `GET /autocomplete` | Address suggestions. |
 | `POST /search`, `POST /search-location` | Compatibility endpoints behind the sheet flow. |
 | `GET /service-worker.js` | App-shell service worker. |
+| `POST /api/usage` | Write-only, allowlisted daily interaction counter. Accepts only `feature` and `action`, returns no aggregate data, and is not a public analytics API. |
 
 ## Durable JSON routes — `unstable`
 
@@ -85,7 +86,7 @@ public and should not be probed.
 | `/cron/*` | Scheduled header. |
 | `/collect*` | Debug flag or internal/scheduled header. |
 | `/debug/*` | Debug flag. |
-| `/api/durable/status`, `/api/ops/cost-health` | Operation token. |
+| `/api/durable/status`, `/api/ops/cost-health`, `/api/ops/usage-evidence` | Operation token. |
 | Protected `/api/durable/runtime/*` endpoints (except `GET /api/durable/runtime/map-context` and `GET /api/durable/runtime/previous-archive-summary`) | Operation token. The Flask container deliberately calls neither protected reads nor writes; it uses local-compatible fallbacks. |
 
 ## Security headers

@@ -14,6 +14,8 @@ export function workerRouteForPath(pathname) {
   if (pathname === "/api/durable/nearby") return "durable_nearby";
   if (pathname === "/api/durable/history-nearby") return "durable_history_nearby";
   if (pathname === "/api/ops/cost-health") return "cost_health";
+  if (pathname === "/api/ops/usage-evidence") return "usage_evidence";
+  if (pathname === "/api/usage") return "usage_collection";
   // Deliberately unauthenticated: an uptime monitor must be able to poll it
   // without a secret. It exposes only data-freshness facts already visible on
   // the public site, and returns 503 when ingestion goes stale so any external

@@ -28,6 +28,11 @@ test("blocks obvious scanner probes at the Worker edge", () => {
 
 test("classifies the private cost-health endpoint explicitly", () => {
   assert.equal(workerRouteForPath("/api/ops/cost-health"), "cost_health");
+  assert.equal(workerRouteForPath("/api/ops/usage-evidence"), "usage_evidence");
+});
+
+test("classifies the write-only usage endpoint explicitly", () => {
+  assert.equal(workerRouteForPath("/api/usage"), "usage_collection");
 });
 
 test("classifies durable public and runtime endpoints explicitly", () => {

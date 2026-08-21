@@ -106,7 +106,7 @@ associated credentials.
 
 - Flask route or Jinja behavior: start in `app/web.py`, `app/views.py`, and `app/templates/`.
 - Browser interaction: start in `app/static/` and add Node tests under `tests/*.test.js` when possible.
-- Worker routing or endpoint privacy: start in `src/worker-routing.js` and `src/runtime-policy.js`.
+- Worker routing or endpoint privacy: start in `src/worker-routing.js` and `src/runtime-policy.js`; bounded usage collection and its private readout live in `src/usage-evidence.js`.
 - Public D1-backed reads: start in `src/durable-read-handlers.js` with its direct Node tests.
 - D1/R2 ingestion or scheduled work: start in `src/worker.js`, then consider extracting a focused module if the change grows.
 - Municipal archive geometry: start in `src/municipal-archive.js`; maintenance scripts should reuse these helpers.

@@ -12,8 +12,9 @@ The Worker classifies every request before it can wake the container. The route 
 | --- | --- | --- | --- |
 | Public page routes | `/`, `/about`, `GET /sheet`, static assets, `POST /search`, `POST /search-location` | Public; forwarded to Flask when needed | Worker and container |
 | Public durable APIs | `/api/durable/hydro`, `/api/durable/nearby`, `/api/durable/history-nearby`, `/api/health/ingestion` | Public read-only responses | Worker with D1/R2 |
+| Bounded usage collection | `POST /api/usage` | Public write-only allowlisted interaction counter; no aggregate response | Worker with D1 |
 | Public published context | `GET /api/durable/runtime/map-context` | Public read-only published disclosure/regional context | Worker with D1/R2 |
-| Private runtime APIs | `/api/durable/status`, `/api/ops/cost-health`, protected `/api/durable/runtime/*` endpoints | Authorized operations only | Worker with D1/R2 |
+| Private runtime APIs | `/api/durable/status`, `/api/ops/cost-health`, `/api/ops/usage-evidence`, protected `/api/durable/runtime/*` endpoints | Authorized operations only | Worker with D1/R2 |
 | Blocked operational paths | `/internal/*`, `/cron/*`, `/collect*`, `/debug/*`, common framework probes | Rejected at the edge | Worker |
 
 Forwarded page responses report `X-Pannes-Runtime: container` and `worker-container` in `Server-Timing`; Worker-first durable reads report `X-Pannes-Runtime: worker-d1`.
@@ -42,6 +43,7 @@ The interface is one full-bleed MapLibre GL v6 map (OpenFreeMap Liberty vector s
 - `src/runtime-policy.js` owns private durable-runtime endpoint policy.
 - `src/durable-read-handlers.js` owns public D1-backed durable read responses and their spatial query helpers.
 - `src/ingestion-health.js` owns the pure freshness and failure-streak decision used by the public ingestion-health probe.
+- `src/usage-evidence.js` owns the allowlist, human/non-human classification, daily aggregate writes, private readout shape, and 90-day retention cutoff. Browser `app/static/usage-evidence.js` sends only allowlisted feature/action pairs and respects GPC/DNT.
 - `src/archive-health.js` owns pure archive-run retention cutoffs and archive-completeness shaping.
 - `src/municipal-archive.js` owns pure municipal geometry helpers shared by Worker code and maintenance scripts.
 - `src/archive-summary.js` owns pure helpers for the previous-outage archive summary: row shaping, the stored-payload shape guard that turns an unrecognised summary into a cache miss, and the coherence checks that compare a summary's figures against each other.
@@ -74,11 +76,11 @@ The measured baseline is recorded in `NOTES.md`.
 
 ## Data Stores
 
-- D1 stores normalized feed versions, current outage rows, planned interruption rows, resolved previous-outage rows, disclosure metadata, municipal archive bins, and geometry metadata.
+- D1 stores normalized feed versions, current outage rows, planned interruption rows, resolved previous-outage rows, disclosure metadata, municipal archive bins, geometry metadata, and 90 days of identifier-free daily feature/action counts.
 - R2 stores raw Hydro-Quebec feed payloads and raw DAI/access-to-information source files.
 - The container image still includes a baked SQLite snapshot for local-compatible fallback paths. Runtime writes inside the container are ephemeral.
 
-See [ADR 0002](adr/0002-d1-r2-canonical-production-state.md) for the durable-store boundary, [ADR 0003](adr/0003-preserve-raw-source-inputs.md) for source-data provenance, and [ADR 0005](adr/0005-d1-archive-retention-and-compaction.md) for retention and compaction guardrails.
+See [ADR 0002](adr/0002-d1-r2-canonical-production-state.md) for the durable-store boundary, [ADR 0003](adr/0003-preserve-raw-source-inputs.md) for source-data provenance, [ADR 0005](adr/0005-d1-archive-retention-and-compaction.md) for archive retention and compaction guardrails, and [ADR 0007](adr/0007-bounded-first-party-usage-evidence.md) for the usage-data boundary.
 
 ## Generated Evidence
 

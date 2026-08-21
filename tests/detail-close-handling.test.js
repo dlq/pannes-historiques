@@ -61,8 +61,9 @@ test("domain links preserve an explicit or user-selected scope", () => {
   assert.match(sheetSource, /const nextScope = domainLink\.dataset\.scopeLink \|\| sheetState\.scope/);
   assert.match(
     sheetSource,
-    /fetchSheet\(\s*\{ domain: domainLink\.dataset\.domainLink, scope: nextScope \},\s*\{ focus: "domain" \}\s*\)/,
+    /fetchSheet\(\s*\{ domain: domainLink\.dataset\.domainLink, scope: nextScope \}/,
   );
+  assert.match(sheetSource, /usageEvent: \{ feature: domainLink\.dataset\.domainLink, action: "open" \}/);
   assert.match(overviewSource, /data-domain-link="current"\s+data-scope-link="local"/);
   assert.match(overviewSource, /data-domain-link="archive"\s+data-scope-link="local"/);
 });

@@ -191,6 +191,9 @@ def test_about_page_includes_web_quality_metadata(app_client):
         r'<link rel="alternate"\s+hreflang="x-default"\s+href="https://pannes.ca/about">',
         html,
     )
+    assert "daily interaction counters for core features for 90 days" in html
+    assert "no address, search, location, IP address, identifier, fingerprint, raw event" in html
+    assert "Global Privacy Control and Do Not Track are respected" in html
 
 
 def test_default_french_pages_use_clean_canonical_urls(app_client):
@@ -302,7 +305,8 @@ def test_about_page_renders_in_english(app_client):
     assert "Data sources" in html
     assert "OpenStreetMap&#39;s Nominatim" in html
     assert "local storage" in html
-    assert "no accounts, advertising, analytics trackers, or application cookies" in html
+    assert "no accounts, advertising, third-party trackers, or application cookies" in html
+    assert "daily interaction counters for core features for 90 days" in html
     assert "deleted after 30 days" in html
     assert 'href="mailto:contact@pannes.ca"' in html
     assert "contact@pannes.ca" in html
@@ -318,7 +322,8 @@ def test_about_page_renders_in_french(app_client):
     assert "Sources de données" in html
     assert "service Nominatim d&#39;OpenStreetMap" in html
     assert "stockage local de ce navigateur" in html
-    assert "aucun compte, publicité, outil de suivi analytique ni témoin applicatif" in html
+    assert "aucun compte, publicité, outil de suivi tiers ni témoin applicatif" in html
+    assert "compteurs quotidiens d&#39;interactions pour les fonctions principales" in html
     assert "supprimées après 30 jours" in html
     assert 'href="mailto:contact@pannes.ca"' in html
     assert "contact@pannes.ca" in html

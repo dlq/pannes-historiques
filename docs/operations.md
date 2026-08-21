@@ -12,6 +12,11 @@ uv run python server.py serve
 
 The default local URL is `http://127.0.0.1:8000`.
 
+This standalone Flask path does not emulate the Worker's D1-backed `POST /api/usage` route. A local
+`404` for that optional write is expected and does not block interface actions. Exercise the route's
+validation, aggregation, retention, and authorization behavior through the Node tests and a Wrangler
+dry run before deployment.
+
 ## Deployment
 
 Production deploy command:
@@ -71,6 +76,28 @@ Before deploying a Worker release that includes a D1 migration, apply only the r
 ```bash
 npx wrangler d1 execute pannes-historiques --remote --file migrations/NNNN_descriptive_name.sql
 ```
+
+## Private Usage Evidence
+
+The browser sends only allowlisted `feature` and `action` pairs to `POST /api/usage`. The Worker aggregates them directly into UTC daily rows and never persists raw events, addresses, queries, coordinates, IP addresses, user agents, identifiers, or fingerprints. Rows older than 90 days are deleted by the normal Hydro maintenance schedule.
+
+Read the private operational report with the operation token:
+
+```bash
+curl -fsS -H "X-Pannes-Operation-Token: $PANNES_OPERATION_TOKEN" \
+  https://pannes.ca/api/ops/usage-evidence
+```
+
+Treat every value as an interaction count, never a person, session, or unique visitor. Check `collection_status`, the human/non-human split, and the retention cutoff before using the figures. Apply `migrations/0012_usage_evidence.sql` before deploying the first release that enables collection.
+
+Before enabling the endpoint, configure a zone-level rate-limiting rule named `usage evidence per IP`:
+
+- expression: `http.request.method eq "POST" and http.request.uri.path eq "/api/usage"`
+- counting characteristic: IP, used only by Cloudflare's edge rule and never written to the usage tables
+- threshold: 30 requests per 10 seconds
+- action: Block, status `429`, mitigation timeout 10 seconds
+
+The threshold permits ordinary bursts of interface actions while bounding D1 write amplification and obvious counter flooding. Roll back by disabling the named rule; disabling collection also requires removing or pausing the browser calls so a missing endpoint is not mistaken for an active zero-use day.
 
 ## Autocomplete Rate Limit
 

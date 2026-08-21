@@ -189,6 +189,35 @@ test("comparison tray stores and clears compared addresses", async ({ page }) =>
   await expect(page.locator("[data-compare-tray]")).toBeHidden();
 });
 
+test("usage evidence sends only bounded actions and never the searched address", async ({ page }) => {
+  const usageRequests: Array<{ body: unknown; headers: Record<string, string> }> = [];
+  await page.route("**/api/usage", async (route) => {
+    usageRequests.push({
+      body: route.request().postDataJSON(),
+      headers: await route.request().allHeaders(),
+    });
+    await route.fulfill({ status: 204 });
+  });
+
+  await runSearch(page);
+  await page.locator("[data-compare-add]").click();
+  await expect.poll(() => usageRequests.length).toBeGreaterThanOrEqual(2);
+
+  expect(usageRequests.map((request) => request.body)).toContainEqual({
+    feature: "address",
+    action: "answer",
+  });
+  expect(usageRequests.map((request) => request.body)).toContainEqual({
+    feature: "comparison",
+    action: "add",
+  });
+  expect(JSON.stringify(usageRequests)).not.toContain(query);
+  for (const request of usageRequests) {
+    expect(request.headers["x-pannes-interaction"]).toBe("1");
+    expect(request.headers.referer).toBeUndefined();
+  }
+});
+
 test("provenance card opens from the explore footer and the hero info button", async ({
   page,
 }) => {

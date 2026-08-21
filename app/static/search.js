@@ -1,4 +1,5 @@
-import { formatRelativeTime } from "./ui-format.js?v=4337eb7ad7ad";
+import { formatRelativeTime } from "./ui-format.js?v=ffde99f66c23";
+import { recordUsage } from "./usage-evidence.js?v=ffde99f66c23";
 
 let autocompleteTimer = null;
 
@@ -89,6 +90,7 @@ export function attachComparisonTray() {
       const existing = readComparedItems().filter((item) => item.address !== next.address);
       writeComparedItems([next, ...existing]);
       renderComparisonTray();
+      void recordUsage("comparison", "add");
     });
   }
   renderComparisonTray();

@@ -1,13 +1,13 @@
 # User Stories For Next Product Slices
 
 Date: 2026-06-17
-Last reviewed: 2026-08-08
+Last reviewed: 2026-08-21
 
 This file captures practical user stories for focusing the next pannes.ca work. These are not implementation tasks by themselves. They are decision scenarios that should drive UI, copy, data, and test choices.
 
 ## Current Implementation Status
 
-As of `v0.4.7` (2026-08-08), the current codebase has:
+As of the `v0.4.9` development candidate (2026-08-21), while `v0.4.8` remains the latest tagged release, the current codebase has:
 
 - one full-bleed MapLibre map with a detent-based sheet (mobile) / floating panel (desktop) and search inside the sheet;
 - a segmented `En cours / Planifiées / Archive / Contexte` control that drives both sheet content and the visible map layer;
@@ -16,6 +16,7 @@ As of `v0.4.7` (2026-08-08), the current codebase has:
 - an archive report leading with named territory bins (production) plus day-grouped latest rows, all caps labeled;
 - a provenance card ("À propos de ces données") reachable from the hero info button and the explore footer, with GitHub and contact links;
 - a browser-local comparison tray, hardened sheet navigation, and accessible live/detail-dialog behavior.
+- bounded, identifier-free daily feature/action counts with 90-day retention, GPC/DNT support, and a private operational readout; production activation remains gated on D1 migration `0012` and the Cloudflare edge rate rule.
 
 Still not fully proven:
 
@@ -299,8 +300,8 @@ Next product gap:
 
 The stories inform the current planned slices and ongoing proof work:
 
-1. `v0.4.8` cost and operational guardrails: make archive freshness alertable, decide the container-to-Worker runtime boundary, establish a dated cost baseline, and configure autocomplete abuse protection.
-2. `v0.4.9` privacy-preserving usage evidence: measure bounded aggregate use of substantive features before expanding the product surface.
+1. `v0.4.8` cost and operational guardrails are shipped: archive freshness is alertable, the container-to-Worker boundary and cost posture are recorded, and autocomplete abuse protection is active.
+2. Close `v0.4.9`'s production gates, then observe its bounded aggregate feature evidence without treating interactions as people or unique visitors.
 3. Ongoing browser proof: verify real-device location permission/recovery, freshness cues, dense data readability, and practical keyboard/screen-reader behavior.
 4. Public-surface safeguards: decide whether user-specific result pages need `noindex,follow`.
 5. `v0.5.x` API and analytical expansion: only after the cost/operational exit evidence, bounded usage-data lifecycle, archive-health observation window, and public-surface safeguards are satisfied.
