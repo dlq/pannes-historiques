@@ -15,10 +15,10 @@ dependencies = [
 dev = [
   "djlint>=1.44.1",
   "geopandas>=1.1.4",
-  "pre-commit>=4.6.1",
+  "pre-commit>=4.6.2",
   "pytest>=9.1.1",
   "pytest-cov>=7.0.0",
-  "ruff>=0.16.1",
+  "ruff>=0.16.3",
 ]
 
 [tool.ruff]
