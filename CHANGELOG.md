@@ -10,6 +10,11 @@ Keep active execution state in `PLANS.md` and source/evidence research in `NOTES
 
 - Added a purpose-built 1200 x 630 social preview for shared links, with canonical Open Graph and large Twitter card metadata plus localized alternative text.
 
+### Verified
+
+- Passed pre-commit, 78 focused Python web tests, the complete 52-case desktop/mobile Playwright suite, and a Wrangler Worker/Container dry-run.
+- Deployed post-release `main` commit `e212841` on 2026-08-21 as Worker version `6aebc224-ee26-4be4-b7a1-a9add596f98a` with container image digest `sha256:f7e3b21ecabb44ced653c8c5c7ad263cfd8d64ce49495e76a865b4977111e985`. Production serves `summary_large_image` metadata, and the live 1200 x 630 PNG matches the committed asset byte for byte.
+
 ## [v0.4.8] - 2026-08-14
 
 ### Changed

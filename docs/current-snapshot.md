@@ -1,6 +1,6 @@
 # Current Snapshot
 
-Last updated: 2026-08-14
+Last updated: 2026-08-21
 
 Read this first for quick orientation. Use `PLANS.md` for the active roadmap, `docs/architecture.md` for runtime boundaries, `docs/cost-containment.md` for cost strategy, and `CHANGELOG.md` for completed release history.
 
@@ -9,6 +9,7 @@ Read this first for quick orientation. Use `PLANS.md` for the active roadmap, `d
 - Shipped release: `v0.4.8`.
 - Package metadata: `0.4.8` in `pyproject.toml` and `package.json`.
 - Tagged-release deployment: Worker version `e6fe9a87-df8f-4cf4-a82b-b0dcdc07fa4c`, deployed 2026-08-14 from tagged release commit `f6df621` with the `pannes-historiques-pannescontainer:e6fe9a87` image.
+- Latest production deployment: post-release `main` commit `e212841`, deployed 2026-08-21 as Worker version `6aebc224-ee26-4be4-b7a1-a9add596f98a` with container image digest `sha256:f7e3b21ecabb44ced653c8c5c7ad263cfd8d64ce49495e76a865b4977111e985`. The live canonical social preview and large-card metadata are verified.
 - Do not treat a merge to `main` as proof of production deployment; record deployment evidence in `PLANS.md` and `CHANGELOG.md`.
 - Current development direction: privacy-preserving aggregate feature-use evidence in `v0.4.9`. `v0.4.8` completed the authenticated cost decision, container-runtime retirement, archive cursor health guard, and autocomplete edge protection.
 - `v0.5.0` remains gated on `v0.4.9`'s bounded usage-data lifecycle and a 14-day observation window with healthy ingestion, cursor-fresh archive summaries, and no unexplained archive-completeness regression.
