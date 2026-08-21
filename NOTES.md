@@ -1,7 +1,13 @@
 # Research: Hydro-Québec Historic Outage Data
 
 Date: 2026-04-25
-Last updated: 2026-08-14
+Last updated: 2026-08-21
+
+## v0.4.9 usage-evidence release gates, 2026-08-21
+
+- Production D1 migration `0012_usage_evidence.sql` completed successfully before deployment.
+- Cloudflare Free exposes one rate-limiting-rule slot for the zone. The existing `autocomplete per IP` rule was expanded and renamed `autocomplete and usage per IP`; it is active for `GET /autocomplete` or `POST /api/usage`, counts by IP at the edge, and blocks after 10 combined matching requests in 10 seconds for 10 seconds. The application does not persist that IP in usage evidence.
+- The stricter shared threshold preserves the shipped autocomplete boundary and bounds D1 usage writes without a paid-plan upgrade. The current runbook and release documents describe the combined rule; the older note below records its original autocomplete-only state.
 
 ## v0.4.8 private cost review, 2026-08-14
 

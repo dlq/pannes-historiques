@@ -90,25 +90,28 @@ curl -fsS -H "X-Pannes-Operation-Token: $PANNES_OPERATION_TOKEN" \
 
 Treat every value as an interaction count, never a person, session, or unique visitor. Check `collection_status`, the human/non-human split, and the retention cutoff before using the figures. Apply `migrations/0012_usage_evidence.sql` before deploying the first release that enables collection.
 
-Before enabling the endpoint, configure a zone-level rate-limiting rule named `usage evidence per IP`:
+The Cloudflare Free plan exposes one rate-limiting-rule slot, so usage writes share the active rule
+`autocomplete and usage per IP` with autocomplete:
 
-- expression: `http.request.method eq "POST" and http.request.uri.path eq "/api/usage"`
+- expression: `(http.request.method eq "GET" and http.request.uri.path eq "/autocomplete") or (http.request.method eq "POST" and http.request.uri.path eq "/api/usage")`
 - counting characteristic: IP, used only by Cloudflare's edge rule and never written to the usage tables
-- threshold: 30 requests per 10 seconds
+- threshold: 10 combined matching requests per 10 seconds
 - action: Block, status `429`, mitigation timeout 10 seconds
 
-The threshold permits ordinary bursts of interface actions while bounding D1 write amplification and obvious counter flooding. Roll back by disabling the named rule; disabling collection also requires removing or pausing the browser calls so a missing endpoint is not mistaken for an active zero-use day.
+The threshold permits ordinary interface actions while bounding autocomplete abuse, D1 write
+amplification, and obvious counter flooding. Roll back by disabling the named rule; disabling usage
+collection also requires removing or pausing the browser calls so a missing endpoint is not mistaken
+for an active zero-use day.
 
 ## Autocomplete Rate Limit
 
-Cloudflare, not Flask, enforces the public abuse boundary for `GET /autocomplete`. Configure one zone-level rate-limiting rule named `autocomplete per IP` with:
-
-- expression: `http.request.method eq "GET" and http.request.uri.path eq "/autocomplete"`
-- counting characteristic: IP
-- threshold: 10 requests per 10 seconds
-- action: Block, status `429`, mitigation timeout 10 seconds
-
-This is the Free-plan-compatible equivalent of the intended per-minute boundary: that plan exposes only a 10-second counting period and mitigation duration. Create it in **Security rules** > **Create rule** > **Rate limiting rules**. Do not apply it to cached assets. The browser shows a concise retry message for `429`; non-browser callers receive Cloudflare's block response. Roll back by disabling this named rule. Do not lower its threshold by editing a live rule during an incident: deploy a second, stricter rule, wait for the original 10-second mitigation window to expire, then remove the old rule.
+Cloudflare, not Flask, enforces the public abuse boundary for `GET /autocomplete` through the same
+`autocomplete and usage per IP` rule above. This is the Free-plan-compatible equivalent of the
+intended per-minute boundary: that plan exposes only a 10-second counting period and mitigation
+duration and one rule slot. Do not apply it to cached assets. The browser shows a concise retry
+message for `429`; non-browser callers receive Cloudflare's block response. Roll back by disabling
+the named rule. Do not weaken the live threshold without first documenting the abuse and D1-write
+tradeoff.
 
 Verify after deployment from an operator-controlled test IP: confirm a normal request returns `200`, then exceed the threshold within 10 seconds and confirm the next request returns `429`; wait 10 seconds and confirm the same request returns `200` again. Record only the date, rule name, and outcome in `NOTES.md`; do not commit dashboard exports or account data.
 

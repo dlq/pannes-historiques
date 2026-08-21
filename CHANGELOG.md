@@ -15,10 +15,12 @@ Keep active execution state in `PLANS.md` and source/evidence research in `NOTES
 ### Changed
 
 - Updated the About-page privacy disclosure for the identifier-free daily counters, GPC/DNT behavior, 90-day retention, and continued absence of accounts, advertising, third-party trackers, and application cookies.
+- Expanded the active Free-plan rate rule to `autocomplete and usage per IP`, covering `GET /autocomplete` and `POST /api/usage` in the single available rule slot at 10 requests per IP per 10 seconds with a 10-second block.
 
 ### Verified
 
 - The `v0.4.9` candidate passed pre-commit, 229 Python tests, 96 Node tests, the complete 54-case desktop/mobile Playwright suite, a real-SQLite migration smoke test, and a Wrangler Worker/Container dry-run.
+- Applied production D1 migration `0012_usage_evidence.sql` and verified the combined interaction-endpoint rate rule is active before deployment.
 - Passed pre-commit, 78 focused Python web tests, the complete 52-case desktop/mobile Playwright suite, and a Wrangler Worker/Container dry-run.
 - Deployed post-release `main` commit `e212841` on 2026-08-21 as Worker version `6aebc224-ee26-4be4-b7a1-a9add596f98a` with container image digest `sha256:f7e3b21ecabb44ced653c8c5c7ad263cfd8d64ce49495e76a865b4977111e985`. Production serves `summary_large_image` metadata, and the live 1200 x 630 PNG matches the committed asset byte for byte.
 
