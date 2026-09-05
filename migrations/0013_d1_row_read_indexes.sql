@@ -1,3 +1,13 @@
+DELETE FROM current_outage_records
+WHERE source_version <> (
+  SELECT MAX(source_version) FROM current_outage_records
+);
+
+DELETE FROM current_planned_interruptions
+WHERE source_version <> (
+  SELECT MAX(source_version) FROM current_planned_interruptions
+);
+
 CREATE INDEX IF NOT EXISTS idx_ingestion_runs_job_started_id
   ON ingestion_runs(job_name, started_at DESC, id DESC);
 

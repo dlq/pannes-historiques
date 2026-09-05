@@ -180,6 +180,7 @@ test("scheduled archive backfill does not refresh the large summary every run", 
   assert.doesNotMatch(scheduledHandler, /cleanupGeocodeCache/);
   assert.doesNotMatch(scheduledHandler, /cleanupUsageEvidence/);
   assert.match(maintenanceHandler, /cleanupIngestionRuns/);
+  assert.match(maintenanceHandler, /cleanupDerivedHydroFeedHistory/);
   assert.match(maintenanceHandler, /cleanupGeocodeCache/);
   assert.match(maintenanceHandler, /cleanupUsageEvidence/);
   assert.match(maintenanceHandler, /shouldRunDailyMaintenance/);
@@ -193,6 +194,21 @@ test("scheduled archive backfill does not refresh the large summary every run", 
     "steady-state runs with no new polygons must not read all admin territories",
   );
   assert.match(source, /MUNICIPAL_ARCHIVE_SUMMARY_REFRESH_MS = 24 \* 60 \* 60 \* 1000/);
+});
+
+test("hourly maintenance prunes derived current feed history only", () => {
+  const source = readFileSync(new URL("../src/worker.js", import.meta.url), "utf8");
+  const cleanup = source.slice(
+    source.indexOf("async function cleanupDerivedHydroFeedHistory"),
+    source.indexOf("async function cleanupGeocodeCache"),
+  );
+
+  assert.match(cleanup, /current_outage_records/);
+  assert.match(cleanup, /current_planned_interruptions/);
+  assert.match(cleanup, /MAX\(source_version\)/);
+  assert.doesNotMatch(cleanup, /hydro_snapshots/);
+  assert.doesNotMatch(cleanup, /hydro_polygon_geometries/);
+  assert.doesNotMatch(cleanup, /RAW_BUCKET/);
 });
 
 test("runtime map context is materialized instead of rebuilt on every public request", () => {

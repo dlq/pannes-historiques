@@ -58,6 +58,7 @@ Decision for `v0.4.3`: use option 2, with Worker-first durable reads. It preserv
    - Add max runtime, retry/backoff, and resume cursors for long parser jobs.
    - Run normal Hydro ingestion on Hydro-Quebec's documented 15-minute source cadence only after the no-work path is guarded by indexed version/run lookups and request-path archive reads remain materialized.
    - Keep source-freshness work, hourly maintenance, daily retention cleanup, and biweekly disclosure parsing on separate scheduled cadences.
+   - Keep raw Hydro API payloads and snapshot provenance in R2/D1 metadata, but prune old derived current/planned marker rows from D1; those rows are reconstructable from R2 and public current-feed APIs read only the latest source version.
    - Incrementally bin only newly resolved outage sightings where possible; public requests must read stored summaries and scheduled work should refresh the global archive summary at most daily unless explicitly invoked.
    - Serve map-context and status-like payloads from keyed runtime summaries when possible; rebuild from disclosure/current-feed tables during scheduled syncs or a one-time fallback, not on every public request.
 

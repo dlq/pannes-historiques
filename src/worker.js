@@ -167,6 +167,7 @@ async function runMaintenanceSchedule(env) {
   const run = await recordRunStarted(env.DB, "maintenance", started);
   const summary = {
     archive_health: null,
+    derived_hydro_feed_history: null,
     municipal_archive: null,
     geocode_cache: null,
     usage_evidence: null,
@@ -179,6 +180,16 @@ async function runMaintenanceSchedule(env) {
     summary.archive_health = { error: String(error?.stack || error) };
     summary.errors.push({ step: "archive_health", error: String(error?.stack || error) });
     console.error("Archive-health cleanup failed", summary.archive_health);
+  }
+  try {
+    summary.derived_hydro_feed_history = await cleanupDerivedHydroFeedHistory(env.DB);
+  } catch (error) {
+    summary.derived_hydro_feed_history = { error: String(error?.stack || error) };
+    summary.errors.push({
+      step: "derived_hydro_feed_history",
+      error: String(error?.stack || error),
+    });
+    console.error("Derived Hydro feed cleanup failed", summary.derived_hydro_feed_history);
   }
   try {
     summary.municipal_archive = await runMunicipalArchiveBackfill(env, {
@@ -1595,6 +1606,28 @@ async function cleanupIngestionRuns(db, now = new Date()) {
     stale_run_before: staleRunBefore,
     retain_runs_after: retainRunsAfter,
   };
+}
+
+async function cleanupDerivedHydroFeedHistory(db) {
+  const [outages, planned] = await Promise.all([
+    pruneTableToLatestVersion(db, "current_outage_records"),
+    pruneTableToLatestVersion(db, "current_planned_interruptions"),
+  ]);
+  return { outages, planned };
+}
+
+async function pruneTableToLatestVersion(db, tableName) {
+  const deleted = await db
+    .prepare(
+      `
+      DELETE FROM ${tableName}
+      WHERE source_version <> (
+        SELECT MAX(source_version) FROM ${tableName}
+      )
+      `,
+    )
+    .run();
+  return { deleted: deleted.meta?.changes || 0 };
 }
 
 async function cleanupGeocodeCache(db, now = new Date()) {
