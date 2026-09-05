@@ -6,9 +6,9 @@
 // Nothing was watching, because the only health surface was token-protected and
 // pull-based. These thresholds decide when that situation is an incident.
 
-// The Hydro cron runs every 30 minutes. Three hours tolerates a transient
-// upstream outage or a couple of missed runs without crying wolf, while still
-// catching a real stall long before it becomes days.
+// Hydro-Quebec documents a 15-minute source update cadence. Three hours
+// tolerates a transient upstream outage or several missed runs without crying
+// wolf, while still catching a real stall long before it becomes days.
 export const INGESTION_STALE_AFTER_MINUTES = 180;
 
 // One failed run is noise -- upstream hiccups happen. A sustained streak is a

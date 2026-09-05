@@ -56,9 +56,11 @@ Include these after a deploy:
 
 ## Ingestion Monitoring And Archive Health
 
-`GET /api/health/ingestion` is public, exposes ingestion freshness facts, and returns `503` when the latest Hydro snapshot is stale or the recent failure streak is sustained. The `Ingestion health monitor` GitHub Actions workflow polls it at minute 17 and 47 of every hour; a failing run is the alert signal.
+`GET /api/health/ingestion` is public, exposes ingestion freshness facts, and returns `503` when the latest Hydro snapshot is stale or the recent failure streak is sustained. Hydro ingestion follows Hydro-Quebec's documented 15-minute source cadence. A separate Worker maintenance cron runs hourly, and the `Ingestion health monitor` GitHub Actions workflow polls the public health endpoint at minute 17 of every hour; either failing signal is actionable.
 
-It also returns `503` when the materialized archive summary is stale or contradicts itself. The stored source cursor must match the current archive cursor; a missing summary for a non-empty archive or a mismatch is rebuilt on the next Archive request and remains alertable until then. Coherence checks cover a shorter window exceeding the longer one containing it, a territory holding more outages than the whole year, or a largest single outage above the year's cumulative total. Those checks run against the summary actually being served, not a freshly built one. A failure here is a data-plane fault: ingestion may be perfectly current while the Archive report is stale or shows impossible figures. Read the `problems` array to tell the conditions apart.
+It also returns `503` when the materialized archive summary is stale or contradicts itself. The stored source cursor must match the latest archive backfill cursor; a missing summary for a non-empty archive or a mismatch remains alertable until scheduled materialization refreshes the stored summary. Public Archive requests must not rebuild the summary from the large archive-bin tables. Coherence checks cover a shorter window exceeding the longer one containing it, a territory holding more outages than the whole year, or a largest single outage above the year's cumulative total. Those checks run against the summary actually being served, not a freshly built one. A failure here is a data-plane fault: ingestion may be perfectly current while the Archive report is stale or shows impossible figures. Read the `problems` array to tell the conditions apart.
+
+`GET /api/durable/runtime/map-context` serves the `map_context` runtime summary when it exists. Disclosure sync refreshes that summary after D1 disclosure writes; the relational map-context builder is a fallback and explicit refresh path, not the normal public request path.
 
 For the private archive audit, use an operation token to query:
 
@@ -69,7 +71,7 @@ curl -fsS -H "X-Pannes-Operation-Token: $PANNES_OPERATION_TOKEN" \
 
 The response distinguishes polygons with a municipal assignment, overlap-only polygons, polygons outside all administrative-territory bounding boxes, and polygons that intersect a territory bounding box but have no assignment. The latter require backfill or geometry review.
 
-The normal Hydro schedule expires `ingestion_runs` left in `running` for more than three hours and purges terminal run records older than 30 days. It does not delete raw R2 inputs, D1 geometry, municipal archive bins, or resolved-event history. See [ADR 0005](adr/0005-d1-archive-retention-and-compaction.md).
+The hourly Worker maintenance schedule expires `ingestion_runs` left in `running` for more than three hours and purges terminal run records older than 30 days. It checks municipal archive backfill progress hourly. Usage-evidence and geocode-cache retention cleanup are gated to run at most once per day. Maintenance does not delete raw R2 inputs, D1 geometry, municipal archive bins, or resolved-event history. See [ADR 0005](adr/0005-d1-archive-retention-and-compaction.md).
 
 Before deploying a Worker release that includes a D1 migration, apply only the reviewed migration file or files introduced by that release, then run the Worker deployment. Record the migration identifiers in the release evidence. Do not re-run an already-applied historical migration such as `0011_archive_health_indexes.sql`:
 
@@ -79,7 +81,7 @@ npx wrangler d1 execute pannes-historiques --remote --file migrations/NNNN_descr
 
 ## Private Usage Evidence
 
-The browser sends only allowlisted `feature` and `action` pairs to `POST /api/usage`. The Worker aggregates them directly into UTC daily rows and never persists raw events, addresses, queries, coordinates, IP addresses, user agents, identifiers, or fingerprints. Rows older than 90 days are deleted by the normal Hydro maintenance schedule.
+The browser sends only allowlisted `feature` and `action` pairs to `POST /api/usage`. The Worker aggregates them directly into UTC daily rows and never persists raw events, addresses, queries, coordinates, IP addresses, user agents, identifiers, or fingerprints. Rows older than 90 days are deleted by the daily-gated Worker maintenance cleanup.
 
 Read the private operational report with the operation token:
 

@@ -62,3 +62,42 @@ test("archive health migration indexes its scheduled cleanup and primary-bin que
   assert.match(migration, /idx_ingestion_runs_status_started/);
   assert.match(migration, /idx_previous_outage_territory_bins_assignment_polygon/);
 });
+
+test("row-read guardrails use 15-minute source schedules and targeted D1 indexes", async () => {
+  const wrangler = JSON.parse(
+    await readFile(new URL("../wrangler.jsonc", import.meta.url), "utf8"),
+  );
+  const healthWorkflow = await readFile(
+    new URL("../.github/workflows/ingestion-health.yml", import.meta.url),
+    "utf8",
+  );
+  const migration = await readFile(
+    new URL("../migrations/0013_d1_row_read_indexes.sql", import.meta.url),
+    "utf8",
+  );
+
+  assert.deepEqual(wrangler.triggers.crons, [
+    "7,22,37,52 * * * *",
+    "43 * * * *",
+    "13 10 */14 * *",
+  ]);
+  assert.match(healthWorkflow, /cron: "17 \* \* \* \*"/);
+  assert.doesNotMatch(healthWorkflow, /17,47/);
+  assert.match(migration, /idx_ingestion_runs_job_started_id/);
+  assert.match(migration, /idx_ingestion_runs_started_id/);
+  assert.match(migration, /idx_ingestion_runs_job_status_id/);
+  assert.match(migration, /idx_hydro_snapshots_fetched_at/);
+  assert.match(migration, /idx_hydro_polygon_geometries_archive_cursor/);
+  assert.match(migration, /idx_previous_outage_territory_bins_source_cursor/);
+  assert.match(migration, /idx_previous_outage_territory_bins_primary_time/);
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS runtime_summaries/);
+  assert.match(migration, /idx_resolved_events_outage_sort_time/);
+  assert.match(migration, /idx_previous_outage_territory_bins_largest/);
+  assert.match(migration, /idx_previous_outage_territory_bins_latest_dedupe/);
+  assert.match(migration, /idx_disclosure_sources_archive_due_priority/);
+  assert.match(migration, /idx_disclosure_sources_parse_due_priority/);
+  assert.match(migration, /idx_disclosure_events_sort_time/);
+  assert.match(migration, /idx_disclosure_metrics_region_order/);
+  assert.match(migration, /idx_disclosure_geometries_source_label/);
+  assert.match(migration, /idx_runtime_geocode_cache_updated_at/);
+});

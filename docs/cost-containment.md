@@ -56,12 +56,15 @@ Decision for `v0.4.3`: use option 2, with Worker-first durable reads. It preserv
 4. Keep cron/parser work bounded as ingestion evolves.
    - Split scheduled ingestion into resumable phases: version check, raw download to R2, parse, D1 write, summary/materialization update, and cleanup.
    - Add max runtime, retry/backoff, and resume cursors for long parser jobs.
-   - Incrementally bin only newly resolved outage sightings where possible instead of rebuilding global archive summaries on every run.
+   - Run normal Hydro ingestion on Hydro-Quebec's documented 15-minute source cadence only after the no-work path is guarded by indexed version/run lookups and request-path archive reads remain materialized.
+   - Keep source-freshness work, hourly maintenance, daily retention cleanup, and biweekly disclosure parsing on separate scheduled cadences.
+   - Incrementally bin only newly resolved outage sightings where possible; public requests must read stored summaries and scheduled work should refresh the global archive summary at most daily unless explicitly invoked.
+   - Serve map-context and status-like payloads from keyed runtime summaries when possible; rebuild from disclosure/current-feed tables during scheduled syncs or a one-time fallback, not on every public request.
 
 ## Operating The Guardrails
 
 - `X-Pannes-Runtime` and `Server-Timing` distinguish Worker/D1 from container responses in smoke checks and live-tail investigation.
-- `/api/ops/cost-health` is operation-token protected. It exposes live container state, the latest ingestion run, archive materialization state, table counts, and optional manually refreshed D1/R2 size estimates.
+- `/api/ops/cost-health` is operation-token protected. It exposes live container state, the latest ingestion run, archive materialization state, and optional manually refreshed D1/R2 size estimates. Routine table-count sweeps are disabled because `COUNT(*)` over large D1 tables can consume the same row-read budget the guardrail is meant to protect.
 - Keep `PANNES_LOW_COST_MODE=0` normally. Set it to `1` only to stop public container wakes during an incident; durable APIs remain available, while Flask-shell routes return `503` rather than claiming a partial browser experience is complete.
 - Once each month, record the Cloudflare dashboard's daily Durable Object/container usage, Worker request volume, D1 storage and operations, and R2 storage and operations. Reconcile any billed quantity against the applicable included allowance before treating it as a workload estimate. Refresh the optional size fields only with that dated check.
 - For the dated review, also record Worker request volume, representative public-read timings, route runtime markers, and the resulting decision: retain the hybrid shell or prioritize one named Worker/static migration. Store the evidence and decision in `NOTES.md`, not in this standing policy.

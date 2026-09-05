@@ -2,7 +2,7 @@ name: Ingestion health monitor
 
 on:
   schedule:
-    - cron: "17,47 * * * *"
+    - cron: "17 * * * *"
   workflow_dispatch:
 
 permissions:

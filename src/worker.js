@@ -19,6 +19,7 @@ import {
   durableHydroResponse,
   durableNearbyResponse,
   latestRows,
+  latestRowsForVersion,
   numberParam,
 } from "./durable-read-handlers.js";
 import { evaluateIngestionHealth } from "./ingestion-health.js";
@@ -39,6 +40,8 @@ import {
 } from "./usage-evidence.js";
 import { workerRouteForPath } from "./worker-routing.js";
 
+const HYDRO_CRONS = new Set(["7,22,37,52 * * * *"]);
+const MAINTENANCE_CRONS = new Set(["43 * * * *"]);
 const DISCLOSURE_CRONS = new Set(["0 10 */14 * *", "13 10 */14 * *"]);
 const DISCLOSURE_BATCH_SIZE = 1;
 const DISCLOSURE_RUN_BUDGET_MS = 90_000;
@@ -51,6 +54,7 @@ const ADMIN_TERRITORY_LAYER_URL =
 const ADMIN_TERRITORY_SOURCE_LAYER = "donnees_quebec_sda_municipalite";
 const ADMIN_TERRITORY_DISPLAY_MIN_WEIGHT = 0.00000002;
 const GEOCODE_CACHE_RETENTION_DAYS = 30;
+const MUNICIPAL_ARCHIVE_SUMMARY_REFRESH_MS = 24 * 60 * 60 * 1000;
 
 export default {
   async fetch(request, env) {
@@ -88,8 +92,12 @@ export default {
   async scheduled(controller, env, ctx) {
     if (DISCLOSURE_CRONS.has(controller.cron)) {
       ctx.waitUntil(runDisclosureSchedule(env));
-    } else {
+    } else if (MAINTENANCE_CRONS.has(controller.cron)) {
+      ctx.waitUntil(runMaintenanceSchedule(env));
+    } else if (HYDRO_CRONS.has(controller.cron)) {
       ctx.waitUntil(runHydroSchedule(env));
+    } else {
+      console.error("Unknown scheduled cron", controller.cron);
     }
   },
 };
@@ -137,42 +145,95 @@ async function runHydroSchedule(env) {
       ),
     };
     summary.d1 = await syncHydroFromContainerResult(env, summary.container);
-    summary.municipal_archive = await runMunicipalArchiveBackfill(env, { limit: 500 });
+    if (summary.d1.some((source) => source.source === "bis" && source.changed)) {
+      summary.municipal_archive = await runMunicipalArchiveBackfill(env, {
+        limit: 500,
+        preferStoredCursor: true,
+      });
+    } else {
+      summary.municipal_archive = { skipped: "hydro_bis_unchanged" };
+    }
   } catch (error) {
     summary.errors.push({ step: "container_hydro_sync", error: String(error?.stack || error) });
   }
+  const status = summary.errors.length ? "error" : "ok";
+  await storeRuntimeSummary(env.DB, "hydro_schedule", { status, ...summary }, started);
+  await recordRunFinished(env.DB, run.meta.last_row_id, status, summary);
+  if (summary.errors.length) console.error("Hydro schedule completed with errors", summary);
+}
+
+async function runMaintenanceSchedule(env) {
+  const started = new Date().toISOString();
+  const run = await recordRunStarted(env.DB, "maintenance", started);
+  const summary = {
+    archive_health: null,
+    municipal_archive: null,
+    geocode_cache: null,
+    usage_evidence: null,
+    ingestion_health: null,
+    errors: [],
+  };
   try {
     summary.archive_health = await cleanupIngestionRuns(env.DB);
   } catch (error) {
     summary.archive_health = { error: String(error?.stack || error) };
+    summary.errors.push({ step: "archive_health", error: String(error?.stack || error) });
     console.error("Archive-health cleanup failed", summary.archive_health);
   }
   try {
-    summary.geocode_cache = await cleanupGeocodeCache(env.DB);
+    summary.municipal_archive = await runMunicipalArchiveBackfill(env, {
+      limit: 500,
+      preferStoredCursor: true,
+    });
+  } catch (error) {
+    summary.municipal_archive = { error: String(error?.stack || error) };
+    summary.errors.push({ step: "municipal_archive", error: String(error?.stack || error) });
+    console.error("Municipal archive maintenance failed", summary.municipal_archive);
+  }
+  try {
+    if (await shouldRunDailyMaintenance(env.DB, "geocode_cache_last_cleanup_at", started)) {
+      summary.geocode_cache = await cleanupGeocodeCache(env.DB);
+      await setBuildState(env.DB, "geocode_cache_last_cleanup_at", started);
+    } else {
+      summary.geocode_cache = { skipped: "daily_cleanup_not_due" };
+    }
   } catch (error) {
     summary.geocode_cache = { error: String(error?.stack || error) };
+    summary.errors.push({ step: "geocode_cache", error: String(error?.stack || error) });
     console.error("Geocode-cache cleanup failed", summary.geocode_cache);
   }
   try {
-    summary.usage_evidence = await cleanupUsageEvidence(env.DB);
+    if (await shouldRunDailyMaintenance(env.DB, "usage_evidence_last_cleanup_at", started)) {
+      summary.usage_evidence = await cleanupUsageEvidence(env.DB);
+      await setBuildState(env.DB, "usage_evidence_last_cleanup_at", started);
+    } else {
+      summary.usage_evidence = { skipped: "daily_cleanup_not_due" };
+    }
   } catch (error) {
     summary.usage_evidence = { error: String(error?.stack || error) };
+    summary.errors.push({ step: "usage_evidence", error: String(error?.stack || error) });
     console.error("Usage-evidence cleanup failed", summary.usage_evidence);
   }
+  try {
+    summary.ingestion_health = await reportIngestionHealth(env);
+  } catch (error) {
+    summary.ingestion_health = { error: String(error?.stack || error) };
+    summary.errors.push({ step: "ingestion_health", error: String(error?.stack || error) });
+  }
   const status = summary.errors.length ? "error" : "ok";
+  await storeRuntimeSummary(env.DB, "maintenance_schedule", { status, ...summary }, started);
   await recordRunFinished(env.DB, run.meta.last_row_id, status, summary);
-  if (summary.errors.length) console.error("Hydro schedule completed with errors", summary);
-  await reportIngestionHealth(env);
+  if (summary.errors.length) console.error("Maintenance schedule completed with errors", summary);
 }
 
 // A single failed run is noise; a sustained stall is an incident. Evaluate the
 // same health the public probe reports and emit one structured, greppable line
 // so Cloudflare log filters / Logpush can alert on it. Ingestion previously
-// failed every 30 minutes for five days without surfacing anywhere.
+// failed on its scheduled cadence for five days without surfacing anywhere.
 async function reportIngestionHealth(env) {
   try {
     const health = await readIngestionHealth(env.DB);
-    if (health.healthy) return;
+    if (health.healthy) return health;
     console.error(
       "INGESTION_UNHEALTHY",
       JSON.stringify({
@@ -182,8 +243,10 @@ async function reportIngestionHealth(env) {
         last_successful_run: health.last_successful_run,
       }),
     );
+    return health;
   } catch (error) {
     console.error("INGESTION_HEALTH_CHECK_FAILED", String(error));
+    throw error;
   }
 }
 
@@ -263,6 +326,12 @@ async function syncHydroSourceFromContainer(env, sourceInfo, snapshots) {
     checkedAt,
   );
   await upsertFeedVersion(env.DB, source, version, checkedAt);
+  await storeRuntimeSummary(
+    env.DB,
+    `hydro_source:${source}`,
+    { source, version, records: count, polygons: polygonCount },
+    checkedAt,
+  );
   return { source, version, changed: true, records: count, polygons: polygonCount };
 }
 
@@ -767,7 +836,7 @@ async function syncDisclosures(env, payload) {
     syncDisclosureMetrics(env.DB, payload.metrics || [], syncedAt),
     syncDisclosureGeometries(env.DB, payload.geometries || [], syncedAt),
   ]);
-  return {
+  const summary = {
     sources: sourceResult.sources,
     source_files_archived: sourceResult.filesArchived,
     source_file_errors: sourceResult.fileErrors,
@@ -776,6 +845,9 @@ async function syncDisclosures(env, payload) {
     geometries,
     exported_counts: payload.counts || null,
   };
+  await storeRuntimeSummary(env.DB, "disclosure_sync", summary, syncedAt);
+  await refreshRuntimeMapContextSummary(env.DB, syncedAt);
+  return summary;
 }
 
 async function syncDisclosureSources(env, sources, syncedAt) {
@@ -1341,17 +1413,23 @@ async function upsertFeedVersion(db, source, version, checkedAt) {
 }
 
 async function durableStatusResponse(env) {
-  const versions = await env.DB.prepare("SELECT * FROM feed_versions").all();
-  const runs = await env.DB.prepare(
-    "SELECT * FROM ingestion_runs ORDER BY started_at DESC, id DESC LIMIT 10",
-  ).all();
-  const disclosures = await disclosureCounts(env.DB);
-  return jsonResponse({ versions: versions.results || [], runs: runs.results || [], disclosures });
+  const [versions, runs, disclosureSync, hydroSchedule] = await Promise.all([
+    env.DB.prepare("SELECT * FROM feed_versions").all(),
+    env.DB.prepare("SELECT * FROM ingestion_runs ORDER BY started_at DESC, id DESC LIMIT 10").all(),
+    readRuntimeSummary(env.DB, "disclosure_sync"),
+    readRuntimeSummary(env.DB, "hydro_schedule"),
+  ]);
+  return jsonResponse({
+    versions: versions.results || [],
+    runs: runs.results || [],
+    disclosures: disclosureSync?.summary || null,
+    hydro_schedule: hydroSchedule?.summary || null,
+  });
 }
 
 async function readIngestionHealth(db) {
   const [newest, lastOk, recent] = await Promise.all([
-    db.prepare("SELECT MAX(fetched_at) AS fetched_at FROM hydro_snapshots").first(),
+    db.prepare("SELECT fetched_at FROM hydro_snapshots ORDER BY fetched_at DESC LIMIT 1").first(),
     db
       .prepare(
         "SELECT started_at FROM ingestion_runs WHERE job_name = 'hydro_changed' AND status = 'ok' ORDER BY id DESC LIMIT 1",
@@ -1377,7 +1455,7 @@ async function readArchiveSummaryProblems(db) {
   try {
     const [stored, currentCursor] = await Promise.all([
       readStoredMunicipalArchiveSummary(db),
-      municipalArchiveCursor(db),
+      getBuildState(db, "municipal_archive_last_polygon_id"),
     ]);
     const freshnessProblem = archiveSummaryFreshnessProblem({
       hasSummary: Boolean(stored),
@@ -1433,7 +1511,7 @@ async function ingestionHealthResponse(env) {
 
 async function costHealthResponse(env) {
   const container = env.PANNES_CONTAINER.getByName(CONTAINER_INSTANCE_NAME);
-  const [containerState, latestRun, latestHydro, archiveState, tableCounts] = await Promise.all([
+  const [containerState, latestRun, latestHydro, archiveState] = await Promise.all([
     readContainerState(container),
     env.DB.prepare(
       "SELECT * FROM ingestion_runs ORDER BY started_at DESC, id DESC LIMIT 1",
@@ -1442,14 +1520,17 @@ async function costHealthResponse(env) {
       "SELECT * FROM ingestion_runs WHERE job_name = 'hydro_changed' ORDER BY started_at DESC, id DESC LIMIT 1",
     ).first(),
     readArchiveState(env.DB),
-    readCostHealthCounts(env.DB),
   ]);
   return jsonResponse({
     generated_at: new Date().toISOString(),
     low_cost_mode: isLowCostMode(env),
     container: containerState,
     ingestion: { latest_run: latestRun || null, latest_hydro_run: latestHydro || null },
-    d1: { table_counts: tableCounts, storage_bytes: numberEnv(env.PANNES_D1_SIZE_BYTES) },
+    d1: {
+      table_counts: null,
+      table_count_note: "disabled by default to avoid D1 full-table row-read scans",
+      storage_bytes: numberEnv(env.PANNES_D1_SIZE_BYTES),
+    },
     r2: {
       object_count: numberEnv(env.PANNES_R2_OBJECT_COUNT),
       storage_bytes: numberEnv(env.PANNES_R2_STORAGE_BYTES),
@@ -1483,27 +1564,6 @@ async function readArchiveState(db) {
   } catch (_error) {
     return {};
   }
-}
-
-async function readCostHealthCounts(db) {
-  const tables = [
-    "hydro_snapshots",
-    "current_outage_records",
-    "current_planned_interruptions",
-    "resolved_events",
-    "disclosure_sources",
-    "previous_outage_territory_bins",
-  ];
-  const counts = {};
-  for (const table of tables) {
-    try {
-      const row = await db.prepare(`SELECT COUNT(*) AS count FROM ${table}`).first();
-      counts[table] = row?.count || 0;
-    } catch (_error) {
-      counts[table] = null;
-    }
-  }
-  return counts;
 }
 
 async function cleanupIngestionRuns(db, now = new Date()) {
@@ -1551,25 +1611,6 @@ async function cleanupGeocodeCache(db, now = new Date()) {
 function numberEnv(value) {
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
-}
-
-async function disclosureCounts(db) {
-  const tables = [
-    "disclosure_sources",
-    "disclosure_outage_events",
-    "disclosure_annual_metrics",
-    "disclosure_geometries",
-  ];
-  const counts = {};
-  for (const table of tables) {
-    try {
-      const row = await db.prepare(`SELECT COUNT(*) AS count FROM ${table}`).first();
-      counts[table] = row?.count || 0;
-    } catch (_error) {
-      counts[table] = null;
-    }
-  }
-  return counts;
 }
 
 async function durableRuntimeResponse(request, env) {
@@ -1733,13 +1774,27 @@ async function runtimeMunicipalArchiveBackfillResponse(env, url) {
   return jsonResponse(await runMunicipalArchiveBackfill(env, { limit, afterId }));
 }
 
-async function runMunicipalArchiveBackfill(env, { limit = 100, afterId = null } = {}) {
+async function runMunicipalArchiveBackfill(
+  env,
+  { limit = 100, afterId = null, preferStoredCursor = false } = {},
+) {
   const boundedLimit = Math.trunc(clamp(limit, 1, 500));
-  const cursor = afterId || (await municipalArchiveCursor(env.DB));
-  const [territories, polygons] = await Promise.all([
-    adminTerritoryRows(env.DB),
-    hydroPolygonsForMunicipalArchive(env.DB, cursor, boundedLimit),
-  ]);
+  const cursor =
+    afterId ||
+    (preferStoredCursor
+      ? (await getBuildState(env.DB, "municipal_archive_last_polygon_id")) || ""
+      : await municipalArchiveCursor(env.DB));
+  const polygons = await hydroPolygonsForMunicipalArchive(env.DB, cursor, boundedLimit);
+  if (!polygons.length) {
+    return {
+      polygons_processed: 0,
+      assignments: 0,
+      last_polygon_id: cursor || "",
+      has_more: false,
+      summary_refreshed: false,
+    };
+  }
+  const territories = await adminTerritoryRows(env.DB);
   if (!territories.length) {
     return {
       skipped: "admin_territories_missing",
@@ -1768,12 +1823,16 @@ async function runMunicipalArchiveBackfill(env, { limit = 100, afterId = null } 
   if (lastPolygonId)
     await setBuildState(env.DB, "municipal_archive_last_polygon_id", lastPolygonId);
   await setBuildState(env.DB, "municipal_archive_last_backfill_at", updatedAt);
-  await refreshMunicipalArchiveSummary(env.DB, lastPolygonId || cursor || "");
+  const hasMore = polygons.length === boundedLimit;
+  const summaryRefreshed =
+    !hasMore && (await shouldRefreshMunicipalArchiveSummary(env.DB, updatedAt));
+  if (summaryRefreshed) await refreshMunicipalArchiveSummary(env.DB, lastPolygonId || cursor || "");
   return {
     polygons_processed: polygons.length,
     assignments: assignmentCount,
     last_polygon_id: lastPolygonId,
-    has_more: polygons.length === boundedLimit,
+    has_more: hasMore,
+    summary_refreshed: summaryRefreshed,
     updated_at: updatedAt,
   };
 }
@@ -2086,6 +2145,51 @@ async function setBuildState(db, key, value) {
     .run();
 }
 
+async function readRuntimeSummary(db, key) {
+  try {
+    const row = await db
+      .prepare(
+        `
+        SELECT summary_json, generated_at, updated_at
+        FROM runtime_summaries
+        WHERE summary_key = ?
+        `,
+      )
+      .bind(key)
+      .first();
+    if (!row) return null;
+    return {
+      summary: JSON.parse(row.summary_json),
+      generated_at: row.generated_at,
+      updated_at: row.updated_at,
+    };
+  } catch (_error) {
+    return null;
+  }
+}
+
+async function storeRuntimeSummary(db, key, summary, generatedAt = new Date().toISOString()) {
+  const updatedAt = new Date().toISOString();
+  try {
+    await db
+      .prepare(
+        `
+        INSERT INTO runtime_summaries (summary_key, summary_json, generated_at, updated_at)
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT(summary_key) DO UPDATE SET
+          summary_json = excluded.summary_json,
+          generated_at = excluded.generated_at,
+          updated_at = excluded.updated_at
+        `,
+      )
+      .bind(key, JSON.stringify(summary), generatedAt, updatedAt)
+      .run();
+    return true;
+  } catch (_error) {
+    return false;
+  }
+}
+
 function hydroVersionTimestamp(version) {
   const value = String(version || "");
   if (!/^\d{14}$/.test(value)) return null;
@@ -2339,8 +2443,10 @@ async function runtimeOperationalMapLayersResponse(env, url) {
   const versions = await env.DB.prepare("SELECT * FROM feed_versions").all();
   const versionMap = new Map((versions.results || []).map((row) => [row.source, row.version]));
   const [outageRows, plannedRows, outageGeometries, plannedGeometries] = await Promise.all([
-    latestRows(env.DB, "bis", "current_outage_records"),
-    includePlanned ? latestRows(env.DB, "aip", "current_planned_interruptions") : [],
+    latestRowsForVersion(env.DB, "current_outage_records", versionMap.get("bis")),
+    includePlanned
+      ? latestRowsForVersion(env.DB, "current_planned_interruptions", versionMap.get("aip"))
+      : [],
     hydroGeometryRows(env.DB, "bispoly", [versionMap.get("bis")]),
     includePlanned ? hydroGeometryRows(env.DB, "aippoly", [versionMap.get("aip")]) : [],
   ]);
@@ -2396,116 +2502,68 @@ async function runtimePreviousMapLayersResponse(env, url) {
 }
 
 async function runtimePreviousArchiveSummaryResponse(env) {
-  const primaryBinCount = await countRows(
-    env.DB,
-    "previous_outage_territory_bins",
-    "assignment_type = 'primary'",
-  );
-  if (primaryBinCount > 0) return runtimeMunicipalPreviousArchiveSummaryResponse(env);
-
-  const currentRows = await latestRows(env.DB, "bis", "current_outage_records");
-  const currentKeys = new Set(
-    currentRows.map((row) =>
-      eventKey(
-        "outage",
-        row.municipality_code,
-        row.centroid_lat,
-        row.centroid_lon,
-        row.interruption_type,
-        row.outage_start_time,
-      ),
-    ),
-  );
-  const cutoff24h = sqlTimestampHoursAgo(24);
-  const cutoff7d = sqlTimestampDaysAgo(7);
-  const cutoff30d = sqlTimestampDaysAgo(30);
-  const cutoff1y = sqlTimestampDaysAgo(365);
-  const result = await env.DB.prepare(
-    `
-    SELECT *,
-           COALESCE(start_time, last_seen_at, updated_at) AS sort_time
-    FROM resolved_events
-    WHERE outage_kind = 'outage'
-      AND centroid_lat IS NOT NULL
-      AND centroid_lon IS NOT NULL
-      AND COALESCE(start_time, last_seen_at, updated_at, '') >= ?
-    ORDER BY sort_time DESC
-    `,
-  )
-    .bind(cutoff1y)
-    .all();
-  const items = (result.results || [])
-    .filter((row) => !currentKeys.has(row.event_key))
-    .map(previousArchiveItem);
-  return jsonResponse({
-    windows: [
-      previousArchiveWindow(items, "previous_archive_last_24h", cutoff24h),
-      previousArchiveWindow(items, "previous_archive_last_7d", cutoff7d),
-      previousArchiveWindow(items, "previous_archive_last_30d", cutoff30d),
-      previousArchiveWindow(items, "previous_archive_last_1y", cutoff1y),
-    ],
-    largest: previousArchiveLargest(items),
-    latest: items.slice(0, 20).map((item) => ({
-      key: "previous_archive_latest",
-      startTime: item.startTime,
-      customersAffected: item.customersAffected,
-      centroidLat: item.centroidLat,
-      centroidLon: item.centroidLon,
-    })),
-  });
-}
-
-function previousArchiveItem(row) {
-  return {
-    startTime: row.sort_time || row.start_time || row.last_seen_at || row.updated_at || "",
-    customersAffected: Number(row.customers_max || 0),
-    centroidLat: row.centroid_lat,
-    centroidLon: row.centroid_lon,
-  };
-}
-
-function previousArchiveWindow(items, key, cutoff) {
-  const windowItems = items.filter((item) => item.startTime >= cutoff);
-  return archiveWindow(key, {
-    outages: windowItems.length,
-    totalCustomers: windowItems.reduce((total, item) => total + item.customersAffected, 0),
-  });
-}
-
-function previousArchiveLargest(items) {
-  let largest = null;
-  for (const item of items) {
-    if (!largest || item.customersAffected > largest.customersAffected) largest = item;
-  }
-  if (!largest) return null;
-  return {
-    key: "previous_archive_largest",
-    startTime: largest.startTime,
-    customersAffected: largest.customersAffected,
-  };
+  return runtimeMunicipalPreviousArchiveSummaryResponse(env);
 }
 
 async function runtimeMunicipalPreviousArchiveSummaryResponse(env) {
   const [stored, currentCursor] = await Promise.all([
     readStoredMunicipalArchiveSummary(env.DB),
-    municipalArchiveCursor(env.DB),
+    getBuildState(env.DB, "municipal_archive_last_polygon_id"),
   ]);
   const freshnessProblem = archiveSummaryFreshnessProblem({
     hasSummary: Boolean(stored),
     storedCursor: stored?.sourceCursor || "",
     currentCursor,
   });
-  if (stored && !freshnessProblem) return jsonResponse(stored.summary);
+  if (stored) {
+    const summary = freshnessProblem
+      ? { ...stored.summary, stale: true, staleReason: freshnessProblem }
+      : stored.summary;
+    return jsonResponse(summary);
+  }
 
-  const summary = await buildMunicipalArchiveSummary(env.DB);
-  await storeMunicipalArchiveSummary(env.DB, summary, currentCursor);
-  return jsonResponse(summary);
+  return jsonResponse(emptyMunicipalArchiveSummary(freshnessProblem), {
+    status: freshnessProblem ? 503 : 200,
+  });
 }
 
 async function refreshMunicipalArchiveSummary(db, sourceCursor = "") {
   const summary = await buildMunicipalArchiveSummary(db);
   await storeMunicipalArchiveSummary(db, summary, sourceCursor);
+  await setBuildState(db, "municipal_archive_summary_refreshed_at", summary.generatedAt);
   return summary;
+}
+
+async function shouldRefreshMunicipalArchiveSummary(db, nowIso) {
+  const refreshedAt = await getBuildState(db, "municipal_archive_summary_refreshed_at");
+  if (!refreshedAt) return true;
+  const elapsedMs = Date.parse(nowIso) - Date.parse(refreshedAt);
+  return !Number.isFinite(elapsedMs) || elapsedMs >= MUNICIPAL_ARCHIVE_SUMMARY_REFRESH_MS;
+}
+
+async function shouldRunDailyMaintenance(db, stateKey, nowIso) {
+  const lastRunAt = await getBuildState(db, stateKey);
+  if (!lastRunAt) return true;
+  const elapsedMs = Date.parse(nowIso) - Date.parse(lastRunAt);
+  return !Number.isFinite(elapsedMs) || elapsedMs >= 24 * 60 * 60 * 1000;
+}
+
+function emptyMunicipalArchiveSummary(reason = null) {
+  return {
+    mode: "municipal_archive",
+    generatedAt: new Date().toISOString(),
+    windows: [
+      archiveWindow("previous_archive_last_24h", { outages: 0, totalCustomers: 0 }),
+      archiveWindow("previous_archive_last_7d", { outages: 0, totalCustomers: 0 }),
+      archiveWindow("previous_archive_last_30d", { outages: 0, totalCustomers: 0 }),
+      archiveWindow("previous_archive_last_1y", { outages: 0, totalCustomers: 0 }),
+    ],
+    largest: null,
+    latest: [],
+    territories: [],
+    unavailable: true,
+    unavailableReason: reason || "archive summary is not materialized",
+  };
 }
 
 async function storeMunicipalArchiveSummary(db, summary, sourceCursor = "") {
@@ -2875,18 +2933,28 @@ function assignedHydroGeometry(row, geometriesByVersion) {
 }
 
 async function runtimeStatusResponse(env) {
-  const versions = await env.DB.prepare("SELECT * FROM feed_versions").all();
-  const snapshots = await env.DB.prepare("SELECT COUNT(*) AS count FROM hydro_snapshots").first();
-  const latest = await env.DB.prepare(
-    "SELECT source_type, source_version, fetched_at FROM hydro_snapshots ORDER BY fetched_at DESC LIMIT 1",
-  ).first();
-  const earliest = await env.DB.prepare(
-    "SELECT source_type, source_version, fetched_at FROM hydro_snapshots ORDER BY fetched_at ASC LIMIT 1",
-  ).first();
-  const coverage = await durableCoverage(env.DB);
+  const [versions, latest, earliest, outageSource, plannedSource, disclosureSync] =
+    await Promise.all([
+      env.DB.prepare("SELECT * FROM feed_versions").all(),
+      env.DB.prepare(
+        "SELECT source_type, source_version, fetched_at FROM hydro_snapshots ORDER BY fetched_at DESC LIMIT 1",
+      ).first(),
+      env.DB.prepare(
+        "SELECT source_type, source_version, fetched_at FROM hydro_snapshots ORDER BY fetched_at ASC LIMIT 1",
+      ).first(),
+      readRuntimeSummary(env.DB, "hydro_source:bis"),
+      readRuntimeSummary(env.DB, "hydro_source:aip"),
+      readRuntimeSummary(env.DB, "disclosure_sync"),
+    ]);
+  const coverage = durableCoverageFromSummaries(
+    outageSource?.summary,
+    plannedSource?.summary,
+    disclosureSync?.summary,
+  );
   return jsonResponse({
     collector: {
-      snapshot_count: snapshots?.count || 0,
+      snapshot_count: null,
+      snapshot_count_note: "disabled by default to avoid D1 full-table row-read scans",
       latest: latest || null,
       earliest: earliest || null,
     },
@@ -2895,53 +2963,39 @@ async function runtimeStatusResponse(env) {
   });
 }
 
-async function durableCoverage(db) {
-  const outage = await db.prepare("SELECT COUNT(*) AS count FROM current_outage_records").first();
-  const planned = await db
-    .prepare("SELECT COUNT(*) AS count FROM current_planned_interruptions")
-    .first();
-  const events = await db.prepare("SELECT COUNT(*) AS count FROM resolved_events").first();
-  const geometries = await db
-    .prepare("SELECT COUNT(*) AS count FROM hydro_polygon_geometries")
-    .first();
-  const sources = await db.prepare("SELECT COUNT(*) AS count FROM disclosure_sources").first();
-  const disclosureEvents = await db
-    .prepare("SELECT COUNT(*) AS count FROM disclosure_outage_events")
-    .first();
-  const metrics = await db
-    .prepare("SELECT COUNT(*) AS count FROM disclosure_annual_metrics")
-    .first();
-  const outageRange = await db
-    .prepare(
-      "SELECT MIN(outage_start_time) AS min_time, MAX(outage_start_time) AS max_time FROM current_outage_records",
-    )
-    .first();
-  const plannedRange = await db
-    .prepare(
-      "SELECT MIN(scheduled_start) AS min_time, MAX(scheduled_start) AS max_time FROM current_planned_interruptions",
-    )
-    .first();
+function durableCoverageFromSummaries(outage = null, planned = null, disclosureSync = null) {
   return {
-    outage_count: outage?.count || 0,
-    planned_count: planned?.count || 0,
-    event_count: events?.count || 0,
-    geometry_count: geometries?.count || 0,
-    outage_min_time: outageRange?.min_time || null,
-    outage_max_time: outageRange?.max_time || null,
-    planned_min_time: plannedRange?.min_time || null,
-    planned_max_time: plannedRange?.max_time || null,
-    disclosure_source_count: sources?.count || 0,
-    disclosure_event_count: disclosureEvents?.count || 0,
-    disclosure_metric_count: metrics?.count || 0,
+    outage_count: outage?.records ?? null,
+    planned_count: planned?.records ?? null,
+    event_count: null,
+    geometry_count:
+      outage?.polygons == null && planned?.polygons == null
+        ? null
+        : Number(outage?.polygons || 0) + Number(planned?.polygons || 0),
+    outage_min_time: null,
+    outage_max_time: null,
+    planned_min_time: null,
+    planned_max_time: null,
+    disclosure_source_count: disclosureSync?.sources ?? null,
+    disclosure_event_count: disclosureSync?.events ?? null,
+    disclosure_metric_count: disclosureSync?.metrics ?? null,
   };
 }
 
 async function runtimeMapContextResponse(env) {
+  const stored = await readRuntimeSummary(env.DB, "map_context");
+  if (stored) return jsonResponse(stored.summary);
+  return jsonResponse(await refreshRuntimeMapContextSummary(env.DB));
+}
+
+async function refreshRuntimeMapContextSummary(db, generatedAt = new Date().toISOString()) {
   const [regional, disclosure] = await Promise.all([
-    runtimeRegionalMetricLayers(env.DB),
-    runtimeDisclosureLayers(env.DB),
+    runtimeRegionalMetricLayers(db),
+    runtimeDisclosureLayers(db),
   ]);
-  return jsonResponse({ regional_metric_layers: regional, disclosure_layers: disclosure });
+  const summary = { regional_metric_layers: regional, disclosure_layers: disclosure };
+  await storeRuntimeSummary(db, "map_context", summary, generatedAt);
+  return summary;
 }
 
 async function runtimeRegionalMetricLayers(db) {

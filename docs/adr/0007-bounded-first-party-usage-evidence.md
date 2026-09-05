@@ -15,7 +15,7 @@ The browser sends only `feature` and `action` to a fixed same-origin endpoint wi
 
 The Worker validates the feature/action pair and immediately increments one UTC daily D1 aggregate. Events with an explicit same-origin interaction signal and a non-automated user agent increment `human_interaction_count`; obvious automation or events without that signal increment `non_human_count`. These labels are operational classifications, not proof of identity. Counts describe interactions, never people or unique visitors. A Cloudflare edge rule limits writes per IP before D1; the application does not write that IP to the usage tables.
 
-Daily aggregates retain for 90 rolling days. A separate daily status heartbeat distinguishes zero observed interactions from unavailable collection, without recording a visitor or event. The existing half-hourly maintenance schedule marks collection active and deletes older rows. Aggregate data is available only through a token-protected operational readout; the public collection endpoint is write-only and returns no counts.
+Daily aggregates retain for 90 rolling days. A separate daily status heartbeat distinguishes zero observed interactions from unavailable collection, without recording a visitor or event. The scheduled maintenance path is gated to mark collection active and delete older rows at most once per day. Aggregate data is available only through a token-protected operational readout; the public collection endpoint is write-only and returns no counts.
 
 ## Consequences
 

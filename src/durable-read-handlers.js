@@ -1,7 +1,10 @@
 export async function durableHydroResponse(env) {
   const versions = await env.DB.prepare("SELECT * FROM feed_versions").all();
-  const outages = await latestRows(env.DB, "bis", "current_outage_records");
-  const planned = await latestRows(env.DB, "aip", "current_planned_interruptions");
+  const versionMap = feedVersionMap(versions.results || []);
+  const [outages, planned] = await Promise.all([
+    latestRowsForVersion(env.DB, "current_outage_records", versionMap.get("bis")),
+    latestRowsForVersion(env.DB, "current_planned_interruptions", versionMap.get("aip")),
+  ]);
   return jsonResponse({ versions: versions.results || [], outages, planned });
 }
 
@@ -17,7 +20,7 @@ export async function durableNearbyResponse(request, env) {
   const includeRaw = url.searchParams.get("include_raw") === "1";
   const bbox = boundingBox(latitude, longitude, radiusM);
   const versions = await env.DB.prepare("SELECT * FROM feed_versions").all();
-  const versionMap = new Map((versions.results || []).map((row) => [row.source, row.version]));
+  const versionMap = feedVersionMap(versions.results || []);
   const [outageRows, plannedRows] = await Promise.all([
     nearbyOutageRows(env.DB, versionMap.get("bis"), bbox),
     nearbyPlannedRows(env.DB, versionMap.get("aip"), bbox),
@@ -72,12 +75,20 @@ export async function latestRows(db, source, tableName) {
     .prepare("SELECT version FROM feed_versions WHERE source = ?")
     .bind(source)
     .first();
+  return latestRowsForVersion(db, tableName, version?.version);
+}
+
+export async function latestRowsForVersion(db, tableName, version) {
   if (!version) return [];
   const result = await db
     .prepare(`SELECT * FROM ${tableName} WHERE source_version = ? ORDER BY record_index`)
-    .bind(version.version)
+    .bind(version)
     .all();
   return result.results || [];
+}
+
+function feedVersionMap(rows) {
+  return new Map((rows || []).map((row) => [row.source, row.version]));
 }
 
 export function clamp(value, min, max) {

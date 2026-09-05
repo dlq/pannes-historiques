@@ -48,7 +48,8 @@ The interface is one full-bleed MapLibre GL v6 map (OpenFreeMap Liberty vector s
 - `src/municipal-archive.js` owns pure municipal geometry helpers shared by Worker code and maintenance scripts.
 - `src/archive-summary.js` owns pure helpers for the previous-outage archive summary: row shaping, the stored-payload shape guard that turns an unrecognised summary into a cache miss, and the coherence checks that compare a summary's figures against each other.
 - `src/container-proxy.js` owns forwarding browser requests from the Worker to the Cloudflare Container instance.
-- `/api/ops/cost-health` reports the live container state, latest scheduled ingestion, archive materialization state, D1 table counts, and optional dashboard-measured D1/R2 size values. It is private; configure `PANNES_D1_SIZE_BYTES`, `PANNES_R2_OBJECT_COUNT`, and `PANNES_R2_STORAGE_BYTES` only from a dated dashboard check.
+- `/api/ops/cost-health` reports the live container state, latest scheduled ingestion, archive materialization state, and optional dashboard-measured D1/R2 size values. Routine D1 table counts are omitted to avoid full-table row-read scans during cost incidents. Configure `PANNES_D1_SIZE_BYTES`, `PANNES_R2_OBJECT_COUNT`, and `PANNES_R2_STORAGE_BYTES` only from a dated dashboard check.
+- `runtime_summaries` stores keyed JSON summaries for request-path payloads and diagnostics that would otherwise rebuild from multiple D1 tables. `map_context`, `hydro_source:*`, `hydro_schedule`, `maintenance_schedule`, and `disclosure_sync` are the first intended keys.
 - `scripts/maintenance/` owns one-off or operator-driven maintenance scripts.
 
 ## Enforced Module Boundaries

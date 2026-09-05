@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import {
+  durableHydroResponse,
   durableHistoryNearbyResponse,
   durableNearbyResponse,
 } from "../src/durable-read-handlers.js";
@@ -34,6 +35,32 @@ test("durable nearby response validates coordinates before querying D1", async (
   assert.deepEqual(await response.json(), {
     error: "lat and lon query parameters are required",
   });
+});
+
+test("durable hydro response reuses one feed version read", async () => {
+  const queries = [];
+  const db = {
+    prepare(sql) {
+      queries.push(sql);
+      if (sql === "SELECT * FROM feed_versions") {
+        return statement({
+          results: [
+            { source: "bis", version: "bis-1" },
+            { source: "aip", version: "aip-1" },
+          ],
+        });
+      }
+      if (sql.includes("current_outage_records")) return statement({ results: [] });
+      if (sql.includes("current_planned_interruptions")) return statement({ results: [] });
+      throw new Error(`unexpected query: ${sql}`);
+    },
+  };
+
+  const response = await durableHydroResponse({ DB: db });
+
+  assert.equal(response.status, 200);
+  assert.equal(queries.filter((query) => query.includes("feed_versions")).length, 1);
+  assert.doesNotMatch(queries.join("\n"), /SELECT version FROM feed_versions/);
 });
 
 test("durable nearby response returns a bounded, distance-sorted public payload", async () => {

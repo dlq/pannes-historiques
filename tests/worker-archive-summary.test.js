@@ -145,6 +145,93 @@ test("a materialized summary is usable only at its current archive cursor", () =
   );
 });
 
+test("public archive summary reads materialized state instead of rebuilding on demand", () => {
+  const source = readFileSync(new URL("../src/worker.js", import.meta.url), "utf8");
+  const publicHandler = source.slice(
+    source.indexOf("async function runtimePreviousArchiveSummaryResponse"),
+    source.indexOf("async function refreshMunicipalArchiveSummary"),
+  );
+
+  assert.match(publicHandler, /readStoredMunicipalArchiveSummary/);
+  assert.match(publicHandler, /emptyMunicipalArchiveSummary/);
+  assert.doesNotMatch(publicHandler, /buildMunicipalArchiveSummary/);
+  assert.doesNotMatch(publicHandler, /countRows\(/);
+  assert.doesNotMatch(publicHandler, /municipalArchiveCursor/);
+});
+
+test("scheduled archive backfill does not refresh the large summary every run", () => {
+  const source = readFileSync(new URL("../src/worker.js", import.meta.url), "utf8");
+  const scheduledHandler = source.slice(
+    source.indexOf("async function runHydroSchedule"),
+    source.indexOf("async function runMaintenanceSchedule"),
+  );
+  const maintenanceHandler = source.slice(
+    source.indexOf("async function runMaintenanceSchedule"),
+    source.indexOf("async function reportIngestionHealth"),
+  );
+  const backfillHandler = source.slice(
+    source.indexOf("async function runMunicipalArchiveBackfill"),
+    source.indexOf("async function runtimeMunicipalArchiveStatusResponse"),
+  );
+
+  assert.match(scheduledHandler, /preferStoredCursor: true/);
+  assert.match(scheduledHandler, /hydro_bis_unchanged/);
+  assert.doesNotMatch(scheduledHandler, /cleanupIngestionRuns/);
+  assert.doesNotMatch(scheduledHandler, /cleanupGeocodeCache/);
+  assert.doesNotMatch(scheduledHandler, /cleanupUsageEvidence/);
+  assert.match(maintenanceHandler, /cleanupIngestionRuns/);
+  assert.match(maintenanceHandler, /cleanupGeocodeCache/);
+  assert.match(maintenanceHandler, /cleanupUsageEvidence/);
+  assert.match(maintenanceHandler, /shouldRunDailyMaintenance/);
+  assert.match(maintenanceHandler, /reportIngestionHealth/);
+  assert.match(backfillHandler, /if \(!polygons\.length\)/);
+  assert.match(backfillHandler, /summary_refreshed: false/);
+  assert.match(backfillHandler, /shouldRefreshMunicipalArchiveSummary/);
+  assert.ok(
+    backfillHandler.indexOf("if (!polygons.length)") <
+      backfillHandler.indexOf("const territories = await adminTerritoryRows"),
+    "steady-state runs with no new polygons must not read all admin territories",
+  );
+  assert.match(source, /MUNICIPAL_ARCHIVE_SUMMARY_REFRESH_MS = 24 \* 60 \* 60 \* 1000/);
+});
+
+test("runtime map context is materialized instead of rebuilt on every public request", () => {
+  const source = readFileSync(new URL("../src/worker.js", import.meta.url), "utf8");
+  const publicHandler = source.slice(
+    source.indexOf("async function runtimeMapContextResponse"),
+    source.indexOf("async function runtimeRegionalMetricLayers"),
+  );
+
+  assert.match(publicHandler, /readRuntimeSummary\(env\.DB, "map_context"\)/);
+  assert.match(publicHandler, /refreshRuntimeMapContextSummary/);
+  assert.doesNotMatch(publicHandler, /runtimeRegionalMetricLayers\(env\.DB\)/);
+  assert.doesNotMatch(publicHandler, /runtimeDisclosureLayers\(env\.DB\)/);
+  assert.match(source, /storeRuntimeSummary\(env\.DB, "disclosure_sync"/);
+  assert.match(source, /refreshRuntimeMapContextSummary\(env\.DB, syncedAt\)/);
+});
+
+test("private status endpoints avoid broad D1 count sweeps", () => {
+  const source = readFileSync(new URL("../src/worker.js", import.meta.url), "utf8");
+  const durableStatusHandler = source.slice(
+    source.indexOf("async function durableStatusResponse"),
+    source.indexOf("async function readIngestionHealth"),
+  );
+  const runtimeStatusHandler = source.slice(
+    source.indexOf("async function runtimeStatusResponse"),
+    source.indexOf("function durableCoverageFromSummaries"),
+  );
+
+  assert.match(durableStatusHandler, /readRuntimeSummary\(env\.DB, "disclosure_sync"\)/);
+  assert.match(durableStatusHandler, /readRuntimeSummary\(env\.DB, "hydro_schedule"\)/);
+  assert.doesNotMatch(source, /async function disclosureCounts/);
+  assert.doesNotMatch(durableStatusHandler, /COUNT\(\*\)/);
+  assert.match(runtimeStatusHandler, /readRuntimeSummary\(env\.DB, "hydro_source:bis"\)/);
+  assert.match(runtimeStatusHandler, /readRuntimeSummary\(env\.DB, "hydro_source:aip"\)/);
+  assert.match(runtimeStatusHandler, /snapshot_count: null/);
+  assert.doesNotMatch(runtimeStatusHandler, /durableCoverage\(env\.DB\)/);
+  assert.doesNotMatch(runtimeStatusHandler, /COUNT\(\*\)/);
+});
+
 test("coherence checks catch the payload production actually served", () => {
   // Verbatim from pannes.ca before the fix: windows counting municipalities,
   // territory rows counting outages. Every individual number was exactly what
@@ -212,7 +299,7 @@ test("a summary missing totalCustomers is rejected rather than half-checked", ()
   // It previously passed the shape guard on `outages` alone, and then the
   // coherence checks read totalCustomers as 0 and reported the largest outage
   // as exceeding the year -- a false 503 on a public endpoint that pages the
-  // half-hourly monitor.
+  // scheduled monitor.
   const summary = { windows: [{ key: "previous_archive_last_1y", outages: 10 }] };
   assert.equal(isUsableArchiveSummary(summary), false);
 });
