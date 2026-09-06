@@ -25,6 +25,9 @@ export function isUsableArchiveSummary(summary) {
   );
 }
 
+export const ARCHIVE_SUMMARY_CURSOR_MISMATCH =
+  "archive summary cursor does not match the current archive cursor";
+
 // `source_cursor` identifies the newest municipal-archive row incorporated
 // into a materialized summary. A valid JSON payload is not enough to serve: a
 // newer cursor means the summary is a coherent but stale view of the archive.
@@ -37,10 +40,34 @@ export function archiveSummaryFreshnessProblem({
 }) {
   if (!currentCursor) return null;
   if (!hasSummary) return "archive summary is missing for the current archive cursor";
-  if (storedCursor !== currentCursor) {
-    return "archive summary cursor does not match the current archive cursor";
-  }
+  if (storedCursor !== currentCursor) return ARCHIVE_SUMMARY_CURSOR_MISMATCH;
   return null;
+}
+
+// Cursor lag is expected between the 15-minute ingestion schedule and the
+// bounded summary refresh. Keep exposing it, but reserve an unhealthy result
+// for a missing summary or internally contradictory materialized data.
+export function archiveSummaryHealthFindings({
+  storedCursor = "",
+  currentCursor = "",
+  hasSummary,
+  summary = null,
+}) {
+  const freshnessProblem = archiveSummaryFreshnessProblem({
+    storedCursor,
+    currentCursor,
+    hasSummary,
+  });
+  const problems = hasSummary ? archiveSummaryIncoherences(summary) : [];
+  const warnings = [];
+
+  if (freshnessProblem === ARCHIVE_SUMMARY_CURSOR_MISMATCH) {
+    warnings.push(freshnessProblem);
+  } else if (freshnessProblem) {
+    problems.unshift(freshnessProblem);
+  }
+
+  return { problems, warnings };
 }
 
 // Both summary paths build this shape, and they diverged once already: the

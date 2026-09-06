@@ -243,6 +243,7 @@ test("provenance card opens from the explore footer and the hero info button", a
 
 test("failed sheet fetches show an error and recover", async ({ page }) => {
   await page.goto("/?lang=en");
+  await expect(page.locator("body")).toHaveAttribute("data-app-ready", "true");
   await expect(page.locator(".ph-segment.is-active")).toHaveText("Live");
 
   await page.route("**/sheet**", (route) => route.abort());

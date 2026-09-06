@@ -4,6 +4,7 @@ import { test } from "node:test";
 
 import {
   archiveSummaryFreshnessProblem,
+  archiveSummaryHealthFindings,
   archiveSummaryIncoherences,
   archiveWindow,
   isUsableArchiveSummary,
@@ -143,6 +144,51 @@ test("a materialized summary is usable only at its current archive cursor", () =
     null,
     "an empty archive has no cursor for a summary to lag",
   );
+});
+
+test("archive summary health reports expected cursor lag without failing ingestion", () => {
+  const summary = {
+    windows: [
+      { key: "previous_archive_last_24h", outages: 1, totalCustomers: 2 },
+      { key: "previous_archive_last_1y", outages: 3, totalCustomers: 4 },
+    ],
+    territories: [],
+  };
+  const findings = archiveSummaryHealthFindings({
+    hasSummary: true,
+    summary,
+    storedCursor: "bispoly-41",
+    currentCursor: "bispoly-42",
+  });
+
+  assert.deepEqual(findings.problems, []);
+  assert.deepEqual(findings.warnings, [
+    "archive summary cursor does not match the current archive cursor",
+  ]);
+});
+
+test("archive summary health still fails missing and incoherent summaries", () => {
+  const missing = archiveSummaryHealthFindings({
+    hasSummary: false,
+    currentCursor: "bispoly-42",
+  });
+  assert.match(missing.problems.join(" "), /is missing/);
+  assert.deepEqual(missing.warnings, []);
+
+  const incoherent = archiveSummaryHealthFindings({
+    hasSummary: true,
+    storedCursor: "bispoly-42",
+    currentCursor: "bispoly-42",
+    summary: {
+      windows: [
+        { key: "previous_archive_last_24h", outages: 4, totalCustomers: 5 },
+        { key: "previous_archive_last_1y", outages: 3, totalCustomers: 4 },
+      ],
+      territories: [],
+    },
+  });
+  assert.match(incoherent.problems.join(" "), /shorter window is contained/);
+  assert.deepEqual(incoherent.warnings, []);
 });
 
 test("public archive summary reads materialized state instead of rebuilding on demand", () => {

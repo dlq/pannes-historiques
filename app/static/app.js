@@ -1,10 +1,10 @@
-import { DaiDetailPanel } from "./detail-panels.js?v=ffde99f66c23";
+import { DaiDetailPanel } from "./detail-panels.js?v=98d1dbf5ff93";
 import {
   registerServiceWorker,
   reloadOnHistoryNavigation,
   restoreSearchInputFromUrl,
-} from "./search.js?v=ffde99f66c23";
-import { initSheet } from "./sheet.js?v=ffde99f66c23";
+} from "./search.js?v=98d1dbf5ff93";
+import { initSheet } from "./sheet.js?v=98d1dbf5ff93";
 
 const ASSET_VERSION = new URL(import.meta.url).searchParams.get("v") || "";
 
@@ -73,6 +73,7 @@ function boot() {
   reloadOnHistoryNavigation();
   restoreSearchInputFromUrl();
   initSheet();
+  document.body.dataset.appReady = "true";
   scheduleMapLoad();
 }
 

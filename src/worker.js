@@ -6,7 +6,7 @@ export { PannesContainer } from "./container.js";
 import { archiveHealthCutoffs, summarizeArchiveCompleteness } from "./archive-health.js";
 import {
   archiveSummaryFreshnessProblem,
-  archiveSummaryIncoherences,
+  archiveSummaryHealthFindings,
   archiveWindow,
   isUsableArchiveSummary,
   municipalArchiveLatestRow,
@@ -1465,27 +1465,23 @@ async function readIngestionHealth(db) {
 // Checks the summary that is actually being served, not a freshly built one,
 // because the served copy is materialized and can outlive the code that wrote
 // it. Its source cursor must still match the archive rows it summarizes.
-async function readArchiveSummaryProblems(db) {
+async function readArchiveSummaryHealth(db) {
   try {
     const [stored, currentCursor] = await Promise.all([
       readStoredMunicipalArchiveSummary(db),
       getBuildState(db, "municipal_archive_last_polygon_id"),
     ]);
-    const freshnessProblem = archiveSummaryFreshnessProblem({
+    return archiveSummaryHealthFindings({
       hasSummary: Boolean(stored),
       storedCursor: stored?.sourceCursor || "",
       currentCursor,
+      summary: stored?.summary || null,
     });
-    if (!stored) return freshnessProblem ? [freshnessProblem] : [];
-    return [
-      ...(freshnessProblem ? [freshnessProblem] : []),
-      ...archiveSummaryIncoherences(stored.summary),
-    ];
   } catch (error) {
     // This body is public, so the detail goes to the log and the caller gets a
     // fixed string. A D1 error can name tables and columns.
     console.error("archive summary health check failed", error);
-    return ["archive summary health check failed"];
+    return { problems: ["archive summary health check failed"], warnings: [] };
   }
 }
 
@@ -1496,17 +1492,20 @@ async function ingestionHealthResponse(env) {
     // for months while every probe reported healthy. Numbers that contradict
     // each other are a data-plane fault, so they belong on the same alert.
     // The two reads are independent.
-    let archiveProblems;
-    [health, archiveProblems] = await Promise.all([
+    let archiveHealth;
+    [health, archiveHealth] = await Promise.all([
       readIngestionHealth(env.DB),
-      readArchiveSummaryProblems(env.DB),
+      readArchiveSummaryHealth(env.DB),
     ]);
-    if (archiveProblems.length) {
+    if (archiveHealth.problems.length) {
       health = {
         ...health,
         healthy: false,
-        problems: [...(health.problems || []), ...archiveProblems],
+        problems: [...(health.problems || []), ...archiveHealth.problems],
       };
+    }
+    if (archiveHealth.warnings.length) {
+      health = { ...health, warnings: archiveHealth.warnings };
     }
   } catch (error) {
     // A health probe that cannot read its own data plane is unhealthy. The

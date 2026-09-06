@@ -25,7 +25,10 @@ test("map code and stylesheet load after the initial sheet boot", () => {
   assert.match(app, /window\.setTimeout\(loadOnce, 500\)/);
   assert.match(app, /if \(started\) return;/);
   assert.doesNotMatch(app, /window\.addEventListener\("load", start/);
-  assert.match(app, /initSheet\(\);\s*scheduleMapLoad\(\);/);
+  assert.match(
+    app,
+    /initSheet\(\);\s*document\.body\.dataset\.appReady = "true";\s*scheduleMapLoad\(\);/,
+  );
   assert.match(index, /data-map-module-url=/);
   assert.match(index, /data-map-stylesheet-url=/);
   assert.match(index, /data-map-unavailable-label=/);
