@@ -1,12 +1,66 @@
-DELETE FROM current_outage_records
-WHERE source_version <> (
+-- Rebuild these derived feed tables instead of deleting more than one million
+-- superseded rows individually. The raw API snapshots remain preserved in R2.
+DROP TABLE IF EXISTS current_outage_records_compact;
+CREATE TABLE current_outage_records_compact (
+  id TEXT PRIMARY KEY,
+  source_version TEXT NOT NULL,
+  record_index INTEGER NOT NULL,
+  customers_affected INTEGER,
+  outage_start_time TEXT,
+  estimated_restore_time TEXT,
+  interruption_type TEXT,
+  status TEXT,
+  cause_group_code TEXT,
+  cause_detail_code TEXT,
+  municipality_code TEXT,
+  centroid_lon REAL,
+  centroid_lat REAL,
+  raw_record_json TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  UNIQUE(source_version, record_index)
+);
+INSERT INTO current_outage_records_compact
+SELECT * FROM current_outage_records
+WHERE source_version = (
   SELECT MAX(source_version) FROM current_outage_records
 );
+DROP TABLE current_outage_records;
+ALTER TABLE current_outage_records_compact RENAME TO current_outage_records;
+CREATE INDEX idx_current_outage_records_version
+  ON current_outage_records(source_version);
 
-DELETE FROM current_planned_interruptions
-WHERE source_version <> (
+DROP TABLE IF EXISTS current_planned_interruptions_compact;
+CREATE TABLE current_planned_interruptions_compact (
+  id TEXT PRIMARY KEY,
+  source_version TEXT NOT NULL,
+  record_index INTEGER NOT NULL,
+  notice_id TEXT,
+  scheduled_start TEXT,
+  scheduled_end TEXT,
+  actual_start TEXT,
+  actual_end TEXT,
+  postponed_start TEXT,
+  postponed_end TEXT,
+  rescheduled_start TEXT,
+  rescheduled_end TEXT,
+  customers_affected INTEGER,
+  municipality_code TEXT,
+  status TEXT,
+  centroid_lon REAL,
+  centroid_lat REAL,
+  raw_record_json TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  UNIQUE(source_version, record_index)
+);
+INSERT INTO current_planned_interruptions_compact
+SELECT * FROM current_planned_interruptions
+WHERE source_version = (
   SELECT MAX(source_version) FROM current_planned_interruptions
 );
+DROP TABLE current_planned_interruptions;
+ALTER TABLE current_planned_interruptions_compact RENAME TO current_planned_interruptions;
+CREATE INDEX idx_current_planned_interruptions_version
+  ON current_planned_interruptions(source_version);
 
 CREATE INDEX IF NOT EXISTS idx_ingestion_runs_job_started_id
   ON ingestion_runs(job_name, started_at DESC, id DESC);
