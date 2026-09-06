@@ -40,7 +40,10 @@ import {
 } from "./usage-evidence.js";
 import { workerRouteForPath } from "./worker-routing.js";
 
-const HYDRO_CRONS = new Set(["7,22,37,52 * * * *"]);
+const HYDRO_CRONS = new Set([
+  "7,22,37,52 * * * *",
+  "7,37 * * * *", // Accept events queued by Cloudflare before the trigger update propagated.
+]);
 const MAINTENANCE_CRONS = new Set(["43 * * * *"]);
 const DISCLOSURE_CRONS = new Set(["0 10 */14 * *", "13 10 */14 * *"]);
 const DISCLOSURE_BATCH_SIZE = 1;

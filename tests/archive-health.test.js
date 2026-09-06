@@ -71,6 +71,7 @@ test("row-read guardrails use 15-minute source schedules and targeted D1 indexes
     new URL("../.github/workflows/ingestion-health.yml", import.meta.url),
     "utf8",
   );
+  const worker = await readFile(new URL("../src/worker.js", import.meta.url), "utf8");
   const migration = await readFile(
     new URL("../migrations/0013_d1_row_read_indexes.sql", import.meta.url),
     "utf8",
@@ -81,6 +82,8 @@ test("row-read guardrails use 15-minute source schedules and targeted D1 indexes
     "43 * * * *",
     "13 10 */14 * *",
   ]);
+  assert.match(worker, /"7,22,37,52 \* \* \* \*"/);
+  assert.match(worker, /"7,37 \* \* \* \*"/);
   assert.match(healthWorkflow, /cron: "17 \* \* \* \*"/);
   assert.doesNotMatch(healthWorkflow, /17,47/);
   assert.match(migration, /CREATE TABLE current_outage_records_compact/);
