@@ -1,7 +1,14 @@
 # Research: Hydro-Québec Historic Outage Data
 
 Date: 2026-04-25
-Last updated: 2026-08-21
+Last updated: 2026-09-06
+
+## D1 compaction and 15-minute ingestion activation, 2026-09-06
+
+- Production migrations `0011`, `0012`, and `0013` are recorded as applied. The first `0013` attempt failed on its million-row derived-feed deletes; rebuilding the two tables from their latest versions completed successfully, retained the raw R2 archive and snapshot provenance, and reduced D1 from `2.33 GB` to `1,779,601,408` bytes.
+- Worker version `12e35309-5d46-4313-892d-5a12e3051a6d` activated the indexed access paths and configured 15-minute Hydro, hourly maintenance, and biweekly disclosure schedules. Wrangler waited indefinitely on a byte-identical container image after activating the Worker, so deployment state was verified separately and the local wait was stopped.
+- Cloudflare subsequently delivered the previously configured `7,37 * * * *` event even though trigger deployment reported `7,22,37,52 * * * *`; the strict cron dispatcher rejected that queued legacy expression. Commit `83a6465` added compatibility for both expressions and deployed as Worker `b0f70c69-43ba-49c3-abb2-3f9a2ca7a9b9`.
+- The intended `7,22,37,52 * * * *` event fired at `2026-09-06T04:22:51Z`. It fetched all six Hydro resources, completed successfully, and advanced the newest snapshot to `2026-09-06T04:22:58.129Z`. The public ingestion health endpoint then returned `200`, `healthy: true`, zero consecutive failures, and no problems.
 
 ## v0.4.9 usage-evidence release gates, 2026-08-21
 
