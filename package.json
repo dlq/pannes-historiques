@@ -20,9 +20,9 @@
     "test:e2e:mobile": "playwright test --project=mobile-chromium"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.7",
+    "@biomejs/biome": "^2.5.12",
     "@cloudflare/containers": "^0.3.7",
-    "@playwright/test": "^1.62.1",
+    "@playwright/test": "^1.63.0",
     "wrangler": "^4.131.1"
   },
   "dependencies": {
