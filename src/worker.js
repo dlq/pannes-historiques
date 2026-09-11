@@ -1451,7 +1451,7 @@ async function readIngestionHealth(db) {
       .first(),
     db
       .prepare(
-        "SELECT status FROM ingestion_runs WHERE job_name = 'hydro_changed' ORDER BY id DESC LIMIT 10",
+        "SELECT status FROM ingestion_runs WHERE job_name = 'hydro_changed' ORDER BY started_at DESC, id DESC LIMIT 10",
       )
       .all(),
   ]);
@@ -1996,21 +1996,61 @@ async function adminTerritoryRows(db) {
 
 async function hydroPolygonsForMunicipalArchive(db, afterId, limit) {
   const cursor = parseHydroPolygonId(afterId);
-  const sql = `
-    SELECT *
-    FROM hydro_polygon_geometries
-    WHERE source_type = 'bispoly'
-      ${cursor ? "AND (source_version > ? OR (source_version = ? AND CAST(polygon_id AS INTEGER) > ?))" : ""}
-    ORDER BY source_version, CAST(polygon_id AS INTEGER)
-    LIMIT ?
+  const columns = `
+    id, source_type, source_version, polygon_id, name,
+    centroid_lon, centroid_lat,
+    bbox_min_lon, bbox_min_lat, bbox_max_lon, bbox_max_lat,
+    geometry_geojson
   `;
-  const statement = db.prepare(sql);
-  const result = cursor
-    ? await statement
-        .bind(cursor.sourceVersion, cursor.sourceVersion, cursor.polygonIndex, limit)
-        .all()
-    : await statement.bind(limit).all();
-  return result.results || [];
+  if (!cursor) {
+    const result = await db
+      .prepare(
+        `
+        SELECT ${columns}
+        FROM hydro_polygon_geometries
+        WHERE source_type = 'bispoly'
+        ORDER BY source_version, CAST(polygon_id AS INTEGER)
+        LIMIT ?
+        `,
+      )
+      .bind(limit)
+      .all();
+    return result.results || [];
+  }
+
+  // Keep each side of the compound cursor independently seekable. With bound
+  // parameters, the equivalent OR predicate scanned the whole bispoly index.
+  const sameVersion = await db
+    .prepare(
+      `
+      SELECT ${columns}
+      FROM hydro_polygon_geometries
+      WHERE source_type = 'bispoly'
+        AND source_version = ?
+        AND CAST(polygon_id AS INTEGER) > ?
+      ORDER BY CAST(polygon_id AS INTEGER)
+      LIMIT ?
+      `,
+    )
+    .bind(cursor.sourceVersion, cursor.polygonIndex, limit)
+    .all();
+  const rows = sameVersion.results || [];
+  if (rows.length >= limit) return rows;
+
+  const newerVersions = await db
+    .prepare(
+      `
+      SELECT ${columns}
+      FROM hydro_polygon_geometries
+      WHERE source_type = 'bispoly'
+        AND source_version > ?
+      ORDER BY source_version, CAST(polygon_id AS INTEGER)
+      LIMIT ?
+      `,
+    )
+    .bind(cursor.sourceVersion, limit - rows.length)
+    .all();
+  return rows.concat(newerVersions.results || []);
 }
 
 async function municipalArchiveCursor(db) {

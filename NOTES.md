@@ -1,7 +1,23 @@
 # Research: Hydro-Québec Historic Outage Data
 
 Date: 2026-04-25
-Last updated: 2026-09-06
+Last updated: 2026-09-11
+
+## Cost, health, and usage evidence checkpoint, 2026-09-11
+
+- Production deployment `4fd7f94` is active as Worker version `fc638e25-b0c3-4ee3-bbb4-f12833ad7095`. The homepage, durable Hydro API, and public ingestion-health endpoint returned `200`; the newest snapshot was four minutes old, the recent failure count was zero, and the latest 12 GitHub ingestion-monitor runs succeeded. The only health warning was the expected bounded archive-summary cursor lag.
+- D1 reported `1,944,109,056` bytes, `37,035,178` rows read, and `396,087` rows written over the rolling 24-hour window. At a simple 30-day projection, that is about `1.11 billion` reads and `11.88 million` writes, well inside Workers Paid's included 25 billion reads and 50 million writes per month. Cloudflare currently documents 5 GB of included paid storage and a 10 GB per-database paid limit. Account-wide Container, Durable Objects, and R2 usage was not refreshed because the dashboard required a new interactive sign-in.
+- D1 grew `164,507,648` bytes from the post-migration 2026-09-06 measurement, about 9.2% in five days. A linear projection is not a forecast, but at roughly 32.9 MB/day it would reach the project's 3.5 GB action trigger in seven to eight weeks. The archive cursor was current through source version `20260911152010`, so the measured growth is not explained solely by unfinished archive backfill. Remeasure after at least seven more days before selecting compaction, rollup, or R2 offload work.
+- Query Insights identifies one dominant read-amplification problem: the `hydro_polygon_geometries` archive cursor query read `23,959,596` rows across 83 runs in 24 hours, averaging `288,669` rows per run despite the expression index added in migration `0013`. Over seven days it read `147,420,197` rows across 531 runs. The `OR` cursor predicate and numeric cast/order access path need redesign; do not use routine full-table counts to monitor progress.
+- Local optimization replaces the bound-parameter `OR` cursor with independently indexed same-version and newer-version queries, preserving keyset order and the existing batch limit. It selects only fields used by municipal assignment, excluding the bulky `raw_coordinates` value, and aligns the recent-ingestion status order with the existing `(job_name, started_at DESC, id DESC)` index. Production closure requires deployment followed by a full rolling-day Query Insights comparison; no migration or retained-data deletion is involved.
+- Other 24-hour read consumers were the bounded Archive materialization queries: about `2.42 million` rows for the latest-row window, `1.72 million` for territory summaries, and `548,904` for window totals. Current-nearby public reads averaged about 70 rows per call and are not a cost concern. One-off investigative scans are included in some seven-day insights and must not be treated as scheduled production load.
+- Repeated public `map-context` calls returned identical `worker-d1` payloads. Repeated public `previous-archive-summary` calls returned the same stored `generatedAt` value and cursor-warning state. This, together with the no-on-demand-rebuild tests, verifies that public reads serve stored materializations instead of rebuilding the archive relationally per request.
+- Usage evidence spans 2026-08-21 through 2026-09-11: 21 active collection days, 170 daily aggregate rows, `1,824` human-classified interactions, and no recorded non-human interactions. September 4 is missing, and September 11 was partial at query time. The only fully complete seven-day window recorded `672` interactions; the other weekly groupings are partial or incident-affected.
+- Feature totals are Archive `843` (46.2%), current `393` (21.5%), address answer `333` (18.3%), planned `128` (7.0%), Context `116` (6.4%), and comparison `11` (0.6%). These counts indicate relative feature activity only. They do not measure people, sessions, audience reach, or conversion; operator/testing activity is mixed in and cannot be separated by design, and a zero non-human count does not prove perfect bot classification.
+- Conclusion: cost headroom, healthy ingestion, and materialized public reads are sufficiently evidenced. D1 storage growth and the archive cursor read pattern remain active engineering work. The usage evidence is directionally useful but insufficient for the planned eight-week decision; continue through 2026-10-23, the earliest end of eight complete Friday-through-Thursday windows if September 5-11 completes normally.
+
+- [Cloudflare D1 pricing](https://developers.cloudflare.com/d1/platform/pricing/)
+- [Cloudflare D1 limits](https://developers.cloudflare.com/d1/platform/limits/)
 
 ## D1 compaction and 15-minute ingestion activation, 2026-09-06
 

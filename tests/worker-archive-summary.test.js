@@ -242,6 +242,21 @@ test("scheduled archive backfill does not refresh the large summary every run", 
   assert.match(source, /MUNICIPAL_ARCHIVE_SUMMARY_REFRESH_MS = 24 \* 60 \* 60 \* 1000/);
 });
 
+test("archive backfill cursor uses independently indexed ranges", () => {
+  const source = readFileSync(new URL("../src/worker.js", import.meta.url), "utf8");
+  const cursorQuery = source.slice(
+    source.indexOf("async function hydroPolygonsForMunicipalArchive"),
+    source.indexOf("async function municipalArchiveCursor"),
+  );
+  const sql = cursorQuery.replace(/\s+/g, " ");
+
+  assert.match(sql, /source_version = \?/);
+  assert.match(sql, /source_version > \?/);
+  assert.doesNotMatch(sql, /source_version > \?\s+OR\s+\(/);
+  assert.doesNotMatch(sql, /SELECT \*/);
+  assert.match(sql, /limit - rows\.length/);
+});
+
 test("hourly maintenance prunes derived current feed history only", () => {
   const source = readFileSync(new URL("../src/worker.js", import.meta.url), "utf8");
   const cleanup = source.slice(

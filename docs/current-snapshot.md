@@ -1,6 +1,6 @@
 # Current Snapshot
 
-Last updated: 2026-08-21
+Last updated: 2026-09-11
 
 Read this first for quick orientation. Use `PLANS.md` for the active roadmap, `docs/architecture.md` for runtime boundaries, `docs/cost-containment.md` for cost strategy, and `CHANGELOG.md` for completed release history.
 
@@ -9,10 +9,10 @@ Read this first for quick orientation. Use `PLANS.md` for the active roadmap, `d
 - Shipped release: `v0.4.8`.
 - Development package metadata: `0.4.9` in `pyproject.toml` and `package.json`; the latest shipped/tagged release remains `v0.4.8`.
 - Tagged-release deployment: Worker version `e6fe9a87-df8f-4cf4-a82b-b0dcdc07fa4c`, deployed 2026-08-14 from tagged release commit `f6df621` with the `pannes-historiques-pannescontainer:e6fe9a87` image.
-- Latest production deployment: post-release `main` commit `3a514fb`, deployed 2026-08-21 as Worker version `2b10afde-09d0-4e33-a58a-5f933d09d134` with container image digest `sha256:c0294e12aa6203a2713e493fc658d66f877e71b213ddf1488bdcab9ea818e500`. The `v0.4.9` usage-evidence path, D1 aggregate, browser module, and shared edge rate rule are production-verified.
+- Latest production deployment: post-release `main` commit `4fd7f94`, deployed 2026-09-06 as Worker version `fc638e25-b0c3-4ee3-bbb4-f12833ad7095`; the existing container image was unchanged. D1 migrations `0011` through `0013`, 15-minute Hydro ingestion, archive cursor warning classification, and the `v0.4.9` usage-evidence path are production-verified.
 - Do not treat a merge to `main` as proof of production deployment; record deployment evidence in `PLANS.md` and `CHANGELOG.md`.
-- Current development direction: the `v0.4.9` identifier-free daily feature/action evidence candidate is deployed, with 90-day retention, a private readout, migration `0012`, and the shared interaction-endpoint edge rule active. The bounded observation period and written decision remain. `v0.4.8` completed the authenticated cost decision, container-runtime retirement, archive cursor health guard, and autocomplete edge protection.
-- `v0.5.0` remains gated on `v0.4.9`'s bounded usage-data lifecycle and a 14-day observation window with healthy ingestion, cursor-fresh archive summaries, and no unexplained archive-completeness regression.
+- Current development direction: the `v0.4.9` identifier-free daily feature/action evidence candidate is deployed, with 90-day retention, a private readout, migration `0012`, and the shared interaction-endpoint edge rule active. The bounded observation period and written decision remain. A post-release archive cursor query optimization is implemented locally and awaits deployment plus a 24-hour D1 read comparison. `v0.4.8` completed the authenticated cost decision, container-runtime retirement, archive cursor health guard, and autocomplete edge protection.
+- `v0.5.0` remains gated on `v0.4.9`'s bounded usage-data lifecycle and a 14-day observation window with healthy ingestion, bounded archive-summary refresh without unexplained prolonged lag, and no unexplained archive-completeness regression.
 
 ## Product Shape
 
@@ -62,4 +62,4 @@ separately; any service method, route, template, or browser-JavaScript change re
 - Usage collection is active in production. The write-only response, public `404` on the private readout, daily D1 aggregate, active collection heartbeat, browser module, and `autocomplete and usage per IP` Cloudflare rule are verified; continue watching classification quality and the 90-day lifecycle during the observation period.
 - Browser proof gaps: real-device geolocation, visible freshness cues, dense data readability, and practical screen-reader checks.
 - Displayed figures are now checked against each other, not only against their source queries, after the Archive report presented a count of municipalities as a count of outages while every test and health probe passed. The checks run in `GET /api/health/ingestion`; see the regression guard in `PLANS.md`.
-- Archive-summary cursor checks are production-verified: a cursor mismatch or missing summary for a non-empty archive makes the summary a rebuildable cache miss and fails ingestion health. The shape guard still handles format drift separately.
+- Archive-summary cursor checks are production-verified: a routine cursor mismatch marks the served summary stale and appears as a health warning, while a missing summary for a non-empty archive or an internally contradictory summary fails ingestion health. Public requests do not rebuild the summary. The shape guard still handles format drift separately.

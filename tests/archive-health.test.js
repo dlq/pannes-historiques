@@ -86,6 +86,10 @@ test("row-read guardrails use 15-minute source schedules and targeted D1 indexes
   assert.match(worker, /"7,37 \* \* \* \*"/);
   assert.match(healthWorkflow, /cron: "17 \* \* \* \*"/);
   assert.doesNotMatch(healthWorkflow, /17,47/);
+  assert.match(
+    worker,
+    /SELECT status FROM ingestion_runs WHERE job_name = 'hydro_changed' ORDER BY started_at DESC, id DESC LIMIT 10/,
+  );
   assert.match(migration, /CREATE TABLE current_outage_records_compact/);
   assert.match(migration, /CREATE TABLE current_planned_interruptions_compact/);
   assert.match(migration, /SELECT MAX\(source_version\) FROM current_outage_records/);
