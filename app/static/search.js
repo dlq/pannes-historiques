@@ -1,5 +1,5 @@
-import { formatRelativeTime } from "./ui-format.js?v=98d1dbf5ff93";
-import { recordUsage } from "./usage-evidence.js?v=98d1dbf5ff93";
+import { formatRelativeTime } from "./ui-format.js?v=e4b1000173c3";
+import { recordUsage } from "./usage-evidence.js?v=e4b1000173c3";
 
 let autocompleteTimer = null;
 
