@@ -52,9 +52,12 @@
          role="img"
          aria-label="{{ sheet.history.heroSub }}">
       {% for bucket in sheet.history.buckets %}
+        {# Bar heights encode each bucket count relative to the largest bucket. #}
+        {# djlint:off H021 #}
         <span class="ph-hero-bar {{ 'is-zero' if bucket.count == 0 else '' }}"
               style="height: {{ (4 + (bucket.count / sheet.history.maxBucket) * 32) | round(1) if sheet.history.maxBucket else 4 }}px"
               title="{{ bucket.label }}: {{ bucket.count }}"></span>
+        {# djlint:on #}
       {% endfor %}
     </div>
     <div class="ph-hero-axis">

@@ -7,7 +7,10 @@
          role="img"
          aria-label="{{ sheet.body.legend.title }}">
       {% for stop in sheet.body.legend.stops %}
+        {# Legend colours come from the metric scale. #}
+        {# djlint:off H021 #}
         <span class="ph-legend-swatch" style="background: {{ stop }}"></span>
+        {# djlint:on #}
       {% endfor %}
     </div>
     <div class="ph-legend-ends">
@@ -23,7 +26,8 @@
         <button class="ph-row"
                 type="button"
                 data-map-focus='{{ row.focus | tojson }}'>
-          <span class="ph-doc-tile ph-doc-tile--{{ row.kind }}" aria-hidden="true">{{ ph_icon("map" if row.kind == "regional_metric" else "file-search") }}</span>
+          <span class="ph-doc-tile ph-doc-tile--{{ row.kind }}"
+                aria-hidden="true">{{ ph_icon("map" if row.kind == "regional_metric" else "file-search") }}</span>
           <span class="ph-row-main">
             <span class="ph-row-title">{{ row.title }}</span>
             <span class="ph-row-sub">
