@@ -1,7 +1,16 @@
 # Research: Hydro-Québec Historic Outage Data
 
 Date: 2026-04-25
-Last updated: 2026-09-11
+Last updated: 2026-10-01
+
+## Dependency maintenance, 2026-10-01
+
+- Observed: Dependabot's original [PR 29](https://github.com/dlq/pannes-historiques/pull/29) failed on one `djlint` attribute-wrapping change and H021 findings for the existing metric legend colour and histogram bar height. Dependabot closed it and created [replacement PR 36](https://github.com/dlq/pannes-historiques/pull/36), which updates `djlint` to 1.46.2 and has the same lint failure.
+- Decision: preserve those data-derived values and exempt only the two affected spans with rule-specific Jinja comments; retain H021 elsewhere. This changes source formatting/lint compatibility without changing rendered styles.
+- Merged [npm PR 33](https://github.com/dlq/pannes-historiques/pull/33), [pypdf security PR 34](https://github.com/dlq/pannes-historiques/pull/34), and [virtualenv security PR 35](https://github.com/dlq/pannes-historiques/pull/35) after their checks passed. The grouped Python lockfile retains `pypdf` 6.19.0, `virtualenv` 21.7.13, and `python-discovery` 1.6.1. GitHub reported zero open Dependabot alerts after those security merges.
+- Local validation passed: `uv run --locked pre-commit run --all-files`, `uv run --locked pytest -q` (229), `node --test tests/*.test.js` (106), and `APP_PORT=4184 npm run test:e2e` (54 desktop/mobile cases). Focused screenshots and computed-style checks confirmed five legend colours and histogram bar heights at desktop/mobile sizes. Port 4173 belonged to another project's server; Playwright's reuse setting initially tested that app, so a separate port was required.
+- Updated Wrangler's Worker-only `deploy --dry-run --containers-rollout=none` passed. A complete container dry run could not start because the Docker CLI is unavailable; no production deployment was requested or performed.
+- Follow-up: PR 33 updates the npm MapLibre dependency to 6.10.0, but browser imports still serve checked-in 6.9.0 assets. A separate vendor refresh needs asset-version updates and browser verification before claiming a runtime upgrade.
 
 ## Cost, health, and usage evidence checkpoint, 2026-09-11
 
