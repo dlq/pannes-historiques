@@ -23,7 +23,7 @@ Keep active execution state in `PLANS.md` and source/evidence research in `NOTES
 
 ### Verified
 
-- Dependency maintenance passed all pre-commit checks, 229 Python tests, 106 Node tests, 54 desktop/mobile Playwright cases, focused visual checks, and a Worker-only Wrangler dry run. The follow-up MapLibre refresh also passed desktop/mobile interaction checks and an Apple container amd64 build, exact runtime-version validation, and byte-for-byte SQLite preservation checks.
+- Dependency maintenance passed all pre-commit checks, 229 Python tests, 106 Node tests, 54 desktop/mobile Playwright cases, focused visual checks, and a Worker-only Wrangler dry run. The follow-up MapLibre refresh also passed desktop/mobile interaction checks and an Apple container amd64 build, exact runtime-version validation, and byte-for-byte SQLite preservation checks. Quality, CodeQL, and browser CI passed on `c95db3f`; the prebuilt-image Worker dry run passed. Production rollout is blocked by registry upload failures.
 
 - The `v0.4.9` candidate passed pre-commit, 229 Python tests, 96 Node tests, the complete 54-case desktop/mobile Playwright suite, a real-SQLite migration smoke test, and a Wrangler Worker/Container dry-run.
 - Applied production D1 migration `0012_usage_evidence.sql` and verified the combined interaction-endpoint rate rule is active before deployment.
