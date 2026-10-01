@@ -47,7 +47,10 @@ test("disclosure detail close buttons use the shared sheet close lifecycle", () 
 });
 
 test("address suggestion buttons get concise accessible names", () => {
-  assert.match(searchSource, /button\.setAttribute\("aria-label", suggestionAccessibleName\(item\)\)/);
+  assert.match(
+    searchSource,
+    /button\.setAttribute\("aria-label", suggestionAccessibleName\(item\)\)/,
+  );
   assert.match(searchSource, /function suggestionAccessibleName\(item\)/);
   assert.match(searchSource, /secondary\.startsWith\(`\$\{primary\}, `\)/);
 });
@@ -58,12 +61,18 @@ test("comparison tray explains the next compare step", () => {
 });
 
 test("domain links preserve an explicit or user-selected scope", () => {
-  assert.match(sheetSource, /const nextScope = domainLink\.dataset\.scopeLink \|\| sheetState\.scope/);
+  assert.match(
+    sheetSource,
+    /const nextScope = domainLink\.dataset\.scopeLink \|\| sheetState\.scope/,
+  );
   assert.match(
     sheetSource,
     /fetchSheet\(\s*\{ domain: domainLink\.dataset\.domainLink, scope: nextScope \}/,
   );
-  assert.match(sheetSource, /usageEvent: \{ feature: domainLink\.dataset\.domainLink, action: "open" \}/);
+  assert.match(
+    sheetSource,
+    /usageEvent: \{ feature: domainLink\.dataset\.domainLink, action: "open" \}/,
+  );
   assert.match(overviewSource, /data-domain-link="current"\s+data-scope-link="local"/);
   assert.match(overviewSource, /data-domain-link="archive"\s+data-scope-link="local"/);
 });
@@ -82,7 +91,10 @@ test("dynamic sheet updates expose busy state, an announcement, and a focus targ
 test("detail cards expose dialog semantics and keyboard focus handling", () => {
   assert.match(indexSource, /id="sheet-detail"[\s\S]*role="dialog"[\s\S]*aria-modal="true"/);
   assert.match(indexSource, /id="sheet-provenance"[\s\S]*aria-labelledby="sheet-provenance-title"/);
-  assert.match(indexSource, /<dai-detail-panel[\s\S]*role="dialog"[\s\S]*aria-labelledby="dai-detail-title"/);
+  assert.match(
+    indexSource,
+    /<dai-detail-panel[\s\S]*role="dialog"[\s\S]*aria-labelledby="dai-detail-title"/,
+  );
   assert.match(sheetSource, /function trapDetailFocus\(event\)/);
   assert.match(sheetSource, /event\.key === "Escape"/);
   assert.match(sheetSource, /closeDetailCards\(\{ restoreFocus: true \}\)/);
@@ -102,25 +114,36 @@ test("map load replays a pending focus but never re-runs an active focus's selec
   // An active focus was already delivered. Replaying it with `remember` would
   // re-run showOperational/showRegionalMetric and re-open a card the user just
   // closed -- which is what made mobile detail-close tests flake under load.
-  assert.match(mapSource, /\} else if \(activeMapFocus\) \{\s*\n\s*focusMap\(activeMapFocus, \{ remember: false \}\);/);
+  assert.match(
+    mapSource,
+    /\} else if \(activeMapFocus\) \{\s*\n\s*focusMap\(activeMapFocus, \{ remember: false \}\);/,
+  );
 });
 
 test("map runtime uses the vendored MapLibre v6 ESM modules", () => {
+  const packageLock = JSON.parse(
+    readFileSync(new URL("../package-lock.json", import.meta.url), "utf8"),
+  );
+  const version = packageLock.packages["node_modules/maplibre-gl"].version;
+  const escapedVersion = version.replaceAll(".", "\\.");
   assert.match(
     mapSource,
-    /import \* as maplibregl from "\.\/vendor\/maplibre\/maplibre-gl\.mjs\?v=6\.9\.0"/,
-  );
-  assert.match(
-    readFileSync(new URL("../app/static/vendor/maplibre/maplibre-gl.mjs", import.meta.url), "utf8"),
-    /from"\.\/maplibre-gl-shared\.mjs\?v=6\.9\.0"/,
-  );
-  assert.match(
-    readFileSync(
-      new URL("../app/static/vendor/maplibre/maplibre-gl-worker.mjs", import.meta.url),
-      "utf8",
+    new RegExp(
+      `import \\* as maplibregl from "\\.\\/vendor\\/maplibre\\/maplibre-gl\\.mjs\\?v=${escapedVersion}"`,
     ),
-    /from"\.\/maplibre-gl-shared\.mjs\?v=6\.9\.0"/,
   );
+  assert.match(mapSource, new RegExp(`const MAPLIBRE_VERSION = "${escapedVersion}"`));
+  for (const filename of ["maplibre-gl.mjs", "maplibre-gl-worker.mjs"]) {
+    const vendorSource = readFileSync(
+      new URL(`../app/static/vendor/maplibre/${filename}`, import.meta.url),
+      "utf8",
+    );
+    assert.match(
+      vendorSource,
+      new RegExp(`from"\\.\\/maplibre-gl-shared\\.mjs\\?v=${escapedVersion}"`),
+    );
+    assert.match(vendorSource, new RegExp(`/blob/v${escapedVersion}/LICENSE\\.txt`));
+  }
   assert.doesNotMatch(mapSource, /window\.maplibregl/);
   assert.doesNotMatch(indexSource, /vendor\/maplibre\/maplibre-gl\.js/);
 });

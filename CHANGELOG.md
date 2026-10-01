@@ -14,7 +14,8 @@ Keep active execution state in `PLANS.md` and source/evidence research in `NOTES
 
 ### Changed
 
-- Updated npm tooling dependencies and the Python runtime/development lockfile, including pypdf 6.19.0 and virtualenv 21.7.13 security fixes. Browser MapLibre vendor assets remain at 6.9.0 pending a separate refresh.
+- Updated npm tooling dependencies and the Python runtime/development lockfile, including pypdf 6.19.0 and virtualenv 21.7.13 security fixes. Browser MapLibre vendor assets are refreshed to 6.10.0 with matching versioned imports, source maps, and the upstream license.
+- Container builds now install the exact runtime dependencies from `uv.lock` with pinned uv 0.12.21 and preserve the inherited SQLite snapshot.
 - Adapted templates to djlint 1.46.2 with narrow H021 exemptions for data-derived legend colours and histogram heights, preserving rendered behavior.
 
 - Updated the About-page privacy disclosure for the identifier-free daily counters, GPC/DNT behavior, 90-day retention, and continued absence of accounts, advertising, third-party trackers, and application cookies.
@@ -22,7 +23,7 @@ Keep active execution state in `PLANS.md` and source/evidence research in `NOTES
 
 ### Verified
 
-- Dependency maintenance passed all pre-commit checks, 229 Python tests, 106 Node tests, 54 desktop/mobile Playwright cases, focused visual checks, and a Worker-only Wrangler dry run. The container dry run remains unverified because Docker is unavailable; no production deployment was performed.
+- Dependency maintenance passed all pre-commit checks, 229 Python tests, 106 Node tests, 54 desktop/mobile Playwright cases, focused visual checks, and a Worker-only Wrangler dry run. The follow-up MapLibre refresh also passed desktop/mobile interaction checks and an Apple container amd64 build, exact runtime-version validation, and byte-for-byte SQLite preservation checks.
 
 - The `v0.4.9` candidate passed pre-commit, 229 Python tests, 96 Node tests, the complete 54-case desktop/mobile Playwright suite, a real-SQLite migration smoke test, and a Wrangler Worker/Container dry-run.
 - Applied production D1 migration `0012_usage_evidence.sql` and verified the combined interaction-endpoint rate rule is active before deployment.

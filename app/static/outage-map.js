@@ -4,8 +4,8 @@ import {
   latestMapLayerItems,
   MAP_EVENTS,
   pendingMapFocus,
-} from "./map-events.js?v=e4b1000173c3";
-import { optimizeBaseMapStyle } from "./map-style.js?v=e4b1000173c3";
+} from "./map-events.js?v=6e60de84d998";
+import { optimizeBaseMapStyle } from "./map-style.js?v=6e60de84d998";
 import {
   boundsToLngLatBounds,
   CHOROPLETH_STOPS,
@@ -15,11 +15,11 @@ import {
   itemRenderKey,
   normalizeMapPoint,
   radiusCirclePolygon,
-} from "./map-utils.js?v=e4b1000173c3";
-import * as maplibregl from "./vendor/maplibre/maplibre-gl.mjs?v=6.9.0";
+} from "./map-utils.js?v=6e60de84d998";
+import * as maplibregl from "./vendor/maplibre/maplibre-gl.mjs?v=6.10.0";
 
 const LIBERTY_STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
-const MAPLIBRE_VERSION = "6.9.0";
+const MAPLIBRE_VERSION = "6.10.0";
 
 async function lightweightLibertyStyle() {
   try {

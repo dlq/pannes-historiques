@@ -18,12 +18,16 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/*
 
-COPY pyproject.toml README.md ./
+COPY --from=ghcr.io/astral-sh/uv:0.12.21 /uv /bin/uv
+
+COPY pyproject.toml uv.lock README.md ./
 COPY app ./app
 COPY server.py ./
 COPY scripts/start.sh ./scripts/start.sh
 
-RUN pip install --no-cache-dir .
+RUN uv sync --locked --no-dev --no-editable --no-cache --no-python-downloads
+
+ENV PATH="/app/.venv/bin:$PATH"
 
 EXPOSE 8080
 

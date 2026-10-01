@@ -1,11 +1,11 @@
-import { phIconMarkup } from "./icons.js?v=e4b1000173c3";
+import { phIconMarkup } from "./icons.js?v=6e60de84d998";
 import {
   escapeHtml,
   formatDuration,
   formatPreviousTimeParts,
   label,
   localizeCause,
-} from "./ui-format.js?v=e4b1000173c3";
+} from "./ui-format.js?v=6e60de84d998";
 
 const DETAIL_EXTRACTED_ROW_LIMIT = 80;
 

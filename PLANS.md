@@ -142,7 +142,7 @@ Routine command details live in `docs/contributing.md`; production and deploy ch
 - Browser proof gaps remain: real-device geolocation/permission recovery, visible freshness/change cues, dense live-data readability, and practical keyboard/screen-reader checks.
 - The WCAG pass shipped contrast, reduced-motion, live-region, dialog-focus, and keyboard regression fixes; the remaining proof gaps are ongoing maintenance work, not an unfinished `v0.4.5` release item.
 - First-party JS modules improve maintainability but increase module requests; measure on Cloudflare before assuming native modules or bundling is better.
-- The npm dependency update sets MapLibre to 6.10.0, while browser imports still use the checked-in 6.9.0 vendor assets. Refresh the entry/shared/worker/CSS assets, import/cache versions, and focused tests together in a separate browser-verified maintenance change.
+- MapLibre 6.10.0 vendor refresh and the locked container build pass local unit, browser, visual, and amd64 image checks. Commit/push, final CI, immediate production container rollout, and live map/ingestion/archive checks are in progress.
 - DAI/disclosure detail panels are data-rich and visually fragile; keep checking overlap, horizontal scrolling, and dense-row readability.
 - Bad in-app URLs and unhandled Flask exceptions still need minimal branded 404/500 pages.
 - SEO announcement-readiness follow-up: consider `noindex,follow` for user-entered address/current-location result pages so arbitrary searches do not become indexable landing pages. Absolute social-image URLs, large-card metadata, and French/English/`x-default` alternates are implemented and production-verified.

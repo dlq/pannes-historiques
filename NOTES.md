@@ -3,6 +3,15 @@
 Date: 2026-04-25
 Last updated: 2026-10-01
 
+## MapLibre runtime refresh and locked container build, 2026-10-01
+
+- Observed: the npm lockfile resolved MapLibre 6.10.0 while browser entry/shared/worker files and their URL versions remained at 6.9.0. Refreshed the checked-in 6.10.0 ESM assets, source maps, and upstream license; retained local relative imports and regenerated the first-party cache token to `6e60de84d998`. The existing vendor regression test now compares runtime pins against `package-lock.json`.
+- Observed: the Dockerfile installed the project with `pip install .` without using `uv.lock`, allowing satisfying older dependencies from its base image to remain. It now copies the lockfile, installs pinned uv 0.12.21, and runs `uv sync --locked --no-dev --no-editable --no-cache --no-python-downloads`; Gunicorn uses `/app/.venv/bin`.
+- Validation: all pre-commit checks, 229 Python tests, 106 Node tests, and 54 desktop/mobile Playwright cases passed. Focused desktop/mobile checks verified all four domains, address search, pan/zoom, five context legend colours, and the 14-bar histogram without JavaScript errors, overflow, or WebGL failure. OpenFreeMap emits nonblocking null-filter warnings.
+- Apple container CLI 1.5.0 built the production candidate for `linux/amd64`. A disposable image check confirmed all ten runtime dependencies exactly match `uv.lock`, including gunicorn 26.2.0 and pypdf 6.19.0. The inherited SQLite snapshot remains 119,226,368 bytes with SHA-256 `3c95797eeb037c043e1e77196d809da03155bb883486b4a7a7be16bc5711bb2c`, identical to the base image; no source data was changed.
+- Deployment path: Apple container builds and pushes the prebuilt image; a temporary Wrangler config selects that registry image. Wrangler's Dockerfile build flags and inspection formats are incompatible with Apple's CLI. The committed config continues to support the standard Docker deployment path. Production rollout and final live checks are pending.
+- References: [Cloudflare prebuilt image deployment](https://developers.cloudflare.com/containers/guides/image-management/), [uv Docker integration](https://docs.astral.sh/uv/guides/integration/docker/).
+
 ## Dependency maintenance, 2026-10-01
 
 - Observed: Dependabot's original [PR 29](https://github.com/dlq/pannes-historiques/pull/29) failed on one `djlint` attribute-wrapping change and H021 findings for the existing metric legend colour and histogram bar height. Dependabot closed it and created [replacement PR 36](https://github.com/dlq/pannes-historiques/pull/36), which updates `djlint` to 1.46.2 and has the same lint failure.
