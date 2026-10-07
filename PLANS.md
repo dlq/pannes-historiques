@@ -1,7 +1,7 @@
 # Plan: Hydro-Quebec Outage History App
 
 Date: 2026-04-25
-Last updated: 2026-10-01
+Last updated: 2026-10-07
 
 This is the active execution plan. Keep detailed evidence and research notes in `NOTES.md`, completed release history in `CHANGELOG.md`, operational runbooks in `docs/operations.md`, and long maintenance backlogs in `docs/maintenance-backlog.md`.
 
@@ -9,7 +9,7 @@ This is the active execution plan. Keep detailed evidence and research notes in 
 
 - Current shipped release: `v0.4.8`, cost and operational guardrails, released 2026-08-14.
 - Tagged-release deployment: Worker version `e6fe9a87-df8f-4cf4-a82b-b0dcdc07fa4c`, deployed 2026-08-14 from tagged release commit `f6df621` with the `pannes-historiques-pannescontainer:e6fe9a87` image.
-- Latest production deployment: code commit `c95db3f`, deployed 2026-10-01 as Worker version `695960be-5069-48a0-b690-acada7f04ced` with container image digest `sha256:dfed4c6124b734150b0748ced82ef15fe46db4adc6690ad796e9e1ce048d8d10`. MapLibre 6.10.0, locked runtime dependencies, desktop/mobile search, ingestion health, and Archive are production-verified. D1 migrations `0011` through `0013` and the 15-minute Hydro schedule remain active. A full rolling-day D1 comparison remains.
+- Latest production deployment: code commit `8df9c99`, deployed 2026-10-07 as Worker version `853effa2-9ed5-4a23-a199-cd91fed02789` with container image digest `sha256:d5183672660f7e1ad807660e98cfd656ed6c7a4b9be46877d707adc7907460b6`. MapLibre 6.11.2, Werkzeug 3.1.9, exact locked runtime dependencies, desktop/mobile map/search, fresh ingestion, and Archive are production-verified. D1 migrations `0011` through `0013`, the 15-minute Hydro schedule, and the `v0.4.9` usage-evidence path remain active. A full rolling-day D1 comparison remains.
 - Ingestion incident 2026-07-15 to 2026-07-20: scheduled Hydro ingestion failed every 30 minutes for five days while the site returned `200` and served stale data. Cause was the durable collection path storing payload files without registering the `raw_snapshots` row the Worker's `/internal/raw-snapshot` callback resolves through. Fixed and verified: run 3630 completed `ok` and snapshots are current again. Two plausible-but-wrong hypotheses were ruled out by testing rather than by correlation — container ephemerality, and the `v0.4.3` CodeQL path-hardening, whose lookup was exercised directly against a real file and resolves correctly.
 - Monitoring gap this exposed: the only health surface was token-protected and pull-based, so nothing observed the failure. `GET /api/health/ingestion` now returns `503` when ingestion is stale or failing. The `Ingestion health monitor` GitHub Actions workflow probes it hourly.
 - That probe also fails when the served archive summary is missing or contradicts itself, after the Archive report spent months showing a count of municipalities as a count of outages while every health surface reported green. A routine cursor lag between 15-minute ingestion and the bounded summary refresh remains visible as a warning without declaring fresh ingestion unhealthy. This classification is deployed and production-verified.

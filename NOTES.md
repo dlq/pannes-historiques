@@ -3,6 +3,15 @@
 Date: 2026-04-25
 Last updated: 2026-10-07
 
+## October 7 dependency deployment, 2026-10-07
+
+- Deployed code commit `8df9c99` after its Quality, CodeQL, and browser CI passed. The production candidate contains MapLibre 6.11.2, Werkzeug 3.1.9, and the merged npm/development security updates. No D1 migration was introduced.
+- Apple container CLI built `linux/amd64`; the tested manifest is `sha256:d5183672660f7e1ad807660e98cfd656ed6c7a4b9be46877d707adc7907460b6` and its OCI index is `sha256:7a32f6ad761e720d3933958df0277287eb0db635724e82060b7a4d88995648fb`. All ten runtime dependencies exactly match `uv.lock`; the embedded SQLite snapshot remains 119,226,368 bytes with SHA-256 `3c95797eeb037c043e1e77196d809da03155bb883486b4a7a7be16bc5711bb2c`.
+- Registry upload succeeded using HTTP/2, 5-MiB PATCHes, and an empty closing PUT. Verified every blob/manifest and the published image tag before deployment. Temporary registry credential files were removed.
+- A prebuilt-image Wrangler dry run passed. `wrangler deploy --config .wrangler/apple-deploy.jsonc --containers-rollout immediate` deployed Worker `853effa2-9ed5-4a23-a199-cd91fed02789` at 100%. Container application version 128 reports active with one instance on immutable image digest `sha256:d5183672660f7e1ad807660e98cfd656ed6c7a4b9be46877d707adc7907460b6`. The 15-minute ingestion schedule and existing D1/R2/DO bindings remain configured.
+- Production probes: French/English homepages, Archive sheet, liveness, service worker, and ingestion health returned 200. The browser map module plus all four MapLibre runtime assets match the checkout byte for byte. At 17:01 UTC, ingestion was nine minutes fresh with zero consecutive failures, `healthy: true`, `problems: []`, and the expected archive cursor warning.
+- Live desktop/mobile checks verified MapLibre 6.11.2, all four domains, typed-address search and map reframing, without JavaScript errors, map-load failures, or overflow. Browser plugin not available; used Playwright with GPC to suppress operator usage writes. The initial map readiness check timed out during rollover; fresh retries passed after the container became active. Existing OpenFreeMap null-filter and screenshot GPU warnings remain nonblocking.
+
 ## Sharp tooling security patch, 2026-10-07
 
 - Observed: Dependabot alert 23 reports vulnerable Sharp `<0.35.5` through Wrangler 4.147.0 / Miniflare. No security PR existed; the latest Wrangler 4.148.0 still pins Sharp 0.35.4 through Miniflare.
@@ -15,7 +24,7 @@ Last updated: 2026-10-07
 - Observed: [PR 37](https://github.com/dlq/pannes-historiques/pull/37) updates djlint to 1.46.4 and Ruff to 0.16.10; all checks passed and it was merged as `9e17e88`.
 - Observed: [PR 38](https://github.com/dlq/pannes-historiques/pull/38) updates MapLibre to 6.11.2, Biome to 2.5.15, and Wrangler to 4.147.0. Its Node vendor-version guard failed because checked-in MapLibre assets and browser imports still pinned 6.10.0. Refreshed upstream ESM/CSS/source maps, matching local shared-module imports, and first-party cache tokens; retained the guard.
 - Validation: all pre-commit checks, 229 Python tests, 106 Node tests, and 54 desktop/mobile Playwright cases passed. Focused local desktop/mobile checks confirmed runtime 6.11.2, all four domains, and address search without JavaScript errors, overflow, or map-load failures. Browser plugin not available; used regular Playwright. Disabled usage writes with GPC because the local fixture omits the Worker usage endpoint. Nonblocking OpenFreeMap null-filter and screenshot GPU warnings persist.
-- Scope: dependency merges only; production remains the verified 2026-10-01 deployment until a separate deployment is requested.
+- Scope: dependency merges only; these merges were subsequently deployed on October 7 as recorded above.
 
 ## MapLibre runtime refresh and locked container build, 2026-10-01
 
