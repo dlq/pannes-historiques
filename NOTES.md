@@ -3,6 +3,13 @@
 Date: 2026-04-25
 Last updated: 2026-10-07
 
+## Forced Archive summary refresh, 2026-10-07
+
+- User requested a one-off refresh after the daily summary lag warning. Before refresh, the stored summary was generated at `2026-10-07T11:37:58.720Z` with cursor `bispoly:20261007072008:10`, while the municipal archive cursor had advanced to `bispoly:20261007125002:87`.
+- No dedicated force-refresh endpoint exists. Executed the exact production `buildMunicipalArchiveSummary` implementation once through the authenticated D1 query interface, preserved the prior stored summary locally, validated its shape and coherence, and guarded publication against a changing source cursor. Updated only `municipal_archive_summaries.previous_archive_summary` and the summary-refresh timestamp in `municipal_archive_build_state`; no source data or deployment changed.
+- Result: summary generated at `2026-10-07T17:12:59.302Z` matches cursor `bispoly:20261007125002:87`. At `17:13:18 UTC`, the public summary was not stale and ingestion health was healthy with zero consecutive failures, no problems, and no warnings.
+- Cadence remains daily: later archive batches can reintroduce the cursor warning until the next summary refresh. The warning is not evidence of failed ingestion or lost raw inputs.
+
 ## October 7 dependency deployment, 2026-10-07
 
 - Deployed code commit `8df9c99` after its Quality, CodeQL, and browser CI passed. The production candidate contains MapLibre 6.11.2, Werkzeug 3.1.9, and the merged npm/development security updates. No D1 migration was introduced.
