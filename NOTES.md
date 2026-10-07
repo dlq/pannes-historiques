@@ -1,7 +1,14 @@
 # Research: Hydro-Québec Historic Outage Data
 
 Date: 2026-04-25
-Last updated: 2026-10-01
+Last updated: 2026-10-07
+
+## Dependency maintenance, 2026-10-07
+
+- Observed: [PR 37](https://github.com/dlq/pannes-historiques/pull/37) updates djlint to 1.46.4 and Ruff to 0.16.10; all checks passed and it was merged as `9e17e88`.
+- Observed: [PR 38](https://github.com/dlq/pannes-historiques/pull/38) updates MapLibre to 6.11.2, Biome to 2.5.15, and Wrangler to 4.147.0. Its Node vendor-version guard failed because checked-in MapLibre assets and browser imports still pinned 6.10.0. Refreshed upstream ESM/CSS/source maps, matching local shared-module imports, and first-party cache tokens; retained the guard.
+- Validation: all pre-commit checks, 229 Python tests, 106 Node tests, and 54 desktop/mobile Playwright cases passed. Focused local desktop/mobile checks confirmed runtime 6.11.2, all four domains, and address search without JavaScript errors, overflow, or map-load failures. Browser plugin not available; used regular Playwright. Disabled usage writes with GPC because the local fixture omits the Worker usage endpoint. Nonblocking OpenFreeMap null-filter and screenshot GPU warnings persist.
+- Scope: dependency merges only; production remains the verified 2026-10-01 deployment until a separate deployment is requested.
 
 ## MapLibre runtime refresh and locked container build, 2026-10-01
 
