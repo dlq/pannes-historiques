@@ -14,6 +14,8 @@ Keep active execution state in `PLANS.md` and source/evidence research in `NOTES
 
 ### Changed
 
+- Refreshed browser MapLibre assets and imports to 6.11.2 alongside Biome 2.5.15 and Wrangler 4.147.0; updated development tools to djlint 1.46.4 and Ruff 0.16.10. The October 7 maintenance passes pre-commit, 229 Python tests, 106 Node tests, 54 Playwright cases, and focused desktop/mobile map/search checks. Deployment is pending.
+
 - Updated npm tooling dependencies and the Python runtime/development lockfile, including pypdf 6.19.0 and virtualenv 21.7.13 security fixes. Browser MapLibre vendor assets are refreshed to 6.10.0 with matching versioned imports, source maps, and the upstream license.
 - Container builds now install the exact runtime dependencies from `uv.lock` with pinned uv 0.12.21 and preserve the inherited SQLite snapshot.
 - Adapted templates to djlint 1.46.2 with narrow H021 exemptions for data-derived legend colours and histogram heights, preserving rendered behavior.
