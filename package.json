@@ -33,6 +33,7 @@
     "topojson-simplify": "^3.0.3"
   },
   "overrides": {
-    "undici": "^7.29.0"
+    "undici": "^7.29.0",
+    "sharp": "0.35.5"
   }
 }
