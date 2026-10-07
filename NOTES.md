@@ -3,6 +3,13 @@
 Date: 2026-04-25
 Last updated: 2026-10-07
 
+## Sharp tooling security patch, 2026-10-07
+
+- Observed: Dependabot alert 23 reports vulnerable Sharp `<0.35.5` through Wrangler 4.147.0 / Miniflare. No security PR existed; the latest Wrangler 4.148.0 still pins Sharp 0.35.4 through Miniflare.
+- Fix: a scoped `overrides.miniflare.sharp` pin to 0.35.5 updates Sharp and its prebuilt libvips packages without changing Wrangler or application assets. Regenerated the lockfile with npm 11 to preserve platform libc metadata. Remove the override once upstream Miniflare pins a patched Sharp version.
+- Validation: clean npm 11 locked install, zero npm audit vulnerabilities, `npm run check`, and all 106 Node tests passed. Native SVG-to-PNG conversion confirmed Sharp 0.35.5 and librsvg 2.63.2. Wrangler's deployment dry run passed using a temporary config referencing the existing immutable container image; no production deployment occurred.
+- Source: [Dependabot alert 23](https://github.com/dlq/pannes-historiques/security/dependabot/23).
+
 ## Dependency maintenance, 2026-10-07
 
 - Observed: [PR 37](https://github.com/dlq/pannes-historiques/pull/37) updates djlint to 1.46.4 and Ruff to 0.16.10; all checks passed and it was merged as `9e17e88`.
