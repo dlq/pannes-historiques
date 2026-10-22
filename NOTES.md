@@ -3,6 +3,12 @@
 Date: 2026-04-25
 Last updated: 2026-10-22
 
+## Maintenance pause readiness, 2026-10-22
+
+- Read-only D1 probe `SELECT 1 AS health_probe` returned database size `3,105,034,240` bytes (3.11 GB), with zero rows scanned. The October 7 refresh preflight measured `2,704,949,248` bytes: approximately 400 MB growth in 15 days. About 395 MB remains before ADR 0005's 3.5 GB internal review/compaction trigger; that is a planning trigger, not a failure limit. If the short observed growth pace continues, it is roughly two weeks away, so recheck storage around October 29 before extending a maintenance pause.
+- Live ingestion at `2026-10-22T17:38:17Z` was healthy, one minute fresh, with zero consecutive failures and no problems. The daily Archive cursor warning had returned after newer batches, as expected after the earlier manual refresh. No open Dependabot security or CodeQL alerts were reported.
+- The October 23 usage-evidence date is the earliest planned eight-week review point, not an operational deadline. Feature/API work and the written usage decision can wait a week or two; storage review and operational/security alerts remain the exceptions.
+
 ## Forced Archive summary refresh, 2026-10-22
 
 - User requested a one-off refresh after the October 22 deployment. Preserved the prior summary generated `2026-10-21T20:37:37.532Z`, ran the exact production summary builder through the authenticated D1 query interface, validated its shape/coherence, and guarded publication against the source cursor changing during the build.
