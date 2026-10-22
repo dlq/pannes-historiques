@@ -3,6 +3,16 @@
 Date: 2026-04-25
 Last updated: 2026-10-22
 
+## October 22 production deployment
+
+- Deployed merged commit `8fffcd0` after its Quality, CodeQL, and browser CI passed. The runtime includes MapLibre 6.13.0 and pypdf 6.21.0; Werkzeug remains patched at 3.1.9. No D1 migration was introduced.
+- Apple container CLI built `linux/amd64`; verified manifest `sha256:f3a44940cf1542aeeff697aad007718114a3c92c78a709184d580dcbe903c9b6` and OCI index `sha256:b84a8caf51a7e0f0dcf1119b98b1283079d2cb5e02808da1a6ae88a17f6b6186`. All ten runtime dependencies exactly match `uv.lock`. The inherited SQLite snapshot remains 119,226,368 bytes with unchanged SHA-256 `3c95797eeb037c043e1e77196d809da03155bb883486b4a7a7be16bc5711bb2c`.
+- Registry upload verified every blob and published tag, using HTTP/2, 5-MiB PATCHes, an empty closing PUT, and bounded recovery. Temporary credentials were removed after upload. The immutable-image Wrangler dry run passed before deployment.
+- `wrangler deploy --config .wrangler/apple-deploy.jsonc --containers-rollout immediate` deployed Worker `2a1e7c99-2afd-438d-bfd8-b59f89148364` at 100%, with unchanged D1/R2/DO bindings and cron schedules. Container application version 129 selects `sha256:f3a44940cf1542aeeff697aad007718114a3c92c78a709184d580dcbe903c9b6`; its instance is running, with one active instance, no failed instances, and no reported errors.
+- Public probes: French and English homepages, Archive sheet, liveness, service worker, ingestion health, and Archive summary returned 200. The browser entry/map modules and entry/worker/CSS vendor assets match the checkout byte for byte. The first probe during rollover still saw the old image; fresh probes verified the new bytes after container replacement.
+- Live desktop/mobile QA confirmed actual MapLibre 6.13.0, all four domains, typed-address results and map reframing, without JavaScript errors, map failures, or overflow. Browser plugin not available; used Playwright with GPC to suppress operator usage writes. Existing OpenFreeMap null-filter and screenshot GPU warnings remain nonblocking.
+- At `2026-10-22T14:36:50Z`, ingestion was healthy with zero consecutive failures and no problems. The pre-existing daily Archive summary cursor warning remains: the summary generated `2026-10-21T20:37:37.532Z` is coherent but behind newer archive batches. No summary refresh or cadence change was part of this deployment.
+
 ## October 22 dependency maintenance
 
 - Merged green Dependabot PRs [43](https://github.com/dlq/pannes-historiques/pull/43) (actions/setup-node 7.1.0) and [44](https://github.com/dlq/pannes-historiques/pull/44) (djlint 1.46.6, pre-commit 4.7.0, pypdf 6.21.0, Ruff 0.17.1).

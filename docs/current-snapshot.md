@@ -1,6 +1,6 @@
 # Current Snapshot
 
-Last updated: 2026-10-07
+Last updated: 2026-10-22
 
 Read this first for quick orientation. Use `PLANS.md` for the active roadmap, `docs/architecture.md` for runtime boundaries, `docs/cost-containment.md` for cost strategy, and `CHANGELOG.md` for completed release history.
 
@@ -9,7 +9,7 @@ Read this first for quick orientation. Use `PLANS.md` for the active roadmap, `d
 - Shipped release: `v0.4.8`.
 - Development package metadata: `0.4.9` in `pyproject.toml` and `package.json`; the latest shipped/tagged release remains `v0.4.8`.
 - Tagged-release deployment: Worker version `e6fe9a87-df8f-4cf4-a82b-b0dcdc07fa4c`, deployed 2026-08-14 from tagged release commit `f6df621` with the `pannes-historiques-pannescontainer:e6fe9a87` image.
-- Latest production deployment: code commit `8df9c99`, deployed 2026-10-07 as Worker version `853effa2-9ed5-4a23-a199-cd91fed02789` with container image digest `sha256:d5183672660f7e1ad807660e98cfd656ed6c7a4b9be46877d707adc7907460b6`. MapLibre 6.11.2, Werkzeug 3.1.9, exact locked runtime dependencies, desktop/mobile map/search, fresh ingestion, and Archive are production-verified. D1 migrations `0011` through `0013`, the 15-minute Hydro schedule, and the `v0.4.9` usage-evidence path remain active. A full rolling-day D1 comparison remains.
+- Latest production deployment: code commit `8fffcd0`, deployed 2026-10-22 as Worker version `2a1e7c99-2afd-438d-bfd8-b59f89148364` with immutable amd64 container image digest `sha256:f3a44940cf1542aeeff697aad007718114a3c92c78a709184d580dcbe903c9b6`. MapLibre 6.13.0, pypdf 6.21.0, exact locked runtime dependencies, desktop/mobile map/search, ingestion health, and Archive rendering are production-verified. The daily Archive summary cursor warning remains visible between summary refreshes. D1 migrations `0011` through `0013`, the 15-minute Hydro schedule, and the `v0.4.9` usage-evidence path remain active. A full rolling-day D1 comparison remains.
 - Do not treat a merge to `main` as proof of production deployment; record deployment evidence in `PLANS.md` and `CHANGELOG.md`.
 - Current development direction: the `v0.4.9` identifier-free daily feature/action evidence candidate is deployed, with 90-day retention, a private readout, migration `0012`, and the shared interaction-endpoint edge rule active. The bounded observation period and written decision remain. The post-release archive cursor query optimization is deployed and awaits a 24-hour D1 read comparison. `v0.4.8` completed the authenticated cost decision, container-runtime retirement, archive cursor health guard, and autocomplete edge protection.
 - `v0.5.0` remains gated on `v0.4.9`'s bounded usage-data lifecycle and a 14-day observation window with healthy ingestion, bounded archive-summary refresh without unexplained prolonged lag, and no unexplained archive-completeness regression.
