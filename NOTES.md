@@ -1,7 +1,15 @@
 # Research: Hydro-Québec Historic Outage Data
 
 Date: 2026-04-25
-Last updated: 2026-10-07
+Last updated: 2026-10-22
+
+## October 22 dependency maintenance
+
+- Merged green Dependabot PRs [43](https://github.com/dlq/pannes-historiques/pull/43) (actions/setup-node 7.1.0) and [44](https://github.com/dlq/pannes-historiques/pull/44) (djlint 1.46.6, pre-commit 4.7.0, pypdf 6.21.0, Ruff 0.17.1).
+- [PR 42](https://github.com/dlq/pannes-historiques/pull/42) updates MapLibre 6.13.0, Playwright 1.64.0, and Wrangler 4.149.0. Its Node guard correctly caught stale 6.11.2 browser assets. Upstream 6.13.0 distributes self-contained entry/worker bundles and an empty shared placeholder, with no shared source map. Refreshed upstream ESM/CSS/maps/license bytes, removed obsolete shared assets, updated browser versions/cache tokens, and strengthened the vendor guard to compare all shipped runtime assets directly with the locked npm package. The Flask source-map check now covers the actual entry/worker maps.
+- CI's mobile error-recovery assertion failed to observe an error, but the unmodified test passed 16 local repeats and a controlled-service-worker diagnostic also passed. The CI-specific root cause remains unconfirmed. Hardened only that fault-injection test: install its route before navigation, match `/sheet?` precisely instead of also matching `sheet.js`, block service workers in that describe block, and wait explicitly for the planned request's failure before asserting error display/recovery. The separate PWA-registration test retains service workers. [Playwright documents the routing/service-worker caveat](https://playwright.dev/docs/network#missing-network-events-and-service-workers).
+- Validation: all pre-commit checks, 229 Python tests, 106 Node tests, and 54 desktop/mobile Playwright cases pass. Focused desktop/mobile checks confirm actual MapLibre 6.13.0, all four domains, and typed-address search without JavaScript errors, map failures, or overflow. Browser plugin not available; used Playwright with GPC to suppress optional usage writes. Existing OpenFreeMap style-filter and screenshot GPU warnings remain nonblocking.
+- Scope: merge dependency updates; production is unchanged from the verified October 7 deployment until another deployment is requested.
 
 ## Forced Archive summary refresh, 2026-10-07
 

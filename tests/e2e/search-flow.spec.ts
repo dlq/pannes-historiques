@@ -241,24 +241,35 @@ test("provenance card opens from the explore footer and the hero info button", a
   await expect(page.locator('.ph-sheet-footer-link[data-layer-info]')).toBeFocused();
 });
 
-test("failed sheet fetches show an error and recover", async ({ page }) => {
-  await page.goto("/?lang=en");
-  await expect(page.locator("body")).toHaveAttribute("data-app-ready", "true");
-  await expect(page.locator(".ph-segment.is-active")).toHaveText("Live");
+test.describe("sheet request failure recovery", () => {
+  // Keep this fault-injection test on Playwright's routing path. PWA
+  // registration is exercised separately above with service workers enabled.
+  test.use({ serviceWorkers: "block" });
 
-  await page.route("**/sheet**", (route) => route.abort());
-  await page.locator('.ph-segment[data-domain-link="planned"]').click();
-  await expect(page.locator(".ph-sheet-error")).toBeVisible();
-  await expect(page.locator(".ph-sheet-error")).toContainText("could not load");
-  await expect(page.locator(".ph-segment.is-active")).toHaveText("Live");
+  test("failed sheet fetches show an error and recover", async ({ page }) => {
+    await page.route("**/sheet?**", (route) => route.abort());
+    await page.goto("/?lang=en");
+    await expect(page.locator("body")).toHaveAttribute("data-app-ready", "true");
+    await expect(page.locator(".ph-segment.is-active")).toHaveText("Live");
 
-  await page.unroute("**/sheet**");
-  const plannedResponse = page.waitForResponse((response) =>
-    response.url().includes("domain=planned"),
-  );
-  await page.locator('.ph-segment[data-domain-link="planned"]').click();
-  await plannedResponse;
-  await expect(page.locator('.ph-sheet-content[data-domain="planned"]')).toBeVisible();
+    const failedRequest = page.waitForEvent(
+      "requestfailed",
+      (request) => request.url().includes("/sheet?") && request.url().includes("domain=planned"),
+    );
+    await page.locator('.ph-segment[data-domain-link="planned"]').click();
+    await failedRequest;
+    await expect(page.locator(".ph-sheet-error")).toBeVisible();
+    await expect(page.locator(".ph-sheet-error")).toContainText("could not load");
+    await expect(page.locator(".ph-segment.is-active")).toHaveText("Live");
+
+    await page.unroute("**/sheet?**");
+    const plannedResponse = page.waitForResponse((response) =>
+      response.url().includes("domain=planned"),
+    );
+    await page.locator('.ph-segment[data-domain-link="planned"]').click();
+    await plannedResponse;
+    await expect(page.locator('.ph-sheet-content[data-domain="planned"]')).toBeVisible();
+  });
 });
 
 test("current rows sort by customers or recency", async ({ page }) => {
