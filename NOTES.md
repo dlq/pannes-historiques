@@ -3,6 +3,12 @@
 Date: 2026-04-25
 Last updated: 2026-10-22
 
+## Forced Archive summary refresh, 2026-10-22
+
+- User requested a one-off refresh after the October 22 deployment. Preserved the prior summary generated `2026-10-21T20:37:37.532Z`, ran the exact production summary builder through the authenticated D1 query interface, validated its shape/coherence, and guarded publication against the source cursor changing during the build.
+- Refreshed summary generated `2026-10-22T14:40:21.878Z` matches cursor `bispoly:20261022102010:107`. Changed only the derived summary and its refresh timestamp; no source data, code, deployment, or schedule changed.
+- Public verification at `2026-10-22T14:40:59.309Z`: summary not stale; ingestion healthy, four-minute freshness, zero consecutive failures, no problems, and no warnings. This clears the daily cursor warning observed during rollout; later archive batches may reintroduce it before the next summary refresh.
+
 ## October 22 production deployment
 
 - Deployed merged commit `8fffcd0` after its Quality, CodeQL, and browser CI passed. The runtime includes MapLibre 6.13.0 and pypdf 6.21.0; Werkzeug remains patched at 3.1.9. No D1 migration was introduced.
