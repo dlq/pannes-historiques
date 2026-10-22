@@ -14,6 +14,8 @@ Keep active execution state in `PLANS.md` and source/evidence research in `NOTES
 
 ### Changed
 
+- Updated MapLibre to 6.13.0 with self-contained vendor bundles and byte-for-byte package guards, Playwright to 1.64.0, Wrangler to 4.149.0, setup-node to 7.1.0, and the Python maintenance lockfile. Hardened the browser request-failure test with precise routing and explicit failure observation. Production deployment is pending.
+
 - Patched Wrangler/Miniflare’s transitive Sharp dependency to 0.35.5 with a package override, including the fixed librsvg 2.63.2 prebuilt dependency. npm audit reports zero vulnerabilities.
 
 - Refreshed browser MapLibre assets and imports to 6.11.2 alongside Biome 2.5.15 and Wrangler 4.147.0; updated development tools to djlint 1.46.4 and Ruff 0.16.10. The October 7 maintenance passes pre-commit, 229 Python tests, 106 Node tests, 54 Playwright cases, and focused desktop/mobile map/search checks. Deployed on 2026-10-07 from `8df9c99` as Worker `853effa2-9ed5-4a23-a199-cd91fed02789` with immutable amd64 container digest `sha256:d5183672660f7e1ad807660e98cfd656ed6c7a4b9be46877d707adc7907460b6`; live desktop/mobile map/search and ingestion checks passed.

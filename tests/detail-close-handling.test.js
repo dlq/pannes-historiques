@@ -133,16 +133,20 @@ test("map runtime uses the vendored MapLibre v6 ESM modules", () => {
     ),
   );
   assert.match(mapSource, new RegExp(`const MAPLIBRE_VERSION = "${escapedVersion}"`));
-  for (const filename of ["maplibre-gl.mjs", "maplibre-gl-worker.mjs"]) {
-    const vendorSource = readFileSync(
-      new URL(`../app/static/vendor/maplibre/${filename}`, import.meta.url),
-      "utf8",
+  // MapLibre 6.13 bundles entry and worker independently; compare the actual
+  // package assets instead of requiring the older shared-module layout.
+  for (const filename of [
+    "maplibre-gl.mjs",
+    "maplibre-gl-worker.mjs",
+    "maplibre-gl.mjs.map",
+    "maplibre-gl-worker.mjs.map",
+    "maplibre-gl.css",
+  ]) {
+    assert.deepEqual(
+      readFileSync(new URL(`../app/static/vendor/maplibre/${filename}`, import.meta.url)),
+      readFileSync(new URL(`../node_modules/maplibre-gl/dist/${filename}`, import.meta.url)),
+      `${filename} must match the locked MapLibre package`,
     );
-    assert.match(
-      vendorSource,
-      new RegExp(`from"\\.\\/maplibre-gl-shared\\.mjs\\?v=${escapedVersion}"`),
-    );
-    assert.match(vendorSource, new RegExp(`/blob/v${escapedVersion}/LICENSE\\.txt`));
   }
   assert.doesNotMatch(mapSource, /window\.maplibregl/);
   assert.doesNotMatch(indexSource, /vendor\/maplibre\/maplibre-gl\.js/);

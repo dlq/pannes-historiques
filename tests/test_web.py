@@ -279,7 +279,7 @@ def test_dynamic_html_is_not_cached(app_client):
 
 
 def test_vendored_maplibre_source_maps_are_available(app_client):
-    for filename in ("maplibre-gl.mjs.map", "maplibre-gl-shared.mjs.map"):
+    for filename in ("maplibre-gl.mjs.map", "maplibre-gl-worker.mjs.map"):
         response = app_client.get(f"/static/vendor/maplibre/{filename}")
         assert response.status_code == 200
         assert response.mimetype == "application/json"
