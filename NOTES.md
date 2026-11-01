@@ -3,6 +3,16 @@
 Date: 2026-04-25
 Last updated: 2026-11-01
 
+## November 1 production deployment
+
+- Deployed merged code commit `71df235` after its Quality, CodeQL and browser CI passed. The image contains pypdf 6.21.4 and MapLibre 6.15.0. No new D1 migration was introduced.
+- Apple container CLI built and ran the `linux/amd64` candidate. The tested image manifest is `sha256:4cc396a6308db3c9601383c5646ae460107392ab0fe1b939f19a3e3c9d7a66d4`; the uploaded OCI index is `sha256:cf76bcffc078820dbadd8efbe3fc02bc62ed0be1fd017836a8cb67f55d34c10f`. Verified all ten installed runtime dependencies against `uv.lock`. The inherited SQLite snapshot remains 119,226,368 bytes with unchanged SHA-256 `3c95797eeb037c043e1e77196d809da03155bb883486b4a7a7be16bc5711bb2c`.
+- Registry transfer used HTTP/2, 5-MiB PATCHes, an empty closing PUT, verified blobs/manifests/tag, and bounded recovery. Temporary credentials stayed in process memory. An immutable-image Wrangler dry run passed before the authorized immediate rollout.
+- Worker `64b266ed-c679-46a8-9336-3b494d044fc1` is at 100%. Container application version 130 uses immutable image digest `sha256:4cc396a6308db3c9601383c5646ae460107392ab0fe1b939f19a3e3c9d7a66d4`; the instance is running, with one active instance, zero failed instances and no reported errors. Existing D1/R2/DO bindings and cron schedules remain configured.
+- Public checks: French/English homepages, Archive sheet, liveness, service worker, ingestion health, and Archive summary returned 200. Live app/map modules plus vendor entry/worker/CSS bytes match the checkout. Desktop/mobile Playwright checks confirmed actual MapLibre 6.15.0, all four domains, typed-address results and map reframing, without JavaScript errors, map-load failures or overflow. Browser plugin not available; used GPC to suppress optional operator usage writes. Existing upstream OpenFreeMap style-filter and screenshot GPU warnings remain nonblocking.
+- At `2026-11-01T17:01:56Z`, ingestion was healthy, nine minutes fresh, with zero consecutive failures and no problems. The pre-existing daily Archive cursor warning remains; its coherent stored summary was generated `2026-10-31T17:07:52.629Z`. No forced summary refresh was part of this deployment. GitHub reported zero open Dependabot security alerts and zero CodeQL findings.
+- Storage probe metadata reports `3,355,394,048` bytes (3.355 GB), leaving about 145 MB before the 3.5 GB internal review trigger. Storage planning remains a near-term follow-up; no source data or derived archive rows were deleted.
+
 ## November 1 dependency maintenance
 
 - Merged reviewed green PRs 47 (certifi 2026.10.19), 48 (djlint 1.47.0, Ruff 0.17.2 and intermediate pypdf update), 50 (setup-python 7.1.0), and 51 (filelock 4.2.1 and virtualenv 21.15.1). Closed PR 46 as superseded: PR 51 includes newer virtualenv plus the same distlib/packaging upgrades.
