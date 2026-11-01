@@ -149,9 +149,9 @@ dashboard inspection supplied the configuration evidence instead, without expand
 
 This Cloudflare browser measurement is separate from the repository's allowlisted `POST /api/usage`
 counters and their GPC/DNT handling. Do not claim that all Cloudflare browser telemetry is disabled
-or infer that application opt-outs control the injected script. Local FR/EN About privacy wording
+or infer that application opt-outs control the injected script. FR/EN About privacy wording deployed in `5108b5c`
 now discloses the performance script, its separate destination and the current EU exclusion;
-that copy awaits deployment. The prior blanket “no third-party trackers” wording was inaccurate
+live checks confirmed both languages after rollout. The prior blanket “no third-party trackers” wording was inaccurate
 for the observed served page. Changing or disabling RUM would be a separate operational decision.
 
 References: [RUM beacon](https://developers.cloudflare.com/speed/observatory/rum-beacon/) and

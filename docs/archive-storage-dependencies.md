@@ -1,6 +1,6 @@
 # Archive Storage Readers And Writers
 
-Inventory date: 2026-11-01. Recorded in local audit commit `7369073`, including the prior
+Inventory date: 2026-11-01. Recorded in audit commit `7369073`, including the prior
 `f6e15a8` maintenance work. This is a code dependency inventory for
 [storage phase S0](plans/storage-retention.md#phase-s0--bounded-inventory-and-recovery-rehearsal),
 not a table-size measurement, query-plan profile, recovery rehearsal or migration approval.

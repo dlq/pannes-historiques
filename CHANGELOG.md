@@ -14,11 +14,13 @@ Keep active execution state in `PLANS.md` and source/evidence research in `NOTES
 
 ### Changed
 
-- Local uncommitted `codebase-cleanup` candidate: consolidated typed/coordinate search orchestration, public durable JSON transport and Worker JSON responses; clarified internal map helper/palette names and documented naming contracts. Public API/storage fields and UI behavior are preserved; production remains `dead987`.
+- Verified the `5108b5c` rollout: GitHub Quality/CodeQL/Browser checks passed; 24 public response checks and live desktop/mobile map/address/location flows passed. Container version 133 is running with no application errors. Final ingestion/Archive health at 21:24 UTC has no problems or warnings after a guarded summary refresh.
 
-- Locally committed `7369073` audit candidate (not pushed/deployed): verified Cloudflare automatic RUM with EU exclusion and corrected FR/EN privacy disclosure; repaired language accessible names, date/action contrast, inline-link styling and skip-link focus. Added a repeatable 44-state axe audit and an archive reader/writer/index/replay inventory. Account settings and production data are unchanged.
+- Deployed `5108b5c` on 2026-11-01 (Worker `248cd41e-d5d1-4fe7-9419-c5e623dfd4b2`, container version 133): consolidated typed/coordinate search orchestration, public durable JSON transport and Worker JSON responses; clarified internal map helper/palette names and documented naming contracts. Public API/storage fields and UI behavior are preserved; the application and exact static bytes are verified in production.
 
-- Local maintenance candidate (not deployed): compacted the active plan into linked detailed plans, preserved testing safeguards, simplified address-sheet domain selection/radius formatting without changing sidebar/map scope, added a repeatable browser-module baseline and reconciled current documentation. Production remains `dead987` until an explicitly requested rollout.
+- Audit commit `7369073`, deployed with `5108b5c`: verified Cloudflare automatic RUM with EU exclusion and corrected FR/EN privacy disclosure; repaired language accessible names, date/action contrast, inline-link styling and skip-link focus. Added a repeatable 44-state axe audit and an archive reader/writer/index/replay inventory. Account settings and production data are unchanged.
+
+- Maintenance commit `f6e15a8`, deployed with `5108b5c`: compacted the active plan into linked detailed plans, preserved testing safeguards, simplified address-sheet domain selection/radius formatting without changing sidebar/map scope, added a repeatable browser-module baseline and reconciled current documentation. Included in the explicitly requested 2026-11-01 cleanup rollout.
 
 - Deployed location/offline recovery, shared metric/date/status template macros, long disclosure/detail wrapping and bilingual Archive-freshness wording on 2026-11-01 from `dead987` as Worker `f4559ee1-46af-4ea5-b67a-11e4c6499261`, container version 132, immutable amd64 image `sha256:c8145cc83b096b197a968ea9062e59666d7a31364c53ddf49972373e5f90ef4e`. Recorded the eight-week bounded-usage decision. Quality, CodeQL, 88 browser cases and live desktop/mobile checks passed; ingestion is healthy, with the routine Archive cursor-lag warning.
 

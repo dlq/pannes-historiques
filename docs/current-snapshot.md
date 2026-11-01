@@ -9,17 +9,16 @@ Read this first for quick orientation. Use `PLANS.md` for the active roadmap, `d
 - Shipped release: `v0.4.8`.
 - Development package metadata: `0.4.9` in `pyproject.toml` and `package.json`; the latest shipped/tagged release remains `v0.4.8`.
 - Tagged-release deployment: Worker version `e6fe9a87-df8f-4cf4-a82b-b0dcdc07fa4c`, deployed 2026-08-14 from tagged release commit `f6df621` with the `pannes-historiques-pannescontainer:e6fe9a87` image.
-- Latest production deployment: code commit `dead987`, deployed 2026-11-01 as Worker version `f4559ee1-46af-4ea5-b67a-11e4c6499261` with immutable amd64 container digest `sha256:c8145cc83b096b197a968ea9062e59666d7a31364c53ddf49972373e5f90ef4e` (container application version 132). Location/offline recovery, shared template macros, disclosure wrapping and bilingual freshness wording are deployed. GitHub Quality/CodeQL/Browser regression and live desktop/mobile map/search, localized pages, static assets, ingestion and archive coherence pass. Ingestion was healthy with zero consecutive failures. A requested Archive refresh at 20:22 UTC subsequently cleared the cursor-lag warning; future ingestion can raise it before the next refresh. No D1 migration or cron/binding change. A full rolling-day D1 comparison remains.
+- Latest production deployment: application commit `5108b5c`, deployed 2026-11-01 as Worker `248cd41e-d5d1-4fe7-9419-c5e623dfd4b2` at 100%, container application version 133, immutable amd64 image `sha256:81f0a512521854bc5cfc7a3ab325985ac4047d7015cb617b9f9ff10a126b2036`. Includes `f6e15a8` plans/address-sheet cleanup, `7369073` accessibility/privacy/inventory work and the service/Worker deduplication. GitHub Quality, CodeQL and Browser regression passed. No migration, binding, cron, dependency or Cloudflare RUM setting change. See `NOTES.md` for rollout and health evidence. The full-day D1 comparison remains open. Final health at `2026-11-01T21:24:26.130Z`: healthy, zero consecutive failures, no problems or warnings after the guarded Archive refresh; later ingestion can reintroduce routine summary lag.
 - Do not treat a merge to `main` as proof of production deployment; record deployment evidence in `PLANS.md` and `CHANGELOG.md`.
 - Current development direction: the `v0.4.9` identifier-free daily feature/action evidence candidate is deployed, with 90-day retention, a private readout, migration `0012`, and the shared interaction-endpoint edge rule active. The eight-week usage decision is recorded in NOTES.md: continue existing bounded collection without analytics expansion. The post-release archive cursor query optimization is deployed and awaits a 24-hour D1 read comparison. `v0.4.8` completed the authenticated cost decision, container-runtime retirement, archive cursor health guard, and autocomplete edge protection.
 - `v0.5.0` remains gated on `v0.4.9`'s bounded usage-data lifecycle and a 14-day observation window with healthy ingestion, bounded archive-summary refresh without unexplained prolonged lag, and no unexplained archive-completeness regression.
 
-## Local Work Not Yet Deployed
+## Latest Maintenance Rollout
 
-- Commit `f6e15a8` contains the compact plans, address-sheet refactor, module baseline and documentation reconciliation; it has not been pushed/deployed.
-- Commit `7369073` adds local accessibility fixes and an automated audit, verified RUM/privacy disclosure, and the archive reader/writer inventory. These changes are committed locally but not pushed/deployed; production application remains `dead987`.
-
-- Current `codebase-cleanup` adds uncommitted service/Worker deduplication and clearer browser map names. Public fields, storage schemas and UI behavior are preserved; see `NOTES.md` for audit scope and verification.
+- Commits `f6e15a8`, `7369073` and `5108b5c` are pushed to main and deployed together in application `5108b5c`.
+- The following documentation-only commit records deployment evidence; it does not require another image build.
+- Public fields, storage schemas and UI behavior are preserved by the cleanup; see `NOTES.md` for audit scope and verification.
 
 ## Product Shape
 

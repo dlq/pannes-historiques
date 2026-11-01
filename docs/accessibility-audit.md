@@ -1,8 +1,8 @@
 # Automated Accessibility Audit
 
 Date: 2026-11-01. Scanner: axe-core 4.14.0, isolated Playwright Chromium, against the local
-production-shaped fixture app on port 4192. This includes the fixes committed locally as `7369073`;
-it is not a claim that those fixes are deployed or a WCAG conformance certification.
+production-shaped fixture app on port 4192. This includes the fixes committed as `7369073`, subsequently deployed with `5108b5c`.
+The scan uses fixtures and is not a WCAG conformance certification.
 
 ## Coverage And Findings
 
