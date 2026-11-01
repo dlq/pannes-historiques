@@ -14,6 +14,8 @@ Keep active execution state in `PLANS.md` and source/evidence research in `NOTES
 
 ### Changed
 
+- Updated locked dependencies for security and maintenance, including pypdf 6.21.4, certifi 2026.10.19, filelock 4.2.1, virtualenv 21.15.1, MapLibre 6.15.0, Biome 2.6.2, Playwright 1.64.1, Wrangler 4.152.0, and setup-python 7.1.0. Refreshed vendored map assets and fixed the new linter’s callback-name false positive while preserving visual-audit text behavior. Production deployment is pending.
+
 - Updated MapLibre to 6.13.0 with self-contained vendor bundles and byte-for-byte package guards, Playwright to 1.64.0, Wrangler to 4.149.0, setup-node to 7.1.0, and the Python maintenance lockfile. Hardened the browser request-failure test with precise routing and explicit failure observation. Deployed on 2026-10-22 from `8fffcd0` as Worker `2a1e7c99-2afd-438d-bfd8-b59f89148364` with immutable amd64 container digest `sha256:f3a44940cf1542aeeff697aad007718114a3c92c78a709184d580dcbe903c9b6`. Live desktop/mobile map/search and ingestion checks passed; the pre-existing daily Archive summary lag warning remains.
 
 - Patched Wrangler/Miniflare’s transitive Sharp dependency to 0.35.5 with a package override, including the fixed librsvg 2.63.2 prebuilt dependency. npm audit reports zero vulnerabilities.
