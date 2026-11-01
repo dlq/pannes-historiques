@@ -3,6 +3,12 @@
 Date: 2026-04-25
 Last updated: 2026-11-01
 
+## Official-channel watchlist decision, 2026-11-01
+
+- Decision: leave the current map-and-sheet UI unchanged. Use Hydro-Québec's official channels as background reference sources during operational reviews. No feed, public updates panel, automated collection, or scheduled monitoring is part of this decision.
+- Watchlist: [Bluesky](https://bsky.app/profile/hydroquebec.com), [Facebook](https://www.facebook.com/hydroquebec1944/), and the [official newsroom](https://nouvelles.hydroquebec.com/). Account provenance was checked against [Hydro-Québec's social-media directory](https://www.hydroquebec.com/a/medias-sociaux.html).
+- Use these sources for dated service notices, source changes and official explanations. Keep quantitative outage data sourced from the existing feed. Revisit a narrowly scoped, attributed public notice only if a concrete event reveals an information gap in the current flow.
+
 ## November 1 production deployment
 
 - Deployed merged code commit `71df235` after its Quality, CodeQL and browser CI passed. The image contains pypdf 6.21.4 and MapLibre 6.15.0. No new D1 migration was introduced.
