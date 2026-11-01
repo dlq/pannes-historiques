@@ -130,13 +130,13 @@ export function archiveSummaryIncoherences(summary) {
   // ceiling means there is nothing to compare against, not a violation.
   const year = byKey.get(YEAR_WINDOW);
   const territories = Array.isArray(summary?.territories) ? summary.territories : [];
-  const flagTerritoriesAbove = (field, ceiling, describe) => {
+  const flagTerritoriesAbove = (field, ceiling, describeComparison) => {
     if (typeof ceiling !== "number") return;
     for (const territory of territories) {
       const value = Number(territory?.[field] ?? 0);
       if (value > ceiling) {
         const name = territory?.territoryName || territory?.territoryId || "unknown";
-        problems.push(`territory ${name} ${describe(value, ceiling)}`);
+        problems.push(`territory ${name} ${describeComparison(value, ceiling)}`);
       }
     }
   };

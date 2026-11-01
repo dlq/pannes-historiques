@@ -4,14 +4,14 @@ import {
   requestMapFocus,
   updateMapAddress,
   updateMapLayerItems,
-} from "./map-events.js?v=5ec1e95f3039";
-import { contextLayerForKind } from "./map-utils.js?v=5ec1e95f3039";
+} from "./map-events.js?v=39817f29cf48";
+import { contextLayerForKind } from "./map-utils.js?v=39817f29cf48";
 import {
   attachAddressAutocomplete,
   attachComparisonTray,
   hydrateTimeLabels,
   updateSearchUrl,
-} from "./search.js?v=5ec1e95f3039";
+} from "./search.js?v=39817f29cf48";
 import {
   escapeHtml,
   formatDistanceKm,
@@ -19,8 +19,8 @@ import {
   formatPreviousTimeParts,
   hasDistanceValue,
   label,
-} from "./ui-format.js?v=5ec1e95f3039";
-import { recordUsage } from "./usage-evidence.js?v=5ec1e95f3039";
+} from "./ui-format.js?v=39817f29cf48";
+import { recordUsage } from "./usage-evidence.js?v=39817f29cf48";
 
 const DETENTS = ["peek", "half", "full"];
 // The sheet height transition in app.css runs 280ms; wait slightly longer

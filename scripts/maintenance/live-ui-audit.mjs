@@ -95,6 +95,7 @@ async function pageSnapshot(page) {
         className: String(element.className || ""),
         aria: element.getAttribute("aria-label"),
         title: element.getAttribute("title"),
+        // biome-ignore lint/performance/useDomNodeTextContent: This visual audit intentionally captures rendered text.
         text: (element.innerText || element.textContent || "")
           .trim()
           .replace(/\s+/g, " ")
@@ -105,6 +106,7 @@ async function pageSnapshot(page) {
       title: document.title,
       url: location.href,
       viewport: { width: innerWidth, height: innerHeight },
+      // biome-ignore lint/performance/useDomNodeTextContent: Hidden DOM text must not appear in the visible-page audit.
       bodyText: document.body.innerText.trim().replace(/\s+/g, " ").slice(0, 5000),
       sheetRect: sheet ? rectForElement(sheet) : null,
       mapRect: map ? rectForElement(map) : null,

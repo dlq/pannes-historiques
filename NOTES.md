@@ -1,7 +1,16 @@
 # Research: Hydro-Québec Historic Outage Data
 
 Date: 2026-04-25
-Last updated: 2026-10-22
+Last updated: 2026-11-01
+
+## November 1 dependency maintenance
+
+- Merged reviewed green PRs 47 (certifi 2026.10.19), 48 (djlint 1.47.0, Ruff 0.17.2 and intermediate pypdf update), 50 (setup-python 7.1.0), and 51 (filelock 4.2.1 and virtualenv 21.15.1). Closed PR 46 as superseded: PR 51 includes newer virtualenv plus the same distlib/packaging upgrades.
+- PR 52 originally passed all checks but conflicted with PR 48's overlapping pypdf lock update. Merged current main into that branch, regenerated only the pypdf resolution at 6.21.4, and retained all newer tooling versions. The repaired branch passed all CI/CodeQL/browser checks and was merged as `7a15f89`.
+- PR 49 updates MapLibre 6.15.0, Biome 2.6.2, Playwright 1.64.1, and Wrangler 4.152.0. Its Node guard caught stale MapLibre 6.13.0 assets; refreshed the exact upstream entry/worker/CSS/maps/license, browser version pins, and asset token. The byte-for-byte vendor guard remains intact.
+- The new Biome correctness rule mistook a callback named `describe` in production archive validation for a test-suite declaration. Renamed it to `describeComparison`, preserving behavior and validation coverage. Migrated biome.json to the installed schema. Two narrow audit-only lint explanations preserve intentionally rendered `innerText` reads rather than changing the visual audit to hidden DOM text.
+- Validation: all pre-commit checks; 229 Python tests; 106 Node tests; 54 desktop/mobile Playwright cases; zero npm audit vulnerabilities. Focused desktop/mobile screenshots verify runtime 6.15.0, all four domains and address search without JavaScript errors, map-load failures, or overflow. Browser plugin not available; used Playwright with GPC to suppress optional usage writes. Existing OpenFreeMap null-filter and screenshot GPU warnings remain nonblocking.
+- Scope: dependency/security merges only. Production remains the verified October 22 deployment until another deployment is explicitly requested.
 
 ## Maintenance pause readiness, 2026-10-22
 
