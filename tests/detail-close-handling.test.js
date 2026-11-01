@@ -73,7 +73,7 @@ test("domain links preserve an explicit or user-selected scope", () => {
     sheetSource,
     /usageEvent: \{ feature: domainLink\.dataset\.domainLink, action: "open" \}/,
   );
-  assert.match(overviewSource, /data-domain-link="current"\s+data-scope-link="local"/);
+  // The current doorway's rendered local scope is exercised by browser tests.
   assert.match(overviewSource, /data-domain-link="archive"\s+data-scope-link="local"/);
 });
 

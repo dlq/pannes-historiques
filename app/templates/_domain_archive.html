@@ -1,3 +1,4 @@
+{% from "_macros.html" import ph_metric, ph_date_tile %}
 {% if sheet.body.rows is defined %}
   <div class="ph-domain-summary">
     <p class="ph-domain-summary-title">
@@ -16,10 +17,7 @@
             <button class="ph-row"
                     type="button"
                     data-map-focus='{{ row.focus | tojson }}'>
-              <span class="ph-date-tile ph-date-tile--archive" aria-hidden="true">
-                <span class="ph-date-tile-day">{{ row.tile.day }}</span>
-                <span class="ph-date-tile-month">{{ row.tile.month }}</span>
-              </span>
+              {{ ph_date_tile(row.tile.day, row.tile.month, true) }}
               <span class="ph-row-main">
                 <span class="ph-row-title">{{ row.startTime[11:16] }}</span>
                 <span class="ph-row-sub">
@@ -29,10 +27,7 @@
                   {% endif -%}
                 </span>
               </span>
-              <span class="ph-row-metric">
-                <span class="ph-row-metric-value">{{ row.customers }}</span>
-                <span class="ph-row-metric-label">{{ row.customersLabel }}</span>
-              </span>
+              {{ ph_metric(row.customers, row.customersLabel) }}
             </button>
           </li>
         {% endif %}
@@ -73,10 +68,7 @@
                 {{ row.sub }}
               </span>
             </span>
-            <span class="ph-row-metric">
-              <span class="ph-row-metric-value">{{ row.countDisplay }}</span>
-              <span class="ph-row-metric-label">{{ t(lang, "outages_metric") }}</span>
-            </span>
+            {{ ph_metric(row.countDisplay, t(lang, "outages_metric")) }}
           </button>
         </li>
       {% endfor %}
@@ -93,18 +85,12 @@
             <button class="ph-row"
                     type="button"
                     data-map-focus='{{ row.focus | tojson }}'>
-              <span class="ph-date-tile ph-date-tile--archive" aria-hidden="true">
-                <span class="ph-date-tile-day">{{ row.tile.day }}</span>
-                <span class="ph-date-tile-month">{{ row.tile.month }}</span>
-              </span>
+              {{ ph_date_tile(row.tile.day, row.tile.month, true) }}
               <span class="ph-row-main">
                 <span class="ph-row-title">{{ row.startTime[11:16] }}</span>
                 {% if row.territoryName %}<span class="ph-row-sub">{{ row.territoryName }}</span>{% endif %}
               </span>
-              <span class="ph-row-metric">
-                <span class="ph-row-metric-value">{{ row.customers }}</span>
-                <span class="ph-row-metric-label">{{ t(lang, "clients") }}</span>
-              </span>
+              {{ ph_metric(row.customers, t(lang, "clients")) }}
             </button>
           </li>
         {% endfor %}

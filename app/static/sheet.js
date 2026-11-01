@@ -4,14 +4,14 @@ import {
   requestMapFocus,
   updateMapAddress,
   updateMapLayerItems,
-} from "./map-events.js?v=39817f29cf48";
-import { contextLayerForKind } from "./map-utils.js?v=39817f29cf48";
+} from "./map-events.js?v=1af230432409";
+import { contextLayerForKind } from "./map-utils.js?v=1af230432409";
 import {
   attachAddressAutocomplete,
   attachComparisonTray,
   hydrateTimeLabels,
   updateSearchUrl,
-} from "./search.js?v=39817f29cf48";
+} from "./search.js?v=1af230432409";
 import {
   escapeHtml,
   formatDistanceKm,
@@ -19,8 +19,8 @@ import {
   formatPreviousTimeParts,
   hasDistanceValue,
   label,
-} from "./ui-format.js?v=39817f29cf48";
-import { recordUsage } from "./usage-evidence.js?v=39817f29cf48";
+} from "./ui-format.js?v=1af230432409";
+import { recordUsage } from "./usage-evidence.js?v=1af230432409";
 
 const DETENTS = ["peek", "half", "full"];
 // The sheet height transition in app.css runs 280ms; wait slightly longer
@@ -404,18 +404,15 @@ function bindSheetContent() {
   }
 }
 
-function showSheetError() {
+function showSheetError(message) {
   const body = sheetBody();
   if (!body) return;
   body.querySelector(".ph-sheet-error")?.remove();
   const error = document.createElement("div");
   error.className = "ph-sheet-error";
   error.setAttribute("role", "alert");
-  error.textContent = label(
-    mapLabels,
-    "sheet_load_error",
-    "The content could not load. Try again.",
-  );
+  error.textContent =
+    message || label(mapLabels, "sheet_load_error", "The content could not load. Try again.");
   body.prepend(error);
   if (isMobileLayout() && currentDetent() === "peek") setDetent("half");
 }
@@ -824,12 +821,9 @@ function attachLocationSearch() {
   if (!button || button.dataset.locationBound === "1") return;
   button.dataset.locationBound = "1";
   const originalHtml = button.innerHTML;
-  // showSheetError() always shows the generic load-error copy; the specific
-  // denied/timeout/unavailable button labels are not surfaced today (a latent
-  // UX gap to wire up separately — doing so here would change behavior).
   button.addEventListener("click", () => {
-    if (!("geolocation" in navigator)) {
-      showSheetError();
+    if (!navigator.geolocation) {
+      showSheetError(button.dataset.locationUnavailableLabel);
       return;
     }
     button.disabled = true;
@@ -857,8 +851,13 @@ function attachLocationSearch() {
         button.innerHTML = originalHtml;
         if (isMobileLayout()) setDetent("half");
       },
-      () => {
-        showSheetError();
+      (error) => {
+        const messages = {
+          1: button.dataset.locationDeniedLabel,
+          2: button.dataset.locationUnavailableLabel,
+          3: button.dataset.locationTimeoutLabel,
+        };
+        showSheetError(messages[error.code] || button.dataset.locationUnavailableLabel);
         button.disabled = false;
         button.innerHTML = originalHtml;
       },

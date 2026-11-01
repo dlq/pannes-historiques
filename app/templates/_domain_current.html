@@ -1,4 +1,4 @@
-{% from "_macros.html" import ph_icon %}
+{% from "_macros.html" import ph_metric %}
 <div class="ph-domain-summary">
   <p class="ph-domain-summary-title">
     <span class="ph-dot ph-dot--current" aria-hidden="true"></span>{{ sheet.body.summary }}
@@ -34,10 +34,7 @@
               {%- if row.distanceKm %}{{ row.distanceKm }} km{% endif -%}
             </span>
           </span>
-          <span class="ph-row-metric">
-            <span class="ph-row-metric-value">{{ row.customers }}</span>
-            <span class="ph-row-metric-label">{{ row.customersLabel }}</span>
-          </span>
+          {{ ph_metric(row.customers, row.customersLabel) }}
         </button>
       </li>
     {% endfor %}

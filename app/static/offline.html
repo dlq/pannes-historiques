@@ -5,7 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="#ffffff">
     <title>pannes.ca hors ligne</title>
+    <script src="/static/offline.js" defer></script>
     <style>
+      * {
+        box-sizing: border-box;
+      }
+
       :root {
         color-scheme: light;
         font-family:
@@ -55,16 +60,38 @@
         font-size: 0.9rem;
         line-height: 1.55;
       }
+
+      button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 44px;
+        margin-top: 18px;
+        padding: 10px 16px;
+        border-radius: 11px;
+        background: #efeff0;
+        color: #145cbb;
+        border: 0;
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      button:focus-visible {
+        outline: 2px solid #145cbb;
+        outline-offset: 3px;
+      }
     </style>
   </head>
   <body>
     <main>
       <span class="brand">pannes.ca</span>
-      <h1>Hors ligne pour le moment</h1>
-      <p>
+      <h1 id="offline-heading">Hors ligne pour le moment</h1>
+      <p id="offline-body">
         Cette page n'est pas disponible sans connexion. Reconnectez-vous pour consulter les pannes
         en cours, les interruptions planifiées et l'archive.
       </p>
+      <button id="offline-retry" type="button">Réessayer</button>
     </main>
   </body>
 </html>

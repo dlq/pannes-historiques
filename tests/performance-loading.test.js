@@ -54,7 +54,7 @@ test("map initialization errors leave a visible unavailable state", () => {
 });
 
 test("service worker limits its cache to the offline navigation fallback", () => {
-  assert.match(serviceWorker, /pannes-historiques-v0\.4\.7-runtime-static-2/);
+  assert.match(serviceWorker, /pannes-historiques-offline-v3/);
   assert.match(serviceWorker, /const APP_SHELL_URLS = \[\s*"\/static\/offline\.html"/);
   assert.doesNotMatch(serviceWorker, /maplibre-gl\.mjs/);
   assert.doesNotMatch(serviceWorker, /url\.pathname\.startsWith\("\/static\/"\)/);

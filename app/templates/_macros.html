@@ -3,3 +3,29 @@
     <use href="{{ url_for('static', filename='icons.svg', v=static_version) }}#ph-icon-{{ name }}"></use>
   </svg>
 {%- endmacro %}
+{% macro ph_metric(value, label) -%}
+  <span class="ph-row-metric">
+    <span class="ph-row-metric-value">{{ value }}</span>
+    <span class="ph-row-metric-label">{{ label }}</span>
+  </span>
+{%- endmacro %}
+{% macro ph_date_tile(day, month, archive=false) -%}
+  <span class="ph-date-tile{% if archive %} ph-date-tile--archive{% endif %}"
+        aria-hidden="true">
+    <span class="ph-date-tile-day">{{ day }}</span>
+    <span class="ph-date-tile-month">{{ month }}</span>
+  </span>
+{%- endmacro %}
+{% macro ph_status_line(domain, title, subtitle, state, icon, scope="local") -%}
+  <button class="ph-status-line"
+          type="button"
+          data-domain-link="{{ domain }}"
+          data-scope-link="{{ scope }}">
+    <span class="ph-status-icon ph-status-icon--{{ state }}">{{ ph_icon(icon) }}</span>
+    <span class="ph-status-text">
+      <span class="ph-status-title">{{ title }}</span>
+      {% if subtitle %}<span class="ph-status-sub">{{ subtitle }}</span>{% endif %}
+    </span>
+    {{ ph_icon('chevron-right', 'ph-status-chevron') }}
+  </button>
+{%- endmacro %}

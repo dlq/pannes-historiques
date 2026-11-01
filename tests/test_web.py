@@ -417,7 +417,6 @@ def test_service_worker_route_has_root_scope(app_client):
     assert response.status_code == 200
     assert response.headers["Service-Worker-Allowed"] == "/"
     assert response.headers["Cache-Control"] == "no-cache"
-    assert b"pannes-historiques-v0.4.7-runtime-static" in response.data
     assert b"/static/offline.html" in response.data
     assert b"maplibre-gl.mjs" not in response.data
 

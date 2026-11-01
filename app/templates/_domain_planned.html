@@ -1,3 +1,4 @@
+{% from "_macros.html" import ph_metric, ph_date_tile %}
 <div class="ph-domain-summary">
   <p class="ph-domain-summary-title">
     <span class="ph-dot ph-dot--planned" aria-hidden="true"></span>{{ sheet.body.summary }}
@@ -14,18 +15,12 @@
           <button class="ph-row"
                   type="button"
                   data-map-focus='{{ row.focus | tojson }}'>
-            <span class="ph-date-tile" aria-hidden="true">
-              <span class="ph-date-tile-day">{{ row.tileDay }}</span>
-              <span class="ph-date-tile-month">{{ row.tileMonth }}</span>
-            </span>
+            {{ ph_date_tile(row.tileDay, row.tileMonth) }}
             <span class="ph-row-main">
               <span class="ph-row-title">{{ row.window }}</span>
               {% if row.distanceKm %}<span class="ph-row-sub">{{ row.distanceKm }} km</span>{% endif %}
             </span>
-            <span class="ph-row-metric">
-              <span class="ph-row-metric-value">{{ row.customers }}</span>
-              <span class="ph-row-metric-label">{{ row.customersLabel }}</span>
-            </span>
+            {{ ph_metric(row.customers, row.customersLabel) }}
           </button>
         </li>
       {% endfor %}

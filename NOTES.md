@@ -3,6 +3,40 @@
 Date: 2026-04-25
 Last updated: 2026-11-01
 
+## Accessibility, disclosure density, freshness and usage review, 2026-11-01
+
+- Local candidate follows the existing location/offline/template cleanup on `location-offline-cleanup`; production was not deployed or changed. In-app browser inspection checked the normal disclosure card and provenance dialog at desktop and 320×740 mobile. Keyboard checks confirmed entry focus, forward/reverse Tab wrapping, Escape dismissal and focus restoration. Existing skip-link, live-region and visible-focus semantics remain in place. This is practical browser evidence, not a full screen-reader/WCAG certification; real assistive-technology speech and OS location permission recovery remain unverified.
+- Observed density defect: an adversarial disclosure with a long source identifier overflowed horizontally, and a long detail title was ellipsized. Scoped CSS lets detail titles, facts and disclosure row text wrap. FR/EN regression cases reproduce the overflow before the fix and pass afterward at 320 px; no source data was modified. This does not establish exhaustive coverage of every live disclosure.
+- Provenance wording in both languages now explains that Archive summaries refresh separately and can lag behind collection even while Live/Planned are current. It makes no promise that the source feed is fresh and does not reinterpret a missing/incoherent summary as harmless. Operational warning/problem distinctions remain documented in `docs/operations.md`.
+- Final validation: `uv run pre-commit run --all-files` (Ruff, djlint, module boundaries, Biome and asset-version checks); `uv run pytest -q` (235 passed); `node --test tests/*.test.js` (106 passed); `APP_PORT=4186 PLAYWRIGHT_SKIP_WEBSERVER=1 npm run test:e2e` (88 passed). New keyboard/density cases also passed separately after stabilizing the isolated renderer test against asynchronous map selection. Desktop/mobile screenshots were inspected; the long value no longer crowds its label. In-app browser error logs were empty. Temporary evidence is in `/private/tmp/pannes-audit-*.log`, `/private/tmp/pannes-audit-freshness-*.jpg` and ignored Playwright test-results. Test fixtures do not establish live-data freshness or real screen-reader speech.
+
+### Usage decision: continue the bounded aggregates; retain the current feature set
+
+Observed production evidence, read 2026-11-01 from D1 `usage_daily_aggregates` and `usage_collection_days`, using two SELECTs with `usage_date >= '2026-08-03'`, ordered by date/feature/action and date respectively. The read scanned 599 aggregate rows and 72 heartbeat rows, wrote zero rows, and retrieved no identifiers. Reproducible query shapes:
+
+```sql
+SELECT usage_date, feature, action, human_interaction_count, non_human_count, collection_status
+FROM usage_daily_aggregates WHERE usage_date >= '2026-08-03'
+ORDER BY usage_date, feature, action;
+SELECT usage_date, collection_status, updated_at
+FROM usage_collection_days WHERE usage_date >= '2026-08-03' ORDER BY usage_date;
+```
+
+- Coverage: 72 active UTC daily heartbeats from August 21 through November 1; September 4 is absent. Daily active status cannot rule out shorter interruptions. November 1 is partial and excluded from decision totals (58 human-classified interactions at retrieval).
+- Complete observation window: September 5–October 30 inclusive, 56 days with 56 active daily heartbeats. These are eight Saturday–Friday windows, not Friday–Thursday as the old plan said. October 23 was only the end of the seventh such window. Eight weekly totals reconcile to 5,280: 648, 757, 583, 428, 400, 702, 593 and 1,169.
+- Feature totals in those 56 days reconcile to 5,280 human-classified interactions: Archive 2,270; address answers 1,095; current 1,033; planned 535; Context 316; comparison additions 31. Full completed dates August 21–October 31 contain 6,491 interactions, but include the September 4 coverage gap and launch day; they are not the eight-week decision denominator.
+- Non-human-classified increments are zero in the retrieved window. This does not mean automation is absent: classification is heuristic, repeated/operator actions cannot be separated, GPC/DNT reporting is intentionally omitted, and this dataset has no audience/session/retention or task-success denominator. Feature opens/details and address answers/comparison additions are different actions, not comparable adoption rates. Do not infer visitors, individual journeys, conversion, causal value or a traffic trend.
+
+Decision: continue the existing identifier-free 90-day rolling aggregates under ADR 0007, with no collection expansion, Browser Insights, new identifiers or retention extension. Prioritize Archive correctness/storage and address/current usability: they have substantial observed interaction counts as well as existing operational needs. Keep planned and Context available. Keep comparison lightweight; its 31 additions alone cannot establish low usefulness or justify removal without exposure/task-success evidence. The final week's larger count is not attributed to acquisition, outages or a product change without corroboration. Review again by December 1 using complete periods and the same coverage/classification caveats; no automation was created. The eight-week decision is complete, while routine retention and future reviews continue.
+
+## Location/offline/template cleanup candidate, 2026-11-01
+
+- Implemented on a dedicated branch in this chat's worktree: geolocation denied/unavailable/timeout and absent-API failures now use the existing localized button labels in the alert region. The spinner/button restore and typed-address recovery are exercised in FR/EN desktop/mobile cases. Source-service, ingestion and notification behavior are unchanged.
+- Offline fallback keeps the failed navigation URL, selects French/default or English from its lang parameter, and offers a retry that reloads that same URL. A small same-origin offline script is cached alongside the existing fallback HTML; installation requests fresh bytes, the offline cache advances to v3, and no map/search/address result is cached. Retry works while still disconnected and restores the address overview on reconnection. This adds no saved-area or push-notification feature.
+- Shared ph_metric/ph_date_tile/ph_status_line Jinja macros replace duplicate markup in current/planned/archive/context and overview templates. A temporary before/after parser comparison confirmed exact semantic HTML for ten FR/EN domain/overview fragments after normalizing asset-version tokens; existing behavior/style/classes and escaping are preserved. An obsolete source-template assertion was removed because rendered current-doorway/local-scope behavior is covered by browser regression; the root-scope test no longer pins an old service-worker cache name.
+- Verification: all pre-commit checks; 235 Python tests; 106 Node tests; 82 desktop/mobile Playwright cases, including 20 new location/offline recovery cases. Asset version imports were regenerated and checked. Responsive local visual QA at 1440×1000 and 390×844 checks denial copy, button recovery, English offline layout, exact-URL reconnection and four domains, with no horizontal overflow or page JavaScript errors. Browser plugin not available; used regular Playwright under the already-applied frontend-testing-debugging skill. Geolocation failure tests are mocked; actual device permission/OS behavior remains a separate proof gap. Temporary screenshots and reports are under `/private/tmp/pannes-location-qa/`.
+- No commit/push or production deployment is part of this implementation request. Existing production remains cleanup commit 01b2a87; the archive-summary refresh was an independent derived-data operation.
+
 ## SEO/error-page cleanup deployed, 2026-11-01
 
 - Cleanup commit `01b2a87b8cbd88f161c4bf90ee6d2130e21aac22` is pushed to main. GitHub Quality, CodeQL and desktop/mobile Browser regression all passed before rollout; local validation was all pre-commit checks, 235 Python, 106 Node and 62 Playwright cases.

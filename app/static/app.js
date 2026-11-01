@@ -1,10 +1,10 @@
-import { DaiDetailPanel } from "./detail-panels.js?v=39817f29cf48";
+import { DaiDetailPanel } from "./detail-panels.js?v=1af230432409";
 import {
   registerServiceWorker,
   reloadOnHistoryNavigation,
   restoreSearchInputFromUrl,
-} from "./search.js?v=39817f29cf48";
-import { initSheet } from "./sheet.js?v=39817f29cf48";
+} from "./search.js?v=1af230432409";
+import { initSheet } from "./sheet.js?v=1af230432409";
 
 const ASSET_VERSION = new URL(import.meta.url).searchParams.get("v") || "";
 

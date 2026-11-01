@@ -1,11 +1,14 @@
-const CACHE_NAME = "pannes-historiques-v0.4.7-runtime-static-2";
-const APP_SHELL_URLS = ["/static/offline.html"];
+const CACHE_NAME = "pannes-historiques-offline-v3";
+const OFFLINE_SCRIPT = "/static/offline.js";
+const APP_SHELL_URLS = ["/static/offline.html", OFFLINE_SCRIPT];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches
       .open(CACHE_NAME)
-      .then((cache) => cache.addAll(APP_SHELL_URLS))
+      .then((cache) =>
+        cache.addAll(APP_SHELL_URLS.map((url) => new Request(url, { cache: "reload" }))),
+      )
       .then(() => self.skipWaiting()),
   );
 });
@@ -31,6 +34,15 @@ self.addEventListener("fetch", (event) => {
 
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
+
+  if (url.pathname === OFFLINE_SCRIPT) {
+    event.respondWith(
+      caches
+        .open(CACHE_NAME)
+        .then(async (cache) => (await cache.match(OFFLINE_SCRIPT)) || fetch(request)),
+    );
+    return;
+  }
 
   if (request.mode === "navigate") {
     event.respondWith(fetch(request).catch(() => caches.match("/static/offline.html")));

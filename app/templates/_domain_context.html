@@ -1,4 +1,4 @@
-{% from "_macros.html" import ph_icon %}
+{% from "_macros.html" import ph_metric, ph_icon %}
 <p class="ph-context-intro">{{ sheet.body.intro }}</p>
 {% if sheet.body.legend %}
   <figure class="ph-legend">
@@ -36,10 +36,7 @@
             </span>
           </span>
           {% if row.count is not none %}
-            <span class="ph-row-metric">
-              <span class="ph-row-metric-value">{{ row.countDisplay }}</span>
-              <span class="ph-row-metric-label">{{ row.countLabel }}</span>
-            </span>
+            {{ ph_metric(row.countDisplay, row.countLabel) }}
           {% endif %}
         </button>
       </li>
