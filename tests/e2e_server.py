@@ -15,6 +15,11 @@ def main() -> None:
     web.AppService = E2EStubService
     settings = Settings()
     app = web.create_app(settings)
+
+    @app.get("/__test__/server-error")
+    def server_error():
+        raise RuntimeError("E2E-only simulated failure")
+
     app.run(host=settings.host, port=settings.port, debug=False)
 
 

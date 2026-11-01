@@ -4,7 +4,75 @@ import struct
 from datetime import UTC, datetime
 from pathlib import Path
 
+import pytest
+
 from app.web import static_asset_version
+
+
+@pytest.mark.parametrize(
+    ("lang", "heading", "destination"),
+    [("fr", "Page introuvable", "/"), ("en", "Page not found", "/?lang=en")],
+)
+def test_missing_page_is_localized_and_not_cached_or_indexed(
+    app_client, lang, heading, destination
+):
+    response = app_client.get(f"/missing-private-address?lang={lang}&q=private-query")
+    html = response.get_data(as_text=True)
+
+    assert response.status_code == 404
+    assert response.headers["Cache-Control"] == "no-store"
+    assert response.headers["X-Robots-Tag"] == "noindex, nofollow"
+    assert response.headers["X-Content-Type-Options"] == "nosniff"
+    assert f'<html lang="{lang}">' in html
+    assert f"{heading} | pannes.ca" in html
+    assert f'href="{destination}"' in html
+    assert "private-query" not in html
+    assert "missing-private-address" not in html
+    assert '<meta name="robots" content="noindex, nofollow">' in html
+    assert 'type="module"' not in html
+
+
+@pytest.mark.parametrize("lang", ["fr", "en"])
+def test_unhandled_page_error_has_safe_recovery_without_service_reads(
+    app_client, monkeypatch, lang
+):
+    def fail():
+        raise RuntimeError("private failure details")
+
+    monkeypatch.setitem(app_client.application.view_functions, "index", fail)
+    app_client.application.config["PROPAGATE_EXCEPTIONS"] = False
+    response = app_client.get(f"/?lang={lang}")
+    html = response.get_data(as_text=True)
+
+    assert response.status_code == 500
+    assert response.headers["Cache-Control"] == "no-store"
+    assert response.headers["X-Robots-Tag"] == "noindex, nofollow"
+    assert ("Something went wrong" if lang == "en" else "Une erreur est survenue") in html
+    assert "private failure details" not in html
+    assert "Traceback" not in html
+    assert app_client.application.testing_stub_service.search_calls == []
+
+
+def test_missing_static_asset_is_not_immutably_cached(app_client):
+    response = app_client.get("/static/nonexistent.css?v=missing")
+    assert response.status_code == 404
+    assert response.headers["Cache-Control"] == "no-store"
+
+
+def test_unhandled_api_errors_remain_json(app_client):
+    def fail():
+        raise RuntimeError("private API details")
+
+    app_client.application.add_url_rule("/api/test-failure", view_func=fail)
+    app_client.application.config["PROPAGATE_EXCEPTIONS"] = False
+
+    missing = app_client.get("/api/unknown")
+    failed = app_client.get("/api/test-failure")
+    assert missing.status_code == 404
+    assert missing.json == {"error": "not found"}
+    assert failed.status_code == 500
+    assert failed.json == {"error": "internal server error"}
+    assert failed.headers["Cache-Control"] == "no-store"
 
 
 def test_index_renders(app_client):

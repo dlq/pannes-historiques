@@ -15,6 +15,12 @@ _PLURAL_MARKER = re.compile(r"\(([A-Za-zÀ-ÿ]{0,3})\)")
 
 STRINGS: dict[str, dict[str, str]] = {
     "fr": {
+        "error_code": "Erreur {code}",
+        "error_404_title": "Page introuvable",
+        "error_404_body": "Cette page n’existe pas ou n’est plus disponible.",
+        "error_500_title": "Une erreur est survenue",
+        "error_500_body": "Réessayez dans quelques instants, ou revenez à la carte.",
+        "error_back_to_map": "Revenir à la carte",
         "brand_title": "Pannes Historiques",
         "app_title": "Historique des pannes Hydro-Québec",
         "app_h1": "Carte des pannes Hydro-Québec",
@@ -212,6 +218,12 @@ STRINGS: dict[str, dict[str, str]] = {
         "context_source_sector": "Secteur",
     },
     "en": {
+        "error_code": "Error {code}",
+        "error_404_title": "Page not found",
+        "error_404_body": "This page does not exist or is no longer available.",
+        "error_500_title": "Something went wrong",
+        "error_500_body": "Try again in a few moments, or return to the map.",
+        "error_back_to_map": "Return to the map",
         "brand_title": "Outage History",
         "app_title": "Quebec Power Outage Map & History | pannes.ca",
         "app_h1": "Quebec Power Outage Map",

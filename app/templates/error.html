@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex, nofollow">
+    <title>{{ t(lang, 'error_' ~ status ~ '_title') }} | pannes.ca</title>
+    <link rel="icon"
+          type="image/svg+xml"
+          href="{{ url_for('static', filename='favicon.svg') }}">
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='app.css', v=static_version) }}">
+  </head>
+  <body class="ph-about-page">
+    <div class="ph-about-shell">
+      <header class="ph-about-top">
+        <a class="ph-about-brand"
+           href="{{ url_for('index', lang='en' if lang == 'en' else none) }}">pannes.ca</a>
+      </header>
+      <main class="ph-about-card">
+        <p class="ph-about-heading">{{ t(lang, 'error_code', code=status) }}</p>
+        <h1 class="ph-about-title">{{ t(lang, 'error_' ~ status ~ '_title') }}</h1>
+        <p class="ph-about-lede">{{ t(lang, 'error_' ~ status ~ '_body') }}</p>
+        <div class="ph-about-section">
+          <a class="ph-action-button ph-action-button--primary ph-about-action"
+             href="{{ url_for('index', lang='en' if lang == 'en' else none) }}">{{ t(lang, 'error_back_to_map') }}</a>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>

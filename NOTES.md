@@ -3,6 +3,14 @@
 Date: 2026-04-25
 Last updated: 2026-11-01
 
+## SEO and error-page cleanup candidate, 2026-11-01
+
+- Observed: address/location/panel-state robots metadata was already implemented and covered in `tests/test_web.py`; no new indexing policy was necessary. Marked the stale roadmap follow-up complete without changing canonicals, alternates or existing map/search behavior.
+- Implemented in the chat's clean worktree on dedicated branch `seo-error-pages`: one small localized error template reusing existing About-page/action styles; real 404/500 responses, `no-store` and noindex/nofollow headers/meta, generic JSON for unhandled API/internal/cron errors, and language-preserving return-to-map links. The template reads no source service and loads no map/application JavaScript. Error pages do not reflect failed URL/query text or exception details; Flask retains its server-side exception logging.
+- Regression exposed and fixed: after_request resets the request timer after rendering a handled 500, but teardown attempted to log through the resulting NullTimer. Teardown now logs/reset only while its timer token is still active. Missing versioned static assets also must not acquire immutable success-cache headers.
+- Verification: all pre-commit checks; 235 Python tests; 106 Node tests; full 62-case desktop/mobile Playwright suite. Local rendered QA at 1440×1000 and 390×844 confirms correct titles/statuses, visible recovery controls, zero horizontal overflow and successful return to the map. No page JavaScript errors; console resource failures for the intentionally requested 404/500 documents are expected. Browser plugin not available; used regular Playwright per frontend-testing-debugging skill. Temporary screenshots/QA scripts are under /private/tmp, not committed.
+- A follow-up browser run collided with an unrelated app on port 4173; final browser verification uses this task's dedicated fixture server on port 4174. The simulated 500 route exists only in `tests/e2e_server.py`, never in production routes. This is a local candidate; no production deployment was performed.
+
 ## Storage and identity planning observations, 2026-11-01
 
 - Code review, not a new production scan: migration `0007` stores GeoJSON and raw coordinate text per polygon/source version; `0009` stores per-polygon territory assignments. These are candidate storage savings; no table/index attribution or reclaim percentage was measured during planning. Last recorded production size remains 3,355,394,048 bytes on November 1. Existing derived marker pruning, 30-day terminal ingestion retention, 30-day geocode cache and 90-day usage retention must not be advertised as new savings.

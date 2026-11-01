@@ -121,6 +121,29 @@ def create_app(settings: Settings | None = None) -> Flask:
     static_root = Path(app.static_folder or "")
     app.jinja_env.globals["static_version"] = static_asset_version(static_root)
 
+    def error_response(status: int):
+        if request.path.startswith(("/api/", "/internal/", "/cron/")):
+            message = "not found" if status == 404 else "internal server error"
+            response = jsonify({"error": message})
+        else:
+            response = app.make_response(
+                render_template(
+                    "error.html", lang=choose_language(request.args.get("lang")), status=status
+                )
+            )
+        response.status_code = status
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["X-Robots-Tag"] = "noindex, nofollow"
+        return response
+
+    @app.errorhandler(404)
+    def not_found(_error):
+        return error_response(404)
+
+    @app.errorhandler(500)
+    def internal_server_error(_error):
+        return error_response(500)
+
     def map_layer_scope(value: str | None) -> str:
         if value in {
             CURRENT_MAP_LAYER_SCOPE,
@@ -355,11 +378,16 @@ def create_app(settings: Settings | None = None) -> Flask:
             response.headers["Cache-Control"] = "no-store"
         if request.path == "/sheet":
             response.headers["X-Robots-Tag"] = "noindex, nofollow"
-        if request.path.startswith("/static/") and request.path not in {
-            "/static/service-worker.js",
-            "/static/vendor/leaflet/leaflet.css",
-            "/static/vendor/leaflet/leaflet.js",
-        }:
+        if (
+            response.status_code < 400
+            and request.path.startswith("/static/")
+            and request.path
+            not in {
+                "/static/service-worker.js",
+                "/static/vendor/leaflet/leaflet.css",
+                "/static/vendor/leaflet/leaflet.js",
+            }
+        ):
             response.headers["Cache-Control"] = (
                 "public, max-age=31536000, immutable"
                 if request.args.get("v")
@@ -370,7 +398,8 @@ def create_app(settings: Settings | None = None) -> Flask:
     @app.teardown_request
     def teardown_request_timer(error):
         token = getattr(g, "perf_token", None)
-        if error is not None:
+        # A handled 500 already passes through after_request, which resets the timer.
+        if error is not None and token is not None:
             timer = current_timer()
             timer.log(error=repr(error))
         if token is not None:
