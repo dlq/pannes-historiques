@@ -3,6 +3,76 @@
 Date: 2026-04-25
 Last updated: 2026-11-01
 
+## Municipal distributor source-discovery pass, 2026-11-01
+
+Scope: bounded, read-only inspection of official pages, linked map configuration/assets, public metadata, count queries and one Westmount network-area sample. No collector, automated watch, UI change, archive ingestion or production change. Public access is an observed property, not a supported API contract or a reuse/retention licence. No historical outage API was verified for any of these distributors.
+
+The [Régie lists nine municipal networks and the Saint-Jean-Baptiste cooperative](https://www.regie-energie.qc.ca/fr/foire-aux-questions/electricite/general). These are service territories; do not infer a distributor solely from a municipality name. A Hydro-Québec regional/city outage page does not establish municipal-network coverage.
+
+### Structured outage-data candidates
+
+**Hydro-Westmount**
+
+- Provenance: the current [official outage page](https://westmount.org/en/services/hydro-westmount/power-outages) links Experience Builder application `f40546b764a841ebbe5e070b02f830e3`. The search engine's cached page still linked older application `0d1ad56922fa40669628e53b7a7dbe62`; current HTML was used instead.
+- Public app configuration: `https://www.arcgis.com/sharing/rest/content/items/f40546b764a841ebbe5e070b02f830e3/data?f=json`. Its web map is `bd9cf36d12ba4b6ca85967594b7afb99`; map data at `https://www.arcgis.com/sharing/rest/content/items/bd9cf36d12ba4b6ca85967594b7afb99/data?f=json` supplies the displayed status semantics.
+- Actual layer: `https://cartes.westmount.org/server/rest/services/InfoPanneCitoyen/FeatureServer/0`. GET metadata with `?f=pjson` returned HTTP 200, polygon geometry, Query capability, maxRecordCount 2000, and fields `ID`, `CITOY`, `NbClients`, `LastUpdate`, `DtEtat`, `DebutPanne`, `STATUT`, `HRETOURPLAN`, `Message`, among others. No authentication token was supplied.
+- Actual query: `https://cartes.westmount.org/server/rest/services/InfoPanneCitoyen/FeatureServer/0/query?where=CITOY%20IN%20%282%2C3%29&outFields=ID%2CCITOY%2CNbClients%2CLastUpdate%2CDtEtat%2CSTATUT%2CHRETOURPLAN&returnGeometry=false&f=json`. Returned HTTP 200 and `features: []`. This is a successful empty query, not a missing feed.
+- The official web-map popup maps `CITOY=1` to in service, `2` to ongoing outage, and `3` to planned interruption. Unfiltered count returned **234 network areas**, all in status 1 in an aggregate query. Do not report 234 as an outage count. One limited sample with `outSR=4326&returnGeometry=true&resultRecordCount=1` returned a polygon ring and the selected fields.
+- Timestamp verification issue identified while planning: the aggregate maximum `LastUpdate` was `1793441528887`, while the limited raw-feature query returned `1793455925000` for block ID 137 (about four hours later). A maximum should not be below a member value for a consistent dataset/query interpretation. The cause is unverified; compare raw feature dates, aggregation behavior, source timezone metadata and map display before using these fields for freshness or event chronology. Do not silently apply an extra Eastern offset.
+- Status-domain metadata maps `AUC`, `EVAL`, `EQUIP`, `TRAV` to none, assessment, assigned crew and work underway. The map has a refresh setting, but backend update cadence is not established by that setting. Date metadata specifies Eastern time with DST; timestamp interpretation, nulls, and an actual outage transition still need checking.
+- Item `95487c7b07b9473c9f792031fe1f0ae9` is public; description/licence text and layer copyright were empty. This does not establish permission for archival redistribution. Area `ID` identifies a network block; a stable outage-event identity is unverified.
+
+**Hydro-Sherbrooke — conditional map-internal feed, not an openly accessible API**
+
+- Provenance: [official outage page](https://www.sherbrooke.ca/fr/hydro-sherbrooke/pannes) → `https://cartes.ville.sherbrooke.qc.ca/Pannes/` → current public JS asset `https://cartes.ville.sherbrooke.qc.ca/Pannes/assets/index-DvIqjcKj.js`.
+- Actual resource, as referenced by that asset: `https://cartes.ville.sherbrooke.qc.ca/arcgis/rest/directories/arcgisoutput/Panne/f8f674024df049d091626fc75eef6374`.
+- Rechecked after the direct-link failure was reported: a bare GET again returned **403**, while the normal map Referer again returned **200** and the same decodable empty snapshot/ETag. This verifies conditional retrieval only; it does not establish a generally accessible API, current data freshness or stable external access.
+- A bare GET returned **403**. A GET with `Referer: https://cartes.ville.sherbrooke.qc.ca/Pannes/`, matching ordinary map traffic, returned **200 application/octet-stream** with gzip-compressed JSON. No credentials or token were supplied. Decoder: gzip decompress the response bytes, then parse JSON; HTTP decompression alone is not necessarily sufficient.
+- Decoded keys: `creationDate`, `count`, `origins`, `scales`, `xs`, `ys`, `fields`, `values`. The verified response had `count: 0`, empty observation arrays, and `creationDate: 1793539098269` (`2026-11-01T13:18:18.269Z`). An empty observation list does not verify nonempty-record semantics, freshness guarantees or historical completeness.
+- Fields: `cause_panne`, `debut_panne`, `statut_panne`, `retablissement_panne`, `adresse`, `datemiseajour`. Source decoder calculates x/y as `origins[axis] + coordinate[axis] * scales[axis]`, then supplies point features to a layer declaring WKID 3857. This is a custom packed format, not a normal GeoJSON endpoint.
+- The app labels its total as subscribers without service; it generates local feature IDs from array indexes. Do not equate the point count with independent outage incidents or use array indexes as persistent event IDs. The source defines cause codes and status 0/1/2 as upcoming/crew en route/crew working; it schedules fetches at approximately 60/120/180 seconds depending on point count. Those client settings are not a backend SLA.
+- The hash-like resource path and schema are undocumented browser implementation details and could change. No supported API contract or reuse/retention permission was verified.
+- Further freshness investigation at approximately `2026-11-01T18:27–18:29Z`: opened the actual official map in the in-app browser without manually supplied request headers. Its asset inventory records a fetch of exactly the resource above. The rendered panel displayed zero affected subscribers and `2026/11/01 à 08:18 AM` as its last update; reloading the map reproduced both, with no warning/error console messages captured. This verifies that the resource is used by the working map, not that it is current.
+- Two bounded GETs requesting cache revalidation at `18:28:08Z` and `18:29:19Z` returned 200 with identical 152-byte gzip bodies, SHA-256 `152e68b1b86532a80891d68632ec1dbb7fc97b6571ae10ce5477ab505ac790d9`, unchanged `creationDate` and ETag `"1a19742c6a7"`. An intervening `If-None-Match` request returned 304. Response Date headers were current; `X-Cache: CONFIG_NOCACHE` was present. The 200 responses advertised `Cache-Control: public, max-age=86400`, while the 304 advertised `public, must-revalidate, max-age=0`. These headers/revalidation do not establish whether the source generator itself is checking for changes successfully.
+- Observed source behavior: the client requests `cache: no-cache`, supplies the cached ETag, and decodes/replaces displayed features only when `creationDate` changes. Its zero-count polling interval is 60 seconds. No separate source-success heartbeat was found in the payload. Inference: a last-change-only publication process could legitimately retain an empty snapshot for hours, but a stalled producer could look identical. No nonempty snapshot or actual incident transition was observed, so freshness and completeness remain **unverified**, not proven broken. A new HTTP response timestamp is not evidence of a new outage observation.
+- Access conclusion: normal browser navigation successfully uses this resource, but a server collector would rely on manually asserting the map Referer; no supported external access route was established. Do not promote this to production ingestion based on that workaround. Next useful verification is operator confirmation of publication cadence/heartbeat and external access, or a separately authorized observation of a real incident transition. No monitoring automation or outreach was created. The official site links Données Québec as its open-data portal; the portal lookup encountered a robot-verification page, so no catalog-absence conclusion was drawn from that lookup.
+
+- Separate **coverage-only** metadata: `https://cartes.ville.sherbrooke.qc.ca/arcgis/rest/services/Basemaps/TerritoireHydroSherbrooke/MapServer?f=pjson` returned public Map/Query/Data capabilities; actual boundary geometry quality remains unverified. The public `Panne` REST directory listed only the customer geocoder, not an outage FeatureServer. The geocoder and error-logging GPServer are not outage feeds; no logging/write endpoint was invoked.
+
+### Rejected outage-API candidates: HTML notices wrapped in JSON
+
+**Baie-Comeau**
+
+- [Official current-notices page](https://www.ville.baie-comeau.qc.ca/services/services-essentiels/avis-debullition-et-pannes/) explicitly describes municipal service in the Marquette sector. Its HTML advertises this WordPress REST page resource:
+  `https://www.ville.baie-comeau.qc.ca/wp-json/wp/v2/pages/21146?_fields=id,link,modified_gmt,content`.
+- GET returned HTTP 200 JSON with `id`, `link`, `modified_gmt`, `content.rendered`. Observed `modified_gmt: 2026-10-28T15:17:42`; the page also retained a notice dated September 28. A page modification time is not the start/end or resolution time of an outage. Notices require free-text/HTML interpretation and can remain after an event; no normalized live-event API was found.
+
+**Hydro-Magog**
+
+- [Official notices page](https://www.ville.magog.qc.ca/informations-services/avis-important/) advertises:
+  `https://www.ville.magog.qc.ca/wp-json/wp/v2/pages/18144?_fields=id,link,modified_gmt,content`.
+- GET returned HTTP 200 JSON with the same WordPress content shape; observed `modified_gmt: 2026-11-01T14:30:40`. The content mixes water/electricity notices, planned interruptions, PDFs and longer-lived status information. No normalized live-outage API was found.
+- Additional **coverage-only** endpoint discovered through [official interactive maps](https://www.ville.magog.qc.ca/informations-services/cartes-interactives/): `https://cartographie.ville.magog.qc.ca/server/rest/services/Fournisseur_%C3%A9lectrique/FeatureServer/0`. Official app `f1d27ed2ae1641709668866c348c0a0c` references web map `5cef1427c83343519cccbb0dd78d5ee2`, whose renderer distinguishes Hydro-Magog, Hydro-Sherbrooke and Hydro-Québec using `DESCRIPTIO`. Metadata and a count-only query returned 200; there are three polygon features. Geometry contents, boundary currency and reuse permission remain unverified. This is not outage data.
+
+### Remaining distributors: no public outage-data endpoint found in this pass
+
+| Distributor | Official source inspected | Observed access / next lead |
+| --- | --- | --- |
+| Alma | https://www.ville.alma.qc.ca/hydro-alma/ and https://www.ville.alma.qc.ca/panne-et-urgence/ | Telephone reporting. The electricity-network map is a static 2021 PDF (`https://www.ville.alma.qc.ca/wp-content/uploads/2021/11/Reseau-Electrique_Alma_2021-1.pdf`). The separately linked general JMap at https://geo.ville.alma.qc.ca/carte_publique/ was inspected at bootstrap/library level; no live outage layer was verified. |
+| Amos | https://amos.quebec/services/services-aux-citoyens/service-de-lelectricite | Telephone reporting and alert subscription. The linked https://amos.quebec/carte-interactive is a general facilities map; inspected categories concern winter/sports installations, parks and services. No live outage layer was verified. |
+| Coaticook | https://www.coaticook.ca/fr/services/hydro-coaticook.php and https://www.coaticook.ca/fr/ville/cartes.php | Hydro service/contact information and general Google maps, not a verified outage feed. |
+| Joliette | https://www.joliette.ca/services/hydro-joliette and https://www.joliette.ca/services/hydro-joliette/signalez-une-panne-de-courant | Reporting page gives a telephone number. https://www.joliette.ca/carte-interactive has culture, leisure, services and sports categories; no live outage layer was verified. |
+| Jonquière / Saguenay | https://ville.saguenay.ca/la-ville-et-vie-democratique/services-municipaux/hydro-jonqui%C3%A8re | Service page lists telephone reporting, including outside office hours, and links a Google My Maps service-territory map. No live outage feed was verified. |
+| Saint-Jean-Baptiste cooperative | https://www.coopsjb.com/pannes/ | Explicitly directs callers to telephone reporting and says Facebook is the principal information channel for major outages. WordPress page JSON/oEmbed describes that informational page, not a live outage dataset. |
+
+Search cross-check: public ArcGIS catalog searches for outage/electricity terms with these distributor names yielded no additional authoritative outage resource. Unrelated Alma telecom outage layers and other name collisions were rejected. This bounded discovery does **not** prove that unpublished, unindexed or partner APIs do not exist. The next step for these six is to ask each operator about a supported export/API and reuse terms; no outreach has been sent.
+
+### Integration implications and remaining verification
+
+- Corrected practical inventory: one openly queryable structured outage source (Westmount), one conditional map-internal feed (Sherbrooke), and no useful structured outage API found for the other eight distributors. Baie-Comeau/Magog WordPress endpoints merely wrap HTML page content in JSON and are rejected as outage-ingestion candidates. Sherbrooke direct-link access is blocked; decoding, freshness, identity and supported-access questions remain unresolved.
+- Before implementing collection: establish supported access/reuse/retention terms, actual nonempty-record semantics, timestamp handling, event identity, source freshness and boundary currency. Distinguish unavailable/not covered from zero reported outages. Preserve raw provenance and provider-qualified identities; historical coverage starts with retained observations unless an authoritative historical dataset is obtained.
+- Durable evidence is the exact source/metadata/query URLs and observations above. Temporary HTML, public configurations and probe results were saved under `/private/tmp/pannes-municipal-api/`; discovery scripts used Python urllib GET requests, gzip/json decoding, ArcGIS count/group queries and one limited network-area sample. No individual customer records were collected. Docs validation: `git diff --check`.
+
 ## Official-channel watchlist decision, 2026-11-01
 
 - Decision: leave the current map-and-sheet UI unchanged. Use Hydro-Québec's official channels as background reference sources during operational reviews. No feed, public updates panel, automated collection, or scheduled monitoring is part of this decision.
