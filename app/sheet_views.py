@@ -853,7 +853,8 @@ def address_domain_sheet_context(
     radius_m = result.radius_m or FIXED_RADIUS_M
     radius_km = str(int(radius_m / 1000))
     if domain == "current":
-        items = _local_items([item for item in matches if item["kind"] == "outage"], radius_m)
+        scoped_matches = [item for item in matches if item["kind"] == "outage"]
+        items = _local_items(scoped_matches, radius_m)
         body = {
             "summary": t(lang, "overview_current_count", count=len(items), radius_km=radius_km),
             "customers": "",
@@ -861,16 +862,17 @@ def address_domain_sheet_context(
             "empty": t(lang, "domain_current_empty"),
         }
     elif domain == "planned":
-        items = _active_planned(
-            _local_items([item for item in matches if item["kind"] == "planned"], radius_m)
-        )
+        scoped_matches = [item for item in matches if item["kind"] == "planned"]
+        items = _active_planned(_local_items(scoped_matches, radius_m))
         body = {
             "summary": t(lang, "overview_planned_count", count=len(items), radius_km=radius_km),
             "customers": "",
             "groups": _planned_groups(lang, items, with_distance=True),
             "empty": t(lang, "domain_planned_empty"),
         }
+        scoped_matches = _active_planned(scoped_matches)
     elif domain == "archive":
+        scoped_matches = [item for item in matches if item["kind"] == "previous_outage"]
         items = payload.get("previousSidebarMatches") or []
         body = {
             "windows": [],
@@ -882,25 +884,19 @@ def address_domain_sheet_context(
                 lang,
                 "local_reliability_summary_body" if items else "local_reliability_summary_empty",
                 count=len(items),
-                radius_km=str(int(radius_m / 1000)),
+                radius_km=radius_km,
             ),
             "empty": t(lang, "domain_archive_empty"),
         }
     else:
         raise ValueError(f"unsupported address domain: {domain}")
-    if domain == "current":
-        scoped_matches = [item for item in matches if item["kind"] == "outage"]
-    elif domain == "planned":
-        scoped_matches = _active_planned([item for item in matches if item["kind"] == "planned"])
-    else:
-        scoped_matches = [item for item in matches if item["kind"] == "previous_outage"]
     center = payload.get("center")
     return {
         "mode": "address",
         "domain": domain,
         "scope": "local",
         "display_address": display_address,
-        "radius_label": t(lang, "overview_radius_label", radius_km=str(int(radius_m / 1000))),
+        "radius_label": t(lang, "overview_radius_label", radius_km=radius_km),
         "body": body,
         "map_update": _map_update(
             domain,

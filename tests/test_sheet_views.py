@@ -1,6 +1,8 @@
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
+import pytest
+
 from app.i18n import t
 from app.sheet_views import (
     HISTORY_MONTHS,
@@ -612,3 +614,53 @@ def test_context_row_counts_are_grouped_after_sorting():
 
     assert [row["title"] for row in rows] == ["Grande", "Petite"]
     assert [row["countDisplay"] for row in rows] == ["12\u00a0000", "9\u00a0422"]
+
+
+@pytest.mark.parametrize("lang", ["fr", "en"])
+@pytest.mark.parametrize("domain", ["current", "planned", "archive"])
+def test_address_domain_preserves_distinct_sidebar_and_map_matches(monkeypatch, lang, domain):
+    from app import sheet_views
+
+    def item(label, kind, distance, end=None):
+        return {
+            "label": label,
+            "kind": kind,
+            "distanceM": distance,
+            "startTime": "2026-01-01 10:00:00",
+            "endTime": end,
+            "customersAffected": 1,
+        }
+
+    payload = {
+        "matches": [
+            item("near-current", "outage", 100),
+            item("far-current", "outage", 3000),
+            item("unknown-distance", "outage", None),
+            item("near-planned", "planned", 100, "2099-01-01 11:00:00"),
+            item("far-planned", "planned", 3000, "2099-01-01 11:00:00"),
+            item("expired-planned", "planned", 100, "2000-01-01 11:00:00"),
+            item("uncertain-planned", "planned", 700, "not-a-date"),
+            item("map-history", "previous_outage", 4000),
+        ],
+        "previousSidebarMatches": [item("sidebar-history", "previous_outage", 500)],
+    }
+    monkeypatch.setattr(sheet_views, "build_map_payload", lambda *args: payload)
+    result = sheet_views.address_domain_sheet_context(
+        lang, domain, SimpleNamespace(radius_m=2000), "Example"
+    )
+    body = result["body"]
+    if domain == "planned":
+        rows = [row for group in body["groups"] for row in group["rows"]]
+        expected_rows = ["near-planned", "uncertain-planned"]
+        expected_map = ["near-planned", "far-planned", "uncertain-planned"]
+    elif domain == "archive":
+        rows = [row for row in body["rows"] if not row["isHeading"]]
+        expected_rows = ["sidebar-history"]
+        expected_map = ["map-history"]
+    else:
+        rows = body["rows"]
+        expected_rows = ["near-current"]
+        expected_map = ["near-current", "far-current", "unknown-distance"]
+    assert [row["focus"]["label"] for row in rows] == expected_rows
+    assert [match["label"] for match in result["map_update"]["matches"]] == expected_map
+    assert result["radius_label"] == t(lang, "overview_radius_label", radius_km="2")

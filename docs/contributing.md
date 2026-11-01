@@ -41,7 +41,7 @@ can fetch the live public Hydro-Quebec feed, so tests use deterministic fixtures
 3. Add or update focused tests with the implementation.
 4. Run the relevant checks, then open a pull request using the template.
 
-`PLANS.md` and `NOTES.md` are maintainer records. Do not update them for an ordinary feature or
+`PLANS.md`, its linked `docs/plans/` documents and `NOTES.md` are maintainer records. Do not update them for an ordinary feature or
 bug-fix pull request unless the change alters a documented release decision or durable technical
 finding.
 

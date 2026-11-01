@@ -9,7 +9,9 @@ This project has no current monetization model: no ads, subscriptions, paid API,
 - Unacceptable steady state: recurring Durable Object/container overage caused by normal public browsing, searching, or map interaction.
 - Cost decision rule: any feature that increases recurring Cloudflare runtime cost needs an explicit research/user-value justification and a fallback or disable path.
 
-## Architecture Direction
+## Long-Term Architecture Direction
+
+The following is the target direction, not a claim about the deployed hybrid implementation.
 
 - Public user traffic should not wake the Python container.
 - Ordinary browsing, startup map context, address search, layer toggles, archive summaries, disclosure summaries, language switches, and static assets should be served by Worker/static/D1/R2 paths.
@@ -33,7 +35,7 @@ Decision for `v0.4.3`: use option 2, with Worker-first durable reads. It preserv
 ## Delivered Guardrails
 
 - Production routes are classified as `edge-safe`, `container-needed`, or `internal-only` in `docs/architecture.md`. `X-Pannes-Runtime` and `Server-Timing` show whether a response used Worker/D1 or the container.
-- The private `/api/ops/cost-health` check reports container, ingestion, archive-materialization, table-count, and optionally dated D1/R2 size facts.
+- The private `/api/ops/cost-health` check reports container, ingestion, archive-materialization, and optionally dated D1/R2 size facts; routine table counts are disabled to avoid scans.
 - `PANNES_LOW_COST_MODE=1` stops public container wakes during an incident while durable public APIs continue to serve last-known D1/R2 data. It is an emergency guardrail, not a substitute browser shell.
 
 ## Current Baseline
@@ -74,5 +76,5 @@ Decision for `v0.4.3`: use option 2, with Worker-first durable reads. It preserv
 
 - Durable Object duration above roughly `$5/month`: investigate immediately.
 - Container runtime above roughly `$3/month`: audit public route wakeups and migrate the highest-traffic route first.
-- D1 approaching the included 5 GB storage threshold: define retention, rollup, compaction, or archive-offload policy before it becomes a recurring charge.
+- D1: ADR 0005 requires action before the internal 3.5 GB review trigger and a migration before 4 GB, ahead of the included-storage threshold. Follow the [storage/retention plan](plans/storage-retention.md); preserve raw source and archive-visible information before any compaction or offload.
 - R2 leaving included storage/operation ranges: review raw-file retention and precomputed geometry payload strategy.

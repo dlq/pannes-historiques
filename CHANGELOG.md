@@ -14,6 +14,8 @@ Keep active execution state in `PLANS.md` and source/evidence research in `NOTES
 
 ### Changed
 
+- Local maintenance candidate (not deployed): compacted the active plan into linked detailed plans, preserved testing safeguards, simplified address-sheet domain selection/radius formatting without changing sidebar/map scope, added a repeatable browser-module baseline and reconciled current documentation. Production remains `dead987` until an explicitly requested rollout.
+
 - Deployed location/offline recovery, shared metric/date/status template macros, long disclosure/detail wrapping and bilingual Archive-freshness wording on 2026-11-01 from `dead987` as Worker `f4559ee1-46af-4ea5-b67a-11e4c6499261`, container version 132, immutable amd64 image `sha256:c8145cc83b096b197a968ea9062e59666d7a31364c53ddf49972373e5f90ef4e`. Recorded the eight-week bounded-usage decision. Quality, CodeQL, 88 browser cases and live desktop/mobile checks passed; ingestion is healthy, with the routine Archive cursor-lag warning.
 
 - Updated locked dependencies for security and maintenance, including pypdf 6.21.4, certifi 2026.10.19, filelock 4.2.1, virtualenv 21.15.1, MapLibre 6.15.0, Biome 2.6.2, Playwright 1.64.1, Wrangler 4.152.0, and setup-python 7.1.0. Refreshed vendored map assets and fixed the new linter’s callback-name false positive while preserving visual-audit text behavior. Deployed on 2026-11-01 from `71df235` as Worker `64b266ed-c679-46a8-9336-3b494d044fc1` with immutable amd64 container digest `sha256:4cc396a6308db3c9601383c5646ae460107392ab0fe1b939f19a3e3c9d7a66d4`. Live desktop/mobile map/search, container and ingestion checks passed; the pre-existing daily Archive summary lag warning remains.

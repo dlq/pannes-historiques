@@ -40,6 +40,10 @@ checks. Responsibility for the project and its releases rests with its maintaine
   - a segmented `En cours / Planifiées / Archive / Contexte` control that drives both the sheet content and the visible map layer
   - explore-mode domain views: sorted current rows, a date-grouped planned schedule with calendar tiles, an archive report with 24 h/7 j/30 j/1 an windows counting retained outages, alongside cumulative customer-interruption totals, and a disclosure-document list framed as regional context
   - address-mode overview answer stack: current/planned status lines with nearest-distance and next-window wording, a local-history hero card with a 14-month chart, a radius control (1/2/5/10 km, 2 km default for typed addresses), a `Local / Québec` scope toggle on pushed domain views, in-sheet detail cards, and a browser-local comparison tray
+- Recovery and accessibility
+  - localized denied/unavailable/timeout location errors with typed-address recovery
+  - bilingual offline retry that preserves the failed URL; only fallback HTML/JavaScript are cached
+  - keyboard dialog focus/return, long disclosure wrapping, localized 404/500 recovery pages and bilingual Archive-summary freshness explanation
 - Historical disclosure and map context
   - access-to-information disclosure source registry plus XLSX and supported PDF extraction
   - DAI region outlines from OSM/Nominatim/Overpass with conservative fallback areas
@@ -90,7 +94,8 @@ Current deployment status:
   `CHANGELOG.md` for the exact code/deployment distinction and Worker versions.
 - Development package metadata is `0.4.9`. Its privacy-preserving usage evidence is implemented;
   D1 migration `0012`, the shared Cloudflare interaction-endpoint rate rule, production deployment,
-  and activation smoke checks are complete. The observation period remains in progress.
+  and activation smoke checks are complete. The eight-week review is complete: continue the existing
+  bounded aggregates without expanding analytics; the evidence and limits are in `NOTES.md`.
 - The current interface uses vendored MapLibre GL JS v6 ESM modules with the OpenFreeMap Liberty style, a
   full-bleed map, and one responsive sheet for current, planned, archive, and context views.
 - Production is served through Cloudflare Workers + Containers with D1 and R2 durable storage.
@@ -122,12 +127,13 @@ D1/R2 are now used for durable production ingestion:
   previous-outage nearby matches.
 - `GET /api/durable/runtime/map-context` is a public Worker read containing only published
   disclosure/regional context. Protected runtime endpoints remain operator-only; the container
-  currently falls back to public durable reads or its local-compatible paths when it cannot reach one.
+  calls only public materialized `map-context` and `previous-archive-summary` reads through its
+  runtime client; former protected-runtime operations use local-compatible paths.
 - Operational-only Worker runtime endpoints import official territories, backfill municipal archive
   bins, and report municipal archive status.
 - Debug, Hydro collection, cron, internal file/export, direct status, and protected durable runtime
   endpoints are not public entry points. `GET /api/durable/runtime/map-context` is the published
-  context exception; `POST /api/usage` is a bounded write-only counter that returns no aggregate
+  context exception, alongside `GET /api/durable/runtime/previous-archive-summary`; `POST /api/usage` is a bounded write-only counter that returns no aggregate
   data. Use the CLI locally and Worker scheduled/internal paths in production.
 
 Production disables automatic Hydro-Quebec refreshes during address search (`AUTO_REFRESH_ON_SEARCH=0`).
@@ -199,15 +205,16 @@ Sheet fragments are served through `GET /sheet`; each fragment embeds the map da
 so the persistent MapLibre element updates without a page reload.
 Regional and DAI/disclosure context geometries are served through `/map-context-geometries` and the
 precomputed static assets in `app/static/regional_metric_geometries.json` and
-`app/static/disclosure_geometries.json`. In production, current outages, planned interruptions, and
-default previous-outage context use private D1-backed Worker runtime map-layer endpoints before
-falling back to local SQLite-derived layers. Previous outages without polygon geometry are rendered
+`app/static/disclosure_geometries.json`. In production, current/planned map layers use the public D1-backed `/api/durable/hydro`
+response, and the province Archive view uses the public materialized `previous-archive-summary`.
+Protected runtime layer endpoints are not container dependencies; local-compatible SQLite paths
+remain available for fallbacks and local development. Previous outages without polygon geometry are rendered
 as centroid markers instead of older outage polygons.
 
 For searched addresses, previous local evidence is capped to the nearest retained outage records
 within the selected local radius (2 km by default for typed addresses). The current code summarizes that evidence in a plain-language
-local stability card before the pushed domain views, including retained-record count, nearest retained
-record, most recent retained record, distance-band counts, and restrained source/coverage caveats.
+local-history card before the pushed domain views, including retained-record count, a 14-month
+chart, nearest/latest retained records, and restrained source/coverage caveats.
 The mobile sheet keeps this local answer ahead of broader layer context and can store a small
 client-side comparison list in browser local storage.
 
@@ -237,6 +244,9 @@ Useful test queries:
 - `1 Chemin Pembroke, L'Isle-aux-Allumettes, QC`
 
 ## Tooling
+
+For active priorities and detailed proposed work, see [PLANS.md](PLANS.md) and its linked `docs/plans/` documents.
+The repeatable [browser module baseline](docs/browser-module-baseline.md) records the current loading evidence.
 
 For a repo map and contributor workflow, see [docs/architecture.md](docs/architecture.md) and
 [docs/contributing.md](docs/contributing.md).

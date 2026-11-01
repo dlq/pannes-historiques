@@ -4,7 +4,7 @@ Use this map before opening large files. Prefer targeted `rg` searches over read
 
 ## Start Here
 
-- `PLANS.md`: active slice, roadmap, and current risks.
+- `PLANS.md`: compact active slice, roadmap, and current risks; `docs/plans/` holds the four detailed proposed plans.
 - `docs/current-snapshot.md`: quickest version/runtime orientation.
 - `docs/architecture.md`: request flow, module boundaries, runtime ownership.
 - `docs/contributing.md`: local setup and verification commands.
@@ -18,7 +18,7 @@ Use this map before opening large files. Prefer targeted `rg` searches over read
 - `app/views.py`: page and API route handlers.
 - `app/services.py`: search/service orchestration.
 - `app/sheet_views.py`: sheet fragment view-model construction.
-- `app/durable_runtime.py`: private Worker durable-runtime client.
+- `app/durable_runtime.py`: public materialized-read-only Worker client (`map-context`, `previous-archive-summary`); no protected runtime dependency.
 - `app/db.py`: SQLite/local database helpers.
 - `app/hydro.py`: Hydro-Quebec feed parsing and change decisions.
 - `app/disclosures.py`: DAI/access-to-information ingestion and parsing.
@@ -37,7 +37,9 @@ Use this map before opening large files. Prefer targeted `rg` searches over read
 - `app/static/sheet.js`: sheet navigation, detents, detail cards, and row focus.
 - `app/static/outage-map.js`: MapLibre custom element.
 - `app/static/map-events.js`: named event contract and pending map focus state shared by sheet/map modules.
-- `app/static/search.js`: autocomplete, comparison tray, browser history.
+- `app/static/search.js`: autocomplete, location recovery, comparison tray and browser history.
+- `app/static/service-worker.js` and `offline.js`: offline-only fallback cache and bilingual exact-URL retry.
+- `app/static/usage-evidence.js`: allowlisted GPC/DNT-aware interaction reporting.
 - `app/static/detail-panels.js`: disclosure/regional detail panel custom element.
 - `app/static/map-utils.js`: pure map helper functions.
 - `app/static/ui-format.js`: browser formatting/localization helpers.
@@ -53,6 +55,7 @@ Use this map before opening large files. Prefer targeted `rg` searches over read
 - `src/container.js`: Cloudflare Container configuration.
 - `src/archive-summary.js`: previous-outage archive summary shaping, plus the stored-payload shape guard and the cross-field coherence checks the health probe runs.
 - `src/archive-health.js`: pure retention cutoffs and archive-completeness shaping.
+- `src/usage-evidence.js`: bounded daily aggregates, retention, classification and private readout.
 - `src/ingestion-health.js`: pure snapshot freshness and failure-streak health decisions.
 - `src/municipal-archive.js`: municipal geometry and archive-bin helpers.
 
@@ -61,7 +64,8 @@ Use this map before opening large files. Prefer targeted `rg` searches over read
 - `migrations/*.sql`: D1 schema changes.
 - `data/README.md`: local data directory purpose.
 - `scripts/check_module_boundaries.py`: enforced module-boundary checker.
-- `scripts/maintenance/`: operator-driven maintenance and audit helpers.
+- `scripts/maintenance/`: operator-driven maintenance and audit helpers, including `browser-module-baseline.mjs` for document-resource timing/bytes.
+- `docs/browser-module-baseline.md`: dated production measurements and measurement limits.
 
 ## Tests
 

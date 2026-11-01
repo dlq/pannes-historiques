@@ -13,7 +13,7 @@ The Worker classifies every request before it can wake the container. The route 
 | Public page routes | `/`, `/about`, `GET /sheet`, static assets, `POST /search`, `POST /search-location` | Public; forwarded to Flask when needed | Worker and container |
 | Public durable APIs | `/api/durable/hydro`, `/api/durable/nearby`, `/api/durable/history-nearby`, `/api/health/ingestion` | Public read-only responses | Worker with D1/R2 |
 | Bounded usage collection | `POST /api/usage` | Public write-only allowlisted interaction counter; no aggregate response | Worker with D1 |
-| Public published context | `GET /api/durable/runtime/map-context` | Public read-only published disclosure/regional context | Worker with D1/R2 |
+| Public materialized reads | `GET /api/durable/runtime/map-context`, `GET /api/durable/runtime/previous-archive-summary` | Published context and stored Archive summary; read-only | Worker with D1/R2 |
 | Private runtime APIs | `/api/durable/status`, `/api/ops/cost-health`, `/api/ops/usage-evidence`, protected `/api/durable/runtime/*` endpoints | Authorized operations only | Worker with D1/R2 |
 | Blocked operational paths | `/internal/*`, `/cron/*`, `/collect*`, `/debug/*`, common framework probes | Rejected at the edge | Worker |
 
@@ -31,6 +31,8 @@ The interface is one full-bleed MapLibre GL v6 map (OpenFreeMap Liberty vector s
 
 - Explore mode (no address): the segmented control is the root navigation; each domain renders a purpose-built fragment (sorted current rows, date-grouped planned schedule, archive report with time windows, disclosure document list).
 - Address mode: the root is an overview answer stack (current/planned status lines, local-history hero card with a 14-month chart, comparison entry). Typed-address searches default to 2 km and offer 1/2/5/10 km radius choices; coordinate and explore flows default to 5 km. Domain views are pushed pages with a back control and a `Local / Québec` scope toggle. Detail cards open inside the sheet at half detent so the focused map geometry stays visible.
+- Shared `_macros.html` helpers render repeated metric/date/status markup. Detail titles/facts wrap on narrow screens; dialogs manage entry focus, Tab wrapping, Escape and opener restoration.
+- The service worker caches only `/static/offline.html` and `/static/offline.js`; app/search/map data stay network-only. The fallback script selects French/default or English from the failed URL and retries that same URL. This is not saved-area or push-notification implementation.
 - `GET /sheet` returns any sheet fragment; each fragment embeds a JSON map update that `sheet.js` fans out to the persistent `<outage-map>` element via `map-layer-items` / `map-address` events. `/` renders the shell with the initial fragment and map payload inline.
 
 ## Runtime Ownership
@@ -50,7 +52,7 @@ The interface is one full-bleed MapLibre GL v6 map (OpenFreeMap Liberty vector s
 - `src/container-proxy.js` owns forwarding browser requests from the Worker to the Cloudflare Container instance.
 - `/api/ops/cost-health` reports the live container state, latest scheduled ingestion, archive materialization state, and optional dashboard-measured D1/R2 size values. Routine D1 table counts are omitted to avoid full-table row-read scans during cost incidents. Configure `PANNES_D1_SIZE_BYTES`, `PANNES_R2_OBJECT_COUNT`, and `PANNES_R2_STORAGE_BYTES` only from a dated dashboard check.
 - `runtime_summaries` stores keyed JSON summaries for request-path payloads and diagnostics that would otherwise rebuild from multiple D1 tables. `map_context`, `hydro_source:*`, `hydro_schedule`, `maintenance_schedule`, and `disclosure_sync` are the first intended keys.
-- `scripts/maintenance/` owns one-off or operator-driven maintenance scripts.
+- `scripts/maintenance/` owns one-off or operator-driven maintenance scripts. The [module-loading baseline](browser-module-baseline.md) measures document resources in isolated cold/warm browser contexts; it does not establish real-user latency or container cost.
 
 ## Enforced Module Boundaries
 

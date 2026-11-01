@@ -90,7 +90,7 @@ curl -fsS -H "X-Pannes-Operation-Token: $PANNES_OPERATION_TOKEN" \
   https://pannes.ca/api/ops/usage-evidence
 ```
 
-Treat every value as an interaction count, never a person, session, or unique visitor. Check `collection_status`, the human/non-human split, and the retention cutoff before using the figures. Apply `migrations/0012_usage_evidence.sql` before deploying the first release that enables collection.
+Treat every value as an interaction count, never a person, session, or unique visitor. Check `collection_status`, the human/non-human split, and the retention cutoff before using the figures. Migration `0012_usage_evidence.sql` is already applied in production; do not reapply it. The eight-week usage review is complete (see NOTES.md); continue the existing 90-day aggregates and coverage checks.
 
 The Cloudflare Free plan exposes one rate-limiting-rule slot, so usage writes share the active rule
 `autocomplete and usage per IP` with autocomplete:
@@ -119,7 +119,12 @@ Verify after deployment from an operator-controlled test IP: confirm a normal re
 
 ## Static Asset Performance Checks
 
-For Cloudflare static-asset performance work, use cold and warm `curl -fsS -w` probes for:
+The repeatable [browser module baseline](browser-module-baseline.md) uses
+`node scripts/maintenance/browser-module-baseline.mjs` for three isolated cold/warm pairs
+at desktop/mobile viewport sizes. It records document-level JS/CSS timings and sizes, with
+GPC enabled; it excludes worker-context and cross-origin traffic and does not emulate phone performance.
+
+For complementary Cloudflare static-asset HTTP performance work, use cold and warm `curl -fsS -w` probes for:
 
 - `/static/app.css`
 - `/static/app.js`
@@ -131,6 +136,17 @@ For Cloudflare static-asset performance work, use cold and warm `curl -fsS -w` p
 - vendored MapLibre assets
 
 Record HTTP status, `cf-cache-status`, `cache-control`, `etag`, `content-encoding`, transfer size, TTFB, and total time. Repeat with a cache-busting query and without one. Compare browser DevTools waterfalls and Cloudflare Observatory/Lighthouse results before deciding whether a bundler or different asset strategy is justified.
+
+## Edge-Injected HTML And Analytics Configuration
+
+On 2026-11-01, production HTML (including the static offline fallback) contained a
+`static.cloudflareinsights.com` beacon injected outside the repository HTML. `app/web.py` permits
+that host in CSP. This is separate from the allowlisted `POST /api/usage` counters; neither GPC
+handling in that module nor a prior Browser Insights decision proves the edge injection is disabled.
+Reconcile the actual account configuration and public privacy wording before making a blanket
+no-third-party-tracking claim. This cleanup does not change account settings or analytics collection.
+For HTML parity checks, identify the exact edge injection explicitly; do not silently weaken JS/CSS
+byte checks or strip arbitrary scripts.
 
 ## Generated Evidence
 
