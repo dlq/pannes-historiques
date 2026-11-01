@@ -62,3 +62,30 @@ for (const lang of ["fr", "en"]) {
     expect(await panel.evaluate((node) => node.scrollWidth <= node.clientWidth)).toBe(true);
   });
 }
+
+for (const lang of ["fr", "en"]) {
+  test(`language switch includes its visible text in its accessible name (${lang})`, async ({ page }) => {
+    const text = lang === "fr" ? "EN" : "FR";
+    const name = `${lang === "fr" ? "Langue" : "Language"}: ${text}`;
+    for (const path of ["/", "/about"]) {
+      await page.goto(`${path}?lang=${lang}`);
+      const link = page.getByRole("link", { name, exact: true });
+      await expect(link).toBeVisible();
+      await expect(link).toHaveText(text);
+    }
+  });
+}
+
+test("skip link enters the sheet without reloading or losing keyboard focus", async ({ page }) => {
+  await page.goto("/?lang=en");
+  await expect(page.locator("body")).toHaveAttribute("data-app-ready", "true");
+  const url = page.url();
+  await page.getByRole("link", { name: "Skip to content", exact: true }).press("Enter");
+  await expect(page.locator("#sheet-body")).toBeFocused();
+  expect(page.url()).toBe(url);
+  if ((page.viewportSize()?.width || 0) < 768) {
+    await expect(page.locator(".ph-sheet")).toHaveAttribute("data-detent", "half");
+  }
+  await page.keyboard.press("Tab");
+  await expect(page.locator("#address-input")).toBeFocused();
+});

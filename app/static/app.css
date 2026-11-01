@@ -7,7 +7,7 @@
   --ph-control: #efeff0;
   --ph-hairline: #e6e6ea;
   --ph-card: #f7f7f8;
-  --ph-accent: #2775c9;
+  --ph-accent: #2168b4;
   --ph-current: #d64541;
   --ph-current-soft: #fcebeb;
   --ph-current-deep: #a32d2d;
@@ -618,7 +618,7 @@ button {
 
 .ph-provenance-link {
   color: var(--ph-accent);
-  text-decoration: none;
+  text-decoration: underline;
 }
 
 .ph-provenance-link:hover {
@@ -747,7 +747,7 @@ button {
 }
 
 .ph-date-tile-month {
-  color: var(--ph-planned);
+  color: var(--ph-planned-deep);
   font-size: 0.68rem;
 }
 
@@ -760,7 +760,7 @@ button {
 }
 
 .ph-date-tile--archive .ph-date-tile-month {
-  color: var(--ph-archive);
+  color: var(--ph-archive-deep);
 }
 
 .ph-doc-tile {

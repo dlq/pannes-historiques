@@ -21,7 +21,7 @@
   <a class="ph-lang-button"
      href="{{ url_for('index', lang='en' if lang == 'fr' else none) }}"
      data-lang-switch
-     aria-label="{{ t(lang, 'language') }}">{{ "EN" if lang == "fr" else "FR" }}</a>
+     aria-label="{{ t(lang, 'language') }}: {{ 'EN' if lang == 'fr' else 'FR' }}">{{ "EN" if lang == "fr" else "FR" }}</a>
 </form>
 <div id="address-suggestions"
      class="ph-suggestions hidden"

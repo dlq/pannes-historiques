@@ -51,7 +51,7 @@
   <body class="ph-app" data-mode="{{ sheet.mode }}">
     <main class="ph-app-main" aria-label="{{ t(lang, 'brand_title') }}">
       <h1 class="sr-only">{{ t(lang, "app_h1") }}</h1>
-      <a class="sr-only ph-skip-link" href="#sheet-body">{{ t(lang, "search_label") }}</a>
+      <a class="sr-only ph-skip-link" href="#sheet-body">{{ t(lang, "skip_to_content") }}</a>
       <outage-map id="ph-map" class="ph-map" data-map='{{ initial_map | tojson }}' data-map-module-url="{{ url_for('static', filename='outage-map.js', v=static_version) }}" data-map-stylesheet-url="{{ url_for('static', filename='vendor/maplibre/maplibre-gl.css', v=static_version) }}" data-map-unavailable-label="{{ t(lang, 'map_unavailable') }}" aria-busy="true">
       <div class="ph-map-visual-center" data-map-loading>{{ t(lang, "map_loading") }}</div>
       </outage-map>

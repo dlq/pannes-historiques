@@ -139,14 +139,25 @@ Record HTTP status, `cf-cache-status`, `cache-control`, `etag`, `content-encodin
 
 ## Edge-Injected HTML And Analytics Configuration
 
-On 2026-11-01, production HTML (including the static offline fallback) contained a
-`static.cloudflareinsights.com` beacon injected outside the repository HTML. `app/web.py` permits
-that host in CSP. This is separate from the allowlisted `POST /api/usage` counters; neither GPC
-handling in that module nor a prior Browser Insights decision proves the edge injection is disabled.
-Reconcile the actual account configuration and public privacy wording before making a blanket
-no-third-party-tracking claim. This cleanup does not change account settings or analytics collection.
-For HTML parity checks, identify the exact edge injection explicitly; do not silently weaken JS/CSS
-byte checks or strip arbitrary scripts.
+Verified in the authenticated Cloudflare dashboard on 2026-11-01: pannes.ca uses automatic
+Web Analytics setup, with **Enable, excluding visitor data in the EU** selected under Real User
+Measurements (RUM). The UI states that the JS snippet is not injected for EU visitors. Production
+HTML outside that exclusion was observed with the injected `static.cloudflareinsights.com` beacon;
+`app/web.py` explicitly permits that host in CSP. No setting was changed during this review.
+The existing Wrangler credential received HTTP 403 on the account-level RUM API; authenticated
+dashboard inspection supplied the configuration evidence instead, without expanding token scope.
+
+This Cloudflare browser measurement is separate from the repository's allowlisted `POST /api/usage`
+counters and their GPC/DNT handling. Do not claim that all Cloudflare browser telemetry is disabled
+or infer that application opt-outs control the injected script. Local FR/EN About privacy wording
+now discloses the performance script, its separate destination and the current EU exclusion;
+that copy awaits deployment. The prior blanket “no third-party trackers” wording was inaccurate
+for the observed served page. Changing or disabling RUM would be a separate operational decision.
+
+References: [RUM beacon](https://developers.cloudflare.com/speed/observatory/rum-beacon/) and
+[automatic-injection API field](https://developers.cloudflare.com/api/resources/rum/subresources/site_info/methods/list/).
+For HTML parity checks, identify the exact edge injection explicitly; do not silently weaken
+JS/CSS byte checks or strip arbitrary scripts.
 
 ## Generated Evidence
 

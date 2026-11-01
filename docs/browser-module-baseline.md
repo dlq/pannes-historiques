@@ -42,8 +42,8 @@ or horizontal overflow was observed; desktop/mobile screenshots were inspected.
   polling makes this an upper bound and it is not a rendering/paint measurement. FCP is the
   browser's separate standard paint entry.
 - GPC suppresses the application's first-party usage writes. This does not assert that all
-  account-level Cloudflare telemetry is disabled; an edge-injected beacon is a separate open
-  configuration/disclosure question.
+  account-level Cloudflare telemetry is disabled; authenticated dashboard review subsequently confirmed automatic RUM enabled with EU visitor data excluded.
+  See the [configuration review](operations.md#edge-injected-html-and-analytics-configuration).
 
 ## Decision
 

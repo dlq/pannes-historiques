@@ -97,7 +97,7 @@ Every container response carries `X-Content-Type-Options`, `Referrer-Policy`,
 
 The CSP is shaped around real application needs rather than copied boilerplate:
 
-- `script-src 'self' https://static.cloudflareinsights.com` — external Cloudflare beacon scripts are permitted; inline executable scripts are not. Edge-served HTML was observed with a Cloudflare-injected beacon on November 1. This exception is separate from the identifier-free first-party usage endpoint, and is not proof of the account's Browser Insights setting. The `/sheet` fragment
+- `script-src 'self' https://static.cloudflareinsights.com` — external Cloudflare beacon scripts are permitted; inline executable scripts are not. Edge-served HTML was observed with a Cloudflare-injected beacon on November 1. Authenticated dashboard inspection on November 1 confirmed automatic RUM enabled with EU visitor data excluded; see [operations](operations.md#edge-injected-html-and-analytics-configuration). This is separate from the identifier-free first-party usage endpoint. The `/sheet` fragment
   embeds map data in a `<script type="application/json">` data block, which is
   not executed and therefore not script-src controlled.
 - `style-src 'self' 'unsafe-inline'` — one template sets an inline `style`

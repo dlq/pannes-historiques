@@ -22,6 +22,12 @@ Deferred, in rough priority:
 - Deployed from `dead987` on 2026-11-01: geolocation denied, unavailable, timeout and absent-API states show the existing localized messages; controls recover and address search remains usable.
 - Verified in the same cleanup: the asset-version generator updates browser import tokens and its check guards drift. The offline-only service-worker cache is bumped for the bilingual retry asset; app/search responses remain network-only.
 
+## Bounded Audit Follow-Up
+
+- Local `bounded-audits` fixes correct language accessible names, date/action contrast and inline-link styling; the [axe audit](accessibility-audit.md) reports zero violations across 44 fixture states, with manual review still required.
+- The [Cloudflare configuration review](operations.md#edge-injected-html-and-analytics-configuration) confirms RUM enabled with EU exclusion. Local privacy copy now discloses it; no account setting was changed.
+- The [archive reader/writer inventory](archive-storage-dependencies.md) is complete. Storage sizes/query plans/recovery and verified replay remain open; no production data was changed.
+
 ## Testing Strategy
 
 - Keep Python tests, Node tests, module-boundary checks, template linting, and Biome checks green for every release slice.

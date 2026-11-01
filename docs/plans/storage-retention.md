@@ -14,6 +14,9 @@ Status: planning only; no new production scan, export, migration, retention job 
 
 ## Phase S0 — bounded inventory and recovery rehearsal
 
+Completed code-only subtask, 2026-11-01: [archive reader/writer dependency map](../archive-storage-dependencies.md).
+Table sizing, query-plan/cost measurements, R2 coverage and checkpoint/recovery rehearsal remain open.
+
 - [ ] Refresh dated database size, row-read/write costs and growth measurements through cheap metadata/operator metrics; record timestamp, units and provenance. Observe at least a representative week for a trend when headroom permits, but do not wait past an action threshold to begin implementation. Calculate days to 3.5/4 GB using a range of growth rates, not a single guaranteed date.
 - [ ] Produce a one-off bounded inventory of table/index sizes where supported, row counts/serialized lengths from a local export or sampled indexed ranges, geometry unique-digest ratio, assignment fanout, repeated text/coordinates, snapshot metadata growth and current retention effectiveness. Verify D1 support before using SQLite diagnostics such as `dbstat`/PRAGMAs; never assume local SQLite exposes identical remote facilities. Avoid recurring full-table production scans or `COUNT(*)` dashboards.
 - [ ] Profile representative reads and scheduled jobs with query plans, rows read/written, response bytes and runtime: local history near a dense/sparse area, province Archive summary, current/planned map, source-detail geometry, archive cursor/backfill and raw replay. Enumerate every reader/writer of candidate tables, including Python local fallback and maintenance scripts.

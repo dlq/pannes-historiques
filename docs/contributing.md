@@ -77,6 +77,10 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
+For an optional automated accessibility pass, follow [the pinned axe audit](accessibility-audit.md).
+It uses the local fixture app and a temporary scanner installation; it is separate from the normal
+Playwright suite and does not replace manual assistive-technology checks.
+
 Full local pre-commit check:
 
 ```bash

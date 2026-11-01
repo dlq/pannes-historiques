@@ -32,11 +32,11 @@ This is the active execution plan. Keep detailed evidence and research notes in 
 
 ## Current Local Slice
 
-- [x] Move the four detailed plans into `docs/plans/`, preserving all checklists and testing safeguards.
-- [x] Simplify address-domain selection/radius formatting while preserving separate sidebar and map matches.
-- [x] Record repeatable cold/warm desktop/mobile production module measurements.
-- [x] Reconcile all 33 local Markdown documents and validate relative links/anchors; final checks pass on `plan-sheet-cleanup`.
-- These changes are committed locally on `plan-sheet-cleanup`; production remains application commit `dead987`. This slice has not been pushed or deployed.
+- Prior maintenance is committed locally as `f6e15a8`: compact plans, address-sheet refactor, module baseline and document reconciliation. It has not been pushed/deployed.
+- [x] Verify Cloudflare RUM configuration in the authenticated dashboard and correct local bilingual privacy wording; settings unchanged.
+- [x] Run the [44-state axe audit](docs/accessibility-audit.md), fix observed name/contrast/link issues and skip-link focus loss, and add keyboard regressions.
+- [x] Map [archive storage readers/writers](docs/archive-storage-dependencies.md), including SQLite/maintenance paths and replay/index dependencies.
+- Current `bounded-audits` changes are committed locally; production remains application commit `dead987`. No push or deployment is part of this slice.
 
 ## Roadmap
 
@@ -64,7 +64,7 @@ Measure aggregate use of substantive functions only after the operational collec
 - Implemented: allowlisted current, planned, Archive, DAI/Context, address-answer, and comparison actions. The browser sends only feature/action, omits the referrer and credentials, and respects GPC/DNT; the Worker separately classifies obvious automation and missing interaction signals.
 - Implemented: token-protected operational readout with metric definitions, collection coverage, retention status, and no public usage-data response surface. The public endpoint is write-only.
 - Activation complete: production D1 migration `0012_usage_evidence.sql` is applied, the shared `autocomplete and usage per IP` edge rule is active and rate-tested, and Worker/container plus D1 smoke checks pass.
-- Do not expand analytics without a specific unanswered question and a privacy/CSP/retention decision. A Cloudflare beacon was observed in edge-served HTML on November 1; reconcile account-level injection with the intended no-third-party-tracking posture before claiming it is disabled. No setting was changed.
+- Do not expand analytics without a specific unanswered question and a privacy/CSP/retention decision. Authenticated November 1 dashboard review confirms automatic RUM enabled with EU visitor data excluded, separate from the application aggregates. Local privacy copy discloses it and awaits deployment; account settings are unchanged.
 - Evidence checkpoint, 2026-09-11: 21 active collection days contain `1,824` human-classified interactions, with Archive `843`, current `393`, address answer `333`, planned `128`, Context `116`, and comparison `11`. These are interactions, not people or sessions, and operator testing cannot be separated. September 4 is absent, September 11 was partial at measurement time, and only one fully complete seven-day window exists.
 - Decision complete, 2026-11-01: eight complete Saturday–Friday windows September 5–October 30 contain 5,280 human-classified interactions. Continue the existing bounded 90-day aggregates and current feature set; prioritize Archive correctness/storage and address/current usability, keep comparison lightweight, and do not expand analytics. The old October 23 checkpoint and Friday–Thursday label were a calendar error: it covered seven of these complete windows. Evidence, limitations and the next review by December 1 are in `NOTES.md`.
 

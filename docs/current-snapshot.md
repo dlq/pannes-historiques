@@ -16,7 +16,8 @@ Read this first for quick orientation. Use `PLANS.md` for the active roadmap, `d
 
 ## Local Work Not Yet Deployed
 
-- `plan-sheet-cleanup`: compact plans with four linked detailed documents, behavior-preserving address-sheet refactor, repeatable browser module measurements and documentation reconciliation. Production application code remains `dead987`.
+- Commit `f6e15a8` contains the compact plans, address-sheet refactor, module baseline and documentation reconciliation; it has not been pushed/deployed.
+- Current `bounded-audits` adds local accessibility fixes and an automated audit, verified RUM/privacy disclosure, and the archive reader/writer inventory. These changes are committed locally but not pushed/deployed; production application remains `dead987`.
 
 ## Product Shape
 
@@ -64,6 +65,6 @@ separately; any service method, route, template, or browser-JavaScript change re
 - Archive health controls are deployed: stale ingestion rows expire after three hours, terminal runs retain 30 days, latest rows are de-duplicated, and archive-bin completeness is privately auditable. Continue monitoring D1 growth against the ADR 0005 trigger.
 - All public JSON routes remain explicitly unstable until the `v0.5.0` API contract.
 - Usage collection is active in production. The write-only response, public `404` on the private readout, daily D1 aggregate, active collection heartbeat, browser module, and `autocomplete and usage per IP` Cloudflare rule are verified; continue watching classification quality and the 90-day lifecycle during continuing bounded collection; the eight-week decision is complete.
-- Shipped: localized location errors/offline retry, dialog keyboard checks, narrow disclosure wrapping and provenance wording about separate Archive refreshes. Remaining proof: real-device permission recovery, dynamic freshness indicators, exhaustive live-data density and assistive-technology speech.
+- Shipped: localized location errors/offline retry, dialog keyboard checks, narrow disclosure wrapping and provenance wording about separate Archive refreshes. The local axe audit additionally covers 44 states, with zero post-fix violations; manual-review items remain. Remaining proof: real-device permission recovery, dynamic freshness indicators, exhaustive live-data density and assistive-technology speech.
 - Displayed figures are now checked against each other, not only against their source queries, after the Archive report presented a count of municipalities as a count of outages while every test and health probe passed. The checks run in `GET /api/health/ingestion`; see the [regression guard](maintenance-backlog.md#regression-guard-figures-that-contradict-each-other-2026-08-05).
 - Archive-summary cursor checks are production-verified: a routine cursor mismatch marks the served summary stale and appears as a health warning, while a missing summary for a non-empty archive or an internally contradictory summary fails ingestion health. Public requests do not rebuild the summary. The shape guard still handles format drift separately.

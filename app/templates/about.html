@@ -45,7 +45,7 @@
            class="ph-about-brand">pannes.ca</a>
         <a class="ph-lang-button"
            href="{{ url_for('about', lang='en' if lang == 'fr' else none) }}"
-           aria-label="{{ t(lang, 'language') }}">{{ "EN" if lang == "fr" else "FR" }}</a>
+           aria-label="{{ t(lang, 'language') }}: {{ 'EN' if lang == 'fr' else 'FR' }}">{{ "EN" if lang == "fr" else "FR" }}</a>
       </header>
       <main class="ph-about-card">
         <h1 class="ph-about-title">{{ t(lang, "about_title") }}</h1>

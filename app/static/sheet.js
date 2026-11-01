@@ -4,14 +4,14 @@ import {
   requestMapFocus,
   updateMapAddress,
   updateMapLayerItems,
-} from "./map-events.js?v=1af230432409";
-import { contextLayerForKind } from "./map-utils.js?v=1af230432409";
+} from "./map-events.js?v=ea28bf2988a2";
+import { contextLayerForKind } from "./map-utils.js?v=ea28bf2988a2";
 import {
   attachAddressAutocomplete,
   attachComparisonTray,
   hydrateTimeLabels,
   updateSearchUrl,
-} from "./search.js?v=1af230432409";
+} from "./search.js?v=ea28bf2988a2";
 import {
   escapeHtml,
   formatDistanceKm,
@@ -19,8 +19,8 @@ import {
   formatPreviousTimeParts,
   hasDistanceValue,
   label,
-} from "./ui-format.js?v=1af230432409";
-import { recordUsage } from "./usage-evidence.js?v=1af230432409";
+} from "./ui-format.js?v=ea28bf2988a2";
+import { recordUsage } from "./usage-evidence.js?v=ea28bf2988a2";
 
 const DETENTS = ["peek", "half", "full"];
 // The sheet height transition in app.css runs 280ms; wait slightly longer
@@ -664,6 +664,14 @@ function bindGlobalHandlers() {
   document.addEventListener("pointerup", handleDetailClose, closeGestureOptions);
 
   document.body.addEventListener("click", (event) => {
+    if (event.target.closest(".ph-skip-link")) {
+      // Fragment navigation fires popstate, whose search-history handler reloads
+      // the document. Move focus directly so skipping content keeps its target.
+      event.preventDefault();
+      if (isMobileLayout() && currentDetent() === "peek") setDetent("half");
+      sheetBody()?.focus({ preventScroll: true });
+      return;
+    }
     const layerInfo = event.target.closest("[data-layer-info]");
     if (layerInfo) {
       event.preventDefault();

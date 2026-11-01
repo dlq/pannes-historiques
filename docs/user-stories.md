@@ -22,8 +22,7 @@ Still not fully proven:
 
 - current-location permission and recovery behavior on a real phone (simulated geolocation is covered by desktop/mobile e2e);
 - saved-URL freshness/change detection;
-- manual screen-reader/assistive-technology checks and an automated axe-style audit; keyboard/focus,
-  live-region, dialog, contrast, and reduced-motion regressions are covered.
+- manual screen-reader/assistive-technology checks; the local axe-core audit covers 44 FR/EN desktop/mobile fixture states, with name/contrast/link fixes and a manual skip-link focus repair; zero post-fix violations, while manual-review items remain. Keyboard/focus, live-region, dialog and reduced-motion regressions are also covered.
 
 Story 1's comparison workflow, Story 6's provenance affordance, and Story 4's history visualization are now first-class; Stories 2/3 gained nearest-distance and next-window wording in the overview.
 
@@ -291,8 +290,7 @@ Success looks like:
 
 Next product gap:
 
-- Validate the shipped WCAG behavior with manual screen-reader checks and an automated axe-style audit,
-  including live-region status, focus order, sheet detent behavior, and detail-panel announcements.
+- The local [automated audit](accessibility-audit.md) is complete; validate live-region speech, focus order, sheet detents, details and map evidence with real assistive technology. Automated results do not establish full WCAG conformance.
 
 ## Relevant Next Work
 

@@ -79,6 +79,9 @@ The measured baseline is recorded in `NOTES.md`.
 
 ## Data Stores
 
+The [archive storage dependency inventory](archive-storage-dependencies.md) maps production D1/R2,
+SQLite fallback and maintenance readers/writers, with replay/index dependencies and preservation gates.
+
 - D1 stores normalized feed versions, current outage rows, planned interruption rows, resolved previous-outage rows, disclosure metadata, municipal archive bins, geometry metadata, and 90 days of identifier-free daily feature/action counts.
 - R2 stores raw Hydro-Quebec feed payloads and raw DAI/access-to-information source files.
 - The container image still includes a baked SQLite snapshot for local-compatible fallback paths. Runtime writes inside the container are ephemeral.

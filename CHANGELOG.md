@@ -14,6 +14,8 @@ Keep active execution state in `PLANS.md` and source/evidence research in `NOTES
 
 ### Changed
 
+- Locally committed `bounded-audits` candidate (not pushed/deployed): verified Cloudflare automatic RUM with EU exclusion and corrected FR/EN privacy disclosure; repaired language accessible names, date/action contrast, inline-link styling and skip-link focus. Added a repeatable 44-state axe audit and an archive reader/writer/index/replay inventory. Account settings and production data are unchanged.
+
 - Local maintenance candidate (not deployed): compacted the active plan into linked detailed plans, preserved testing safeguards, simplified address-sheet domain selection/radius formatting without changing sidebar/map scope, added a repeatable browser-module baseline and reconciled current documentation. Production remains `dead987` until an explicitly requested rollout.
 
 - Deployed location/offline recovery, shared metric/date/status template macros, long disclosure/detail wrapping and bilingual Archive-freshness wording on 2026-11-01 from `dead987` as Worker `f4559ee1-46af-4ea5-b67a-11e4c6499261`, container version 132, immutable amd64 image `sha256:c8145cc83b096b197a968ea9062e59666d7a31364c53ddf49972373e5f90ef4e`. Recorded the eight-week bounded-usage decision. Quality, CodeQL, 88 browser cases and live desktop/mobile checks passed; ingestion is healthy, with the routine Archive cursor-lag warning.

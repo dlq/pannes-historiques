@@ -44,6 +44,9 @@ checks. Responsibility for the project and its releases rests with its maintaine
   - localized denied/unavailable/timeout location errors with typed-address recovery
   - bilingual offline retry that preserves the failed URL; only fallback HTML/JavaScript are cached
   - keyboard dialog focus/return, long disclosure wrapping, localized 404/500 recovery pages and bilingual Archive-summary freshness explanation
+- Privacy disclosure
+  - application interaction counters are separate from Cloudflare Web Analytics/RUM; current account settings enable automatic performance measurement with EU visitor data excluded
+  - the local About-page correction discloses that distinction and awaits deployment
 - Historical disclosure and map context
   - access-to-information disclosure source registry plus XLSX and supported PDF extraction
   - DAI region outlines from OSM/Nominatim/Overpass with conservative fallback areas
@@ -247,6 +250,7 @@ Useful test queries:
 
 For active priorities and detailed proposed work, see [PLANS.md](PLANS.md) and its linked `docs/plans/` documents.
 The repeatable [browser module baseline](docs/browser-module-baseline.md) records the current loading evidence.
+The [automated accessibility audit](docs/accessibility-audit.md) and [archive storage dependency inventory](docs/archive-storage-dependencies.md) record focused verification and preservation limits.
 
 For a repo map and contributor workflow, see [docs/architecture.md](docs/architecture.md) and
 [docs/contributing.md](docs/contributing.md).

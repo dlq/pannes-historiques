@@ -373,7 +373,9 @@ def test_about_page_renders_in_english(app_client):
     assert "Data sources" in html
     assert "OpenStreetMap&#39;s Nominatim" in html
     assert "local storage" in html
-    assert "no accounts, advertising, third-party trackers, or application cookies" in html
+    assert "no accounts, advertising, or application cookies" in html
+    assert "Cloudflare also adds a performance-measurement script" in html
+    assert "excluding visitors in the European Union" in html
     assert "daily interaction counters for core features for 90 days" in html
     assert "deleted after 30 days" in html
     assert 'href="mailto:contact@pannes.ca"' in html
@@ -390,7 +392,11 @@ def test_about_page_renders_in_french(app_client):
     assert "Sources de données" in html
     assert "service Nominatim d&#39;OpenStreetMap" in html
     assert "stockage local de ce navigateur" in html
-    assert "aucun compte, publicité, outil de suivi tiers ni témoin applicatif" in html
+    assert "aucun compte, publicité ni témoin applicatif" in html
+    assert "Cloudflare ajoute aussi aux pages un script de mesure de performance" in html
+    assert (
+        "visiteurs de l&#39;Union européenne" in html or "visiteurs de l’Union européenne" in html
+    )
     assert "compteurs quotidiens d&#39;interactions pour les fonctions principales" in html
     assert "supprimées après 30 jours" in html
     assert 'href="mailto:contact@pannes.ca"' in html

@@ -9,7 +9,9 @@ Use this map before opening large files. Prefer targeted `rg` searches over read
 - `docs/architecture.md`: request flow, module boundaries, runtime ownership.
 - `docs/contributing.md`: local setup and verification commands.
 - `docs/cost-containment.md`: cost posture and architecture options.
-- `docs/operations.md`: deployment and production smoke checks.
+- `docs/operations.md`: deployment, production smoke checks and verified Cloudflare RUM configuration.
+- `docs/archive-storage-dependencies.md`: archive readers/writers, replay dependencies and storage gates.
+- `docs/accessibility-audit.md`: repeatable axe scan, fixes and remaining manual checks.
 
 ## Python Runtime
 
