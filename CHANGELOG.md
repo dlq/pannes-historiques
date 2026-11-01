@@ -14,7 +14,9 @@ Keep active execution state in `PLANS.md` and source/evidence research in `NOTES
 
 ### Changed
 
-- Locally committed `bounded-audits` candidate (not pushed/deployed): verified Cloudflare automatic RUM with EU exclusion and corrected FR/EN privacy disclosure; repaired language accessible names, date/action contrast, inline-link styling and skip-link focus. Added a repeatable 44-state axe audit and an archive reader/writer/index/replay inventory. Account settings and production data are unchanged.
+- Local uncommitted `codebase-cleanup` candidate: consolidated typed/coordinate search orchestration, public durable JSON transport and Worker JSON responses; clarified internal map helper/palette names and documented naming contracts. Public API/storage fields and UI behavior are preserved; production remains `dead987`.
+
+- Locally committed `7369073` audit candidate (not pushed/deployed): verified Cloudflare automatic RUM with EU exclusion and corrected FR/EN privacy disclosure; repaired language accessible names, date/action contrast, inline-link styling and skip-link focus. Added a repeatable 44-state axe audit and an archive reader/writer/index/replay inventory. Account settings and production data are unchanged.
 
 - Local maintenance candidate (not deployed): compacted the active plan into linked detailed plans, preserved testing safeguards, simplified address-sheet domain selection/radius formatting without changing sidebar/map scope, added a repeatable browser-module baseline and reconciled current documentation. Production remains `dead987` until an explicitly requested rollout.
 

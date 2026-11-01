@@ -1,3 +1,5 @@
+import { jsonResponse } from "./http-response.js";
+
 export async function durableHydroResponse(env) {
   const versions = await env.DB.prepare("SELECT * FROM feed_versions").all();
   const versionMap = feedVersionMap(versions.results || []);
@@ -250,16 +252,4 @@ function nearbyPlannedItem(row, latitude, longitude, includeRaw) {
   };
   if (includeRaw) item.raw_record = JSON.parse(row.raw_record_json);
   return item;
-}
-
-function jsonResponse(payload, init = {}) {
-  return new Response(JSON.stringify(payload), {
-    ...init,
-    headers: {
-      "content-type": "application/json; charset=utf-8",
-      "cache-control": "no-store",
-      "x-pannes-runtime": "worker-d1",
-      ...(init.headers || {}),
-    },
-  });
 }

@@ -1,3 +1,5 @@
+import { jsonResponse } from "./http-response.js";
+
 const RETENTION_DAYS = 90;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -208,21 +210,9 @@ export async function usageCollectionResponse(request, db, now = new Date()) {
 export async function usageEvidenceResponse(db, { authorized, now = new Date() } = {}) {
   if (!authorized) return new Response("Not found", { status: 404 });
   try {
-    return usageJsonResponse(await readUsageEvidence(db, now));
+    return jsonResponse(await readUsageEvidence(db, now));
   } catch (error) {
     console.error("Usage-evidence readout failed", error);
-    return usageJsonResponse({ error: "usage evidence unavailable" }, { status: 503 });
+    return jsonResponse({ error: "usage evidence unavailable" }, { status: 503 });
   }
-}
-
-function usageJsonResponse(payload, init = {}) {
-  return new Response(JSON.stringify(payload), {
-    ...init,
-    headers: {
-      "content-type": "application/json; charset=utf-8",
-      "cache-control": "no-store",
-      "x-pannes-runtime": "worker-d1",
-      ...(init.headers || {}),
-    },
-  });
 }

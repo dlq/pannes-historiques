@@ -1,4 +1,4 @@
-export const DOMAIN_COLORS = {
+export const MAP_COLORS = {
   current: "#d64541",
   planned: "#c07b13",
   previous: "#6f66d6",
@@ -14,7 +14,7 @@ export const DOMAIN_COLORS = {
 // even when the hues do not separate.
 export const CHOROPLETH_STOPS = ["#c7ead8", "#f2e3a3", "#f0bf72", "#df8b57", "#b8464a"];
 
-export function contextLayerForKind(kind) {
+export function mapLayerForKind(kind) {
   if (kind === "outage") return "current";
   if (kind === "planned") return "planned";
   if (kind === "previous_outage") return "previous";

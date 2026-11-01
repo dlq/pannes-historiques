@@ -1,4 +1,5 @@
 import { unzipSync } from "fflate";
+import { jsonResponse } from "./http-response.js";
 
 export { ContainerProxy } from "@cloudflare/containers";
 export { PannesContainer } from "./container.js";
@@ -3237,18 +3238,6 @@ async function recordRunFinished(db, runId, status, summary) {
     .prepare("UPDATE ingestion_runs SET finished_at = ?, status = ?, summary_json = ? WHERE id = ?")
     .bind(new Date().toISOString(), status, JSON.stringify(summary), runId)
     .run();
-}
-
-function jsonResponse(payload, init = {}) {
-  return new Response(JSON.stringify(payload), {
-    ...init,
-    headers: {
-      "content-type": "application/json; charset=utf-8",
-      "cache-control": "no-store",
-      "x-pannes-runtime": "worker-d1",
-      ...(init.headers || {}),
-    },
-  });
 }
 
 function safeGet(values, index) {

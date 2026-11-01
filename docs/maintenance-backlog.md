@@ -8,13 +8,14 @@ An adversarially verified simplify/refactor review on 2026-07-11 confirmed 47 be
 
 Deferred, in rough priority:
 
-- Local candidate on `plan-sheet-cleanup`: `address_domain_sheet_context` selects each domain once and reuses `radius_km`, preserving radius-filtered sidebar versus wider map matches, expired-plan filtering and separate history inputs. Committed locally; not deployed.
+- Local commit `f6e15a8`: `address_domain_sheet_context` selects each domain once and reuses `radius_km`, preserving radius-filtered sidebar versus wider map matches, expired-plan filtering and separate history inputs. Committed locally; not deployed.
 - Server dedup still deferred: `web.py` `require_*_route` guard boilerplate across 13 routes; treat authorization-boundary refactoring as deliberate work.
 - Measured: [browser module baseline](browser-module-baseline.md); retain native modules unless a controlled comparison demonstrates a benefit.
 - Done and merged into `main`: `disclosures.py` shared `_DISCLOSURE_EVENT_INSERT` constant across xlsx/pdf ingest, and `_regional_metric_base` helper deduping the province/admin ternary across the three regional-metric parsers. Key order was preserved because those rows are `json.dumps`'d whole into `disclosure_annual_metrics`.
 - Deployed from `dead987` on 2026-11-01: shared `ph_metric`, `ph_status_line` and `ph_date_tile` macros replace the repeated blocks. A before/after rendering comparison preserves semantic HTML for ten FR/EN overview/domain fragments; browser regression covers existing map/sheet interactions.
 - Worker follow-up in `src/worker.js`: hold until after beta/cost work because this is a deployed hot path. Candidate cleanup includes `callContainer*`/`fetchContainer*` POST/bytes boilerplate, `markDisclosure*` helpers, repeated map-rows-to-prepared-statements-to-`batchInChunks` skeletons, and eventual module splitting of the large Worker file.
-- Judgment calls with higher effort/risk: factor the shared post-geocode tail out of `search()` and `search_location()` in `services.py`; add a `DurableRuntimeClient` full-URL GET helper; merge near-identical `_operational_map_item` and `_previous_operational_map_item`; reduce `hydro.py` `*_if_changed` scaffold duplication; reconcile duplicated month/weekday tables between Python and JS.
+- Local `codebase-cleanup`: shared post-location search tail and public durable JSON transport in `services.py`, shared Worker JSON response helper, and clearer browser map helper/palette names. Public contracts and failure-versus-empty behavior preserved; uncommitted and undeployed. The protected runtime client allowlist is unchanged.
+- Judgment calls with higher effort/risk: merge near-identical `_operational_map_item` and `_previous_operational_map_item`; reduce `hydro.py` `*_if_changed` scaffold duplication; reconcile duplicated month/weekday tables between Python and JS.
 - Explicitly do not change as simple cleanup: archive-summary windows/largest/latest shaping intentionally exists in both `services.py` and `src/worker.js` for Python container fallback versus Worker D1 paths.
 
 ## Behavior-Changing Bugs To Fix Deliberately
@@ -24,7 +25,7 @@ Deferred, in rough priority:
 
 ## Bounded Audit Follow-Up
 
-- Local `bounded-audits` fixes correct language accessible names, date/action contrast and inline-link styling; the [axe audit](accessibility-audit.md) reports zero violations across 44 fixture states, with manual review still required.
+- Local commit `7369073` fixes correct language accessible names, date/action contrast and inline-link styling; the [axe audit](accessibility-audit.md) reports zero violations across 44 fixture states, with manual review still required.
 - The [Cloudflare configuration review](operations.md#edge-injected-html-and-analytics-configuration) confirms RUM enabled with EU exclusion. Local privacy copy now discloses it; no account setting was changed.
 - The [archive reader/writer inventory](archive-storage-dependencies.md) is complete. Storage sizes/query plans/recovery and verified replay remain open; no production data was changed.
 

@@ -3,20 +3,20 @@ import { test } from "node:test";
 
 import {
   boundsToLngLatBounds,
-  contextLayerForKind,
+  mapLayerForKind,
   extendBoundsWithGeometry,
   itemRenderKey,
   normalizeMapPoint,
   radiusCirclePolygon,
 } from "../app/static/map-utils.js";
 
-test("contextLayerForKind maps match kinds onto the four map layers", () => {
-  assert.equal(contextLayerForKind("outage"), "current");
-  assert.equal(contextLayerForKind("planned"), "planned");
-  assert.equal(contextLayerForKind("previous_outage"), "previous");
-  assert.equal(contextLayerForKind("disclosure"), "published");
-  assert.equal(contextLayerForKind("regional_metric"), "published");
-  assert.equal(contextLayerForKind("anything-else"), "current");
+test("mapLayerForKind maps match kinds onto the four map layers", () => {
+  assert.equal(mapLayerForKind("outage"), "current");
+  assert.equal(mapLayerForKind("planned"), "planned");
+  assert.equal(mapLayerForKind("previous_outage"), "previous");
+  assert.equal(mapLayerForKind("disclosure"), "published");
+  assert.equal(mapLayerForKind("regional_metric"), "published");
+  assert.equal(mapLayerForKind("anything-else"), "current");
 });
 
 test("radiusCirclePolygon builds a closed ring around the center", () => {

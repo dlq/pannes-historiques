@@ -4,18 +4,18 @@ import {
   latestMapLayerItems,
   MAP_EVENTS,
   pendingMapFocus,
-} from "./map-events.js?v=ea28bf2988a2";
-import { optimizeBaseMapStyle } from "./map-style.js?v=ea28bf2988a2";
+} from "./map-events.js?v=e0b6b7030286";
+import { optimizeBaseMapStyle } from "./map-style.js?v=e0b6b7030286";
 import {
   boundsToLngLatBounds,
   CHOROPLETH_STOPS,
-  contextLayerForKind,
-  DOMAIN_COLORS,
   extendBoundsWithGeometry,
   itemRenderKey,
+  MAP_COLORS,
+  mapLayerForKind,
   normalizeMapPoint,
   radiusCirclePolygon,
-} from "./map-utils.js?v=ea28bf2988a2";
+} from "./map-utils.js?v=e0b6b7030286";
 import * as maplibregl from "./vendor/maplibre/maplibre-gl.mjs?v=6.15.0";
 
 const LIBERTY_STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
@@ -184,7 +184,7 @@ export class OutageMap extends HTMLElement {
     const featureForItem = (layerKey, item) => {
       const key = item.geometryKey || itemRenderKey(item);
       itemsByFeatureKeyByLayer.get(layerKey).set(key, item);
-      const kindLayer = contextLayerForKind(item.kind);
+      const kindLayer = mapLayerForKind(item.kind);
       // Hydro-Quebec's published continuity index: average interruption minutes
       // per customer. It drives the regional choropleth because, unlike a raw
       // outage count, it is already normalized for how many customers a region
@@ -228,7 +228,7 @@ export class OutageMap extends HTMLElement {
       const features = [];
       itemsByFeatureKeyByLayer.set(layerKey, new Map());
       for (const item of focusItems) {
-        if (contextLayerForKind(item.kind) !== layerKey) continue;
+        if (mapLayerForKind(item.kind) !== layerKey) continue;
         if (item.deferGeometry && !item.geometry && item.lat == null) continue;
         const feature = featureForItem(layerKey, item);
         if (feature) features.push(feature);
@@ -239,7 +239,7 @@ export class OutageMap extends HTMLElement {
 
     const updateLayerItems = (layerKey, matches) => {
       focusItems = [
-        ...focusItems.filter((item) => contextLayerForKind(item.kind) !== layerKey),
+        ...focusItems.filter((item) => mapLayerForKind(item.kind) !== layerKey),
         ...(matches || []),
       ];
       rebuildLayerFeatures(layerKey);
@@ -337,7 +337,7 @@ export class OutageMap extends HTMLElement {
     const initialBounds = () => {
       const bounds = [];
       for (const item of focusItems) {
-        if (contextLayerForKind(item.kind) !== "current") continue;
+        if (mapLayerForKind(item.kind) !== "current") continue;
         if (item.geometry) extendBoundsWithGeometry(bounds, item.geometry);
         else if (item.lat != null && item.lon != null) {
           bounds.push([Number(item.lon), Number(item.lat)]);
@@ -432,7 +432,7 @@ export class OutageMap extends HTMLElement {
           "fill-color": [
             "case",
             ["<", ["get", "continuityMinutes"], 0],
-            DOMAIN_COLORS.context,
+            MAP_COLORS.context,
             [
               "interpolate",
               ["linear"],
@@ -458,7 +458,7 @@ export class OutageMap extends HTMLElement {
         source: "ph-context",
         filter: ["==", ["geometry-type"], "Polygon"],
         paint: {
-          "line-color": DOMAIN_COLORS.context,
+          "line-color": MAP_COLORS.context,
           "line-width": ["case", ["get", "isRegional"], 1, 1.6],
           "line-opacity": 0.85,
         },
@@ -468,14 +468,14 @@ export class OutageMap extends HTMLElement {
         type: "fill",
         source: "ph-previous",
         filter: ["==", ["geometry-type"], "Polygon"],
-        paint: { "fill-color": DOMAIN_COLORS.previous, "fill-opacity": 0.22 },
+        paint: { "fill-color": MAP_COLORS.previous, "fill-opacity": 0.22 },
       });
       map.addLayer({
         id: "ph-previous-line",
         type: "line",
         source: "ph-previous",
         filter: ["==", ["geometry-type"], "Polygon"],
-        paint: { "line-color": DOMAIN_COLORS.previous, "line-width": 1.4 },
+        paint: { "line-color": MAP_COLORS.previous, "line-width": 1.4 },
       });
       map.addLayer({
         id: "ph-previous-point",
@@ -483,7 +483,7 @@ export class OutageMap extends HTMLElement {
         source: "ph-previous",
         filter: ["==", ["geometry-type"], "Point"],
         paint: {
-          "circle-color": DOMAIN_COLORS.previous,
+          "circle-color": MAP_COLORS.previous,
           "circle-radius": [
             "interpolate",
             ["linear"],
@@ -505,7 +505,7 @@ export class OutageMap extends HTMLElement {
         type: "fill",
         source: "ph-planned",
         filter: ["==", ["geometry-type"], "Polygon"],
-        paint: { "fill-color": DOMAIN_COLORS.planned, "fill-opacity": 0.18 },
+        paint: { "fill-color": MAP_COLORS.planned, "fill-opacity": 0.18 },
       });
       map.addLayer({
         id: "ph-planned-line",
@@ -513,7 +513,7 @@ export class OutageMap extends HTMLElement {
         source: "ph-planned",
         filter: ["==", ["geometry-type"], "Polygon"],
         paint: {
-          "line-color": DOMAIN_COLORS.planned,
+          "line-color": MAP_COLORS.planned,
           "line-width": 1.6,
           "line-dasharray": [2.4, 1.6],
         },
@@ -524,7 +524,7 @@ export class OutageMap extends HTMLElement {
         source: "ph-planned",
         filter: ["==", ["geometry-type"], "Point"],
         paint: {
-          "circle-color": DOMAIN_COLORS.planned,
+          "circle-color": MAP_COLORS.planned,
           "circle-radius": 5,
           "circle-opacity": 0.9,
           "circle-stroke-color": "#ffffff",
@@ -536,14 +536,14 @@ export class OutageMap extends HTMLElement {
         type: "fill",
         source: "ph-current",
         filter: ["==", ["geometry-type"], "Polygon"],
-        paint: { "fill-color": DOMAIN_COLORS.current, "fill-opacity": 0.26 },
+        paint: { "fill-color": MAP_COLORS.current, "fill-opacity": 0.26 },
       });
       map.addLayer({
         id: "ph-current-line",
         type: "line",
         source: "ph-current",
         filter: ["==", ["geometry-type"], "Polygon"],
-        paint: { "line-color": DOMAIN_COLORS.current, "line-width": 1.8 },
+        paint: { "line-color": MAP_COLORS.current, "line-width": 1.8 },
       });
       map.addLayer({
         id: "ph-current-point",
@@ -551,7 +551,7 @@ export class OutageMap extends HTMLElement {
         source: "ph-current",
         filter: ["==", ["geometry-type"], "Point"],
         paint: {
-          "circle-color": DOMAIN_COLORS.current,
+          "circle-color": MAP_COLORS.current,
           "circle-radius": [
             "interpolate",
             ["linear"],
@@ -595,7 +595,7 @@ export class OutageMap extends HTMLElement {
         source: "ph-address",
         filter: ["==", ["geometry-type"], "Polygon"],
         paint: {
-          "line-color": DOMAIN_COLORS.address,
+          "line-color": MAP_COLORS.address,
           "line-width": 1.6,
           "line-dasharray": [2, 2],
           "line-opacity": 0.9,
@@ -607,7 +607,7 @@ export class OutageMap extends HTMLElement {
         source: "ph-address",
         filter: ["==", ["geometry-type"], "Polygon"],
         // Keep the ring subtle so street detail inside it stays legible.
-        paint: { "fill-color": DOMAIN_COLORS.address, "fill-opacity": 0.025 },
+        paint: { "fill-color": MAP_COLORS.address, "fill-opacity": 0.025 },
       });
       map.addLayer({
         id: "ph-address-halo",
@@ -615,7 +615,7 @@ export class OutageMap extends HTMLElement {
         source: "ph-address",
         filter: ["==", ["geometry-type"], "Point"],
         paint: {
-          "circle-color": DOMAIN_COLORS.address,
+          "circle-color": MAP_COLORS.address,
           "circle-radius": 11,
           "circle-opacity": 0.25,
         },
@@ -626,7 +626,7 @@ export class OutageMap extends HTMLElement {
         source: "ph-address",
         filter: ["==", ["geometry-type"], "Point"],
         paint: {
-          "circle-color": DOMAIN_COLORS.address,
+          "circle-color": MAP_COLORS.address,
           "circle-radius": 6.5,
           "circle-stroke-color": "#ffffff",
           "circle-stroke-width": 2.4,

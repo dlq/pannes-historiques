@@ -4,14 +4,14 @@ import {
   requestMapFocus,
   updateMapAddress,
   updateMapLayerItems,
-} from "./map-events.js?v=ea28bf2988a2";
-import { contextLayerForKind } from "./map-utils.js?v=ea28bf2988a2";
+} from "./map-events.js?v=e0b6b7030286";
+import { mapLayerForKind } from "./map-utils.js?v=e0b6b7030286";
 import {
   attachAddressAutocomplete,
   attachComparisonTray,
   hydrateTimeLabels,
   updateSearchUrl,
-} from "./search.js?v=ea28bf2988a2";
+} from "./search.js?v=e0b6b7030286";
 import {
   escapeHtml,
   formatDistanceKm,
@@ -19,8 +19,8 @@ import {
   formatPreviousTimeParts,
   hasDistanceValue,
   label,
-} from "./ui-format.js?v=ea28bf2988a2";
-import { recordUsage } from "./usage-evidence.js?v=ea28bf2988a2";
+} from "./ui-format.js?v=e0b6b7030286";
+import { recordUsage } from "./usage-evidence.js?v=e0b6b7030286";
 
 const DETENTS = ["peek", "half", "full"];
 // The sheet height transition in app.css runs 280ms; wait slightly longer
@@ -226,7 +226,7 @@ function applyMapUpdate(root) {
   }
   const groups = Object.fromEntries(LAYER_KEYS.map((key) => [key, []]));
   for (const item of payload.matches || []) {
-    const layerKey = contextLayerForKind(item.kind);
+    const layerKey = mapLayerForKind(item.kind);
     if (groups[layerKey]) groups[layerKey].push(item);
   }
   for (const layerKey of LAYER_KEYS) {

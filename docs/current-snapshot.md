@@ -17,7 +17,9 @@ Read this first for quick orientation. Use `PLANS.md` for the active roadmap, `d
 ## Local Work Not Yet Deployed
 
 - Commit `f6e15a8` contains the compact plans, address-sheet refactor, module baseline and documentation reconciliation; it has not been pushed/deployed.
-- Current `bounded-audits` adds local accessibility fixes and an automated audit, verified RUM/privacy disclosure, and the archive reader/writer inventory. These changes are committed locally but not pushed/deployed; production application remains `dead987`.
+- Commit `7369073` adds local accessibility fixes and an automated audit, verified RUM/privacy disclosure, and the archive reader/writer inventory. These changes are committed locally but not pushed/deployed; production application remains `dead987`.
+
+- Current `codebase-cleanup` adds uncommitted service/Worker deduplication and clearer browser map names. Public fields, storage schemas and UI behavior are preserved; see `NOTES.md` for audit scope and verification.
 
 ## Product Shape
 

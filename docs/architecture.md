@@ -43,6 +43,7 @@ The interface is one full-bleed MapLibre GL v6 map (OpenFreeMap Liberty vector s
 - `src/container.js` owns Cloudflare Container configuration.
 - `src/worker-routing.js` owns top-level Worker path classification.
 - `src/runtime-policy.js` owns private durable-runtime endpoint policy.
+- `src/http-response.js` owns the JSON response defaults shared by Worker entrypoints, durable read handlers and usage readouts.
 - `src/durable-read-handlers.js` owns public D1-backed durable read responses and their spatial query helpers.
 - `src/ingestion-health.js` owns the pure freshness and failure-streak decision used by the public ingestion-health probe.
 - `src/usage-evidence.js` owns the allowlist, human/non-human classification, daily aggregate writes, private readout shape, and 90-day retention cutoff. Browser `app/static/usage-evidence.js` sends only allowlisted feature/action pairs and respects GPC/DNT.

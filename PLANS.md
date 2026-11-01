@@ -32,11 +32,11 @@ This is the active execution plan. Keep detailed evidence and research notes in 
 
 ## Current Local Slice
 
-- Prior maintenance is committed locally as `f6e15a8`: compact plans, address-sheet refactor, module baseline and document reconciliation. It has not been pushed/deployed.
-- [x] Verify Cloudflare RUM configuration in the authenticated dashboard and correct local bilingual privacy wording; settings unchanged.
-- [x] Run the [44-state axe audit](docs/accessibility-audit.md), fix observed name/contrast/link issues and skip-link focus loss, and add keyboard regressions.
-- [x] Map [archive storage readers/writers](docs/archive-storage-dependencies.md), including SQLite/maintenance paths and replay/index dependencies.
-- Current `bounded-audits` changes are committed locally; production remains application commit `dead987`. No push or deployment is part of this slice.
+- Prior maintenance is committed locally as `f6e15a8` (plans/address-sheet/docs) and `7369073` (privacy/accessibility/archive inventory); neither is pushed/deployed.
+- [x] Audit naming and duplication across Python services, browser modules and Worker helpers.
+- [x] Share the typed/coordinate search pipeline, public durable JSON transport and Worker JSON responses; clarify internal map names without changing public contracts.
+- [x] Compare old/new search results and dependency calls across 640 option combinations; run full Python, Node, desktop/mobile browser and formatter checks plus Worker packaging dry-run.
+- Current `codebase-cleanup` refactors are local and uncommitted. Production remains application commit `dead987`; no push or deployment is part of this slice. Findings and deliberate exclusions are in `NOTES.md` and the naming glossary in `docs/code-map.md`.
 
 ## Roadmap
 

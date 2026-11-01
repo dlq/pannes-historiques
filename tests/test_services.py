@@ -1,5 +1,6 @@
 import json
 from datetime import UTC, datetime, timedelta
+from io import BytesIO
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -14,6 +15,45 @@ from app.services import (
     point_in_polygon,
     within_quebec_bounds,
 )
+
+
+def test_public_durable_transport_distinguishes_empty_data_from_failed_reads(monkeypatch):
+    requests = []
+
+    def successful_read(request, *, timeout):
+        requests.append((request, timeout))
+        return BytesIO(b"{}")
+
+    monkeypatch.setattr("app.services.urllib.request.urlopen", successful_read)
+    assert (
+        AppService._fetch_public_durable_json(
+            "https://example.invalid/api/durable/nearby", timing_prefix="search.durable_nearby"
+        )
+        == {}
+    )
+    assert requests[0][1] == 8
+    assert requests[0][0].get_header("User-agent")
+
+    def unavailable_read(*args, **kwargs):
+        raise OSError("temporarily unavailable")
+
+    monkeypatch.setattr("app.services.urllib.request.urlopen", unavailable_read)
+    assert (
+        AppService._fetch_public_durable_json(
+            "https://example.invalid/api/durable/nearby", timing_prefix="search.durable_nearby"
+        )
+        is None
+    )
+
+    monkeypatch.setattr(
+        "app.services.urllib.request.urlopen", lambda *args, **kwargs: BytesIO(b"not JSON")
+    )
+    assert (
+        AppService._fetch_public_durable_json(
+            "https://example.invalid/api/durable/nearby", timing_prefix="search.durable_nearby"
+        )
+        is None
+    )
 
 
 def fake_montreal_geocode() -> dict[str, object]:

@@ -50,6 +50,7 @@ Use this map before opening large files. Prefer targeted `rg` searches over read
 ## Worker Runtime
 
 - `src/worker.js`: Cloudflare Worker fetch/scheduled entrypoints and D1/R2 runtime behavior.
+- `src/http-response.js`: shared Worker JSON response defaults and caller overrides.
 - `src/durable-read-handlers.js`: public durable read handlers and spatial query helpers.
 - `src/worker-routing.js`: public/private path classification.
 - `src/runtime-policy.js`: private durable-runtime access policy.
@@ -82,3 +83,19 @@ Use this map before opening large files. Prefer targeted `rg` searches over read
 - Use `rg "route" src app tests` for Worker/Flask boundary questions.
 - Use `rg "data-attribute" app/templates app/static tests/e2e` for UI wiring.
 - Use `rg --hidden "pattern" -g '!app/static/vendor/**'` only when hidden files are genuinely needed.
+
+## Naming Contracts
+
+These names describe different layers, rather than aliases to replace globally:
+
+| Concept | Names | Meaning |
+| --- | --- | --- |
+| Sheet domain | `overview`, `current`, `planned`, `archive`, `context` | User-facing navigation and answer shape |
+| Map layer scope | `current`, `planned`, `previous`, `published` | Service/browser data selection |
+| Record kind | `outage`, `planned`, `previous_outage`, `disclosure`, `regional_metric` | Individual evidence classification |
+
+Browser `mapLayerForKind` maps record kinds to layer scopes; `MAP_COLORS` supplies marker colors. Its `context` color key is a display palette entry, not a `published` scope identifier.
+
+`AppService.search` resolves typed addresses and `search_location` accepts device coordinates. Both delegate evidence loading, grouping and optional history persistence to `_search_at_location`. `_fetch_public_durable_json` shares only transport for selected public data URLs; it does not widen the protected runtime client's endpoint policy.
+
+Legacy `resolved_events` rows retain observed history; the table name does not prove a confirmed restoration. Do not cosmetically rename storage/API fields, source identifiers or the persisted container instance name. Event identity/count contracts and migrations belong to their dedicated plan.
