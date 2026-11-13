@@ -1822,12 +1822,17 @@ async function runMunicipalArchiveBackfill(
       : await municipalArchiveCursor(env.DB));
   const polygons = await hydroPolygonsForMunicipalArchive(env.DB, cursor, boundedLimit);
   if (!polygons.length) {
+    const summaryRefreshed = await shouldRefreshMunicipalArchiveSummary(
+      env.DB,
+      new Date().toISOString(),
+    );
+    if (summaryRefreshed) await refreshMunicipalArchiveSummary(env.DB, cursor || "");
     return {
       polygons_processed: 0,
       assignments: 0,
       last_polygon_id: cursor || "",
       has_more: false,
-      summary_refreshed: false,
+      summary_refreshed: summaryRefreshed,
     };
   }
   const territories = await adminTerritoryRows(env.DB);

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
+import { runInNewContext } from "node:vm";
 
 import {
   archiveSummaryFreshnessProblem,
@@ -232,7 +233,6 @@ test("scheduled archive backfill does not refresh the large summary every run", 
   assert.match(maintenanceHandler, /shouldRunDailyMaintenance/);
   assert.match(maintenanceHandler, /reportIngestionHealth/);
   assert.match(backfillHandler, /if \(!polygons\.length\)/);
-  assert.match(backfillHandler, /summary_refreshed: false/);
   assert.match(backfillHandler, /shouldRefreshMunicipalArchiveSummary/);
   assert.ok(
     backfillHandler.indexOf("if (!polygons.length)") <
@@ -415,4 +415,36 @@ test("a territory cannot peak above the largest single outage", () => {
   });
   assert.equal(problems.length, 1);
   assert.match(problems[0], /Impossible peaks at 4117 customers, above the 4116/);
+});
+
+test("idle archive backfill refreshes a due summary at the stored cursor", async () => {
+  const source = readFileSync(new URL("../src/worker.js", import.meta.url), "utf8");
+  const backfill = source.slice(
+    source.indexOf("async function runMunicipalArchiveBackfill"),
+    source.indexOf("async function runtimeMunicipalArchiveStatusResponse"),
+  );
+  const db = {};
+  const cursor = "bispoly:20261113154013:23";
+  for (const due of [false, true]) {
+    const refreshed = [];
+    const run = runInNewContext(
+      `${backfill}
+runMunicipalArchiveBackfill`,
+      {
+        clamp: (value) => value,
+        getBuildState: async () => cursor,
+        hydroPolygonsForMunicipalArchive: async () => [],
+        shouldRefreshMunicipalArchiveSummary: async () => due,
+        refreshMunicipalArchiveSummary: async (database, sourceCursor) => {
+          assert.equal(database, db);
+          refreshed.push(sourceCursor);
+        },
+      },
+    );
+    const result = await run({ DB: db }, { preferStoredCursor: true });
+    assert.equal(result.polygons_processed, 0);
+    assert.equal(result.has_more, false);
+    assert.equal(result.summary_refreshed, due);
+    assert.deepEqual(refreshed, due ? [cursor] : []);
+  }
 });
