@@ -59,7 +59,7 @@ checks. Responsibility for the project and its releases rests with its maintaine
   - Worker + container deployment for `pannes.ca`
   - durable D1/R2-backed ingestion for current-feed rows, previous-outage rows, and raw archives
   - Worker-backed lookup/runtime map-layer endpoints and scheduled refresh/disclosure archival
-  - bounded, identifier-free daily feature/action counts with a private operational readout (`v0.4.9` development candidate, active in production)
+  - bounded, identifier-free daily feature/action counts with a private operational readout (`v0.4.9`, active in production)
 
 ## Local development
 
@@ -92,10 +92,10 @@ Production is currently served at `pannes.ca` with Cloudflare Workers + Containe
 
 Current deployment status:
 
-- Current tagged release: `v0.4.8` (cost and operational guardrails), released and deployed
-  2026-08-14. Post-release `main` changes are also deployed; see `docs/current-snapshot.md` and
-  `CHANGELOG.md` for the exact code/deployment distinction and Worker versions.
-- Development package metadata is `0.4.9`. Its privacy-preserving usage evidence is implemented;
+- Current tagged release: `v0.4.9` (privacy-preserving product usage evidence), tagged
+  2026-11-13. See `docs/current-snapshot.md` and `CHANGELOG.md` for the deployed commit and
+  Worker version.
+- Package metadata is `0.4.9`. Its privacy-preserving usage evidence is implemented;
   D1 migration `0012`, the shared Cloudflare interaction-endpoint rate rule, production deployment,
   and activation smoke checks are complete. The eight-week review is complete: continue the existing
   bounded aggregates without expanding analytics; the evidence and limits are in `NOTES.md`.

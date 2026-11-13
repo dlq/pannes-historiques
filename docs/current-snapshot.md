@@ -1,24 +1,16 @@
 # Current Snapshot
 
-Last updated: 2026-11-01
+Last updated: 2026-11-13
 
 Read this first for quick orientation. Use `PLANS.md` for the active roadmap, `docs/architecture.md` for runtime boundaries, `docs/cost-containment.md` for cost strategy, and `CHANGELOG.md` for completed release history.
 
 ## Version And Deployment
 
-- Shipped release: `v0.4.8`.
-- Development package metadata: `0.4.9` in `pyproject.toml` and `package.json`; the latest shipped/tagged release remains `v0.4.8`.
-- Tagged-release deployment: Worker version `e6fe9a87-df8f-4cf4-a82b-b0dcdc07fa4c`, deployed 2026-08-14 from tagged release commit `f6df621` with the `pannes-historiques-pannescontainer:e6fe9a87` image.
-- Latest production deployment: application commit `5108b5c`, deployed 2026-11-01 as Worker `248cd41e-d5d1-4fe7-9419-c5e623dfd4b2` at 100%, container application version 133, immutable amd64 image `sha256:81f0a512521854bc5cfc7a3ab325985ac4047d7015cb617b9f9ff10a126b2036`. Includes `f6e15a8` plans/address-sheet cleanup, `7369073` accessibility/privacy/inventory work and the service/Worker deduplication. GitHub Quality, CodeQL and Browser regression passed. No migration, binding, cron, dependency or Cloudflare RUM setting change. See `NOTES.md` for rollout and health evidence. The full-day D1 comparison remains open. Final health at `2026-11-01T21:24:26.130Z`: healthy, zero consecutive failures, no problems or warnings after the guarded Archive refresh; later ingestion can reintroduce routine summary lag.
+- Shipped release and package version: `v0.4.9`, tagged 2026-11-13. The tag includes release documentation for the deployed application.
+- Latest production deployment: application commit `40e6266`, deployed 2026-11-13 as Worker `95622681-526c-40eb-a777-bd29711a2a00` at 100%. Container application version 134 uses immutable amd64 image `sha256:ac2d77c330755cd896ae876a8b80f8c68bf76f83486c0f9ae9c106595d95ddb5` from `0a8c8dd`. The Worker fix checks whether the Archive summary is due even when no new polygons are found. CI passed and live ingestion is healthy. A follow-up will verify the next due automatic refresh.
 - Do not treat a merge to `main` as proof of production deployment; record deployment evidence in `PLANS.md` and `CHANGELOG.md`.
-- Current development direction: the `v0.4.9` identifier-free daily feature/action evidence candidate is deployed, with 90-day retention, a private readout, migration `0012`, and the shared interaction-endpoint edge rule active. The eight-week usage decision is recorded in NOTES.md: continue existing bounded collection without analytics expansion. The post-release archive cursor query optimization is deployed and awaits a 24-hour D1 read comparison. `v0.4.8` completed the authenticated cost decision, container-runtime retirement, archive cursor health guard, and autocomplete edge protection.
+- Current development direction: the `v0.4.9` identifier-free daily feature/action evidence is deployed, with 90-day retention, a private readout, migration `0012`, and the shared interaction-endpoint edge rule active. The eight-week usage decision is recorded in NOTES.md: continue existing bounded collection without analytics expansion. The post-release archive cursor query optimization is deployed and awaits a 24-hour D1 read comparison. `v0.4.8` completed the authenticated cost decision, container-runtime retirement, archive cursor health guard, and autocomplete edge protection.
 - `v0.5.0` remains gated on `v0.4.9`'s bounded usage-data lifecycle and a 14-day observation window with healthy ingestion, bounded archive-summary refresh without unexplained prolonged lag, and no unexplained archive-completeness regression.
-
-## Latest Maintenance Rollout
-
-- Commits `f6e15a8`, `7369073` and `5108b5c` are pushed to main and deployed together in application `5108b5c`.
-- The following documentation-only commit records deployment evidence; it does not require another image build.
-- Public fields, storage schemas and UI behavior are preserved by the cleanup; see `NOTES.md` for audit scope and verification.
 
 ## Product Shape
 

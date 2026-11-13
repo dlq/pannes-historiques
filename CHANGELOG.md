@@ -6,6 +6,8 @@ Keep active execution state in `PLANS.md` and source/evidence research in `NOTES
 
 ## [Unreleased]
 
+## [v0.4.9] - 2026-11-13
+
 ### Added
 
 - Added a purpose-built 1200 x 630 social preview for shared links, with canonical Open Graph and large Twitter card metadata plus localized alternative text.
@@ -39,7 +41,13 @@ Keep active execution state in `PLANS.md` and source/evidence research in `NOTES
 - Updated the About-page privacy disclosure for the identifier-free daily counters, GPC/DNT behavior, 90-day retention, and continued absence of accounts, advertising, third-party trackers, and application cookies.
 - Expanded the active Free-plan rate rule to `autocomplete and usage per IP`, covering `GET /autocomplete` and `POST /api/usage` in the single available rule slot at 10 requests per IP per 10 seconds with a 10-second block.
 
+### Fixed
+
+- Archive backfill now checks the 24-hour refresh interval even when it finds zero new polygons. This fixes the early return that skipped the refresh across 152 hourly maintenance runs after November 7. A manual refresh on November 13 cleared the warning before rollout.
+
 ### Verified
+
+- Application commit `40e6266` passed Quality, CodeQL and browser regression and was deployed on 2026-11-13 as Worker `95622681-526c-40eb-a777-bd29711a2a00`. The Worker uses container application version 134, built from `0a8c8dd` with MapLibre 6.16.0. Production health passed. The next due automatic refresh with zero polygons is pending live verification.
 
 - Dependency maintenance passed all pre-commit checks, 229 Python tests, 106 Node tests, 54 desktop/mobile Playwright cases, focused visual checks, and a Worker-only Wrangler dry run. The follow-up MapLibre refresh also passed desktop/mobile interaction checks and an Apple container amd64 build, exact runtime-version validation, and byte-for-byte SQLite preservation checks. Quality, CodeQL, and browser CI passed on `c95db3f`; the prebuilt-image Worker dry run passed. Deployed on 2026-10-01 as Worker `695960be-5069-48a0-b690-acada7f04ced` with verified amd64 image digest `sha256:dfed4c6124b734150b0748ced82ef15fe46db4adc6690ad796e9e1ce048d8d10`. Live desktop/mobile map/search checks passed, all MapLibre runtime bytes match the checkout, and ingestion is fresh with no problems and only the expected archive cursor warning.
 
