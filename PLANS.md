@@ -31,11 +31,12 @@ This is the active execution plan. Keep detailed evidence and research notes in 
 
 ## Current Local Slice
 
-- Maintenance commits `f6e15a8` (plans/address-sheet/docs) and `7369073` (privacy/accessibility/archive inventory) are pushed to main and included in the `5108b5c` deployment.
-- [x] Audit naming and duplication across Python services, browser modules and Worker helpers.
-- [x] Share the typed/coordinate search pipeline, public durable JSON transport and Worker JSON responses; clarify internal map names without changing public contracts.
-- [x] Compare old/new search results and dependency calls across 640 option combinations; run full Python, Node, desktop/mobile browser and formatter checks plus Worker packaging dry-run.
-- Cleanup commit `5108b5c` is pushed to main and deployed; the following documentation-only commit records verified rollout evidence. Findings and deliberate exclusions are in `NOTES.md` and the naming glossary in `docs/code-map.md`.
+- [x] Merge dependency PRs #61–#65, including the MapLibre 6.18.0 vendor repair for #63. Main `0e78d22` passes Quality, CodeQL and Browser regression. Deployment of these dependencies is pending.
+- [x] Investigate recurring ingestion/Archive stalls. Live tail confirms D1 error 7429 during Hydro completion bookkeeping after source and Archive writes succeeded. Evidence and uncertainties are in `NOTES.md`.
+- [ ] Reduce or pace the summary rebuild burst. Its latest-row query reads about 1.94 million rows for 20 results.
+- [ ] Make completion bookkeeping resilient to transient D1 overload and keep ingestion completion observable independently of optional Archive processing.
+- [ ] Distinguish last successful source check from last retained source change in health reporting.
+- [ ] Verify changed-source ingestion and due zero-polygon maintenance complete after an explicitly requested repair/deployment.
 
 ## Roadmap
 
