@@ -6,6 +6,16 @@ Keep active execution state in `PLANS.md` and source/evidence research in `NOTES
 
 ## [Unreleased]
 
+### Fixed
+
+- Archive refresh now combines time-window aggregates into one scan, selects deduplicated latest rows through the existing index and paces heavy reads across D1 resource windows.
+- Scheduled jobs retry transient D1 overload when recording completion and save terminal status before publishing runtime summaries. Hydro ingestion defers full summary rebuilding to maintenance. Summary data and its refresh timestamp publish atomically.
+
+### Changed
+
+- Merged Python tooling, Gunicorn 27.0.1, npm tooling, MapLibre 6.18.0 and paired CodeQL action updates from dependency PRs #61–#65.
+
+
 ## [v0.4.9] - 2026-11-13
 
 ### Added

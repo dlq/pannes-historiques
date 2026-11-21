@@ -50,6 +50,7 @@ Use this map before opening large files. Prefer targeted `rg` searches over read
 ## Worker Runtime
 
 - `src/worker.js`: Cloudflare Worker fetch/scheduled entrypoints and D1/R2 runtime behavior.
+- `src/d1-retry.js`: bounded overload backoff for idempotent D1 operations and Archive read pacing.
 - `src/http-response.js`: shared Worker JSON response defaults and caller overrides.
 - `src/durable-read-handlers.js`: public durable read handlers and spatial query helpers.
 - `src/worker-routing.js`: public/private path classification.

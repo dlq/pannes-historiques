@@ -46,11 +46,9 @@ test("Worker cleanup retains only terminal history and archive latest groups ter
     /DELETE FROM ingestion_runs\s+WHERE started_at < \? AND status IN \('ok', 'error', 'expired'\)/,
   );
   assert.match(worker, /DELETE FROM runtime_geocode_cache WHERE updated_at < \?/);
-  assert.match(
-    worker,
-    /ROW_NUMBER\(\) OVER \(\s+PARTITION BY territory_id, COALESCE\(latest_start_time, last_seen_at, updated_at, ''\)/,
-  );
-  assert.match(worker, /WHERE duplicate_rank = 1/);
+  assert.match(worker, /AND NOT EXISTS/);
+  assert.match(worker, /newer.territory_id = b.territory_id/);
+  assert.match(worker, /newer.hydro_polygon_id > b.hydro_polygon_id/);
 });
 
 test("archive health migration indexes its scheduled cleanup and primary-bin queries", async () => {

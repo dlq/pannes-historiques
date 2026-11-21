@@ -3,6 +3,14 @@
 Date: 2026-04-25
 Last updated: 2026-11-01
 
+## D1 overload repair, 2026-11-21
+
+- Implementation reduces Archive windows to one conditional-aggregate scan, replaces the full-history ROW_NUMBER sort with indexed duplicate exclusion, and spaces four heavy reads by 11 seconds. A production read-only comparison at an unchanged cursor returned identical 20-row results: 1,936,921 versus 497 rows read, 3,225 ms versus 1.4 ms SQL time. The new EXPLAIN plan has no temporary B-tree.
+- Hydro ingestion still advances the polygon backfill on changed-source runs, while only maintenance or explicit backfill requests rebuild due summaries. Core source and Archive errors are attributed separately. Both scheduled jobs persist their completion before publishing the runtime-summary cache. Completion and cache writes retry transient D1 overload up to three times after 11/22/33 seconds. Permanent errors propagate through the existing handlers. These retries apply to idempotent writes.
+- Summary payload and refreshed-at timestamp publish in one atomic D1 batch. Generated totals pass the existing coherence check before publication. Stage logs record refresh start/completion for live diagnosis.
+- Regression coverage exercises retry bounds/permanent failures, identical completion updates across retries, failed runtime publication after completion, maintenance error recording, serial rebuild pacing, atomic summary publication, window boundaries/nullable fields/overlap exclusion, duplicate winner selection and indexed ordering.
+- Deployment and live changed-source ingestion/maintenance verification are pending. The latest source polling timestamps and snapshot-age alert semantics remain a separate follow-up.
+
 ## Scheduled-job D1 overload investigation, 2026-11-21
 
 - Dependency maintenance: PRs #61 (Python tooling), #62 (Gunicorn), #64/#65 (CodeQL actions) and #63 (npm) merged. #63 required refreshing the vendored MapLibre assets and browser version references to 6.18.0. Local npm checks, 108 Node tests and 94 Playwright cases passed. All PR checks passed before #63 merged as `0e78d22`; Quality, CodeQL and Browser regression also passed on that main commit. Open PR count is zero. These dependency changes await a production deployment.

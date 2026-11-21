@@ -8,11 +8,13 @@ import { archiveHealthCutoffs, summarizeArchiveCompleteness } from "./archive-he
 import {
   archiveSummaryFreshnessProblem,
   archiveSummaryHealthFindings,
+  archiveSummaryIncoherences,
   archiveWindow,
   isUsableArchiveSummary,
   municipalArchiveLatestRow,
 } from "./archive-summary.js";
 import { fetchContainerRequest } from "./container-proxy.js";
+import { D1_RESOURCE_COOLDOWN_MS, retryD1Operation, waitForD1 } from "./d1-retry.js";
 import {
   clamp,
   distanceMeters,
@@ -149,21 +151,27 @@ async function runHydroSchedule(env) {
       ),
     };
     summary.d1 = await syncHydroFromContainerResult(env, summary.container);
-    if (summary.d1.some((source) => source.source === "bis" && source.changed)) {
-      summary.municipal_archive = await runMunicipalArchiveBackfill(env, {
-        limit: 500,
-        preferStoredCursor: true,
-      });
-    } else {
-      summary.municipal_archive = { skipped: "hydro_bis_unchanged" };
-    }
   } catch (error) {
     summary.errors.push({ step: "container_hydro_sync", error: String(error?.stack || error) });
   }
+  if (summary.d1?.some((source) => source.source === "bis" && source.changed)) {
+    try {
+      summary.municipal_archive = await runMunicipalArchiveBackfill(env, {
+        limit: 500,
+        preferStoredCursor: true,
+        refreshSummary: false,
+      });
+    } catch (error) {
+      summary.errors.push({ step: "municipal_archive", error: String(error?.stack || error) });
+    }
+  } else {
+    summary.municipal_archive = { skipped: "hydro_bis_unchanged" };
+  }
   const status = summary.errors.length ? "error" : "ok";
-  await storeRuntimeSummary(env.DB, "hydro_schedule", { status, ...summary }, started);
-  await recordRunFinished(env.DB, run.meta.last_row_id, status, summary);
   if (summary.errors.length) console.error("Hydro schedule completed with errors", summary);
+  await recordRunFinished(env.DB, run.meta.last_row_id, status, summary);
+  if (!(await storeRuntimeSummary(env.DB, "hydro_schedule", { status, ...summary }, started)))
+    console.error("Hydro runtime summary publication failed", { runId: run.meta.last_row_id });
 }
 
 async function runMaintenanceSchedule(env) {
@@ -236,9 +244,12 @@ async function runMaintenanceSchedule(env) {
     summary.errors.push({ step: "ingestion_health", error: String(error?.stack || error) });
   }
   const status = summary.errors.length ? "error" : "ok";
-  await storeRuntimeSummary(env.DB, "maintenance_schedule", { status, ...summary }, started);
-  await recordRunFinished(env.DB, run.meta.last_row_id, status, summary);
   if (summary.errors.length) console.error("Maintenance schedule completed with errors", summary);
+  await recordRunFinished(env.DB, run.meta.last_row_id, status, summary);
+  if (!(await storeRuntimeSummary(env.DB, "maintenance_schedule", { status, ...summary }, started)))
+    console.error("Maintenance runtime summary publication failed", {
+      runId: run.meta.last_row_id,
+    });
 }
 
 // A single failed run is noise; a sustained stall is an incident. Evaluate the
@@ -1812,7 +1823,7 @@ async function runtimeMunicipalArchiveBackfillResponse(env, url) {
 
 async function runMunicipalArchiveBackfill(
   env,
-  { limit = 100, afterId = null, preferStoredCursor = false } = {},
+  { limit = 100, afterId = null, preferStoredCursor = false, refreshSummary = true } = {},
 ) {
   const boundedLimit = Math.trunc(clamp(limit, 1, 500));
   const cursor =
@@ -1822,10 +1833,9 @@ async function runMunicipalArchiveBackfill(
       : await municipalArchiveCursor(env.DB));
   const polygons = await hydroPolygonsForMunicipalArchive(env.DB, cursor, boundedLimit);
   if (!polygons.length) {
-    const summaryRefreshed = await shouldRefreshMunicipalArchiveSummary(
-      env.DB,
-      new Date().toISOString(),
-    );
+    const summaryRefreshed =
+      refreshSummary &&
+      (await shouldRefreshMunicipalArchiveSummary(env.DB, new Date().toISOString()));
     if (summaryRefreshed) await refreshMunicipalArchiveSummary(env.DB, cursor || "");
     return {
       polygons_processed: 0,
@@ -1866,7 +1876,7 @@ async function runMunicipalArchiveBackfill(
   await setBuildState(env.DB, "municipal_archive_last_backfill_at", updatedAt);
   const hasMore = polygons.length === boundedLimit;
   const summaryRefreshed =
-    !hasMore && (await shouldRefreshMunicipalArchiveSummary(env.DB, updatedAt));
+    refreshSummary && !hasMore && (await shouldRefreshMunicipalArchiveSummary(env.DB, updatedAt));
   if (summaryRefreshed) await refreshMunicipalArchiveSummary(env.DB, lastPolygonId || cursor || "");
   return {
     polygons_processed: polygons.length,
@@ -2252,9 +2262,10 @@ async function readRuntimeSummary(db, key) {
 async function storeRuntimeSummary(db, key, summary, generatedAt = new Date().toISOString()) {
   const updatedAt = new Date().toISOString();
   try {
-    await db
-      .prepare(
-        `
+    await retryD1Operation(() =>
+      db
+        .prepare(
+          `
         INSERT INTO runtime_summaries (summary_key, summary_json, generated_at, updated_at)
         VALUES (?, ?, ?, ?)
         ON CONFLICT(summary_key) DO UPDATE SET
@@ -2262,9 +2273,10 @@ async function storeRuntimeSummary(db, key, summary, generatedAt = new Date().to
           generated_at = excluded.generated_at,
           updated_at = excluded.updated_at
         `,
-      )
-      .bind(key, JSON.stringify(summary), generatedAt, updatedAt)
-      .run();
+        )
+        .bind(key, JSON.stringify(summary), generatedAt, updatedAt)
+        .run(),
+    );
     return true;
   } catch (_error) {
     return false;
@@ -2609,9 +2621,15 @@ async function runtimeMunicipalPreviousArchiveSummaryResponse(env) {
 }
 
 async function refreshMunicipalArchiveSummary(db, sourceCursor = "") {
+  console.log("Archive summary refresh started", { sourceCursor });
   const summary = await buildMunicipalArchiveSummary(db);
+  const problems = archiveSummaryIncoherences(summary);
+  if (problems.length) throw new Error(problems.join("; "));
   await storeMunicipalArchiveSummary(db, summary, sourceCursor);
-  await setBuildState(db, "municipal_archive_summary_refreshed_at", summary.generatedAt);
+  console.log("Archive summary refresh completed", {
+    sourceCursor,
+    generatedAt: summary.generatedAt,
+  });
   return summary;
 }
 
@@ -2648,9 +2666,10 @@ function emptyMunicipalArchiveSummary(reason = null) {
 }
 
 async function storeMunicipalArchiveSummary(db, summary, sourceCursor = "") {
-  await db
-    .prepare(
-      `
+  return retryD1Operation(() =>
+    db.batch([
+      db
+        .prepare(`
       INSERT INTO municipal_archive_summaries
         (summary_key, summary_json, source_cursor, generated_at, updated_at)
       VALUES ('previous_archive_summary', ?, ?, ?, ?)
@@ -2659,10 +2678,19 @@ async function storeMunicipalArchiveSummary(db, summary, sourceCursor = "") {
         source_cursor = excluded.source_cursor,
         generated_at = excluded.generated_at,
         updated_at = excluded.updated_at
-      `,
-    )
-    .bind(JSON.stringify(summary), sourceCursor, summary.generatedAt, summary.generatedAt)
-    .run();
+    `)
+        .bind(JSON.stringify(summary), sourceCursor, summary.generatedAt, summary.generatedAt),
+      db
+        .prepare(`
+      INSERT INTO municipal_archive_build_state (state_key, state_value, updated_at)
+      VALUES ('municipal_archive_summary_refreshed_at', ?, ?)
+      ON CONFLICT(state_key) DO UPDATE SET
+        state_value = excluded.state_value,
+        updated_at = excluded.updated_at
+    `)
+        .bind(summary.generatedAt, summary.generatedAt),
+    ]),
+  );
 }
 
 async function readStoredMunicipalArchiveSummary(db) {
@@ -2687,15 +2715,21 @@ async function buildMunicipalArchiveSummary(db) {
   const cutoff7d = sqlTimestampDaysAgo(7);
   const cutoff30d = sqlTimestampDaysAgo(30);
   const cutoff1y = sqlTimestampDaysAgo(365);
-  const [windows, largest, latest, territoryResult] = await Promise.all([
-    Promise.all([
-      municipalArchiveWindow(db, "previous_archive_last_24h", cutoff24h),
-      municipalArchiveWindow(db, "previous_archive_last_7d", cutoff7d),
-      municipalArchiveWindow(db, "previous_archive_last_30d", cutoff30d),
-      municipalArchiveWindow(db, "previous_archive_last_1y", cutoff1y),
-    ]),
-    municipalArchiveLargest(db, cutoff1y),
-    municipalArchiveLatest(db, cutoff1y),
+  // Separate heavy reads across D1's resource windows and retry only transient overload.
+  const windows = await retryD1Operation(() =>
+    municipalArchiveWindows(db, {
+      cutoff24h,
+      cutoff7d,
+      cutoff30d,
+      cutoff1y,
+    }),
+  );
+  await waitForD1(D1_RESOURCE_COOLDOWN_MS);
+  const largest = await retryD1Operation(() => municipalArchiveLargest(db, cutoff1y));
+  await waitForD1(D1_RESOURCE_COOLDOWN_MS);
+  const latest = await retryD1Operation(() => municipalArchiveLatest(db, cutoff1y));
+  await waitForD1(D1_RESOURCE_COOLDOWN_MS);
+  const territoryResult = await retryD1Operation(() =>
     db
       .prepare(
         `
@@ -2727,7 +2761,7 @@ async function buildMunicipalArchiveSummary(db) {
       )
       .bind(cutoff1y)
       .all(),
-  ]);
+  );
   const territories = (territoryResult.results || []).map(municipalArchiveTerritoryRow);
   return {
     mode: "municipal_archive",
@@ -2769,23 +2803,49 @@ function parseOptionalJson(raw) {
   }
 }
 
-async function municipalArchiveWindow(db, key, cutoff) {
+async function municipalArchiveWindows(db, { cutoff24h, cutoff7d, cutoff30d, cutoff1y }) {
+  // Each polygon contributes one primary assignment, even across municipal boundaries.
   const row = await db
-    .prepare(
-      `
-      -- One primary row per outage polygon (overlap rows are excluded), so
-      -- summing event_count counts each outage once even when its footprint
-      -- crosses municipal boundaries.
-      SELECT SUM(COALESCE(event_count, 1)) AS outages,
-             SUM(COALESCE(max_customers, 0)) AS total_customers
-      FROM previous_outage_territory_bins
-      WHERE assignment_type = 'primary'
-        AND COALESCE(latest_start_time, last_seen_at, updated_at, '') >= ?
-      `,
-    )
-    .bind(cutoff)
+    .prepare(`
+    SELECT
+      SUM(CASE WHEN COALESCE(latest_start_time, last_seen_at, updated_at, '') >= ?
+          THEN COALESCE(event_count, 1) ELSE 0 END) AS outages_24h,
+      SUM(CASE WHEN COALESCE(latest_start_time, last_seen_at, updated_at, '') >= ?
+          THEN COALESCE(max_customers, 0) ELSE 0 END) AS customers_24h,
+      SUM(CASE WHEN COALESCE(latest_start_time, last_seen_at, updated_at, '') >= ?
+          THEN COALESCE(event_count, 1) ELSE 0 END) AS outages_7d,
+      SUM(CASE WHEN COALESCE(latest_start_time, last_seen_at, updated_at, '') >= ?
+          THEN COALESCE(max_customers, 0) ELSE 0 END) AS customers_7d,
+      SUM(CASE WHEN COALESCE(latest_start_time, last_seen_at, updated_at, '') >= ?
+          THEN COALESCE(event_count, 1) ELSE 0 END) AS outages_30d,
+      SUM(CASE WHEN COALESCE(latest_start_time, last_seen_at, updated_at, '') >= ?
+          THEN COALESCE(max_customers, 0) ELSE 0 END) AS customers_30d,
+      SUM(COALESCE(event_count, 1)) AS outages_1y,
+      SUM(COALESCE(max_customers, 0)) AS customers_1y
+    FROM previous_outage_territory_bins
+    WHERE assignment_type = 'primary'
+      AND COALESCE(latest_start_time, last_seen_at, updated_at, '') >= ?
+  `)
+    .bind(cutoff24h, cutoff24h, cutoff7d, cutoff7d, cutoff30d, cutoff30d, cutoff1y)
     .first();
-  return archiveWindow(key, { outages: row?.outages, totalCustomers: row?.total_customers });
+  return [
+    archiveWindow("previous_archive_last_24h", {
+      outages: row?.outages_24h,
+      totalCustomers: row?.customers_24h,
+    }),
+    archiveWindow("previous_archive_last_7d", {
+      outages: row?.outages_7d,
+      totalCustomers: row?.customers_7d,
+    }),
+    archiveWindow("previous_archive_last_30d", {
+      outages: row?.outages_30d,
+      totalCustomers: row?.customers_30d,
+    }),
+    archiveWindow("previous_archive_last_1y", {
+      outages: row?.outages_1y,
+      totalCustomers: row?.customers_1y,
+    }),
+  ];
 }
 
 async function municipalArchiveLargest(db, cutoff) {
@@ -2817,22 +2877,24 @@ async function municipalArchiveLatest(db, cutoff) {
   const result = await db
     .prepare(
       `
-      SELECT territory_id, territory_name, max_customers, sort_time
-      FROM (
-        SELECT territory_id,
-               territory_name,
-               max_customers,
-               COALESCE(latest_start_time, last_seen_at, updated_at, '') AS sort_time,
-               ROW_NUMBER() OVER (
-                 PARTITION BY territory_id, COALESCE(latest_start_time, last_seen_at, updated_at, '')
-                 ORDER BY updated_at DESC, hydro_polygon_id DESC
-               ) AS duplicate_rank
-        FROM previous_outage_territory_bins
-        WHERE assignment_type = 'primary'
-          AND COALESCE(latest_start_time, last_seen_at, updated_at, '') >= ?
-      )
-      WHERE duplicate_rank = 1
-      ORDER BY sort_time DESC, territory_id
+      SELECT b.territory_id, b.territory_name, b.max_customers,
+             COALESCE(b.latest_start_time, b.last_seen_at, b.updated_at, '') AS sort_time
+      FROM previous_outage_territory_bins AS b
+        INDEXED BY idx_previous_outage_territory_bins_latest_dedupe
+      WHERE b.assignment_type = 'primary'
+        AND COALESCE(b.latest_start_time, b.last_seen_at, b.updated_at, '') >= ?
+        AND NOT EXISTS (
+          SELECT 1
+          FROM previous_outage_territory_bins AS newer
+            INDEXED BY idx_previous_outage_territory_bins_latest_dedupe
+          WHERE newer.assignment_type = 'primary'
+            AND COALESCE(newer.latest_start_time, newer.last_seen_at, newer.updated_at, '') =
+                COALESCE(b.latest_start_time, b.last_seen_at, b.updated_at, '')
+            AND newer.territory_id = b.territory_id
+            AND (newer.updated_at > b.updated_at OR
+                 (newer.updated_at = b.updated_at AND newer.hydro_polygon_id > b.hydro_polygon_id))
+        )
+      ORDER BY sort_time DESC, b.territory_id
       LIMIT 20
       `,
     )
@@ -3239,10 +3301,15 @@ async function recordRunStarted(db, jobName, startedAt) {
 }
 
 async function recordRunFinished(db, runId, status, summary) {
-  return db
-    .prepare("UPDATE ingestion_runs SET finished_at = ?, status = ?, summary_json = ? WHERE id = ?")
-    .bind(new Date().toISOString(), status, JSON.stringify(summary), runId)
-    .run();
+  const finishedAt = new Date().toISOString();
+  return retryD1Operation(() =>
+    db
+      .prepare(
+        "UPDATE ingestion_runs SET finished_at = ?, status = ?, summary_json = ? WHERE id = ?",
+      )
+      .bind(finishedAt, status, JSON.stringify(summary), runId)
+      .run(),
+  );
 }
 
 function safeGet(values, index) {

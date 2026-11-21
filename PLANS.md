@@ -33,8 +33,8 @@ This is the active execution plan. Keep detailed evidence and research notes in 
 
 - [x] Merge dependency PRs #61–#65, including the MapLibre 6.18.0 vendor repair for #63. Main `0e78d22` passes Quality, CodeQL and Browser regression. Deployment of these dependencies is pending.
 - [x] Investigate recurring ingestion/Archive stalls. Live tail confirms D1 error 7429 during Hydro completion bookkeeping after source and Archive writes succeeded. Evidence and uncertainties are in `NOTES.md`.
-- [ ] Reduce or pace the summary rebuild burst. Its latest-row query reads about 1.94 million rows for 20 results.
-- [ ] Make completion bookkeeping resilient to transient D1 overload and keep ingestion completion observable independently of optional Archive processing.
+- [x] Reduce and pace the summary rebuild burst. Production comparison preserves results and reduces the latest-row read count from about 1.94 million to 497.
+- [x] Add bounded overload retries for idempotent completion writes, record completion before runtime-cache publication and keep full summary rebuilds in maintenance.
 - [ ] Distinguish last successful source check from last retained source change in health reporting.
 - [ ] Verify changed-source ingestion and due zero-polygon maintenance complete after an explicitly requested repair/deployment.
 
