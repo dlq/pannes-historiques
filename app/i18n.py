@@ -22,7 +22,7 @@ STRINGS: dict[str, dict[str, str]] = {
         "error_500_body": "Réessayez dans quelques instants, ou revenez à la carte.",
         "error_back_to_map": "Revenir à la carte",
         "brand_title": "Pannes Historiques",
-        "app_title": "Historique des pannes Hydro-Québec",
+        "app_title": "Pannes Hydro-Québec : carte et historique | pannes.ca",
         "app_h1": "Carte des pannes Hydro-Québec",
         "page_description": "Consultez les pannes actuelles et planifiées de Hydro-Québec ainsi que les observations conservées par pannes.ca près des adresses du Québec.",
         "social_image_alt": "Aperçu de pannes.ca montrant une carte du Québec et des zones de panne observées.",
