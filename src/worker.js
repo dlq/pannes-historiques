@@ -170,7 +170,11 @@ async function runHydroSchedule(env) {
   const status = summary.errors.length ? "error" : "ok";
   if (summary.errors.length) console.error("Hydro schedule completed with errors", summary);
   await recordRunFinished(env.DB, run.meta.last_row_id, status, summary);
-  if (!(await storeRuntimeSummary(env.DB, "hydro_schedule", { status, ...summary }, started)))
+  if (
+    !(await storeRuntimeSummary(env.DB, "hydro_schedule", { status, ...summary }, started, {
+      retryOverload: true,
+    }))
+  )
     console.error("Hydro runtime summary publication failed", { runId: run.meta.last_row_id });
 }
 
@@ -246,7 +250,11 @@ async function runMaintenanceSchedule(env) {
   const status = summary.errors.length ? "error" : "ok";
   if (summary.errors.length) console.error("Maintenance schedule completed with errors", summary);
   await recordRunFinished(env.DB, run.meta.last_row_id, status, summary);
-  if (!(await storeRuntimeSummary(env.DB, "maintenance_schedule", { status, ...summary }, started)))
+  if (
+    !(await storeRuntimeSummary(env.DB, "maintenance_schedule", { status, ...summary }, started, {
+      retryOverload: true,
+    }))
+  )
     console.error("Maintenance runtime summary publication failed", {
       runId: run.meta.last_row_id,
     });
@@ -2259,10 +2267,16 @@ async function readRuntimeSummary(db, key) {
   }
 }
 
-async function storeRuntimeSummary(db, key, summary, generatedAt = new Date().toISOString()) {
+async function storeRuntimeSummary(
+  db,
+  key,
+  summary,
+  generatedAt = new Date().toISOString(),
+  { retryOverload = false } = {},
+) {
   const updatedAt = new Date().toISOString();
   try {
-    await retryD1Operation(() =>
+    const write = () =>
       db
         .prepare(
           `
@@ -2275,8 +2289,8 @@ async function storeRuntimeSummary(db, key, summary, generatedAt = new Date().to
         `,
         )
         .bind(key, JSON.stringify(summary), generatedAt, updatedAt)
-        .run(),
-    );
+        .run();
+    await (retryOverload ? retryD1Operation(write) : write());
     return true;
   } catch (_error) {
     return false;

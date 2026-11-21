@@ -163,3 +163,19 @@ test("summary payload and refresh timestamp publish in one retryable batch", asy
   assert.match(batches[1][1].sql, /municipal_archive_summary_refreshed_at/);
   assert.deepEqual(batches[0], batches[1]);
 });
+
+test("runtime-cache publication retries overload only when scheduled jobs opt in", async () => {
+  for (const scheduled of [false, true]) {
+    let writes = 0;
+    const publish = load("storeRuntimeSummary", {
+      retryD1Operation: operation => retryD1Operation(operation, { sleep: async () => {} }),
+    });
+    const db = { prepare() { return { bind() { return { run: async () => {
+      writes++;
+      if (writes === 1) throw new Error("D1 DB is overloaded");
+    } }; } }; } };
+    const saved = await publish(db, "key", {}, "2026-11-21", { retryOverload: scheduled });
+    assert.equal(saved, scheduled);
+    assert.equal(writes, scheduled ? 2 : 1);
+  }
+});
