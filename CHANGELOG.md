@@ -13,7 +13,8 @@ Keep active execution state in `PLANS.md` and source/evidence research in `NOTES
 
 ### Changed
 
-- Merged Python tooling, Gunicorn 27.0.1, npm tooling, MapLibre 6.18.0 and paired CodeQL action updates from dependency PRs #61–#65.
+- Merged and deployed Python tooling, Gunicorn 27.0.1, npm tooling, MapLibre 6.18.0 and paired CodeQL action updates from dependency PRs #61–#65.
+- Deployed Worker `05a1b70` and container version 136 on 2026-11-21. Two changed-source ingestion runs and scheduled zero-polygon Archive maintenance completed successfully; the overdue summary refreshed automatically and health warnings cleared. Production map/search checks passed on desktop and mobile.
 
 
 ## [v0.4.9] - 2026-11-13

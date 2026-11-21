@@ -1,14 +1,14 @@
 # Plan: Hydro-Quebec Outage History App
 
 Date: 2026-04-25
-Last updated: 2026-11-13
+Last updated: 2026-11-21
 
 This is the active execution plan. Keep detailed evidence and research notes in `NOTES.md`, completed release history in `CHANGELOG.md`, operational runbooks in `docs/operations.md`, and long maintenance backlogs in `docs/maintenance-backlog.md`.
 
 ## Current State
 
 - Current shipped release: `v0.4.9`, privacy-preserving product usage evidence, tagged 2026-11-13.
-- Latest production deployment: application commit `40e6266`, deployed 2026-11-13 as Worker `95622681-526c-40eb-a777-bd29711a2a00` at 100%. Container application version 134 uses immutable amd64 image `sha256:ac2d77c330755cd896ae876a8b80f8c68bf76f83486c0f9ae9c106595d95ddb5` from `0a8c8dd`. The Worker fix checks whether the Archive summary is due even when no new polygons are found. CI passed and live ingestion is healthy. A follow-up will verify the next due automatic refresh.
+- Latest production deployment: Worker source `05a1b70`, deployed 2026-11-21 as `4e1b3333-dd99-41c4-ba41-ceb3dc4e7e07` at 100%. Container application version 136 uses immutable amd64 image `sha256:d9802096b547311df10c40350deeb4a277f89602df8b672e33bb9bf04350201a`, including dependency PRs #61–#65. D1 summary reads are reduced/paced and scheduled completion is retried before cache publication. Quality, CodeQL and Browser CI passed. Production desktop/mobile map checks, exact asset comparisons and two changed-source ingestion runs passed. Scheduled maintenance refreshed the due summary at 17:43 UTC with zero new polygons; health has no problems or warnings.
 - Ingestion incident 2026-07-15 to 2026-07-20: scheduled Hydro ingestion failed every 30 minutes for five days while the site returned `200` and served stale data. Cause was the durable collection path storing payload files without registering the `raw_snapshots` row the Worker's `/internal/raw-snapshot` callback resolves through. Fixed and verified: run 3630 completed `ok` and snapshots are current again. Two plausible-but-wrong hypotheses were ruled out by testing rather than by correlation — container ephemerality, and the `v0.4.3` CodeQL path-hardening, whose lookup was exercised directly against a real file and resolves correctly.
 - Monitoring gap this exposed: the only health surface was token-protected and pull-based, so nothing observed the failure. `GET /api/health/ingestion` now returns `503` when ingestion is stale or failing. The `Ingestion health monitor` GitHub Actions workflow probes it hourly.
 - That probe also fails when the served archive summary is missing or contradicts itself, after the Archive report spent months showing a count of municipalities as a count of outages while every health surface reported green. A routine cursor lag between 15-minute ingestion and the bounded summary refresh remains visible as a warning without declaring fresh ingestion unhealthy. This classification is deployed and production-verified.
@@ -31,12 +31,13 @@ This is the active execution plan. Keep detailed evidence and research notes in 
 
 ## Current Local Slice
 
-- [x] Merge dependency PRs #61–#65, including the MapLibre 6.18.0 vendor repair for #63. Main `0e78d22` passes Quality, CodeQL and Browser regression. Deployment of these dependencies is pending.
+- [x] Merge dependency PRs #61–#65, including the MapLibre 6.18.0 vendor repair for #63. Main `0e78d22` passes Quality, CodeQL and Browser regression. The dependency updates are deployed in container version 136.
 - [x] Investigate recurring ingestion/Archive stalls. Live tail confirms D1 error 7429 during Hydro completion bookkeeping after source and Archive writes succeeded. Evidence and uncertainties are in `NOTES.md`.
 - [x] Reduce and pace the summary rebuild burst. Production comparison preserves results and reduces the latest-row read count from about 1.94 million to 497.
 - [x] Add bounded overload retries for idempotent completion writes, record completion before runtime-cache publication and keep full summary rebuilds in maintenance.
 - [ ] Distinguish last successful source check from last retained source change in health reporting.
-- [ ] Verify changed-source ingestion and due zero-polygon maintenance complete after an explicitly requested repair/deployment.
+- [x] Verify changed-source ingestion completes after deployment: 17:22 UTC, both feeds changed, six Archive polygons processed, terminal `ok` with no errors.
+- [x] Verify automatic due maintenance: 17:43 UTC completed `ok`, zero polygons, summary refreshed, matching cursors and no health warnings; daily cleanup also recovered.
 
 ## Roadmap
 

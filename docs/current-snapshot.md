@@ -1,13 +1,13 @@
 # Current Snapshot
 
-Last updated: 2026-11-13
+Last updated: 2026-11-21
 
 Read this first for quick orientation. Use `PLANS.md` for the active roadmap, `docs/architecture.md` for runtime boundaries, `docs/cost-containment.md` for cost strategy, and `CHANGELOG.md` for completed release history.
 
 ## Version And Deployment
 
 - Shipped release and package version: `v0.4.9`, tagged 2026-11-13. The tag includes release documentation for the deployed application.
-- Latest production deployment: application commit `40e6266`, deployed 2026-11-13 as Worker `95622681-526c-40eb-a777-bd29711a2a00` at 100%. Container application version 134 uses immutable amd64 image `sha256:ac2d77c330755cd896ae876a8b80f8c68bf76f83486c0f9ae9c106595d95ddb5` from `0a8c8dd`. The Worker fix checks whether the Archive summary is due even when no new polygons are found. CI passed and live ingestion is healthy. A follow-up will verify the next due automatic refresh.
+- Latest production deployment: Worker source `05a1b70`, deployed 2026-11-21 as `4e1b3333-dd99-41c4-ba41-ceb3dc4e7e07` at 100%. Container application version 136 uses immutable amd64 image `sha256:d9802096b547311df10c40350deeb4a277f89602df8b672e33bb9bf04350201a`, including dependency PRs #61–#65. D1 summary reads are reduced/paced and scheduled completion is retried before cache publication. Quality, CodeQL and Browser CI passed. Production desktop/mobile map checks, exact asset comparisons and two changed-source ingestion runs passed. Scheduled maintenance refreshed the due summary at 17:43 UTC with zero new polygons; health has no problems or warnings.
 - Do not treat a merge to `main` as proof of production deployment; record deployment evidence in `PLANS.md` and `CHANGELOG.md`.
 - Current development direction: the `v0.4.9` identifier-free daily feature/action evidence is deployed, with 90-day retention, a private readout, migration `0012`, and the shared interaction-endpoint edge rule active. The eight-week usage decision is recorded in NOTES.md: continue existing bounded collection without analytics expansion. The post-release archive cursor query optimization is deployed and awaits a 24-hour D1 read comparison. `v0.4.8` completed the authenticated cost decision, container-runtime retirement, archive cursor health guard, and autocomplete edge protection.
 - `v0.5.0` remains gated on `v0.4.9`'s bounded usage-data lifecycle and a 14-day observation window with healthy ingestion, bounded archive-summary refresh without unexplained prolonged lag, and no unexplained archive-completeness regression.
